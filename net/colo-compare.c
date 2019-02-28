@@ -1468,7 +1468,7 @@ static void colo_compare_finalize(Object *obj)
     g_free(s->notify_dev);
 }
 
-static void __attribute__((__constructor__)) colo_compare_init_globals(void)
+static void QEMU_CONSTRUCTOR(colo_compare_init_globals)(void)
 {
     colo_compare_active = false;
     qemu_mutex_init(&colo_compare_mutex);

@@ -451,7 +451,7 @@
 
 #if TARGET_BIG_ENDIAN == (XCHAL_HAVE_BE != 0)
 #define REGISTER_CORE(core) \
-    static void __attribute__((constructor)) register_core(void) \
+    static void QEMU_CONSTRUCTOR(register_core)(void) \
     { \
         static XtensaConfigList node = { \
             .config = &core, \

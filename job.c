@@ -105,7 +105,7 @@ void job_unlock(void)
     qemu_mutex_unlock(&job_mutex);
 }
 
-static void __attribute__((__constructor__)) job_init(void)
+static void QEMU_CONSTRUCTOR(job_init)(void)
 {
     qemu_mutex_init(&job_mutex);
 }

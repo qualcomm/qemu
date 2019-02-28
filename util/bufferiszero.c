@@ -241,7 +241,7 @@ static void init_accel(unsigned cache)
 #if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
 #include "qemu/cpuid.h"
 
-static void __attribute__((constructor)) init_cpuid_cache(void)
+static void QEMU_CONSTRUCTOR(init_cpuid_cache)(void)
 {
     unsigned max = __get_cpuid_max(0, NULL);
     int a, b, c, d;

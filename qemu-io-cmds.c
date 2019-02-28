@@ -2511,7 +2511,7 @@ int qemuio_command(BlockBackend *blk, const char *cmd)
     return ret;
 }
 
-static void __attribute((constructor)) init_qemuio_commands(void)
+static void QEMU_CONSTRUCTOR(init_qemuio_commands)(void)
 {
     /* initialize commands */
     qemuio_add_command(&help_cmd);

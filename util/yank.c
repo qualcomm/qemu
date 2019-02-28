@@ -193,7 +193,7 @@ YankInstanceList *qmp_query_yank(Error **errp)
     return ret;
 }
 
-static void __attribute__((__constructor__)) yank_init(void)
+static void QEMU_CONSTRUCTOR(yank_init)(void)
 {
     qemu_mutex_init(&yank_lock);
 }
