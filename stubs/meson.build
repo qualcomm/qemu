@@ -62,4 +62,9 @@ if have_system
 else
   stub_ss.add(files('qdev.c'))
 endif
+
 stub_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_false: files('vfio-user-obj.c'))
+
+if enable_libqemu
+  stub_ss.add(files('libqemu.c'))
+endif
