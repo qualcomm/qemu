@@ -82,3 +82,7 @@ if have_system or have_user
   stub_ss.add(files('hotplug-stubs.c'))
   stub_ss.add(files('sysbus.c'))
 endif
+
+if enable_libqemu
+  stub_ss.add(files('libqemu.c'))
+endif
