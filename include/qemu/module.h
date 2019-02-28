@@ -26,14 +26,14 @@ void DSO_STAMP_FUN(void);
 void qemu_module_dummy(void);
 
 #define module_init(function, type)                                         \
-static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
+static void QEMU_CONSTRUCTOR(do_qemu_init_ ## function)(void)    \
 {                                                                           \
     register_dso_module_init(function, type);                               \
 }
 #else
 /* This should not be used directly.  Use block_init etc. instead.  */
 #define module_init(function, type)                                         \
-static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
+static void QEMU_CONSTRUCTOR(do_qemu_init_ ## function)(void)    \
 {                                                                           \
     register_module_init(function, type);                                   \
 }
