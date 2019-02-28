@@ -77,7 +77,7 @@ static void qemu_coroutine_thread_cleanup(void *opaque)
     g_free(s);
 }
 
-static void __attribute__((constructor)) coroutine_init(void)
+static void QEMU_CONSTRUCTOR(coroutine_init)(void)
 {
     int ret;
 

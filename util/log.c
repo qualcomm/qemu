@@ -156,7 +156,7 @@ void qemu_log(const char *fmt, ...)
     }
 }
 
-static void __attribute__((__constructor__)) startup(void)
+static void QEMU_CONSTRUCTOR(startup)(void)
 {
     qemu_mutex_init(&global_mutex);
 }

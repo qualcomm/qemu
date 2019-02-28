@@ -558,7 +558,7 @@ static bool plugin_dyn_cb_arr_cmp(const void *ap, const void *bp)
     return ap == bp;
 }
 
-static void __attribute__((__constructor__)) plugin_init(void)
+static void QEMU_CONSTRUCTOR(plugin_init)(void)
 {
     int i;
 

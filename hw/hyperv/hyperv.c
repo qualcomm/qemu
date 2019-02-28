@@ -532,7 +532,7 @@ static QLIST_HEAD(, MsgHandler) msg_handlers;
 static QLIST_HEAD(, EventFlagHandler) event_flag_handlers;
 static QemuMutex handlers_mutex;
 
-static void __attribute__((constructor)) hv_init(void)
+static void QEMU_CONSTRUCTOR(hv_init)(void)
 {
     QLIST_INIT(&msg_handlers);
     QLIST_INIT(&event_flag_handlers);

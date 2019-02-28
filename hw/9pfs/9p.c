@@ -4349,7 +4349,7 @@ void v9fs_reset(V9fsState *s)
     }
 }
 
-static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
+static void QEMU_CONSTRUCTOR(v9fs_set_fd_limit)(void)
 {
     struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {

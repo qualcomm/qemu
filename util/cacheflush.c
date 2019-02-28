@@ -201,7 +201,7 @@ static void fallback_cache_info(int *isize, int *dsize)
     }
 }
 
-static void __attribute__((constructor)) init_cache_info(void)
+static void QEMU_CONSTRUCTOR(init_cache_info)(void)
 {
     int isize = 0, dsize = 0;
 
