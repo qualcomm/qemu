@@ -33,7 +33,7 @@ int64_t clock_start;
 
 int64_t clock_freq;
 
-static void __attribute__((constructor)) init_get_clock(void)
+static void QEMU_CONSTRUCTOR(init_get_clock)(void)
 {
     LARGE_INTEGER freq;
     int ret;
@@ -50,7 +50,7 @@ static void __attribute__((constructor)) init_get_clock(void)
 
 int use_rt_clock;
 
-static void __attribute__((constructor)) init_get_clock(void)
+static void QEMU_CONSTRUCTOR(init_get_clock)(void)
 {
     struct timespec ts;
 
