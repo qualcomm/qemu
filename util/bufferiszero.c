@@ -119,7 +119,7 @@ bool test_buffer_is_zero_next_accel(void)
     return false;
 }
 
-static void __attribute__((constructor)) init_accel(void)
+static void QEMU_CONSTRUCTOR(init_accel)(void)
 {
     accel_index = best_accel();
     buffer_is_zero_accel = accel_table[accel_index];

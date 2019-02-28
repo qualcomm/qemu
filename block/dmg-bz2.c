@@ -52,8 +52,7 @@ static int dmg_uncompress_bz2_do(char *next_in, unsigned int avail_in,
     return 0;
 }
 
-__attribute__((constructor))
-static void dmg_bz2_init(void)
+static void QEMU_CONSTRUCTOR(dmg_bz2_init)(void)
 {
     assert(!dmg_uncompress_bz2);
     dmg_uncompress_bz2 = dmg_uncompress_bz2_do;
