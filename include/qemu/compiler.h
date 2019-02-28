@@ -162,6 +162,19 @@
 #define QEMU_ALWAYS_INLINE
 #endif
 
+#if defined(CONFIG_LIBQEMU)
+# include "libqemu/ctors.h"
+# define QEMU_CONSTRUCTOR(x) \
+    x(void);                                                                \
+    static void __attribute__((constructor)) libqemu_register_##x(void)     \
+    {                                                                       \
+        libqemu_early_register_ctor(x);                                     \
+    }                                                                       \
+    static void x
+#else
+# define QEMU_CONSTRUCTOR(x) __attribute__((constructor)) x
+#endif
+
 /**
  * In most cases, normal "fallthrough" comments are good enough for
  * switch-case statements, but sometimes the compiler has problems
