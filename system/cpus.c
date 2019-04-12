@@ -336,6 +336,9 @@ bool cpu_can_run(CPUState *cpu)
     if (cpu_is_stopped(cpu)) {
         return false;
     }
+    if (cpu->soft_stopped) {
+        return false;
+    }
     return true;
 }
 
