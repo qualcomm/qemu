@@ -53,6 +53,7 @@ struct TCGState {
 
     OnOffAuto mttcg_enabled;
     bool one_insn_per_tb;
+    bool coroutine;
     int splitwx_enabled;
     unsigned long tb_size;
 };
@@ -75,6 +76,8 @@ static void tcg_accel_instance_init(Object *obj)
 {
     TCGState *s = TCG_STATE(obj);
 
+    s->coroutine = false;
+
     /* If debugging enabled, default "auto on", otherwise off. */
 #if defined(CONFIG_DEBUG_TCG) && !defined(CONFIG_USER_ONLY)
     s->splitwx_enabled = -1;
@@ -84,6 +87,7 @@ static void tcg_accel_instance_init(Object *obj)
 }
 
 bool one_insn_per_tb;
+bool coroutine_tcg;
 
 #ifndef CONFIG_USER_ONLY
 static void tcg_vm_change_state(void *opaque, bool running, RunState state)
@@ -149,6 +153,7 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
 #endif
 
     tcg_allowed = true;
+    coroutine_tcg = s->coroutine;
 
     as->gdbstub.sstep_flags = SSTEP_ENABLE;
     if (replay_mode == REPLAY_MODE_NONE) {
@@ -205,6 +210,20 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
     } else {
         error_setg(errp, "Invalid 'thread' setting %s", value);
     }
+}
+
+static bool tcg_get_coroutine(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    return s->coroutine;
+}
+
+static void tcg_set_coroutine(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    s->coroutine = value;
 }
 
 static void tcg_get_tb_size(Object *obj, Visitor *v,
@@ -270,6 +289,12 @@ static void tcg_accel_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "thread",
                                   tcg_get_thread,
                                   tcg_set_thread);
+
+    object_class_property_add_bool(oc, "coroutine",
+                                   tcg_get_coroutine,
+                                   tcg_set_coroutine);
+    object_class_property_set_description(oc, "coroutine",
+        "Enable/disable coroutine based CPU loop");
 
     object_class_property_add(oc, "tb-size", "uint32", &uint32_type_info,
                               tcg_get_tb_size, tcg_set_tb_size,
