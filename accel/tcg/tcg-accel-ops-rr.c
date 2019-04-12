@@ -181,6 +181,8 @@ static void *rr_cpu_thread_fn(void *arg)
 
     cpu = first_cpu;
 
+    current_cpu = cpu;
+
     /* process any pending work */
     cpu->exit_request = 1;
 
