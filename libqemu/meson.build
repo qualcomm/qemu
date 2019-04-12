@@ -2,7 +2,7 @@ if not enable_libqemu
    subdir_done()
 endif
 
-libqemu_ss.add(files('ctors.c', 'run-on-iothread.c'))
+libqemu_ss.add(files('ctors.c', 'run-on-iothread.c', 'libqemu.c'))
 
 subdir('wrappers')
 subdir('exports')
