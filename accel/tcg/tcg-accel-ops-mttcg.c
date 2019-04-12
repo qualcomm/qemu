@@ -70,16 +70,20 @@ static void *mttcg_cpu_thread_fn(void *arg)
     assert(tcg_enabled());
     g_assert(!icount_enabled());
 
-    rcu_register_thread();
-    force_rcu.notifier.notify = mttcg_force_rcu;
-    force_rcu.cpu = cpu;
-    rcu_add_force_rcu_notifier(&force_rcu.notifier);
-    tcg_register_thread();
+    if (!coroutine_tcg) {
+        rcu_register_thread();
+        force_rcu.notifier.notify = mttcg_force_rcu;
+        force_rcu.cpu = cpu;
+        rcu_add_force_rcu_notifier(&force_rcu.notifier);
+        tcg_register_thread();
+    }
 
     bql_lock();
-    qemu_thread_get_self(cpu->thread);
+    if (!coroutine_tcg) {
+        qemu_thread_get_self(cpu->thread);
+        cpu->thread_id = qemu_get_thread_id();
+    }
 
-    cpu->thread_id = qemu_get_thread_id();
     cpu->neg.can_do_io = true;
     current_cpu = cpu;
     cpu_thread_signal_created(cpu);
@@ -130,6 +134,11 @@ void mttcg_kick_vcpu_thread(CPUState *cpu)
     cpu_exit(cpu);
 }
 
+static void mttcg_cpu_coroutine_fn(void *arg)
+{
+    mttcg_cpu_thread_fn(arg);
+}
+
 void mttcg_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
@@ -137,10 +146,19 @@ void mttcg_start_vcpu_thread(CPUState *cpu)
     g_assert(tcg_enabled());
     tcg_cpu_init_cflags(cpu, current_machine->smp.max_cpus > 1);
 
-    /* create a thread per vCPU with TCG (MTTCG) */
-    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
-             cpu->cpu_index);
+    cpu->thread = g_new0(QemuThread, 1);
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
 
-    qemu_thread_create(cpu->thread, thread_name, mttcg_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE);
+    if (!coroutine_tcg) {
+        /* create a thread per vCPU with TCG (MTTCG) */
+        snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
+                 cpu->cpu_index);
+
+        qemu_thread_create(cpu->thread, thread_name, mttcg_cpu_thread_fn,
+                        cpu, QEMU_THREAD_JOINABLE);
+    } else {
+        cpu->coroutine = qemu_coroutine_create(mttcg_cpu_coroutine_fn, cpu);
+        cpu->created = true;
+    }
 }
