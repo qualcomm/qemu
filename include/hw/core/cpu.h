@@ -498,6 +498,7 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
+    bool soft_stopped;
 
     bool start_powered_off;
 
