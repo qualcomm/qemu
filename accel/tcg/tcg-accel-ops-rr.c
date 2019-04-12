@@ -153,10 +153,14 @@ static void *rr_cpu_thread_fn(void *arg)
     CPUState *cpu = arg;
 
     assert(tcg_enabled());
-    rcu_register_thread();
-    force_rcu.notify = rr_force_rcu;
-    rcu_add_force_rcu_notifier(&force_rcu);
-    tcg_register_thread();
+    if (!coroutine_tcg) {
+        rcu_register_thread();
+        tcg_register_thread();
+        rcu_register_thread();
+        force_rcu.notify = rr_force_rcu;
+        rcu_add_force_rcu_notifier(&force_rcu);
+        tcg_register_thread();
+    }
 
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
@@ -271,11 +275,17 @@ static void *rr_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void rr_cpu_coroutine_fn(void *arg)
+{
+    rr_cpu_thread_fn(arg);
+}
+
 void rr_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
     static QemuCond *single_tcg_halt_cond;
     static QemuThread *single_tcg_cpu_thread;
+    static Coroutine *single_tcg_cpu_coroutine;
 
     g_assert(tcg_enabled());
     tcg_cpu_init_cflags(cpu, false);
@@ -285,20 +295,26 @@ void rr_start_vcpu_thread(CPUState *cpu)
         cpu->halt_cond = g_new0(QemuCond, 1);
         qemu_cond_init(cpu->halt_cond);
 
-        /* share a single thread for all cpus with TCG */
-        snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "ALL CPUs/TCG");
-        qemu_thread_create(cpu->thread, thread_name,
-                           rr_cpu_thread_fn,
-                           cpu, QEMU_THREAD_JOINABLE);
-
+        if (!coroutine_tcg) {
+            /* share a single thread for all cpus with TCG */
+            snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "ALL CPUs/TCG");
+            qemu_thread_create(cpu->thread, thread_name,
+                            rr_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE);
+        } else {
+            cpu->coroutine = qemu_coroutine_create(rr_cpu_coroutine_fn, cpu);
+            cpu->created = true;
+        }
         single_tcg_halt_cond = cpu->halt_cond;
         single_tcg_cpu_thread = cpu->thread;
+        single_tcg_cpu_coroutine = cpu->coroutine;
 #ifdef _WIN32
         cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
     } else {
         /* we share the thread */
         cpu->thread = single_tcg_cpu_thread;
+        cpu->coroutine = single_tcg_cpu_coroutine;
         cpu->halt_cond = single_tcg_halt_cond;
         cpu->thread_id = first_cpu->thread_id;
         cpu->can_do_io = 1;
