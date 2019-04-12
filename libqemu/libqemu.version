@@ -1,0 +1,4 @@
+{
+    global: libqemu_init;
+    local: *;
+};
