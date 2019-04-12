@@ -211,6 +211,8 @@ static void *rr_cpu_thread_fn(void *arg)
 
     cpu = first_cpu;
 
+    current_cpu = cpu;
+
     while (1) {
         /* Only used for icount_enabled() */
         int64_t cpu_budget = 0;
