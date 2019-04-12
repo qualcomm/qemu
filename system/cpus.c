@@ -279,6 +279,9 @@ bool cpu_can_run(const CPUState *cpu)
     if (cpu_is_stopped(cpu)) {
         return false;
     }
+    if (cpu->soft_stopped) {
+        return false;
+    }
     return true;
 }
 
