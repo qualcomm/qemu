@@ -44,6 +44,7 @@ struct TCGState {
 
     bool mttcg_enabled;
     bool one_insn_per_tb;
+    bool coroutine;
     int splitwx_enabled;
     unsigned long tb_size;
 };
@@ -101,6 +102,7 @@ static void tcg_accel_instance_init(Object *obj)
     TCGState *s = TCG_STATE(obj);
 
     s->mttcg_enabled = default_mttcg_enabled();
+    s->coroutine = false;
 
     /* If debugging enabled, default "auto on", otherwise off. */
 #if defined(CONFIG_DEBUG_TCG) && !defined(CONFIG_USER_ONLY)
@@ -112,6 +114,7 @@ static void tcg_accel_instance_init(Object *obj)
 
 bool mttcg_enabled;
 bool one_insn_per_tb;
+bool coroutine_tcg;
 
 static int tcg_init_machine(MachineState *ms)
 {
@@ -124,6 +127,7 @@ static int tcg_init_machine(MachineState *ms)
 
     tcg_allowed = true;
     mttcg_enabled = s->mttcg_enabled;
+    coroutine_tcg = s->coroutine;
 
     page_init();
     tb_htable_init();
@@ -173,6 +177,20 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
     } else {
         error_setg(errp, "Invalid 'thread' setting %s", value);
     }
+}
+
+static bool tcg_get_coroutine(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    return s->coroutine;
+}
+
+static void tcg_set_coroutine(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    s->coroutine = value;
 }
 
 static void tcg_get_tb_size(Object *obj, Visitor *v,
@@ -251,6 +269,12 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "thread",
                                   tcg_get_thread,
                                   tcg_set_thread);
+
+    object_class_property_add_bool(oc, "coroutine",
+                                   tcg_get_coroutine,
+                                   tcg_set_coroutine);
+    object_class_property_set_description(oc, "coroutine",
+        "Enable/disable coroutine based CPU loop");
 
     object_class_property_add(oc, "tb-size", "int",
         tcg_get_tb_size, tcg_set_tb_size,
