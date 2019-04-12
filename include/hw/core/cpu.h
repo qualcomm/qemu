@@ -36,6 +36,7 @@
 #include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qom/object.h"
+#include "qemu/coroutine.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
@@ -486,6 +487,7 @@ struct CPUState {
     int nr_threads;
 
     struct QemuThread *thread;
+    Coroutine *coroutine;
 #ifdef _WIN32
     QemuSemaphore sem;
 #endif
@@ -628,6 +630,8 @@ extern CPUTailQ cpus_queue;
     QTAILQ_FOREACH_SAFE_RCU(cpu, &cpus_queue, node, next_cpu)
 
 extern __thread CPUState *current_cpu;
+
+extern bool coroutine_tcg;
 
 /**
  * cpu_paging_enabled:
