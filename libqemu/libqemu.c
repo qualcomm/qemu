@@ -36,6 +36,7 @@ typedef struct LibQemuContext LibQemuContext;
 struct LibQemuContext {
     LibQemuExports exports;
     QemuThread iothread;
+    GMainContext *iothread_context;
     int argc;
     char **argv;
 };
@@ -54,11 +55,15 @@ static void *iothread_entry(void *arg)
 {
     LibQemuContext *context = (LibQemuContext*) arg;
 
+    g_main_context_push_thread_default(context->iothread_context);
+
     libqemu_call_ctors();
 
     qemu_init(context->argc, context->argv);
     int status = qemu_main_loop();
     qemu_cleanup(status);
+
+    g_main_context_pop_thread_default(context->iothread_context);
 
     return NULL;
 }
@@ -98,6 +103,7 @@ static void start_iothread(int argc, char **argv)
 {
     context.argc = argc;
     context.argv = argv;
+    context.iothread_context = g_main_context_new();
 
     qemu_thread_create(&context.iothread, "qemu-iothread",
                        iothread_entry, &context, QEMU_THREAD_JOINABLE);
