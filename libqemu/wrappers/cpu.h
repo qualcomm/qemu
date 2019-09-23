@@ -26,6 +26,8 @@ void libqemu_cpu_loop(Object *cpu);
 bool libqemu_cpu_loop_is_busy(Object *cpu);
 bool libqemu_cpu_can_run(Object *cpu);
 void libqemu_cpu_register_thread(Object *cpu);
+void libqemu_cpu_reset(Object *cpu);
+void libqemu_cpu_halt(Object *cpu, bool halted);
 
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
