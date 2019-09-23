@@ -27,13 +27,18 @@ def indent_pop():
 class PrivateInclude:
     includes = []
 
-    def __init__(self, path):
+    def __init__(self, path, arch = None):
         self.path = path
+        self.arch = arch
         self.includes.append(self)
 
     def gen():
         for i in PrivateInclude.includes:
+            if i.arch:
+                gen_c('#ifdef TARGET_{}'.format(i.arch.upper()))
             gen_c('#include "{}"'.format(i.path))
+            if i.arch:
+                gen_c('#endif')
 
 
 class PublicInclude:
@@ -84,7 +89,7 @@ class ExportedType:
 class ExportedFct:
     fcts = {}
 
-    def __init__(self, pub, ret, args, priv = None, on_iothread = False, iothread_locked = False):
+    def __init__(self, pub, ret, args, priv = None, on_iothread = False, iothread_locked = False, arch = None):
         priv = pub if priv is None else priv
 
         self.pub = pub
@@ -94,6 +99,7 @@ class ExportedFct:
         self.on_iothread = on_iothread
         self.iothread_locked = iothread_locked
         self.wrapped = on_iothread or iothread_locked
+        self.arch = arch
 
         self.fcts[priv] = self
 
@@ -212,11 +218,19 @@ def gen_fill_fct():
     indent_push()
 
     for f in ExportedFct.fcts.values():
+        if f.arch:
+            gen_c('#ifdef TARGET_{}'.format(f.arch.upper()))
+
         gen_c('exports->{name} = ({cast}) {target};'.format(
             name = f.pub,
             cast = f.get_pub_cast(),
             target = f.get_priv_target())
         )
+
+        if f.arch:
+            gen_c('#else')
+            gen_c('exports->{name} = NULL;'.format(name = f.pub))
+            gen_c('#endif')
 
     indent_pop()
 

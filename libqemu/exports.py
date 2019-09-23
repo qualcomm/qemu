@@ -151,3 +151,13 @@ ExportedFct('timer_new_virtual_ns', 'QemuTimer *', [ 'LibQemuTimerCb', 'void *' 
 ExportedFct('timer_free', 'void', [ 'QemuTimer *' ])
 ExportedFct('timer_mod_ns', 'void', [ 'QemuTimer *', 'int64_t' ])
 ExportedFct('timer_del', 'void', [ 'QemuTimer *' ])
+
+PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
+ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
+        priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
+ExportedFct('cpu_arm_add_nvic_link', 'void', [ 'Object *' ],
+        priv = 'libqemu_cpu_arm_add_nvic_link', arch = 'aarch64')
+ExportedFct('arm_nvic_add_cpu_link', 'void', [ 'Object *' ],
+        priv = 'libqemu_arm_nvic_add_cpu_link', arch = 'aarch64')
+ExportedFct('cpu_aarch64_set_aarch64_mode', 'void', [ 'Object *', 'bool' ],
+        priv = 'libqemu_cpu_aarch64_set_aarch64_mode', arch = 'aarch64')
