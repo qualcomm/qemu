@@ -102,6 +102,24 @@ void libqemu_cpu_register_thread(Object *obj)
     cpu->thread_id = qemu_get_thread_id();
 }
 
+void libqemu_cpu_reset(Object *obj)
+{
+    cpu_reset(CPU(obj));
+}
+
+void libqemu_cpu_halt(Object *obj, bool halted)
+{
+    CPUState *cpu = CPU(obj);
+
+    if (halted) {
+        cpu->stop = true;
+        qemu_cpu_kick(cpu);
+    } else {
+        cpu_resume(cpu);
+    }
+}
+
+
 Object * libqemu_current_cpu_get(void)
 {
     return OBJECT(current_cpu);
