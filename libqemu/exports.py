@@ -135,6 +135,8 @@ ExportedFct('cpu_loop_is_busy', 'bool', [ 'Object *' ], priv = 'libqemu_cpu_loop
 ExportedFct('cpu_can_run', 'bool', [ 'Object *' ], priv = 'libqemu_cpu_can_run')
 ExportedFct('cpu_register_thread', 'void', [ 'Object *' ], priv = 'libqemu_cpu_register_thread')
 ExportedFct('cpu_kick', 'void', [ 'Object *' ], priv = 'qemu_cpu_kick')
+ExportedFct('cpu_reset', 'void', [ 'Object *' ], priv = 'libqemu_cpu_reset')
+ExportedFct('cpu_halt', 'void', [ 'Object *', 'bool', ], priv = 'libqemu_cpu_halt')
 ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
 
