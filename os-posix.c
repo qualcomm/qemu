@@ -63,13 +63,16 @@ void os_setup_early_signal_handling(void)
     sigaction(SIGPIPE, &act, NULL);
 }
 
+#ifndef CONFIG_LIBQEMU
 static void termsig_handler(int signal, siginfo_t *info, void *c)
 {
     qemu_system_killed(info->si_signo, info->si_pid);
 }
+#endif
 
 void os_setup_signal_handling(void)
 {
+#ifndef CONFIG_LIBQEMU
     struct sigaction act;
 
     memset(&act, 0, sizeof(act));
@@ -78,6 +81,7 @@ void os_setup_signal_handling(void)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGHUP,  &act, NULL);
     sigaction(SIGTERM, &act, NULL);
+#endif
 }
 
 void os_set_proc_name(const char *s)
