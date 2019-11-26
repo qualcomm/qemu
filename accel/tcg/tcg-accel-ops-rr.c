@@ -301,6 +301,9 @@ void rr_start_vcpu_thread(CPUState *cpu)
             qemu_thread_create(cpu->thread, thread_name,
                             rr_cpu_thread_fn,
                             cpu, QEMU_THREAD_JOINABLE);
+#ifdef _WIN32
+            cpu->hThread = qemu_thread_get_handle(cpu->thread);
+#endif
         } else {
             cpu->coroutine = qemu_coroutine_create(rr_cpu_coroutine_fn, cpu);
             cpu->created = true;
@@ -308,9 +311,6 @@ void rr_start_vcpu_thread(CPUState *cpu)
         single_tcg_halt_cond = cpu->halt_cond;
         single_tcg_cpu_thread = cpu->thread;
         single_tcg_cpu_coroutine = cpu->coroutine;
-#ifdef _WIN32
-        cpu->hThread = qemu_thread_get_handle(cpu->thread);
-#endif
     } else {
         /* we share the thread */
         cpu->thread = single_tcg_cpu_thread;
