@@ -97,6 +97,9 @@ Coroutine *qemu_coroutine_self(void)
         current = &leader->base;
         set_current(current);
         leader->fiber = ConvertThreadToFiber(NULL);
+        if (leader->fiber == NULL && GetLastError() == ERROR_ALREADY_FIBER) {
+            leader->fiber = GetCurrentFiber();
+        }
     }
     return current;
 }
