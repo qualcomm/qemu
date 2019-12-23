@@ -306,6 +306,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
 #endif
         } else {
             cpu->coroutine = qemu_coroutine_create(rr_cpu_coroutine_fn, cpu);
+            cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
             cpu->created = true;
         }
         single_tcg_halt_cond = cpu->halt_cond;
