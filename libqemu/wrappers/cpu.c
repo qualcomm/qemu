@@ -31,6 +31,7 @@
 #include "exec/interrupts.h"
 
 #include "cpu.h"
+#include "memory.h"
 
 static __thread bool is_registered;
 
@@ -59,6 +60,11 @@ void libqemu_cpu_loop(Object *obj)
     }
 
     qemu_coroutine_enter(cpu->coroutine);
+
+    while (cpu->coroutine_yield_info.reason == YIELD_IO) {
+        libqemu_cpu_do_io();
+        qemu_coroutine_enter(cpu->coroutine);
+    }
 }
 
 bool libqemu_cpu_loop_is_busy(Object *obj)
