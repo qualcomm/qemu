@@ -220,6 +220,43 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
     assert(oldvalue == newvalue);
 }
 
+static void async_reset_msp_pc(CPUState *cs, run_on_cpu_data data)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    uint32_t initial_msp; /* Loaded from 0x0 */
+    uint32_t initial_pc; /* Loaded from 0x4 */
+    uint8_t *rom;
+    uint32_t vecbase;
+
+    vecbase = env->v7m.vecbase[env->v7m.secure];
+    rom = rom_ptr_for_as(cs->as, vecbase, 8);
+    if (rom) {
+        /* Address zero is covered by ROM which hasn't yet been
+         * copied into physical memory.
+         */
+        initial_msp = ldl_p(rom);
+        initial_pc = ldl_p(rom + 4);
+    } else {
+        /* Address zero not covered by a ROM blob, or the ROM blob
+         * is in non-modifiable memory and this is a second reset after
+         * it got copied into memory. In the latter case, rom_ptr
+         * will return a NULL pointer and we should use ldl_phys instead.
+         */
+        initial_msp = ldl_phys(cs->as, vecbase);
+        initial_pc = ldl_phys(cs->as, vecbase + 4);
+    }
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "Loaded reset SP 0x%x PC 0x%x from vector table\n",
+                  initial_msp, initial_pc);
+
+    env->regs[13] = initial_msp & 0xFFFFFFFC;
+    env->regs[15] = initial_pc & ~1;
+    env->thumb = initial_pc & 1;
+}
+
 static void arm_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -377,13 +414,6 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 #endif
 
     if (arm_feature(env, ARM_FEATURE_M)) {
-#ifndef CONFIG_USER_ONLY
-        uint32_t initial_msp; /* Loaded from 0x0 */
-        uint32_t initial_pc; /* Loaded from 0x4 */
-        uint8_t *rom;
-        uint32_t vecbase;
-#endif
-
         if (cpu_isar_feature(aa32_lob, cpu)) {
             /*
              * LTPSIZE is constant 4 if MVE not implemented, and resets
@@ -445,31 +475,7 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
         env->v7m.vecbase[M_REG_NS] = cpu->init_nsvtor & 0xffffff80;
 
         /* Load the initial SP and PC from offset 0 and 4 in the vector table */
-        vecbase = env->v7m.vecbase[env->v7m.secure];
-        rom = rom_ptr_for_as(cs->as, vecbase, 8);
-        if (rom) {
-            /* Address zero is covered by ROM which hasn't yet been
-             * copied into physical memory.
-             */
-            initial_msp = ldl_p(rom);
-            initial_pc = ldl_p(rom + 4);
-        } else {
-            /* Address zero not covered by a ROM blob, or the ROM blob
-             * is in non-modifiable memory and this is a second reset after
-             * it got copied into memory. In the latter case, rom_ptr
-             * will return a NULL pointer and we should use ldl_phys instead.
-             */
-            initial_msp = ldl_phys(cs->as, vecbase);
-            initial_pc = ldl_phys(cs->as, vecbase + 4);
-        }
-
-        qemu_log_mask(CPU_LOG_INT,
-                      "Loaded reset SP 0x%x PC 0x%x from vector table\n",
-                      initial_msp, initial_pc);
-
-        env->regs[13] = initial_msp & 0xFFFFFFFC;
-        env->regs[15] = initial_pc & ~1;
-        env->thumb = initial_pc & 1;
+        async_run_on_cpu(cs, async_reset_msp_pc, RUN_ON_CPU_NULL);
 #else
         /*
          * For user mode we run non-secure and with access to the FPU.
