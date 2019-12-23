@@ -67,7 +67,7 @@ ExportedFct('memory_region_new', 'MemoryRegion *', [], priv = 'libqemu_memory_re
 
 ExportedFct('memory_region_init_io', 'void',
         [ 'MemoryRegion *', 'Object *', 'const MemoryRegionOps *',
-            'void *', 'const char *', 'uint64_t' ])
+            'void *', 'const char *', 'uint64_t' ], priv = 'libqemu_memory_region_init_io')
 
 ExportedFct('memory_region_init_ram_ptr', 'void',
         [ 'MemoryRegion *', 'Object *', 'const char *', 'uint64_t', 'void *' ])

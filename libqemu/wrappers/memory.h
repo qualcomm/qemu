@@ -25,6 +25,7 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
+typedef struct Object Object;
 
 typedef MemTxResult (*LibQemuMrReadCb)(void *opaque,
                                        hwaddr addr,
@@ -44,5 +45,9 @@ void libqemu_mr_ops_set_read_cb(MemoryRegionOps *ops, LibQemuMrReadCb cb);
 void libqemu_mr_ops_set_write_cb(MemoryRegionOps *ops, LibQemuMrWriteCb cb);
 
 MemoryRegion* libqemu_memory_region_new(void);
+void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRegionOps *ops,
+                                   void *opaque, const char *name, uint64_t size);
+
+void libqemu_cpu_do_io(void);
 
 #endif

@@ -266,6 +266,27 @@ typedef void (*run_on_cpu_func)(CPUState *cpu, run_on_cpu_data data);
 
 struct qemu_work_item;
 
+typedef enum CPUCoroutineYieldReason {
+    YIELD_LOOP_END,
+    YIELD_IO
+} CPUCoroutineYieldReason;
+
+typedef struct CPUCoroutineIOInfo {
+    bool is_read;
+    hwaddr addr;
+    uint64_t *data;
+    unsigned int size;
+    MemTxAttrs *attrs;
+    void *opaque;
+
+    MemTxResult result;
+} CPUCoroutineIOInfo;
+
+typedef struct CPUCoroutineYieldInfo {
+    CPUCoroutineYieldReason reason;
+    CPUCoroutineIOInfo io_info;
+} CPUCoroutineYieldInfo;
+
 #define CPU_UNSET_NUMA_NODE_ID -1
 #define CPU_TRACE_DSTATE_MAX_EVENTS 32
 
@@ -339,6 +360,7 @@ struct CPUState {
 
     struct QemuThread *thread;
     Coroutine *coroutine;
+    CPUCoroutineYieldInfo coroutine_yield_info;
 #ifdef _WIN32
     HANDLE hThread;
     QemuSemaphore sem;
