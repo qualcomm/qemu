@@ -29,6 +29,7 @@
 #include "memory.h"
 
 static __thread bool is_registered;
+static __thread bool cpu_in_io;
 
 static void stop_other_cpus(CPUState *cpu)
 {
@@ -57,7 +58,9 @@ void libqemu_cpu_loop(Object *obj)
     qemu_coroutine_enter(cpu->coroutine);
 
     while (cpu->coroutine_yield_info.reason == YIELD_IO) {
+        cpu_in_io = true;
         libqemu_cpu_do_io();
+        cpu_in_io = false;
         qemu_coroutine_enter(cpu->coroutine);
     }
 }
@@ -68,7 +71,7 @@ bool libqemu_cpu_loop_is_busy(Object *obj)
 
     g_assert(cpu);
 
-    return qemu_in_coroutine();
+    return cpu_in_io || qemu_in_coroutine();
 }
 
 bool libqemu_cpu_can_run(Object *obj)
