@@ -71,8 +71,11 @@ static MemTxResult libqemu_read_generic_cb(void *opaque,
     io->size = size;
     io->attrs = &attrs;
     io->opaque = opaque;
+    io->done = false;
 
-    qemu_coroutine_yield();
+    while (!io->done) {
+        qemu_coroutine_yield();
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
@@ -92,8 +95,11 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     io->size = size;
     io->attrs = &attrs;
     io->opaque = opaque;
+    io->done = false;
 
-    qemu_coroutine_yield();
+    while (!io->done) {
+        qemu_coroutine_yield();
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
@@ -127,4 +133,6 @@ void libqemu_cpu_do_io(void)
     } else {
         io->result = ops->write_cb(ops->opaque, io->addr, *io->data, io->size, *io->attrs);
     }
+
+    io->done = true;
 }
