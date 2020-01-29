@@ -141,7 +141,7 @@ ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
 
 PrivateInclude('exec/gdbstub.h')
-ExportedFct('gdbserver_start', 'void', ['const char *'])
+ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
 
 PublicInclude('libqemu/wrappers/timer.h')
 ExportedType('QemuTimer', 'QEMUTimer')
