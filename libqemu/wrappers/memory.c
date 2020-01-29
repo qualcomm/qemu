@@ -48,6 +48,11 @@ MemoryRegion* libqemu_memory_region_new(void)
     return g_new0(MemoryRegion, 1);
 }
 
+static MemTxResult libqemu_read_generic_cb(void *opaque,
+        hwaddr addr, uint64_t *data, unsigned int size, MemTxAttrs attrs);
+static MemTxResult libqemu_write_generic_cb(void *opaque,
+        hwaddr addr, uint64_t data, unsigned int size, MemTxAttrs attrs);
+
 typedef struct MemOpsWrapper {
     LibQemuMrReadCb read_cb;
     LibQemuMrWriteCb write_cb;
@@ -56,10 +61,50 @@ typedef struct MemOpsWrapper {
     MemoryRegionOps ops;
 } MemOpsWrapper;
 
+static void do_access_on_cpu(CPUState *cpu, run_on_cpu_data data)
+{
+    CPUCoroutineIOInfo *io = (CPUCoroutineIOInfo *) data.host_ptr;
+
+    g_assert(current_cpu == cpu);
+
+    if (io->is_read) {
+        io->result = libqemu_read_generic_cb(io->opaque, io->addr,
+                                             io->data, io->size, *io->attrs);
+    } else {
+        io->result = libqemu_write_generic_cb(io->opaque, io->addr,
+                                              *io->data, io->size, *io->attrs);
+    }
+}
+
+static MemTxResult handle_iothread_mem_access(bool is_read, void *opaque,
+        hwaddr addr, uint64_t *data, unsigned int size, MemTxAttrs attrs)
+{
+    CPUCoroutineIOInfo io;
+    run_on_cpu_data roc_data;
+
+    io.is_read = is_read;
+    io.addr = addr;
+    io.data = data;
+    io.size = size;
+    io.attrs = &attrs;
+    io.opaque = opaque;
+    io.done = false;
+
+    roc_data.host_ptr = &io;
+
+    run_on_cpu(first_cpu, do_access_on_cpu, roc_data);
+
+    return io.result;
+}
+
 static MemTxResult libqemu_read_generic_cb(void *opaque,
         hwaddr addr, uint64_t *data, unsigned int size, MemTxAttrs attrs)
 {
     CPUCoroutineIOInfo *io;
+
+    if (current_cpu == NULL) {
+        return handle_iothread_mem_access(true, opaque, addr, data, size, attrs);
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
     io = &current_cpu->coroutine_yield_info.io_info;
@@ -84,6 +129,10 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
         hwaddr addr, uint64_t data, unsigned int size, MemTxAttrs attrs)
 {
     CPUCoroutineIOInfo *io;
+
+    if (current_cpu == NULL) {
+        return handle_iothread_mem_access(true, opaque, addr, &data, size, attrs);
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
     io = &current_cpu->coroutine_yield_info.io_info;
