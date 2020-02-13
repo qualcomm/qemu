@@ -328,6 +328,69 @@ int qemu_timeout_ns_to_ms(int64_t ns)
     return MIN(ms, INT32_MAX);
 }
 
+#ifdef _WIN32
+/* g_poll implementation using select(), from Glib */
+static gint g_poll_select(GPollFD *fds, guint nfds, gint timeout)
+{
+    struct timeval tv;
+    fd_set rset, wset, xset;
+    GPollFD *f;
+    int ready;
+    int maxfd = 0;
+
+    FD_ZERO (&rset);
+    FD_ZERO (&wset);
+    FD_ZERO (&xset);
+
+    for (f = fds; f < &fds[nfds]; ++f) {
+        if (f->fd >= 0) {
+            if (f->events & G_IO_IN) {
+                FD_SET (f->fd, &rset);
+            }
+
+            if (f->events & G_IO_OUT) {
+                FD_SET (f->fd, &wset);
+            }
+
+            if (f->events & G_IO_PRI) {
+                FD_SET (f->fd, &xset);
+            }
+
+            if (f->fd > maxfd && (f->events & (G_IO_IN|G_IO_OUT|G_IO_PRI))) {
+                maxfd = f->fd;
+            }
+        }
+    }
+
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+
+    ready = select(maxfd + 1, &rset, &wset, &xset,
+                   timeout == -1 ? NULL : &tv);
+
+    if (ready > 0) {
+        for (f = fds; f < &fds[nfds]; ++f) {
+            f->revents = 0;
+
+            if (f->fd >= 0) {
+                if (FD_ISSET (f->fd, &rset)) {
+                    f->revents |= G_IO_IN;
+                }
+
+                if (FD_ISSET (f->fd, &wset)) {
+                    f->revents |= G_IO_OUT;
+                }
+
+                if (FD_ISSET (f->fd, &xset)) {
+                    f->revents |= G_IO_PRI;
+                }
+            }
+        }
+    }
+
+    return ready;
+}
+#endif
 
 /* qemu implementation of g_poll which uses a nanosecond timeout but is
  * otherwise identical to g_poll
@@ -350,6 +413,12 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
         ts.tv_nsec = timeout % 1000000000LL;
         return ppoll((struct pollfd *)fds, nfds, &ts, NULL);
     }
+#elif defined(_WIN32)
+    /*
+     * Force the use of the select implementation of g_poll as the current
+     * (glib 2.62.2) win32 version is buggy.
+     */
+    return g_poll_select(fds, nfds, qemu_timeout_ns_to_ms(timeout));
 #else
     return g_poll(fds, nfds, qemu_timeout_ns_to_ms(timeout));
 #endif
