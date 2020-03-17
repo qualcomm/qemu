@@ -49,7 +49,9 @@ static void os_undo_timer_resolution(void)
 
 void os_setup_early_signal_handling(void)
 {
+#ifndef WIN32 /* libqemu: disable on Windows (cause CTRL+C to be ignored) */
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
+#endif
     timeGetDevCaps(&mm_tc, sizeof(mm_tc));
     timeBeginPeriod(mm_tc.wPeriodMin);
     atexit(os_undo_timer_resolution);
