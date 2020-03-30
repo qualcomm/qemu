@@ -114,6 +114,10 @@ ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
 
 PrivateInclude('hw/qdev-core.h')
 ExportedType('QemuDevice', 'DeviceState')
+ExportedType('QemuBus', 'BusState')
+
+ExportedFct('qdev_get_child_bus', 'BusState *', [ 'DeviceState *', 'const char *' ])
+ExportedFct('qdev_set_parent_bus', 'void', [ 'DeviceState *', 'BusState *' ])
 
 ExportedFct('qdev_connect_gpio_out', 'void', [ 'DeviceState *', 'int', 'struct IRQState *' ])
 ExportedFct('qdev_connect_gpio_out_named', 'void',
