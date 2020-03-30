@@ -242,6 +242,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
  */
 void drive_check_orphaned(void)
 {
+#ifndef CONFIG_LIBQEMU
     BlockBackend *blk;
     DriveInfo *dinfo;
     Location loc;
@@ -278,6 +279,7 @@ void drive_check_orphaned(void)
     if (orphans) {
         exit(1);
     }
+#endif
 }
 
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
