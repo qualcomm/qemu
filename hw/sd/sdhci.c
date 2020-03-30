@@ -40,6 +40,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "hw/core/cpu.h"
 
 #define TYPE_SDHCI_BUS "sdhci-bus"
 /* This is reusing the SDBus typedef from SD_BUS */
@@ -1545,7 +1546,12 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error **errp)
         address_space_init(s->dma_as, s->dma_mr, "sdhci-dma");
     } else {
         /* use system_memory() if property "dma" not set */
+#ifndef CONFIG_LIBQEMU
         s->dma_as = &address_space_memory;
+#else
+        /* FIXME: temporarily use first cpu address space */
+        s->dma_as = qemu_get_cpu(0)->as;
+#endif
     }
 
     sysbus_init_irq(sbd, &s->irq);
