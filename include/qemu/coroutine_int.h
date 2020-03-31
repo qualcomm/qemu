@@ -67,6 +67,9 @@ struct Coroutine {
     QSIMPLEQ_HEAD(, Coroutine) co_queue_wakeup;
 
     QSLIST_ENTRY(Coroutine) co_scheduled_next;
+
+    /* True if this coroutine is dedicated to CPU loop execution */
+    bool cpu;
 };
 
 Coroutine *qemu_coroutine_new(void);

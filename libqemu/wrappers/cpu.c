@@ -24,6 +24,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/rcu.h"
 #include "tcg/tcg.h"
+#include "block/aio.h"
+#include "qapi/error.h"
 
 #include "cpu.h"
 #include "memory.h"
@@ -71,7 +73,7 @@ bool libqemu_cpu_loop_is_busy(Object *obj)
 
     g_assert(cpu);
 
-    return cpu_in_io || qemu_in_coroutine();
+    return cpu_in_io || qemu_in_coroutine_cpu();
 }
 
 bool libqemu_cpu_can_run(Object *obj)
