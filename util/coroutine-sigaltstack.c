@@ -298,6 +298,13 @@ bool qemu_in_coroutine(void)
 {
     CoroutineThreadState *s = pthread_getspecific(thread_state_key);
 
-    return s && s->current->caller;
+    return s && s->current->caller && !s->current->cpu;
+}
+
+bool qemu_in_coroutine_cpu(void)
+{
+    CoroutineThreadState *s = pthread_getspecific(thread_state_key);
+
+    return s && s->current->caller && s->current->cpu;
 }
 
