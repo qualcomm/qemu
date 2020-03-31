@@ -339,7 +339,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
                                rr_cpu_thread_fn,
                                cpu, QEMU_THREAD_JOINABLE);
         } else {
-            cpu->coroutine = qemu_coroutine_create(rr_cpu_coroutine_fn, cpu);
+            cpu->coroutine = qemu_coroutine_create_cpu(rr_cpu_coroutine_fn, cpu);
             cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
             cpu->created = true;
         }
