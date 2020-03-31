@@ -95,6 +95,14 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
     return co;
 }
 
+Coroutine *qemu_coroutine_create_cpu(CoroutineEntry *entry, void *opaque)
+{
+    Coroutine *co = qemu_coroutine_create(entry, opaque);
+    co->cpu = true;
+
+    return co;
+}
+
 static void coroutine_delete(Coroutine *co)
 {
     co->caller = NULL;

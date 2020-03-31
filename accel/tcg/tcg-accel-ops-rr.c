@@ -305,7 +305,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
             cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
         } else {
-            cpu->coroutine = qemu_coroutine_create(rr_cpu_coroutine_fn, cpu);
+            cpu->coroutine = qemu_coroutine_create_cpu(rr_cpu_coroutine_fn, cpu);
             cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
             cpu->created = true;
         }
