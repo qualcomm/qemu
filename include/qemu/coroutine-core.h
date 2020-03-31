@@ -77,6 +77,11 @@ typedef void coroutine_fn CoroutineEntry(void *opaque);
 Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque);
 
 /**
+ * Create a new coroutine dedicated to CPU loop
+ */
+Coroutine *qemu_coroutine_create_cpu(CoroutineEntry *entry, void *opaque);
+
+/**
  * Transfer control to a coroutine
  */
 void qemu_coroutine_enter(Coroutine *coroutine);
@@ -118,6 +123,11 @@ Coroutine *qemu_coroutine_self(void);
  * coroutine_fn annotation since they work outside coroutine context.
  */
 bool qemu_in_coroutine(void);
+
+/**
+ * Return true if currently inside a coroutine dedicated to run the CPU loop
+ */
+bool qemu_in_coroutine_cpu(void);
 
 /**
  * Return true if the coroutine is currently entered
