@@ -76,7 +76,7 @@ bool libqemu_cpu_loop_is_busy(Object *obj)
 
     g_assert(cpu);
 
-    return cpu_in_io || qemu_in_coroutine();
+    return cpu_in_io || qemu_in_coroutine_cpu();
 }
 
 bool libqemu_cpu_can_run(Object *obj)
