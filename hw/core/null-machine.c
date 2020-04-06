@@ -46,7 +46,7 @@ static void machine_none_machine_init(MachineClass *mc)
 {
     mc->desc = "empty machine";
     mc->init = machine_none_init;
-    mc->max_cpus = 1;
+    mc->max_cpus = 256;
     mc->default_ram_size = 0;
     mc->default_ram_id = "ram";
     mc->no_serial = 1;
