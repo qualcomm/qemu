@@ -1182,10 +1182,10 @@ static void machine_initfn(Object *obj)
 
     /* default to mc->default_cpus */
     ms->smp.cpus = mc->default_cpus;
-    ms->smp.max_cpus = mc->default_cpus;
+    ms->smp.max_cpus = mc->max_cpus;
+    ms->smp.cores = 1;
     ms->smp.drawers = 1;
     ms->smp.books = 1;
-    ms->smp.sockets = 1;
     ms->smp.dies = 1;
     ms->smp.clusters = 1;
     ms->smp.modules = 1;
