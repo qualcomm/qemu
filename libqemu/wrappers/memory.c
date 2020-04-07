@@ -117,9 +117,14 @@ static MemTxResult libqemu_read_generic_cb(void *opaque,
     io->opaque = opaque;
     io->done = false;
 
+#ifndef _WIN32
+    qemu_coroutine_yield();
+    assert(io->done);
+#else
     while (!io->done) {
         qemu_coroutine_yield();
     }
+#endif
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
@@ -145,9 +150,14 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     io->opaque = opaque;
     io->done = false;
 
+#ifndef _WIN32
+    qemu_coroutine_yield();
+    assert(io->done);
+#else
     while (!io->done) {
         qemu_coroutine_yield();
     }
+#endif
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
