@@ -43,6 +43,7 @@ MemoryRegionOps * libqemu_mr_ops_new(void);
 void libqemu_mr_ops_free(MemoryRegionOps *);
 void libqemu_mr_ops_set_read_cb(MemoryRegionOps *ops, LibQemuMrReadCb cb);
 void libqemu_mr_ops_set_write_cb(MemoryRegionOps *ops, LibQemuMrWriteCb cb);
+void libqemu_mr_ops_max_access_size(MemoryRegionOps *ops, unsigned int size);
 
 MemoryRegion* libqemu_memory_region_new(void);
 void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRegionOps *ops,
