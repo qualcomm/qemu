@@ -102,6 +102,9 @@ ExportedFct('mr_ops_set_read_cb', 'void',
 ExportedFct('mr_ops_set_write_cb', 'void',
         [ 'MemoryRegionOps *', 'LibQemuMrWriteCb' ], priv = 'libqemu_mr_ops_set_write_cb')
 
+ExportedFct('mr_ops_set_max_access_size', 'void',
+        [ 'MemoryRegionOps *', 'unsigned' ], priv = 'libqemu_mr_ops_max_access_size')
+
 PrivateInclude('hw/irq.h')
 PublicInclude('libqemu/wrappers/gpio.h')
 ExportedType('QemuGpio', 'struct IRQState')
