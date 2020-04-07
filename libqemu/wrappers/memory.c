@@ -43,6 +43,12 @@ void libqemu_mr_ops_set_write_cb(MemoryRegionOps *ops, LibQemuMrWriteCb cb)
     ops->write_with_attrs = cb;
 }
 
+void libqemu_mr_ops_max_access_size(MemoryRegionOps *ops, unsigned size)
+{
+    ops->valid.max_access_size = size;
+    ops->impl.max_access_size = size;
+}
+
 MemoryRegion* libqemu_memory_region_new(void)
 {
     return g_new0(MemoryRegion, 1);
@@ -170,6 +176,8 @@ void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRe
 
     wrapper->read_cb = ops->read_with_attrs;
     wrapper->write_cb = ops->write_with_attrs;
+    wrapper->ops.valid.max_access_size = ops->valid.max_access_size;
+    wrapper->ops.impl.max_access_size = ops->impl.max_access_size;
     wrapper->opaque = opaque;
 
     wrapper->ops.read_with_attrs = libqemu_read_generic_cb;
