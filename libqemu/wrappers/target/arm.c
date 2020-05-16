@@ -79,3 +79,11 @@ void libqemu_arm_nvic_add_cpu_link(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
 }
+
+uint64_t libqemu_cpu_arm_get_exclusive_val(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    CPUARMState *env = &cpu->env;
+
+    return env->exclusive_val;
+}
