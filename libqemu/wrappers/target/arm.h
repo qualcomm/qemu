@@ -29,4 +29,6 @@ void libqemu_cpu_aarch64_set_aarch64_mode(Object *cpu, bool aarch64_mode);
 void libqemu_cpu_arm_add_nvic_link(Object *cpu);
 void libqemu_arm_nvic_add_cpu_link(Object *cpu);
 
+uint64_t libqemu_cpu_arm_get_exclusive_val(Object *cpu);
+
 #endif
