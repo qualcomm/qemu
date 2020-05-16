@@ -1354,7 +1354,7 @@ static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
 
 static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
                          int mmu_idx, target_ulong addr, uintptr_t retaddr,
-                         MMUAccessType access_type, MemOp op)
+                         MMUAccessType access_type, MemOp op, bool exclusive)
 {
     CPUState *cpu = env_cpu(env);
     hwaddr mr_offset;
@@ -1373,9 +1373,10 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
-        r = memory_region_dispatch_read(mr, mr_offset, &val, op, full->attrs);
+        MemTxAttrs attrs = full->attrs;
+        attrs.exclusive = exclusive;
+        r = memory_region_dispatch_read(mr, mr_offset, &val, op, attrs);
     }
-
     if (r != MEMTX_OK) {
         hwaddr physaddr = mr_offset +
             section->offset_within_address_space -
@@ -1404,7 +1405,7 @@ static void save_iotlb_data(CPUState *cs, MemoryRegionSection *section,
 
 static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
                       int mmu_idx, uint64_t val, target_ulong addr,
-                      uintptr_t retaddr, MemOp op)
+                      uintptr_t retaddr, MemOp op, bool exclusive)
 {
     CPUState *cpu = env_cpu(env);
     hwaddr mr_offset;
@@ -1428,9 +1429,10 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
 
     {
         QEMU_IOTHREAD_LOCK_GUARD();
-        r = memory_region_dispatch_write(mr, mr_offset, val, op, full->attrs);
+        MemTxAttrs attrs = full->attrs;
+        attrs.exclusive = exclusive;
+        r = memory_region_dispatch_write(mr, mr_offset, val, op, attrs);
     }
-
     if (r != MEMTX_OK) {
         hwaddr physaddr = mr_offset +
             section->offset_within_address_space -
@@ -1960,8 +1962,9 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
 
         /* Handle I/O access.  */
         if (likely(tlb_addr & TLB_MMIO)) {
+            bool exclusive = get_memop(oi) & MO_EX;
             return io_readx(env, full, mmu_idx, addr, retaddr,
-                            access_type, op ^ (need_swap * MO_BSWAP));
+                            access_type, op ^ (need_swap * MO_BSWAP), exclusive);
         }
 
         haddr = (void *)((uintptr_t)addr + entry->addend);
@@ -2423,8 +2426,9 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
 
         /* Handle I/O access.  */
         if (tlb_addr & TLB_MMIO) {
+            bool exclusive = get_memop(oi) & MO_EX;
             io_writex(env, full, mmu_idx, val, addr, retaddr,
-                      op ^ (need_swap * MO_BSWAP));
+                      op ^ (need_swap * MO_BSWAP), exclusive);
             return;
         }
 
