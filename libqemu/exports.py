@@ -146,6 +146,7 @@ ExportedFct('cpu_reset', 'void', [ 'Object *' ], priv = 'libqemu_cpu_reset')
 ExportedFct('cpu_halt', 'void', [ 'Object *', 'bool', ], priv = 'libqemu_cpu_halt')
 ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
+ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'void (*)(void *)', 'void *' ], priv = 'libqemu_async_safe_run_on_cpu')
 
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)

@@ -140,3 +140,28 @@ void libqemu_current_cpu_set(Object *cpu)
 {
     current_cpu = CPU(cpu);
 }
+
+struct handler_arg {
+    void (*handler)(void *);
+    void *arg;
+};
+
+static void do_async_safe(CPUState *cpu, run_on_cpu_data data)
+{
+    struct handler_arg *ha = (struct handler_arg *)data.host_ptr;
+
+    ha->handler(ha->arg);
+
+    g_free(ha);
+}
+
+void libqemu_async_safe_run_on_cpu(Object *obj, void (*handler)(void *), void *arg)
+{
+    CPUState *cpu = CPU(obj);
+
+    struct handler_arg *ha = g_new0(struct handler_arg, 1);
+    ha->handler = handler;
+    ha->arg = arg;
+
+    async_safe_run_on_cpu(cpu, do_async_safe, RUN_ON_CPU_HOST_PTR(ha));
+}
