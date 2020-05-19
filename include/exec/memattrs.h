@@ -60,6 +60,8 @@ typedef struct MemTxAttrs {
 
     /* Memory access is exclusive (LL/SC) */
     unsigned int exclusive:1;
+    /* Memory access is debug */
+    unsigned int debug:1;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,
