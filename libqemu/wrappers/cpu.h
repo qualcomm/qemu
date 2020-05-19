@@ -32,4 +32,6 @@ void libqemu_cpu_halt(Object *cpu, bool halted);
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
 
+void libqemu_async_safe_run_on_cpu(Object *cpu, void (*handler)(void *), void *arg);
+
 #endif
