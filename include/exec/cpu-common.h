@@ -133,6 +133,8 @@ void cpu_destroy_address_spaces(CPUState *cpu);
 
 void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len);
 void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len);
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                            hwaddr len, bool is_write);
 void *cpu_physical_memory_map(hwaddr addr,
                               hwaddr *plen,
                               bool is_write);

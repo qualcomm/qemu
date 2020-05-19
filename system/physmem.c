@@ -3485,6 +3485,14 @@ void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len)
                        MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                            hwaddr len, bool is_write)
+{
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    attrs.debug = 1;
+    address_space_rw(&address_space_memory, addr, attrs, buf, len, is_write);
+}
+
 void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
 {
     address_space_write(&address_space_memory, addr,
@@ -4053,6 +4061,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
+        attrs.debug = 1;
         res = address_space_rw(cpu->cpu_ases[asidx].as, phys_addr, attrs, buf,
                                l, is_write);
         if (res != MEMTX_OK) {
