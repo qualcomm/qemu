@@ -3023,6 +3023,14 @@ void cpu_physical_memory_rw(hwaddr addr, void *buf,
                      buf, len, is_write);
 }
 
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                            hwaddr len, bool is_write)
+{
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    attrs.debug = 1;
+    address_space_rw(&address_space_memory, addr, attrs, buf, len, is_write);
+}
+
 enum write_rom_type {
     WRITE_DATA,
     FLUSH_CACHE,
@@ -3558,6 +3566,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
+        attrs.debug = 1;
         if (is_write) {
             res = address_space_write_rom(cpu->cpu_ases[asidx].as, phys_addr,
                                           attrs, buf, l);
