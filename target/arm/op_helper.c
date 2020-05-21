@@ -943,6 +943,15 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     }
 }
 
+void HELPER(sc)(CPUARMState *env)
+{
+    CPUState *cpu = env_cpu(env);
+
+    if (!QSIMPLEQ_EMPTY(&cpu->work_list)) {
+        env->exclusive_addr = -1ULL;
+    }
+}
+
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
