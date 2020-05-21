@@ -39,6 +39,7 @@
 #include "exec/log.h"
 #include "exec/helper-proto-common.h"
 #include "exec/tlb-flags.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
 #include "tb-internal.h"
@@ -1963,6 +1964,10 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
 
         r = memory_region_dispatch_read(mr, mr_offset, &val,
                                         this_mop, full->attrs);
+        if (r == MEMTX_OK_EXIT_TB) {
+            cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
+            r = MEMTX_OK;
+        }
         if (unlikely(r != MEMTX_OK)) {
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
         }
@@ -2503,6 +2508,10 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
 
         r = memory_region_dispatch_write(mr, mr_offset, val_le,
                                          this_mop, full->attrs);
+        if (r == MEMTX_OK_EXIT_TB) {
+            cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
+            r = MEMTX_OK;
+        }
         if (unlikely(r != MEMTX_OK)) {
             io_failed(cpu, full, addr, this_size, MMU_DATA_STORE,
                       mmu_idx, r, ra);
