@@ -2734,6 +2734,8 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
      * within the range recorded by the load.
      */
 
+    gen_helper_sc(tcg_env);
+    
     /* See AArch64.ExclusiveMonitorsPass() and AArch64.IsExclusiveVA(). */
     clean_addr = clean_data_tbi(s, cpu_reg_sp(s, rn));
     tcg_gen_brcond_i64(TCG_COND_NE, clean_addr, cpu_exclusive_addr, fail_label);
