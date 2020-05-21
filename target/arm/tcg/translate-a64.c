@@ -2492,6 +2492,8 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     TCGLabel *done_label = gen_new_label();
     TCGv_i64 tmp;
 
+    gen_helper_sc(cpu_env);
+
     tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
 
     tmp = tcg_temp_new_i64();
