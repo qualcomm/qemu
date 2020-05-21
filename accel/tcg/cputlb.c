@@ -1377,6 +1377,10 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
         attrs.exclusive = exclusive;
         r = memory_region_dispatch_read(mr, mr_offset, &val, op, attrs);
     }
+    if (r == MEMTX_OK_EXIT_TB) {
+        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
+        r = MEMTX_OK;
+    }
     if (r != MEMTX_OK) {
         hwaddr physaddr = mr_offset +
             section->offset_within_address_space -
@@ -1432,6 +1436,10 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
         MemTxAttrs attrs = full->attrs;
         attrs.exclusive = exclusive;
         r = memory_region_dispatch_write(mr, mr_offset, val, op, attrs);
+    }
+    if (r == MEMTX_OK_EXIT_TB) {
+        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
+        r = MEMTX_OK;
     }
     if (r != MEMTX_OK) {
         hwaddr physaddr = mr_offset +
