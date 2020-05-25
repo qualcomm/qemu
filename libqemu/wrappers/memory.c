@@ -142,7 +142,7 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     CPUCoroutineIOInfo *io;
 
     if (current_cpu == NULL) {
-        return handle_iothread_mem_access(true, opaque, addr, &data, size, attrs);
+        return handle_iothread_mem_access(false, opaque, addr, &data, size, attrs);
     }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
