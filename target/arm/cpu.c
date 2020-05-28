@@ -239,6 +239,7 @@ static void async_reset_msp_pc(CPUState *s, run_on_cpu_data data)
     env->regs[13] = initial_msp & 0xFFFFFFFC;
     env->regs[15] = initial_pc & ~1;
     env->thumb = initial_pc & 1;
+    env->thumb |= arm_feature(env, ARM_FEATURE_M);
 }
 
 static void arm_cpu_reset_hold(Object *obj)
