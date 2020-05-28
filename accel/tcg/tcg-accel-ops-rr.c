@@ -220,6 +220,9 @@ static void *rr_cpu_thread_fn(void *arg)
     /* process any pending work */
     cpu->exit_request = 1;
 
+    /* second stage reset */
+    process_queued_cpu_work(cpu);
+
     while (1) {
         /* Only used for icount_enabled() */
         int64_t cpu_budget = 0;
