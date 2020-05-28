@@ -217,6 +217,9 @@ static void *rr_cpu_thread_fn(void *arg)
 
     current_cpu = cpu;
 
+    /* second stage reset */
+    process_queued_cpu_work(cpu);
+
     while (1) {
         /* Only used for icount_enabled() */
         int64_t cpu_budget = 0;
