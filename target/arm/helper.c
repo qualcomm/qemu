@@ -9719,7 +9719,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     if (mask & CPSR_Q) {
         env->QF = ((val & CPSR_Q) != 0);
     }
-    if (mask & CPSR_T) {
+    if (mask & CPSR_T && !arm_feature(env, ARM_FEATURE_M)) {
         env->thumb = ((val & CPSR_T) != 0);
     }
     if (mask & CPSR_IT_0_1) {
