@@ -228,8 +228,8 @@ static void async_reset_msp_pc(CPUState *s, run_on_cpu_data data)
          * it got copied into memory. In the latter case, rom_ptr
          * will return a NULL pointer and we should use ldl_phys instead.
          */
-        initial_msp = ldl_phys(s->as, vecbase);
-        initial_pc = ldl_phys(s->as, vecbase + 4);
+        address_space_read(s->as, vecbase, MEMTXATTRS_UNSPECIFIED, (uint8_t *)&initial_msp, 4);
+        address_space_read(s->as, vecbase + 4, MEMTXATTRS_UNSPECIFIED, (uint8_t *)&initial_pc, 4);
     }
 
     qemu_log_mask(CPU_LOG_INT,
