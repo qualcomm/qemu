@@ -447,22 +447,40 @@ void gdb_qemu_exit(int code)
  */
 static int phy_memory_mode;
 
+#ifdef CONFIG_LIBQEMU
+extern __thread CPUState *libqemu_current_iothread_io_cpu;
+#endif
+
 int gdb_target_memory_rw_debug(CPUState *cpu, hwaddr addr,
                                uint8_t *buf, int len, bool is_write)
 {
     CPUClass *cc;
+    int ret;
 
     if (phy_memory_mode) {
-        cpu_physical_memory_rw_debu(addr, buf, len, is_write);
+#ifdef CONFIG_LIBQEMU
+        libqemu_current_iothread_io_cpu = cpu;
+#endif
+        cpu_physical_memory_rw_debug(addr, buf, len, is_write);
+#ifdef CONFIG_LIBQEMU
+        libqemu_current_iothread_io_cpu = NULL;
+#endif
         return 0;
     }
 
     cc = CPU_GET_CLASS(cpu);
+#ifdef CONFIG_LIBQEMU
+    libqemu_current_iothread_io_cpu = cpu;
+#endif
     if (cc->memory_rw_debug) {
-        return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
+        ret = cc->memory_rw_debug(cpu, addr, buf, len, is_write);
+    } else {
+        ret = cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
     }
-
-    return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+#ifdef CONFIG_LIBQEMU
+    libqemu_current_iothread_io_cpu = NULL;
+#endif
+    return ret;
 }
 
 /*
