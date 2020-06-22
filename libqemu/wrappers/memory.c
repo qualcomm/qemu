@@ -23,6 +23,8 @@
 
 #include "memory.h"
 
+__thread CPUState *libqemu_current_iothread_io_cpu;
+
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
     return g_new0(MemoryRegionOps, 1);
@@ -87,6 +89,12 @@ static MemTxResult handle_iothread_mem_access(bool is_read, void *opaque,
 {
     CPUCoroutineIOInfo io;
     run_on_cpu_data roc_data;
+    CPUState *cpu = libqemu_current_iothread_io_cpu;
+
+    if (cpu == NULL) {
+        /* This is probably wrong */
+        cpu = first_cpu;
+    }
 
     io.is_read = is_read;
     io.addr = addr;
@@ -98,7 +106,7 @@ static MemTxResult handle_iothread_mem_access(bool is_read, void *opaque,
 
     roc_data.host_ptr = &io;
 
-    run_on_cpu(first_cpu, do_access_on_cpu, roc_data);
+    run_on_cpu(cpu, do_access_on_cpu, roc_data);
 
     return io.result;
 }
@@ -142,7 +150,7 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     CPUCoroutineIOInfo *io;
 
     if (current_cpu == NULL) {
-        return handle_iothread_mem_access(false, opaque, addr, &data, size, attrs);
+        return handle_iothread_mem_access(true, opaque, addr, &data, size, attrs);
     }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
