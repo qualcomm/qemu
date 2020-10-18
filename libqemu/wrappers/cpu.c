@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 
 #include "cpu.h"
+#include "sysemu/cpus.h"
 #include "memory.h"
 
 static __thread bool is_registered;
@@ -130,6 +131,11 @@ void libqemu_cpu_halt(Object *obj, bool halted)
     }
 }
 
+void libqemu_cpu_request_exit(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+    qatomic_set(&cpu->exit_request, 1);
+}
 
 Object * libqemu_current_cpu_get(void)
 {
@@ -164,4 +170,9 @@ void libqemu_async_safe_run_on_cpu(Object *obj, void (*handler)(void *), void *a
     ha->arg = arg;
 
     async_safe_run_on_cpu(cpu, do_async_safe, RUN_ON_CPU_HOST_PTR(ha));
+}
+
+void libqemu_resume_all_vcpus(void)
+{
+    resume_all_vcpus();
 }
