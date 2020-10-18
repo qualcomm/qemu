@@ -51,4 +51,6 @@ void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRe
 
 void libqemu_cpu_do_io(void);
 
+void set_coroutine_info(bool with_coroutines);
+
 #endif
