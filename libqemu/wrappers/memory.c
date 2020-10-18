@@ -25,6 +25,7 @@
 #include "memory.h"
 
 __thread CPUState *libqemu_current_iothread_io_cpu;
+static bool running_with_coroutines = false;
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
@@ -132,14 +133,18 @@ static MemTxResult libqemu_read_generic_cb(void *opaque,
     io->opaque = opaque;
     io->done = false;
 
+    if (running_with_coroutines) {
 #ifndef _WIN32
-    qemu_coroutine_yield();
-    assert(io->done);
-#else
-    while (!io->done) {
         qemu_coroutine_yield();
-    }
+        assert(io->done);
+#else
+        while (!io->done) {
+            qemu_coroutine_yield();
+        }
 #endif
+    } else {
+        libqemu_cpu_do_io();
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
@@ -165,14 +170,18 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     io->opaque = opaque;
     io->done = false;
 
+    if (running_with_coroutines) {
 #ifndef _WIN32
-    qemu_coroutine_yield();
-    assert(io->done);
-#else
-    while (!io->done) {
         qemu_coroutine_yield();
-    }
+        assert(io->done);
+#else
+        while (!io->done) {
+            qemu_coroutine_yield();
+        }
 #endif
+    } else {
+        libqemu_cpu_do_io();
+    }
 
     current_cpu->coroutine_yield_info.reason = YIELD_LOOP_END;
     return io->result;
@@ -210,4 +219,8 @@ void libqemu_cpu_do_io(void)
     }
 
     io->done = true;
+}
+
+void set_coroutine_info(bool with_coroutines) {
+    running_with_coroutines = with_coroutines;
 }
