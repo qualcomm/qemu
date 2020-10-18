@@ -212,7 +212,11 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 
     if (dev->hotplugged) {
         cpu_synchronize_post_init(cpu);
+#ifndef CONFIG_LIBQEMU
+        //We will have the libqemu user call resume_all_vcpus when they are
+        //ready
         cpu_resume(cpu);
+#endif
     }
 
     /* NOTE: latest generic point where the cpu is fully realized */

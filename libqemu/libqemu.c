@@ -27,6 +27,7 @@
 #include "libqemu.h"
 #include "ctors.h"
 #include "fill.h"
+#include "wrappers/memory.h"
 
 /* The QEMU main function */
 int main(int argc, const char * const argv[], char **envp);
@@ -110,9 +111,17 @@ static void start_iothread(int argc, char **argv)
     wait_for_iothread_startup();
 }
 
-LibQemuExports *LIBQEMU_INIT_SYM(int argc, char **argv)
+static void check_tcg_args(int argc, char **argv) {
+    for (int i = 0; i < argc; ++i) {
+        if (strstr(argv[i], "coroutine=on"))
+            set_coroutine_info(true);
+    }
+}
+
+LibQemuExports *LIBQEMU_INIT_SYM(int argc, char ** argv)
 {
     libqemu_exports_fill(&context.exports);
+    check_tcg_args(argc, argv);
     start_iothread(argc, argv);
 
     return &context.exports;
