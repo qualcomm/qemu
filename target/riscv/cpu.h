@@ -500,6 +500,7 @@ struct RISCVCPUConfig {
     bool debug;
 
     bool short_isa_string;
+    uint64_t hartid;
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
