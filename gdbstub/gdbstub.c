@@ -63,43 +63,23 @@
 static int phy_memory_mode;
 #endif
 
-#ifdef CONFIG_LIBQEMU
-extern __thread CPUState *libqemu_current_iothread_io_cpu;
-#endif
-
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
                                          uint8_t *buf, int len, bool is_write)
 {
     CPUClass *cc;
-    int ret;
 
 #ifndef CONFIG_USER_ONLY
     if (phy_memory_mode) {
-#ifdef CONFIG_LIBQEMU
-        libqemu_current_iothread_io_cpu = cpu;
-#endif
         cpu_physical_memory_rw_debug(addr, buf, len, is_write);
-#ifdef CONFIG_LIBQEMU
-        libqemu_current_iothread_io_cpu = NULL;
-#endif
         return 0;
     }
 #endif
 
     cc = CPU_GET_CLASS(cpu);
-#ifdef CONFIG_LIBQEMU
-    libqemu_current_iothread_io_cpu = cpu;
-#endif
     if (cc->memory_rw_debug) {
-        ret = cc->memory_rw_debug(cpu, addr, buf, len, is_write);
-    } else {
-        ret = cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+        return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
     }
-#ifdef CONFIG_LIBQEMU
-    libqemu_current_iothread_io_cpu = NULL;
-#endif
-
-    return ret;
+    return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
 }
 
 /* Return the GDB index for a given vCPU state.
