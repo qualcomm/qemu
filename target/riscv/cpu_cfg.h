@@ -171,6 +171,7 @@ struct RISCVCPUConfig {
     bool misa_w;
 
     bool short_isa_string;
+    uint64_t hartid;
 
 #ifndef CONFIG_USER_ONLY
     RISCVSATPMap satp_mode;
