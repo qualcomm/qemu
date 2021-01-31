@@ -176,3 +176,8 @@ ExportedFct('cpu_arm_get_exclusive_val', 'uint64_t', [ 'Object *' ],
 
 PrivateInclude('exec/ram_addr.h')
 ExportedFct('tb_invalidate_phys_range', 'void', [ 'uint64_t', 'uint64_t' ])
+
+PrivateInclude('libqemu/wrappers/chardev.h')
+ExportedType('QemuChardev', 'Chardev')
+ExportedFct('char_dev_new', 'Chardev *', [ 'const char *', 'const char *' ],
+        priv = 'libqemu_char_dev_new')

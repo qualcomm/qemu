@@ -1,4 +1,4 @@
-libqemu_ss.add(files('memory.c', 'cpu.c', 'iothread.c', 'gpio.c', 'timer.c'))
+libqemu_ss.add(files('memory.c', 'cpu.c', 'iothread.c', 'gpio.c', 'timer.c', 'chardev.c'))
 
 subdir('target')
 
