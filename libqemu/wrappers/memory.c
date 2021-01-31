@@ -24,7 +24,6 @@
 
 #include "memory.h"
 
-__thread CPUState *libqemu_current_iothread_io_cpu;
 static bool running_with_coroutines = false;
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
@@ -71,32 +70,25 @@ typedef struct MemOpsWrapper {
     MemoryRegionOps ops;
 } MemOpsWrapper;
 
-static void do_access_on_cpu(CPUState *cpu, run_on_cpu_data data)
+static void do_io_access(CPUCoroutineIOInfo *io)
 {
-    CPUCoroutineIOInfo *io = (CPUCoroutineIOInfo *) data.host_ptr;
+    MemOpsWrapper *ops;
 
-    g_assert(current_cpu == cpu);
+    ops = (MemOpsWrapper *) io->opaque;
 
     if (io->is_read) {
-        io->result = libqemu_read_generic_cb(io->opaque, io->addr,
-                                             io->data, io->size, *io->attrs);
+        io->result = ops->read_cb(ops->opaque, io->addr, io->data, io->size, *io->attrs);
     } else {
-        io->result = libqemu_write_generic_cb(io->opaque, io->addr,
-                                              *io->data, io->size, *io->attrs);
+        io->result = ops->write_cb(ops->opaque, io->addr, *io->data, io->size, *io->attrs);
     }
+
+    io->done = true;
 }
 
-static MemTxResult handle_iothread_mem_access(bool is_read, void *opaque,
+static MemTxResult handle_async_mem_access(bool is_read, void *opaque,
         hwaddr addr, uint64_t *data, unsigned int size, MemTxAttrs attrs)
 {
     CPUCoroutineIOInfo io;
-    run_on_cpu_data roc_data;
-    CPUState *cpu = libqemu_current_iothread_io_cpu;
-
-    if (cpu == NULL) {
-        /* This is probably wrong */
-        cpu = first_cpu;
-    }
 
     io.is_read = is_read;
     io.addr = addr;
@@ -106,9 +98,7 @@ static MemTxResult handle_iothread_mem_access(bool is_read, void *opaque,
     io.opaque = opaque;
     io.done = false;
 
-    roc_data.host_ptr = &io;
-
-    run_on_cpu(cpu, do_access_on_cpu, roc_data);
+    do_io_access(&io);
 
     return io.result;
 }
@@ -119,7 +109,7 @@ static MemTxResult libqemu_read_generic_cb(void *opaque,
     CPUCoroutineIOInfo *io;
 
     if (current_cpu == NULL) {
-        return handle_iothread_mem_access(true, opaque, addr, data, size, attrs);
+        return handle_async_mem_access(true, opaque, addr, data, size, attrs);
     }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
@@ -156,7 +146,7 @@ static MemTxResult libqemu_write_generic_cb(void *opaque,
     CPUCoroutineIOInfo *io;
 
     if (current_cpu == NULL) {
-        return handle_iothread_mem_access(true, opaque, addr, &data, size, attrs);
+        return handle_async_mem_access(true, opaque, addr, &data, size, attrs);
     }
 
     current_cpu->coroutine_yield_info.reason = YIELD_IO;
@@ -207,18 +197,9 @@ void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRe
 void libqemu_cpu_do_io(void)
 {
     CPUCoroutineIOInfo *io;
-    MemOpsWrapper *ops;
 
     io = &current_cpu->coroutine_yield_info.io_info;
-    ops = (MemOpsWrapper *) io->opaque;
-
-    if (io->is_read) {
-        io->result = ops->read_cb(ops->opaque, io->addr, io->data, io->size, *io->attrs);
-    } else {
-        io->result = ops->write_cb(ops->opaque, io->addr, *io->data, io->size, *io->attrs);
-    }
-
-    io->done = true;
+    do_io_access(io);
 }
 
 void set_coroutine_info(bool with_coroutines) {
