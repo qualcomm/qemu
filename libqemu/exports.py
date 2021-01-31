@@ -116,7 +116,8 @@ ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
         priv = 'qemu_set_irq', iothread_locked = True)
 
 
-PrivateInclude('hw/qdev-core.h')
+PrivateInclude('hw/core/qdev.h')
+PrivateInclude('hw/core/qdev-properties.h')
 ExportedType('QemuDevice', 'DeviceState')
 ExportedType('QemuBus', 'BusState')
 
@@ -128,7 +129,7 @@ ExportedFct('qdev_connect_gpio_out_named', 'void',
         [ 'DeviceState *', 'const char *', 'int', 'struct IRQState *' ])
 ExportedFct('qdev_get_gpio_in', 'struct IRQState *', [ 'DeviceState *', 'int' ])
 ExportedFct('qdev_get_gpio_in_named', 'struct IRQState *', [ 'DeviceState *', 'const char *', 'int' ])
-
+ExportedFct('qdev_prop_set_chr', 'void', [ 'DeviceState *', 'const char *', 'Chardev *'])
 
 PrivateInclude('hw/sysbus.h')
 ExportedType('QemuSysBusDevice', 'SysBusDevice')
