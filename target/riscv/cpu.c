@@ -1345,6 +1345,10 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (cpu->cfg.hartid != -1) {
+        env->mhartid = cpu->cfg.hartid;
+    }
+
     riscv_cpu_register_gdb_regs_for_features(cs);
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
@@ -3101,6 +3105,7 @@ static const Property riscv_cpu_properties[] = {
     DEFINE_PROP_UINT32("num-triggers", RISCVCPU, env.num_triggers,
                        RV_DEFAULT_NUM_TRIGGERS),
 #endif
+    DEFINE_PROP_UINT64("hartid", RISCVCPU, cfg.hartid, -1),
 
     DEFINE_PROP_BOOL("short-isa-string", RISCVCPU, cfg.short_isa_string, false),
 
