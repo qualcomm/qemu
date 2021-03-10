@@ -152,3 +152,17 @@ void libqemu_async_safe_run_on_cpu(Object *obj, void (*handler)(void *), void *a
 
     async_safe_run_on_cpu(cpu, do_async_safe, RUN_ON_CPU_HOST_PTR(ha));
 }
+
+void libqemu_cpu_set_soft_stopped(Object *obj, bool stopped)
+{
+    CPUState *cpu = CPU(obj);
+
+    cpu->soft_stopped = stopped;
+}
+
+bool libqemu_cpu_get_soft_stopped(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+
+    return cpu->soft_stopped;
+}
