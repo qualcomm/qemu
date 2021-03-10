@@ -75,7 +75,7 @@ static const AccelOpsClass *cpus_accel;
 
 bool cpu_is_stopped(CPUState *cpu)
 {
-    return cpu->stopped || !runstate_is_running();
+    return cpu->stopped || !runstate_is_running() || cpu->soft_stopped;
 }
 
 bool cpu_work_list_empty(CPUState *cpu)
@@ -593,7 +593,7 @@ static bool all_vcpus_paused(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        if (!cpu->stopped) {
+        if (!cpu->stopped && !cpu->soft_stopped) {
             return false;
         }
     }
