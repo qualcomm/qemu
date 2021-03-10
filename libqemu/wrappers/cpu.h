@@ -28,12 +28,10 @@ bool libqemu_cpu_can_run(Object *cpu);
 void libqemu_cpu_register_thread(Object *cpu);
 void libqemu_cpu_reset(Object *cpu);
 void libqemu_cpu_halt(Object *cpu, bool halted);
-void libqemu_cpu_request_exit(Object *cpu);
 
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
 
 void libqemu_async_safe_run_on_cpu(Object *cpu, void (*handler)(void *), void *arg);
-void libqemu_resume_all_vcpus(void);
 
 #endif
