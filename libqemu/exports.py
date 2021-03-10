@@ -176,6 +176,9 @@ ExportedFct('set_cpu_end_of_loop_cb', 'void', [ 'LibQemuCpuEndOfLoopFn', 'void *
 ExportedFct('set_cpu_kick_cb', 'void', [ 'LibQemuCpuKickFn', 'void *' ],
         priv = 'libqemu_set_cpu_kick_cb')
 
+PrivateInclude('qemu/coroutine.h')
+ExportedFct('coroutine_yield', 'void', [], priv = 'qemu_coroutine_yield')
+
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
