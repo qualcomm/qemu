@@ -163,6 +163,10 @@ ExportedFct('timer_free', 'void', [ 'QemuTimer *' ])
 ExportedFct('timer_mod_ns', 'void', [ 'QemuTimer *', 'int64_t' ])
 ExportedFct('timer_del', 'void', [ 'QemuTimer *' ])
 
+PublicInclude('libqemu/wrappers/libqemu.h')
+ExportedFct('set_cpu_end_of_loop_cb', 'void', [ 'LibQemuCpuEndOfLoopFn', 'void *' ],
+        priv = 'libqemu_set_cpu_end_of_loop_cb')
+
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
