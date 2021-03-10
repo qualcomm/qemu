@@ -151,6 +151,8 @@ ExportedFct('cpu_set_soft_stopped', 'void', [ 'Object *', 'bool' ],
         priv = 'libqemu_cpu_set_soft_stopped')
 ExportedFct('cpu_get_soft_stopped', 'bool', [ 'Object *', ],
         priv = 'libqemu_cpu_get_soft_stopped')
+ExportedFct('cpu_remove_sync', 'void', [ 'Object *' ])
+ExportedFct('cpu_set_unplug', 'void', [ 'Object *', 'bool' ], priv = 'libqemu_cpu_set_unplug')
 ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
 ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'LibQemuAsyncCpuJobFn', 'void *' ],

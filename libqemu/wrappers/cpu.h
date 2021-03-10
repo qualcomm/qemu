@@ -32,6 +32,7 @@ void libqemu_cpu_reset(Object *cpu);
 void libqemu_cpu_halt(Object *cpu, bool halted);
 void libqemu_cpu_set_soft_stopped(Object *cpu, bool stopped);
 bool libqemu_cpu_get_soft_stopped(Object *cpu);
+void libqemu_cpu_set_unplug(Object *cpu, bool unplug);
 
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
