@@ -34,15 +34,6 @@
 static __thread bool is_registered;
 static __thread bool cpu_in_io;
 
-static void stop_other_cpus(CPUState *cpu)
-{
-    CPUState *other_cpu;
-
-    CPU_FOREACH(other_cpu) {
-        other_cpu->soft_stopped = (cpu != other_cpu);
-    }
-}
-
 void libqemu_cpu_loop(Object *obj)
 {
     CPUState *cpu = CPU(obj);
@@ -52,10 +43,6 @@ void libqemu_cpu_loop(Object *obj)
 
     if (libqemu_cpu_loop_is_busy(obj)) {
         return;
-    }
-
-    if (!qemu_tcg_mttcg_enabled()) {
-        stop_other_cpus(cpu);
     }
 
     qemu_coroutine_enter(cpu->coroutine);
