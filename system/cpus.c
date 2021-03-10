@@ -48,6 +48,10 @@
 #include "hw/core/hw-error.h"
 #include "trace.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 #ifdef CONFIG_LINUX
 
 #include <sys/prctl.h>
