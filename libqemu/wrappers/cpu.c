@@ -170,3 +170,10 @@ bool libqemu_cpu_get_soft_stopped(Object *obj)
 
     return cpu->soft_stopped;
 }
+
+void libqemu_cpu_set_unplug(Object *obj, bool unplug)
+{
+    CPUState *cpu = CPU(obj);
+
+    cpu->unplug = unplug;
+}
