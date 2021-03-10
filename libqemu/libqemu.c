@@ -28,6 +28,8 @@
 #include "ctors.h"
 #include "fill.h"
 #include "wrappers/memory.h"
+#include "callbacks.h"
+#include "wrappers/libqemu.h"
 
 /* The QEMU main function */
 int main(int argc, const char * const argv[], char **envp);
@@ -40,6 +42,11 @@ struct LibQemuContext {
     GMainContext *iothread_context;
     int argc;
     char **argv;
+
+    struct {
+        LibQemuCpuEndOfLoopFn cb;
+        void *opaque;
+    } cpu_end_of_loop_cb;
 };
 
 /* Since QEMU has a implicit state, there is no use in returning an explicit
@@ -125,4 +132,20 @@ LibQemuExports *LIBQEMU_INIT_SYM(int argc, char ** argv)
     start_iothread(argc, argv);
 
     return &context.exports;
+}
+
+void libqemu_set_cpu_end_of_loop_cb(LibQemuCpuEndOfLoopFn cb, void *opaque)
+{
+    context.cpu_end_of_loop_cb.cb = cb;
+    context.cpu_end_of_loop_cb.opaque = opaque;
+}
+
+void libqemu_cpu_end_of_loop_cb(CPUState *cpu)
+{
+    LibQemuCpuEndOfLoopFn cb = context.cpu_end_of_loop_cb.cb;
+    void *opaque = context.cpu_end_of_loop_cb.opaque;
+
+    if (cb) {
+        cb((QemuObject *)cpu, opaque);
+    }
 }
