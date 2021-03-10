@@ -139,7 +139,7 @@ ExportedFct('sysbus_mmio_get_region', 'MemoryRegion *', [ 'SysBusDevice *', 'int
 ExportedFct('sysbus_connect_gpio_out', 'void', [ 'SysBusDevice *', 'int', 'struct IRQState *' ],
         priv = 'sysbus_connect_irq')
 
-PrivateInclude('libqemu/wrappers/cpu.h')
+PublicInclude('libqemu/wrappers/cpu.h')
 ExportedFct('cpu_loop', 'void', [ 'Object *' ], priv = 'libqemu_cpu_loop')
 ExportedFct('cpu_loop_is_busy', 'bool', [ 'Object *' ], priv = 'libqemu_cpu_loop_is_busy')
 ExportedFct('cpu_can_run', 'bool', [ 'Object *' ], priv = 'libqemu_cpu_can_run')
@@ -153,7 +153,8 @@ ExportedFct('cpu_get_soft_stopped', 'bool', [ 'Object *', ],
         priv = 'libqemu_cpu_get_soft_stopped')
 ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
-ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'void (*)(void *)', 'void *' ], priv = 'libqemu_async_safe_run_on_cpu')
+ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'LibQemuAsyncCpuJobFn', 'void *' ],
+        priv = 'libqemu_async_safe_run_on_cpu')
 
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
