@@ -25,7 +25,9 @@
 typedef struct QemuObject QemuObject;
 
 typedef void (*LibQemuCpuEndOfLoopFn)(QemuObject *cpu, void *opaque);
+typedef void (*LibQemuCpuKickFn)(QemuObject *cpu, void *opaque);
 
 void libqemu_set_cpu_end_of_loop_cb(LibQemuCpuEndOfLoopFn cb, void *opaque);
+void libqemu_set_cpu_kick_cb(LibQemuCpuKickFn cb, void *opaque);
 
 #endif
