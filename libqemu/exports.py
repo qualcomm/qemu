@@ -145,11 +145,9 @@ ExportedFct('cpu_register_thread', 'void', [ 'Object *' ], priv = 'libqemu_cpu_r
 ExportedFct('cpu_kick', 'void', [ 'Object *' ], priv = 'qemu_cpu_kick')
 ExportedFct('cpu_reset', 'void', [ 'Object *' ], priv = 'libqemu_cpu_reset')
 ExportedFct('cpu_halt', 'void', [ 'Object *', 'bool', ], priv = 'libqemu_cpu_halt')
-ExportedFct('cpu_request_exit', 'void', [ 'Object *' ], priv = 'libqemu_cpu_request_exit')
 ExportedFct('current_cpu_get', 'Object *', [], priv = 'libqemu_current_cpu_get')
 ExportedFct('current_cpu_set', 'void', [ 'Object *' ], priv = 'libqemu_current_cpu_set')
 ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'void (*)(void *)', 'void *' ], priv = 'libqemu_async_safe_run_on_cpu')
-ExportedFct('resume_all_vcpus', 'void', [], priv = 'libqemu_resume_all_vcpus')
 
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
