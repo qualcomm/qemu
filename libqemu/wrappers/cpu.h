@@ -22,6 +22,8 @@
 
 #include <stdbool.h>
 
+typedef void (*LibQemuAsyncCpuJobFn)(void *);
+
 void libqemu_cpu_loop(Object *cpu);
 bool libqemu_cpu_loop_is_busy(Object *cpu);
 bool libqemu_cpu_can_run(Object *cpu);
@@ -34,6 +36,6 @@ bool libqemu_cpu_get_soft_stopped(Object *cpu);
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
 
-void libqemu_async_safe_run_on_cpu(Object *cpu, void (*handler)(void *), void *arg);
+void libqemu_async_safe_run_on_cpu(Object *cpu, LibQemuAsyncCpuJobFn, void *arg);
 
 #endif
