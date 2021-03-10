@@ -37,6 +37,10 @@
 #include "tcg-accel-ops-rr.h"
 #include "tcg-accel-ops-icount.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 /* Kick all RR vCPUs */
 void rr_kick_vcpu_thread(CPUState *unused)
 {
@@ -289,8 +293,18 @@ static void *rr_cpu_thread_fn(void *arg)
                 break;
             }
 
+#ifdef CONFIG_LIBQEMU
+            libqemu_cpu_end_of_loop_cb(cpu);
+#endif
+
             cpu = CPU_NEXT(cpu);
         } /* while (cpu && !cpu->exit_request).. */
+
+#ifdef CONFIG_LIBQEMU
+        if (cpu) {
+            libqemu_cpu_end_of_loop_cb(cpu);
+        }
+#endif
 
         /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
