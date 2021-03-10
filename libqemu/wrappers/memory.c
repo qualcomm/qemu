@@ -54,6 +54,20 @@ MemoryRegion* libqemu_memory_region_new(void)
     return g_new0(MemoryRegion, 1);
 }
 
+MemTxResult libqemu_memory_region_dispatch_read(MemoryRegion *mr, hwaddr addr, uint64_t *data,
+                                                unsigned int size, MemTxAttrs attrs)
+{
+    MemOp op = size_memop(size);
+    return memory_region_dispatch_read(mr, addr, data, op, attrs);
+}
+
+MemTxResult libqemu_memory_region_dispatch_write(MemoryRegion *mr, hwaddr addr, uint64_t data,
+                                                unsigned int size, MemTxAttrs attrs)
+{
+    MemOp op = size_memop(size);
+    return memory_region_dispatch_write(mr, addr, data, op, attrs);
+}
+
 static MemTxResult libqemu_read_generic_cb(void *opaque,
         hwaddr addr, uint64_t *data, unsigned int size, MemTxAttrs attrs);
 static MemTxResult libqemu_write_generic_cb(void *opaque,
