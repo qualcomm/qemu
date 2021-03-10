@@ -21,5 +21,6 @@
 #define _LIBQEMU_CALLBACKS_H
 
 void libqemu_cpu_end_of_loop_cb(CPUState *cpu);
+void libqemu_cpu_kick_cb(CPUState *cpu);
 
 #endif

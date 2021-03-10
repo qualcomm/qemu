@@ -46,6 +46,11 @@ struct LibQemuContext {
         LibQemuCpuEndOfLoopFn cb;
         void *opaque;
     } cpu_end_of_loop_cb;
+
+    struct {
+        LibQemuCpuKickFn cb;
+        void *opaque;
+    } cpu_kick_cb;
 };
 
 /* Since QEMU has a implicit state, there is no use in returning an explicit
@@ -140,3 +145,20 @@ void libqemu_cpu_end_of_loop_cb(CPUState *cpu)
         cb((QemuObject *)cpu, opaque);
     }
 }
+
+void libqemu_set_cpu_kick_cb(LibQemuCpuKickFn cb, void *opaque)
+{
+    context.cpu_kick_cb.cb = cb;
+    context.cpu_kick_cb.opaque = opaque;
+}
+
+void libqemu_cpu_kick_cb(CPUState *cpu)
+{
+    LibQemuCpuKickFn cb = context.cpu_kick_cb.cb;
+    void *opaque = context.cpu_kick_cb.opaque;
+
+    if (cb) {
+        cb((QemuObject *)cpu, opaque);
+    }
+}
+
