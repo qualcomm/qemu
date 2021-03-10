@@ -36,6 +36,10 @@
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-mttcg.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 typedef struct MttcgForceRcuNotifier {
     Notifier notifier;
     CPUState *cpu;
@@ -55,6 +59,7 @@ static void mttcg_force_rcu(Notifier *notify, void *data)
      */
     async_run_on_cpu(cpu, do_nothing, RUN_ON_CPU_NULL);
 }
+
 
 /*
  * In the multi-threaded case each vCPU has its own thread. The TLS
@@ -124,6 +129,9 @@ static void *mttcg_cpu_thread_fn(void *arg)
         }
 
         qatomic_mb_set(&cpu->exit_request, 0);
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
