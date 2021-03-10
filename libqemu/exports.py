@@ -83,10 +83,12 @@ ExportedFct('memory_region_del_subregion', 'void',
 
 ExportedFct('memory_region_dispatch_read', 'MemTxResult',
         [ 'MemoryRegion *', 'hwaddr', 'uint64_t *', 'unsigned int', 'MemTxAttrs' ],
+        priv = 'libqemu_memory_region_dispatch_read',
         iothread_locked = True)
 
 ExportedFct('memory_region_dispatch_write', 'MemTxResult',
         [ 'MemoryRegion *', 'hwaddr', 'uint64_t', 'unsigned int', 'MemTxAttrs' ],
+        priv = 'libqemu_memory_region_dispatch_write',
         iothread_locked = True)
 
 ExportedFct('memory_region_size', 'uint64_t', [ 'MemoryRegion *' ])

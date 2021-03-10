@@ -49,6 +49,11 @@ MemoryRegion* libqemu_memory_region_new(void);
 void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRegionOps *ops,
                                    void *opaque, const char *name, uint64_t size);
 
+MemTxResult libqemu_memory_region_dispatch_read(MemoryRegion *mr, hwaddr addr, uint64_t *data,
+                                                unsigned int size, MemTxAttrs attrs);
+MemTxResult libqemu_memory_region_dispatch_write(MemoryRegion *mr, hwaddr addr, uint64_t data,
+                                                unsigned int size, MemTxAttrs attrs);
+
 void libqemu_cpu_do_io(void);
 
 #endif
