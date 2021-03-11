@@ -170,6 +170,14 @@ ExportedFct('timer_free', 'void', [ 'QemuTimer *' ])
 ExportedFct('timer_mod_ns', 'void', [ 'QemuTimer *', 'int64_t' ])
 ExportedFct('timer_del', 'void', [ 'QemuTimer *' ])
 
+PrivateInclude('exec/ram_addr.h')
+ExportedFct('tb_invalidate_phys_range', 'void', [ 'uint64_t', 'uint64_t' ])
+
+PrivateInclude('libqemu/wrappers/chardev.h')
+ExportedType('QemuChardev', 'Chardev')
+ExportedFct('char_dev_new', 'Chardev *', [ 'const char *', 'const char *' ],
+        priv = 'libqemu_char_dev_new')
+
 PublicInclude('libqemu/wrappers/libqemu.h')
 ExportedFct('set_cpu_end_of_loop_cb', 'void', [ 'LibQemuCpuEndOfLoopFn', 'void *' ],
         priv = 'libqemu_set_cpu_end_of_loop_cb')
@@ -179,6 +187,7 @@ ExportedFct('set_cpu_kick_cb', 'void', [ 'LibQemuCpuKickFn', 'void *' ],
 PrivateInclude('qemu/coroutine.h')
 ExportedFct('coroutine_yield', 'void', [], priv = 'qemu_coroutine_yield')
 
+# AArch64 specific exports
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
@@ -191,10 +200,8 @@ ExportedFct('cpu_aarch64_set_aarch64_mode', 'void', [ 'Object *', 'bool' ],
 ExportedFct('cpu_arm_get_exclusive_val', 'uint64_t', [ 'Object *' ],
         priv = 'libqemu_cpu_arm_get_exclusive_val', arch = 'aarch64')
 
-PrivateInclude('exec/ram_addr.h')
-ExportedFct('tb_invalidate_phys_range', 'void', [ 'uint64_t', 'uint64_t' ])
-
-PrivateInclude('libqemu/wrappers/chardev.h')
-ExportedType('QemuChardev', 'Chardev')
-ExportedFct('char_dev_new', 'Chardev *', [ 'const char *', 'const char *' ],
-        priv = 'libqemu_char_dev_new')
+# RISC-V specific exports
+PublicInclude('libqemu/wrappers/target/riscv.h')
+ExportedFct('cpu_riscv_register_mip_update_callback', 'void',
+        [ 'LibQemuRiscvMipUpdateCallbackFn', 'void *' ],
+        priv = 'libqemu_cpu_riscv_register_mip_update_callback', arch = 'riscv')
