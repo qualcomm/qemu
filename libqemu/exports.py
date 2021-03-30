@@ -53,6 +53,10 @@ ExportedFct('object_property_add_child', 'void',
 
 ExportedFct('object_get_root', 'Object *', [])
 
+ExportedFct('object_property_parse', 'bool',
+        ['Object *', 'const char *', 'const char *', 'Error **'],
+        iothread_locked = True)
+
 
 PublicInclude('libqemu/wrappers/memory.h')
 PublicInclude('exec/hwaddr.h')
