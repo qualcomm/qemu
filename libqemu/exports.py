@@ -155,6 +155,10 @@ ExportedFct('sysbus_mmio_get_region', 'MemoryRegion *', [ 'SysBusDevice *', 'int
 ExportedFct('sysbus_connect_gpio_out', 'void', [ 'SysBusDevice *', 'int', 'struct IRQState *' ],
         priv = 'sysbus_connect_irq')
 
+PrivateInclude('libqemu/wrappers/gpex.h')
+ExportedFct('gpex_set_irq_num', 'int', [ 'SysBusDevice *', 'int', 'int' ],
+            priv = 'libqemu_gpex_set_irq_num')
+
 PublicInclude('libqemu/wrappers/cpu.h')
 PrivateInclude('exec/exec-all.h')
 ExportedFct('cpu_loop', 'void', [ 'Object *' ], priv = 'libqemu_cpu_loop')
