@@ -26,6 +26,7 @@
 #include "tcg/tcg.h"
 #include "block/aio.h"
 #include "qapi/error.h"
+#include "sysemu/runstate.h"
 
 #include "cpu.h"
 #include "sysemu/cpus.h"
@@ -173,4 +174,9 @@ void libqemu_cpu_set_unplug(Object *obj, bool unplug)
     CPUState *cpu = CPU(obj);
 
     cpu->unplug = unplug;
+}
+
+void libqemu_vm_stop_paused(void)
+{
+    vm_stop(RUN_STATE_PAUSED);
 }

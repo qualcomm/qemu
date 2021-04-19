@@ -161,6 +161,10 @@ ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'LibQemuAsyncCpuJobFn
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
 
+PrivateInclude('include/sysemu/runstate.h')
+ExportedFct('vm_start', 'void', [])
+ExportedFct('vm_stop_paused', 'void', [], priv = 'libqemu_vm_stop_paused')
+
 PublicInclude('libqemu/wrappers/timer.h')
 ExportedType('QemuTimer', 'QEMUTimer')
 ExportedFct('clock_virtual_get_ns', 'int64_t', [ ], priv = 'libqemu_clock_virtual_get_ns')
