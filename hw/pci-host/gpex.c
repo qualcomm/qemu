@@ -74,6 +74,16 @@ static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
     return route;
 }
 
+static AddressSpace * gpex_host_iommu_fn(PCIBus *bus, void *opaque, int devfn)
+{
+    /*
+     * We return an address space, but in practical, we'll only use
+     * the root memory region.
+     */
+    GPEXHost *s = GPEX_HOST(opaque);
+    return s->bus_master_as;
+}
+
 static void gpex_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
@@ -136,6 +146,13 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
     pci->bus = pci_register_root_bus(dev, "pcie.0", gpex_set_irq,
                                      pci_swizzle_map_irq_fn, s, &s->io_mmio,
                                      &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
+    if (s->bus_master) {
+        s->bus_master_as = g_new0(AddressSpace, 1);
+        address_space_init(s->bus_master_as, s->bus_master, "gpex-host-bus-master-as");
+        PCIIOMMUOps *ops = g_malloc0(sizeof(*ops));
+        ops->get_address_space = gpex_host_iommu_fn;
+        pci_setup_iommu(pci->bus, ops, (void *) s);
+    }
 
     pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
     qdev_realize(DEVICE(&s->gpex_root), BUS(pci->bus), &error_fatal);
@@ -154,6 +171,8 @@ static Property gpex_host_properties[] = {
      */
     DEFINE_PROP_BOOL("allow-unmapped-accesses", GPEXHost,
                      allow_unmapped_accesses, true),
+    /* Override the default Address Space when defined for master accesses */
+    DEFINE_PROP_LINK("bus-master", GPEXHost, bus_master, TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT64(PCI_HOST_ECAM_BASE, GPEXHost, gpex_cfg.ecam.base, 0),
     DEFINE_PROP_SIZE(PCI_HOST_ECAM_SIZE, GPEXHost, gpex_cfg.ecam.size, 0),
     DEFINE_PROP_UINT64(PCI_HOST_PIO_BASE, GPEXHost, gpex_cfg.pio.base, 0),

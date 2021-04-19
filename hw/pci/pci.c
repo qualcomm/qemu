@@ -145,7 +145,21 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
     PCIBus *bus = PCI_BUS(qbus);
 
     bus->machine_done.notify = pcibus_machine_done;
-    qemu_add_machine_init_done_notifier(&bus->machine_done);
+    /*
+     * in libqemu, there is a problem because the pci_init_bus_master is called
+     * twice for the gpex-root (must not happen because the container_region
+     * cannot be added twice as enable_region subregion):
+     * + due to pci_bus_realize/.../pcibus_machine_done
+     * + due to pci_qdev_realize/do_pci_register_device (qdev_hotplug is true)
+     * The reason is unknown.
+     */
+#ifdef CONFIG_LIBQEMU
+    if (!phase_check(PHASE_MACHINE_READY)) {
+#endif
+        qemu_add_machine_init_done_notifier(&bus->machine_done);
+#ifdef CONFIG_LIBQEMU
+    }
+#endif
 
     vmstate_register_any(NULL, &vmstate_pcibus, bus);
 }
