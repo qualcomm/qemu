@@ -55,6 +55,12 @@ struct GPEXHost {
     int irq_num[GPEX_NUM_IRQS];
 
     bool allow_unmapped_accesses;
+    /*
+     * Memory region to be used for bus master memory accesses.
+     * If defined it is used for iommu of sub-buses.
+     */
+    MemoryRegion *bus_master;
+    AddressSpace *bus_master_as;
 };
 
 struct GPEXConfig {
