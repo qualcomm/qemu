@@ -160,6 +160,8 @@ ExportedFct('async_safe_run_on_cpu', 'void', [ 'Object *', 'LibQemuAsyncCpuJobFn
         priv = 'libqemu_async_safe_run_on_cpu')
 ExportedFct('cpu_restore_state', 'bool', [ 'Object *', 'uintptr_t', 'bool'])
 ExportedFct('cpu_loop_exit_noexc', 'void', [ 'Object *' ])
+ExportedFct('cpu_in_exclusive_context', 'bool', [ 'const Object *'])
+ExportedFct('cpu_get_index', 'int', [ 'const Object *' ], priv = 'libqemu_cpu_get_index')
 ExportedFct('cpu_get_mem_io_pc', 'uintptr_t', [ 'Object *' ], priv = 'libqemu_cpu_get_mem_io_pc')
 
 PrivateInclude('exec/gdbstub.h')
