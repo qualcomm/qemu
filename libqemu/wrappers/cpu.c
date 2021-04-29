@@ -176,6 +176,11 @@ void libqemu_cpu_set_unplug(Object *obj, bool unplug)
     cpu->unplug = unplug;
 }
 
+int libqemu_cpu_get_index(const Object *obj)
+{
+    return CPU(obj)->cpu_index;
+}
+
 uintptr_t libqemu_cpu_get_mem_io_pc(Object *obj)
 {
     CPUState *cpu = CPU(obj);
