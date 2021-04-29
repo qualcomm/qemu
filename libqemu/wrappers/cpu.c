@@ -176,6 +176,13 @@ void libqemu_cpu_set_unplug(Object *obj, bool unplug)
     cpu->unplug = unplug;
 }
 
+uintptr_t libqemu_cpu_get_mem_io_pc(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+
+    return cpu->mem_io_pc;
+}
+
 void libqemu_vm_stop_paused(void)
 {
     vm_stop(RUN_STATE_PAUSED);
