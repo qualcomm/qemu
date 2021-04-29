@@ -37,6 +37,7 @@ void libqemu_cpu_set_unplug(Object *cpu, bool unplug);
 Object *libqemu_current_cpu_get(void);
 void libqemu_current_cpu_set(Object *cpu);
 
+void libqemu_async_run_on_cpu(Object *cpu, LibQemuAsyncCpuJobFn, void *arg);
 void libqemu_async_safe_run_on_cpu(Object *cpu, LibQemuAsyncCpuJobFn, void *arg);
 
 int libqemu_cpu_get_index(const Object *obj);
