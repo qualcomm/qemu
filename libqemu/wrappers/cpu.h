@@ -39,6 +39,8 @@ void libqemu_current_cpu_set(Object *cpu);
 
 void libqemu_async_safe_run_on_cpu(Object *cpu, LibQemuAsyncCpuJobFn, void *arg);
 
+uintptr_t libqemu_cpu_get_mem_io_pc(Object *cpu);
+
 void libqemu_vm_stop_paused(void);
 
 #endif
