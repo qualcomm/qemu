@@ -80,10 +80,26 @@ void libqemu_arm_nvic_add_cpu_link(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-uint64_t libqemu_cpu_arm_get_exclusive_val(Object *obj)
+uint64_t libqemu_cpu_arm_get_exclusive_addr(const Object *obj)
+{
+    const ARMCPU *cpu = ARM_CPU(obj);
+    const CPUARMState *env = &cpu->env;
+
+    return env->exclusive_addr;
+}
+
+uint64_t libqemu_cpu_arm_get_exclusive_val(const Object *obj)
+{
+    const ARMCPU *cpu = ARM_CPU(obj);
+    const CPUARMState *env = &cpu->env;
+
+    return env->exclusive_val;
+}
+
+void libqemu_cpu_arm_set_exclusive_val(Object *obj, uint64_t val)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     CPUARMState *env = &cpu->env;
 
-    return env->exclusive_val;
+    env->exclusive_val = val;
 }
