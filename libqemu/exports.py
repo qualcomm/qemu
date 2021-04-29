@@ -207,8 +207,12 @@ ExportedFct('arm_nvic_add_cpu_link', 'void', [ 'Object *' ],
         priv = 'libqemu_arm_nvic_add_cpu_link', arch = 'aarch64')
 ExportedFct('cpu_aarch64_set_aarch64_mode', 'void', [ 'Object *', 'bool' ],
         priv = 'libqemu_cpu_aarch64_set_aarch64_mode', arch = 'aarch64')
-ExportedFct('cpu_arm_get_exclusive_val', 'uint64_t', [ 'Object *' ],
+ExportedFct('cpu_arm_get_exclusive_addr', 'uint64_t', [ 'const Object *' ],
+        priv = 'libqemu_cpu_arm_get_exclusive_addr', arch = 'aarch64')
+ExportedFct('cpu_arm_get_exclusive_val', 'uint64_t', [ 'const Object *' ],
         priv = 'libqemu_cpu_arm_get_exclusive_val', arch = 'aarch64')
+ExportedFct('cpu_arm_set_exclusive_val', 'void', [ 'Object *', 'uint64_t' ],
+        priv = 'libqemu_cpu_arm_set_exclusive_val', arch = 'aarch64')
 
 # RISC-V specific exports
 PublicInclude('libqemu/wrappers/target/riscv.h')
