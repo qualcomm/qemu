@@ -26,6 +26,7 @@
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
 typedef struct Object Object;
+typedef struct AddressSpace AddressSpace;
 
 typedef MemTxResult (*LibQemuMrReadCb)(void *opaque,
                                        hwaddr addr,
@@ -55,5 +56,8 @@ MemTxResult libqemu_memory_region_dispatch_write(MemoryRegion *mr, hwaddr addr, 
                                                 unsigned int size, MemTxAttrs attrs);
 
 void libqemu_cpu_do_io(void);
+
+AddressSpace *libqemu_address_space_new(void);
+void libqemu_address_space_free(AddressSpace *);
 
 #endif

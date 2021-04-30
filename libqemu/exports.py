@@ -107,6 +107,14 @@ ExportedFct('mr_ops_set_write_cb', 'void',
 ExportedFct('mr_ops_set_max_access_size', 'void',
         [ 'MemoryRegionOps *', 'unsigned' ], priv = 'libqemu_mr_ops_max_access_size')
 
+ExportedType('QemuAddressSpace', 'AddressSpace')
+ExportedFct('address_space_new', 'AddressSpace *', [], priv = 'libqemu_address_space_new')
+ExportedFct('address_space_free', 'void', [ 'AddressSpace *' ], priv = 'libqemu_address_space_free')
+ExportedFct('address_space_init', 'void', [ 'AddressSpace *', 'MemoryRegion *', 'const char *' ])
+ExportedFct('address_space_destroy', 'void', [ 'AddressSpace *' ])
+ExportedFct('address_space_read', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'void *', 'hwaddr' ])
+ExportedFct('address_space_write', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'const void *', 'hwaddr' ])
+
 PrivateInclude('hw/irq.h')
 PublicInclude('libqemu/wrappers/gpio.h')
 ExportedType('QemuGpio', 'struct IRQState')

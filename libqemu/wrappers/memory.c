@@ -212,3 +212,13 @@ void libqemu_cpu_do_io(void)
     io = &current_cpu->coroutine_yield_info.io_info;
     do_io_access(io);
 }
+
+AddressSpace *libqemu_address_space_new(void)
+{
+    return g_new0(AddressSpace, 1);
+}
+
+void libqemu_address_space_free(AddressSpace *as)
+{
+    g_free(as);
+}
