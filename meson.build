@@ -2433,6 +2433,11 @@ if virgl.found()
                          cc.has_function('virgl_renderer_context_create_with_flags',
                                          prefix: '#include <virglrenderer.h>',
                                          dependencies: virgl))
+
+  config_host_data.set('HAVE_VIRGL_RESOURCE_BLOB',
+                         cc.has_function('virgl_renderer_resource_create_blob',
+                                         prefix: '#include <virglrenderer.h>',
+                                         dependencies: virgl))
 endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
