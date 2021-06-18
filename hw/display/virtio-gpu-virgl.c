@@ -671,7 +671,7 @@ static void virgl_cmd_get_capset(VirtIOGPU *g,
     g_free(resp);
 }
 
-#if VIRGL_VERSION_MAJOR >= 1
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
 static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
                                            struct virtio_gpu_ctrl_command *cmd)
 {
@@ -952,6 +952,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_GET_EDID:
         virtio_gpu_get_edid(g, cmd);
         break;
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
 #if VIRGL_VERSION_MAJOR >= 1
     case VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB:
         virgl_cmd_resource_create_blob(g, cmd);
@@ -966,6 +967,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         virgl_cmd_set_scanout_blob(g, cmd);
         break;
 #endif
+#endif /* HAVE_VIRGL_RESOURCE_BLOB */
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         break;

@@ -2666,6 +2666,15 @@ if virgl.found()
                          cc.has_function('virgl_renderer_context_create_with_flags',
                                          prefix: '#include <virglrenderer.h>',
                                          dependencies: virgl))
+
+  config_host_data.set('HAVE_VIRGL_RESOURCE_BLOB',
+                         cc.has_function('virgl_renderer_resource_create_blob',
+                                         prefix: '#include <virglrenderer.h>',
+                                         dependencies: virgl)
+                         and
+                         cc.has_member('struct virgl_renderer_resource_info', 'fd',
+                                       prefix: '#include <virglrenderer.h>',
+                                       dependencies: virgl))
 endif
 if vcl.found()
   config_host_data.set('HAVE_VCL_D3D_INFO_EXT',
