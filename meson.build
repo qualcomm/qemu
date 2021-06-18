@@ -760,6 +760,11 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
                      kwargs: static_kwargs)
+
+  config_host_data.set('HAVE_VIRGL_RESOURCE_BLOB',
+                       cc.has_function('virgl_renderer_resource_create_blob',
+                                       prefix: '#include <virglrenderer.h>',
+                                       dependencies: virgl))
 endif
 blkio = not_found
 if not get_option('blkio').auto() or have_block
