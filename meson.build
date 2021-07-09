@@ -3489,6 +3489,8 @@ common_ss = ss.source_set()
 crypto_ss = ss.source_set()
 hwcore_ss = ss.source_set()
 io_ss = ss.source_set()
+libqemu_ss = ss.source_set()
+linux_user_ss = ss.source_set()
 qmp_ss = ss.source_set()
 qom_ss = ss.source_set()
 system_ss = ss.source_set()
@@ -3644,6 +3646,9 @@ subdir('plugins')
 subdir('ebpf')
 
 common_user_inc = []
+#libqemu (maybe we can directly put files in specific_ss ?)
+subdir('libqemu')
+specific_ss.add_all(libqemu_ss)
 
 subdir('common-user')
 subdir('bsd-user')
