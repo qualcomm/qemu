@@ -35,6 +35,7 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
 {
     struct virtio_gpu_resource_create_2d c2d;
     struct virgl_renderer_resource_create_args args;
+    struct virtio_gpu_simple_resource *res;
 
     VIRTIO_GPU_FILL_CMD(c2d);
     trace_virtio_gpu_cmd_res_create_2d(c2d.resource_id, c2d.format,
@@ -52,6 +53,10 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
     args.nr_samples = 0;
     args.flags = VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP;
     virgl_renderer_resource_create(&args, NULL, 0);
+
+    res = g_new0(struct virtio_gpu_simple_resource, 1);
+    res->resource_id = c2d.resource_id;
+    QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
 static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
@@ -59,6 +64,7 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
 {
     struct virtio_gpu_resource_create_3d c3d;
     struct virgl_renderer_resource_create_args args;
+    struct virtio_gpu_simple_resource *res;
 
     VIRTIO_GPU_FILL_CMD(c3d);
     trace_virtio_gpu_cmd_res_create_3d(c3d.resource_id, c3d.format,
@@ -76,6 +82,10 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
     args.nr_samples = c3d.nr_samples;
     args.flags = c3d.flags;
     virgl_renderer_resource_create(&args, NULL, 0);
+
+    res = g_new0(struct virtio_gpu_simple_resource, 1);
+    res->resource_id = c3d.resource_id;
+    QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
 static void virgl_cmd_resource_unref(VirtIOGPU *g,
@@ -470,6 +480,9 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_CTX_DETACH_RESOURCE:
         /* TODO add security */
         virgl_cmd_ctx_detach_resource(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_ASSIGN_UUID:
+        virtio_gpu_resource_assign_uuid(g, cmd);
         break;
     case VIRTIO_GPU_CMD_GET_CAPSET_INFO:
         virgl_cmd_get_capset_info(g, cmd);
