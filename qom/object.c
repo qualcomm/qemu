@@ -694,7 +694,6 @@ static void object_finalize(void *data)
     object_deinit(obj, ti);
 
     g_assert(obj->ref == 0);
-    g_assert(obj->parent == NULL);
     if (obj->free) {
         obj->free(obj);
     }
