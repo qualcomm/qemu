@@ -222,3 +222,8 @@ void libqemu_address_space_free(AddressSpace *as)
 {
     g_free(as);
 }
+
+AddressSpace *libqemu_address_space_get_system_memory(void)
+{
+    return &address_space_memory;
+}
