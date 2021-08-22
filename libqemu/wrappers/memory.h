@@ -59,5 +59,6 @@ void libqemu_cpu_do_io(void);
 
 AddressSpace *libqemu_address_space_new(void);
 void libqemu_address_space_free(AddressSpace *);
+AddressSpace *libqemu_address_space_get_system_memory(void);
 
 #endif

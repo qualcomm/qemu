@@ -118,6 +118,7 @@ ExportedFct('address_space_init', 'void', [ 'AddressSpace *', 'MemoryRegion *', 
 ExportedFct('address_space_destroy', 'void', [ 'AddressSpace *' ])
 ExportedFct('address_space_read', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'void *', 'hwaddr' ])
 ExportedFct('address_space_write', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'const void *', 'hwaddr' ])
+ExportedFct('address_space_get_system_memory', 'AddressSpace *', [], priv = 'libqemu_address_space_get_system_memory')
 
 PrivateInclude('hw/irq.h')
 PublicInclude('libqemu/wrappers/gpio.h')
