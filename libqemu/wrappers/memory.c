@@ -23,6 +23,8 @@
 
 #include "memory.h"
 
+extern AddressSpace address_space_memory;
+
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
     return g_new0(MemoryRegionOps, 1);
@@ -221,4 +223,9 @@ AddressSpace *libqemu_address_space_new(void)
 void libqemu_address_space_free(AddressSpace *as)
 {
     g_free(as);
+}
+
+AddressSpace *libqemu_address_space_get_system_memory(void)
+{
+    return &address_space_memory;
 }
