@@ -69,6 +69,7 @@ config NE2000_ISA
 
 config OPENCORES_ETH
     bool
+    default y
 
 config XGMAC
     bool
