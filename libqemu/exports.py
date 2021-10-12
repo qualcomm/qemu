@@ -57,6 +57,9 @@ ExportedFct('object_property_parse', 'bool',
         ['Object *', 'const char *', 'const char *', 'Error **'],
         iothread_locked = True)
 
+ExportedFct('object_property_get_link', 'Object *',
+        ['Object *', 'const char *', 'Error **'],
+        iothread_locked = True)
 
 PublicInclude('libqemu/wrappers/memory.h')
 PublicInclude('exec/hwaddr.h')
