@@ -3664,7 +3664,8 @@ foreach target : target_dirs
                  link_language: link_language,
                  link_depends: [block_syms, qemu_syms, 'libqemu/libqemu.version']
                                + exe.get('link_depends', []),
-                 link_args: link_args)
+                 link_args: link_args,
+		 install_dir: 'lib')
     else
       emulator = executable(exe_name, exe['sources'],
                  install: true,
@@ -3677,7 +3678,7 @@ foreach target : target_dirs
                  win_subsystem: exe['win_subsystem'])
     endif
 
-    if targetos == 'darwin'
+    if targetos == 'darwin' and not build_libqemu
       icon = 'pc-bios/qemu.rsrc'
       build_input = [emulator, files(icon)]
       install_input = [

@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+if(NOT TARGET libqemu)
+    include("${CMAKE_CURRENT_LIST_DIR}/libqemu-targets.cmake")
+endif()
+
+set_and_check(LIBQEMU_LIB_DIR @PACKAGE_LIBQEMU_LIB_DIR@)
+set(LIBQEMU_TARGETS @LIBQEMU_TARGETS@)
