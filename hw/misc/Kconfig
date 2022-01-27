@@ -180,4 +180,8 @@ config AXP209_PMU
     bool
     depends on I2C
 
+config ARM_SMMU
+    bool
+    select REGISTER
+
 source macio/Kconfig

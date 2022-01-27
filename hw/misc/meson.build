@@ -129,6 +129,7 @@ softmmu_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_rng.c'))
 softmmu_ss.add(when: 'CONFIG_GRLIB', if_true: files('grlib_ahb_apb_pnp.c'))
 
 softmmu_ss.add(when: 'CONFIG_I2C', if_true: files('i2c-echo.c'))
+softmmu_ss.add(when: 'CONFIG_ARM_SMMU', if_true: files('arm-smmu.c'))
 
 specific_ss.add(when: 'CONFIG_AVR_POWER', if_true: files('avr_power.c'))
 
