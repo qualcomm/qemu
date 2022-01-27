@@ -5,3 +5,6 @@
 # Boards are selected by default, uncomment to keep out of the build.
 # CONFIG_HEX_VIRT=y
 # CONFIG_HEX_DSP=y
+
+CONFIG_UNIMP=y
+CONFIG_ARM_SMMU=y

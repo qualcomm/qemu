@@ -298,6 +298,9 @@ config K230_DECOMP_GZIP
 
 config SOPHGO_CV1800B_CLK
     bool
+config ARM_SMMU
+    bool
+    select REGISTER
 
 source macio/Kconfig
 
