@@ -263,4 +263,8 @@ config DSPSS_PUB
 config XLNX_ZYNQ_DDRC
     bool
 
+config ARM_SMMU
+    bool
+    select REGISTER
+
 source macio/Kconfig
