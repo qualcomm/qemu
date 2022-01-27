@@ -268,4 +268,8 @@ config TCSR
 config DSPSS_PUB
     bool
 
+config ARM_SMMU
+    bool
+    select REGISTER
+
 source macio/Kconfig
