@@ -213,4 +213,8 @@ config IOSB
 config XLNX_VERSAL_TRNG
     bool
 
+config ARM_SMMU
+    bool
+    select REGISTER
+
 source macio/Kconfig
