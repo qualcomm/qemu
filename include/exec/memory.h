@@ -400,6 +400,13 @@ struct IOMMUMemoryRegionClass {
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
                                IOMMUAccessFlags flag, int iommu_idx);
     /**
+     * @translate_attr:
+     *
+     * when defined, it is used instead of 'translate'.
+     */
+    IOMMUTLBEntry (*translate_attr)(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                    bool is_write, MemTxAttrs *attr);
+    /**
      * @get_min_page_size:
      *
      * Returns minimum supported page size in bytes.
