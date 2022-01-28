@@ -1942,8 +1942,16 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         this_size = 1 << this_mop;
         this_mop |= MO_BE;
 
-        r = memory_region_dispatch_read(mr, mr_offset, &val,
-                                        this_mop, full->attrs);
+        /* Xilinx: Make sure we first check if the MemoryRegion is an IOMMU region.
+         * This is required to make sure the XMPU works as expected.
+         */
+        if (memory_region_get_iommu(mr)) {
+            r = address_space_rw(cpu->as, mr_offset, full->attrs,
+                                 (void *) &val, memop_size(this_mop), false);
+        } else {
+            r = memory_region_dispatch_read(mr, mr_offset, &val, this_mop,
+                                            full->attrs);
+        }
         if (r == MEMTX_OK_EXIT_TB) {
             cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
             r = MEMTX_OK;
@@ -2498,8 +2506,16 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
             mr->opaque = mr->container->opaque;
         }
 
-        r = memory_region_dispatch_write(mr, mr_offset, val_le,
-                                         this_mop, full->attrs);
+        /* Xilinx: Make sure we first check if iommu_ops is avaliable. This is
+         * required to make sure the XMPU works as expected.
+         */
+        if (memory_region_get_iommu(mr)) {
+            r = address_space_rw(cpu->as, mr_offset, full->attrs,
+                                 (void *) &val_le, memop_size(this_mop), true);
+        } else {
+            r = memory_region_dispatch_write(mr, mr_offset, val_le, this_mop,
+                                             full->attrs);
+        }
         if (r == MEMTX_OK_EXIT_TB) {
             cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
             r = MEMTX_OK;
