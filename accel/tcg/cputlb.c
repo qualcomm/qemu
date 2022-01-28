@@ -1374,7 +1374,15 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
         QEMU_IOTHREAD_LOCK_GUARD();
         MemTxAttrs attrs = full->attrs;
         attrs.exclusive = exclusive;
-        r = memory_region_dispatch_read(mr, mr_offset, &val, op, attrs);
+        /* Xilinx: Make sure we first check if the MemoryRegion is an IOMMU region.
+         * This is required to make sure the XMPU works as expected.
+         */
+        if (memory_region_get_iommu(mr)) {
+            r = address_space_rw(cpu->as, mr_offset, attrs,
+                                 (void *) &val, memop_size(op), false);
+        } else {
+            r = memory_region_dispatch_read(mr, mr_offset, &val, op, attrs);
+        }
     }
     if (r == MEMTX_OK_EXIT_TB) {
         cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
@@ -1445,9 +1453,16 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
         }
         MemTxAttrs attrs = full->attrs;
         attrs.exclusive = exclusive;
-        r = memory_region_dispatch_write(mr, mr_offset, val, op, attrs);
+        /* Xilinx: Make sure we first check if iommu_ops is avaliable. This is
+         * required to make sure the XMPU works as expected.
+         */
+        if (memory_region_get_iommu(mr)) {
+            r = address_space_rw(cpu->as, mr_offset, attrs,
+                                 (void *) &val, memop_size(op), true);
+        } else {
+            r = memory_region_dispatch_write(mr, mr_offset, val, op, attrs);
+        }
     }
-
     if (r == MEMTX_OK_EXIT_TB) {
         cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
         r = MEMTX_OK;
