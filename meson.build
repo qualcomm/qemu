@@ -199,6 +199,13 @@ enable_modules = get_option('modules') \
            error_message: 'Modules are incompatible with static linking') \
   .allowed()
 
+enable_libqemu = get_option('libqemu')
+if enable_libqemu and not get_option('b_staticpic')
+  error('b_staticpic required for libqemu support')
+endif
+
+python = import('python').find_installation()
+
 #######################################
 # Variables for host and accelerators #
 #######################################
@@ -2310,6 +2317,7 @@ config_host_data.set('CONFIG_DARWIN', host_os == 'darwin')
 config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
+config_host_data.set('CONFIG_LIBQEMU', get_option('libqemu'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_LINUX', host_os == 'linux')
 config_host_data.set('CONFIG_POSIX', host_os != 'windows')
@@ -4024,15 +4032,28 @@ foreach target : target_dirs
       libs_to_link = [coproc_rpc]
     endif
 
-    emulator = executable(exe_name, exe['sources'],
-               install: true,
-               c_args: c_args,
-               dependencies: arch_deps + exe['dependencies'],
-               link_with : libs_to_link,
-               objects: lib.extract_all_objects(recursive: true),
-               link_depends: [block_syms, qemu_syms],
-               link_args: link_args,
-               win_subsystem: exe['win_subsystem'])
+    if enable_libqemu
+      emulator = shared_library(exe_name, exe['sources'],
+                 install: true,
+                 c_args: c_args,
+                 dependencies: arch_deps + exe['dependencies'],
+		 link_with : libs_to_link,
+                 objects: lib.extract_all_objects(recursive: true),
+                 link_depends: [block_syms, qemu_syms, 'libqemu/libqemu.version']
+                               + exe.get('link_depends', []),
+                 link_args: link_args,
+		 win_subsystem: exe['win_subsystem'])
+    else
+      emulator = executable(exe_name, exe['sources'],
+		 install: true,
+		 c_args: c_args,
+		 dependencies: arch_deps + exe['dependencies'],
+		 link_with : libs_to_link,
+		 objects: lib.extract_all_objects(recursive: true),
+		 link_depends: [block_syms, qemu_syms],
+		 link_args: link_args,
+		 win_subsystem: exe['win_subsystem'])
+    endif
 
     if host_os == 'darwin'
       icon = 'pc-bios/qemu.rsrc'
@@ -4352,6 +4373,7 @@ endif
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'sparse':            sparse}
 summary_info += {'mingw32 support':   host_os == 'windows'}
+summary_info += {'libqemu support':   get_option('libqemu')}
 summary(summary_info, bool_yn: true, section: 'Compilation')
 
 # snarf the cross-compilation information for tests
