@@ -297,6 +297,7 @@ ninja=""
 bindir="bin"
 skip_meson=no
 vfio_user_server="disabled"
+libqemu="false"
 
 # The following Meson options are handled manually (still they
 # are included in the automatically generated help message)
@@ -935,6 +936,11 @@ for opt do
   ;;
   --disable-vfio-user-server) vfio_user_server="disabled"
   ;;
+  # libqemu corresponds to a meson option but we need some handling here
+  --enable-libqemu) libqemu="true"
+  ;;
+  --disable-libqemu) libqemu="false"
+  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
@@ -1383,6 +1389,14 @@ cat > $TMPC << EOF
 static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
+
+if test "$libqemu" = "true"; then
+  if compile_prog "-fPIC -DPIC" ""; then
+    CONFIGURE_CFLAGS="-fPIC -DPIC $CONFIGURE_CFLAGS"
+  else
+    error_exit "PIC compilation required to build libqemu but not available"
+  fi
+fi
 
 # Meson currently only handles pie as a boolean for now so if we have
 # explicitly disabled PIE we need to extend our cflags because it wont.
@@ -2689,6 +2703,9 @@ if test "$skip_meson" = no; then
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
   test "$pie" = no && meson_option_add -Db_pie=false
   test "$werror" = yes && meson_option_add -Dwerror=true
+
+  test "$libqemu" = true && meson_option_add -Db_staticpic=true
+  test "$libqemu" = true && meson_option_add -Dlibqemu=true
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"

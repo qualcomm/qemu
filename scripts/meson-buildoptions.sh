@@ -31,6 +31,7 @@ meson_options_help() {
   printf "%s\n" '  --enable-gcov            Enable coverage tracking.'
   printf "%s\n" '  --enable-gprof           QEMU profiling with gprof'
   printf "%s\n" '  --enable-lto             Use link time optimization'
+  printf "%s\n" '  --enable-libqemu         Build shared libraries instead of executables'
   printf "%s\n" '  --enable-malloc=CHOICE   choose memory allocator to use [system] (choices:'
   printf "%s\n" '                           jemalloc/system/tcmalloc)'
   printf "%s\n" '  --enable-module-upgrades try to load modules from alternate paths for'
@@ -327,6 +328,8 @@ _meson_option_parse() {
     --disable-libpmem) printf "%s" -Dlibpmem=disabled ;;
     --enable-libssh) printf "%s" -Dlibssh=enabled ;;
     --disable-libssh) printf "%s" -Dlibssh=disabled ;;
+    --enable-libqemu) printf "%s" -Dlibqemu=true ;;
+    --disable-libqemu) printf "%s" -Dlibqemu=false ;;
     --enable-libudev) printf "%s" -Dlibudev=enabled ;;
     --disable-libudev) printf "%s" -Dlibudev=disabled ;;
     --enable-libusb) printf "%s" -Dlibusb=enabled ;;
