@@ -766,6 +766,8 @@ static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(d);
 
     qbus_init(&proxy->bus, sizeof(proxy->bus), TYPE_VIRTIO_MMIO_BUS, d, NULL);
+    object_property_add_const_link(OBJECT(d), "virtio-mmio-bus", OBJECT(&proxy->bus));
+
     sysbus_init_irq(sbd, &proxy->irq);
 
     /* fd-based ioevents can't be synchronized in record/replay */
