@@ -44,6 +44,7 @@ typedef struct RISCVAclintMTimerState {
     uint32_t aperture_size;
     uint32_t timebase_freq;
     qemu_irq *timer_irqs;
+    bool provide_rdtime;
 } RISCVAclintMTimerState;
 
 DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
