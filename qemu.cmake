@@ -119,10 +119,7 @@ else()
         endif()
         set(lib_path ${QEMU_INSTALL_DIR}/lib/${lib_name})
 
-        target_link_libraries(libqemu-${target}
-            INTERFACE
-                $<BUILD_INTERFACE:${lib_path}>
-                $<INSTALL_INTERFACE:${lib_name}>)
+        target_link_libraries(libqemu-${target} INTERFACE ${lib_name})
 
         install(FILES ${lib_path} DESTINATION ${LIBQEMU_LIB_DIR})
         install(TARGETS libqemu-${target} DESTINATION ${LIBQEMU_LIB_DIR} EXPORT libqemu-targets)
