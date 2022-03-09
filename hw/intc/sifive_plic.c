@@ -400,6 +400,20 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     }
 
     msi_nonbroken = true;
+
+    for (i = 0; i < s->num_addrs; i++) {
+        int cpu_num = s->addr_config[i].hartid;
+        CPUState *cpu = qemu_get_cpu(cpu_num);
+
+        if (s->addr_config[i].mode == PLICMode_M) {
+            qdev_connect_gpio_out(dev, cpu_num - s->hartid_base + s->num_harts,
+                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
+        }
+        if (s->addr_config[i].mode == PLICMode_S) {
+            qdev_connect_gpio_out(dev, cpu_num - s->hartid_base,
+                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
+        }
+    }
 }
 
 static const VMStateDescription vmstate_sifive_plic = {
@@ -476,8 +490,6 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t context_stride, uint32_t aperture_size)
 {
     DeviceState *dev = qdev_new(TYPE_SIFIVE_PLIC);
-    int i;
-    SiFivePLICState *plic;
 
     assert(enable_stride == (enable_stride & -enable_stride));
     assert(context_stride == (context_stride & -context_stride));
@@ -494,22 +506,6 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     qdev_prop_set_uint32(dev, "aperture-size", aperture_size);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
-
-    plic = SIFIVE_PLIC(dev);
-
-    for (i = 0; i < plic->num_addrs; i++) {
-        int cpu_num = plic->addr_config[i].hartid;
-        CPUState *cpu = qemu_get_cpu(cpu_num);
-
-        if (plic->addr_config[i].mode == PLICMode_M) {
-            qdev_connect_gpio_out(dev, cpu_num - hartid_base + num_harts,
-                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
-        }
-        if (plic->addr_config[i].mode == PLICMode_S) {
-            qdev_connect_gpio_out(dev, cpu_num - hartid_base,
-                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
-        }
-    }
 
     return dev;
 }
