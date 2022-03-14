@@ -4028,7 +4028,7 @@ foreach target : target_dirs
   endif
   foreach exe: execs
     exe_name = exe['name']
-    if host_os == 'darwin'
+    if host_os == 'darwin' and not enable_libqemu
       exe_name += '-unsigned'
     endif
 
@@ -4060,7 +4060,7 @@ foreach target : target_dirs
 		 win_subsystem: exe['win_subsystem'])
     endif
 
-    if host_os == 'darwin' and not build_libqemu
+    if host_os == 'darwin' and not enable_libqemu
       icon = 'pc-bios/qemu.rsrc'
       build_input = [emulator, files(icon)]
       install_input = [
