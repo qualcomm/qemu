@@ -2254,7 +2254,7 @@ static void smmu500_realize(DeviceState *dev, Error **errp)
         memory_region_init_iommu(&s->tbu[i].iommu, sizeof(s->tbu[i].iommu),
                                  TYPE_XILINX_SMMU500_IOMMU_MEMORY_REGION,
                                  OBJECT(sbd),
-                                 name, UINT64_MAX);
+                                 name, UINT64_MAX-1);
         sysbus_init_mmio(sbd, MEMORY_REGION(&s->tbu[i].iommu));
         g_free(name);
     }
