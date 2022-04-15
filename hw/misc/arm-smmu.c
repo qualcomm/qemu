@@ -1060,6 +1060,7 @@ typedef struct TBU {
     IOMMUMemoryRegion iommu;
     AddressSpace *as;
     MemoryRegion *mr;
+    uint16_t tbu_sid;
 } TBU;
 
 struct SMMU {
@@ -1721,6 +1722,10 @@ static IOMMUTLBEntry smmu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     int prot;
     bool err = false;
     uint16_t master_id = iommu_idx >> 1;
+    // This needs to be configurable
+    master_id |= tbu->tbu_sid;
+    master_id |= (addr>>32) & 0xf;
+
     bool clientpd = ARRAY_FIELD_EX32(s->regs, SMMU_SCR0, CLIENTPD);
 
     if (clientpd) {
@@ -2316,6 +2321,22 @@ static Property smmu_properties[] = {
     DEFINE_PROP_BOOL("ato", SMMU, cfg.ato, true),
     DEFINE_PROP_UINT8("version", SMMU, cfg.version, 0x21),
     DEFINE_PROP_UINT8("num-tbu", SMMU, num_tbu, 0),
+    DEFINE_PROP_UINT16("tbu-sid-0", SMMU, tbu[0].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-1", SMMU, tbu[1].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-2", SMMU, tbu[2].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-3", SMMU, tbu[3].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-4", SMMU, tbu[4].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-5", SMMU, tbu[5].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-6", SMMU, tbu[6].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-7", SMMU, tbu[7].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-8", SMMU, tbu[8].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-9", SMMU, tbu[9].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-10", SMMU, tbu[10].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-11", SMMU, tbu[11].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-12", SMMU, tbu[12].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-13", SMMU, tbu[13].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-14", SMMU, tbu[14].tbu_sid, 0),
+    DEFINE_PROP_UINT16("tbu-sid-15", SMMU, tbu[15].tbu_sid, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
