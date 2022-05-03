@@ -1061,6 +1061,8 @@ typedef struct TBU {
     AddressSpace *as;
     MemoryRegion *mr;
     uint16_t tbu_sid;
+    uint64_t offset;
+    uint64_t size;
 } TBU;
 
 struct SMMU {
@@ -1712,7 +1714,7 @@ static IOMMUTLBEntry smmu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMU *s = tbu->smmu;
     IOMMUTLBEntry ret = {
         .target_as = tbu->as,
-        .translated_addr = addr,
+        .translated_addr = addr + tbu->offset,
         .addr_mask = (1ULL << 12) - 1,
         .perm = IOMMU_RW,
     };
@@ -2259,7 +2261,7 @@ static void smmu500_realize(DeviceState *dev, Error **errp)
         memory_region_init_iommu(&s->tbu[i].iommu, sizeof(s->tbu[i].iommu),
                                  TYPE_XILINX_SMMU500_IOMMU_MEMORY_REGION,
                                  OBJECT(sbd),
-                                 name, UINT64_MAX-1);
+                                 name, s->tbu[i].size);
         sysbus_init_mmio(sbd, MEMORY_REGION(&s->tbu[i].iommu));
         g_free(name);
     }
@@ -2337,6 +2339,41 @@ static Property smmu_properties[] = {
     DEFINE_PROP_UINT16("tbu-sid-13", SMMU, tbu[13].tbu_sid, 0),
     DEFINE_PROP_UINT16("tbu-sid-14", SMMU, tbu[14].tbu_sid, 0),
     DEFINE_PROP_UINT16("tbu-sid-15", SMMU, tbu[15].tbu_sid, 0),
+
+    DEFINE_PROP_UINT64("tbu-offset-0", SMMU, tbu[0].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-1", SMMU, tbu[1].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-2", SMMU, tbu[2].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-3", SMMU, tbu[3].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-4", SMMU, tbu[4].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-5", SMMU, tbu[5].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-6", SMMU, tbu[6].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-7", SMMU, tbu[7].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-8", SMMU, tbu[8].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-9", SMMU, tbu[9].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-10", SMMU, tbu[10].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-11", SMMU, tbu[11].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-12", SMMU, tbu[12].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-13", SMMU, tbu[13].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-14", SMMU, tbu[14].offset, 0),
+    DEFINE_PROP_UINT64("tbu-offset-15", SMMU, tbu[15].offset, 0),
+
+    DEFINE_PROP_UINT64("tbu-size-0", SMMU, tbu[0].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-1", SMMU, tbu[1].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-2", SMMU, tbu[2].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-3", SMMU, tbu[3].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-4", SMMU, tbu[4].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-5", SMMU, tbu[5].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-6", SMMU, tbu[6].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-7", SMMU, tbu[7].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-8", SMMU, tbu[8].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-9", SMMU, tbu[9].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-10", SMMU, tbu[10].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-11", SMMU, tbu[11].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-12", SMMU, tbu[12].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-13", SMMU, tbu[13].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-14", SMMU, tbu[14].size, UINT64_MAX-1),
+    DEFINE_PROP_UINT64("tbu-size-15", SMMU, tbu[15].size, UINT64_MAX-1),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 
