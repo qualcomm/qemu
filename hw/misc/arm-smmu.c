@@ -1407,6 +1407,7 @@ static void smmu_ptw64(SMMU *s, unsigned int cb, TransReq *req)
         uint64_t index;
         uint64_t descaddr;
         unsigned int type;
+        MemTxAttrs attrs = {0};
 
         index = (req->va >> (addrselectbottom - 3)) & descmask;
         index &= ~7ULL;
@@ -1426,7 +1427,7 @@ static void smmu_ptw64(SMMU *s, unsigned int cb, TransReq *req)
             }
             descaddr = s2req.pa;
         }
-        dma_memory_read(&s->dma_as, descaddr, &desc, sizeof(desc));
+        dma_memory_read(&s->dma_as, descaddr, &desc, sizeof(desc), attrs);
         type = desc & 3;
 
         D_PTW("smmu: S%d L%d va=0x%"PRIx64" gz=%d descaddr=0x%"PRIx64" "
@@ -2381,7 +2382,6 @@ static const VMStateDescription vmstate_smmu500 = {
     .name = TYPE_XILINX_SMMU500,
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, SMMU, R_MAX),
         VMSTATE_END_OF_LIST(),
