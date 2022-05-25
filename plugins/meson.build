@@ -9,7 +9,7 @@ if not enable_modules
       input: files('qemu-plugins.symbols'),
       output: 'qemu-plugins-ld64.symbols',
       capture: true,
-      command: ['sed', '-ne', 's/^[[:space:]]*\\(qemu_.*\\);/_\\1/p', '@INPUT@'])
+      command: ['sed', '-ne', 's/^[[:space:]]*\\(\\(lib\\)\{0,1\}qemu_.*\\);/_\\1/p', '@INPUT@'])
     emulator_link_args += ['-Wl,-exported_symbols_list,plugins/qemu-plugins-ld64.symbols']
   else
     emulator_link_args += ['-Xlinker', '--dynamic-list=' + (meson.project_source_root() / 'plugins/qemu-plugins.symbols')]
