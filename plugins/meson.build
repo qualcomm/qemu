@@ -15,7 +15,7 @@ if not enable_modules
       input: qemu_plugin_symbols,
       output: 'qemu-plugins-ld64.symbols',
       capture: true,
-      command: ['sed', '-ne', 's/^[[:space:]]*\\(qemu_.*\\);/_\\1/p', '@INPUT@'])
+      command: ['sed', '-ne', 's/^[[:space:]]*\\(\\(lib\\)\{0,1\}qemu_.*\\);/_\\1/p', '@INPUT@'])
     emulator_link_args += ['-Wl,-exported_symbols_list,plugins/qemu-plugins-ld64.symbols']
   elif host_os == 'windows' and meson.get_compiler('c').get_id() == 'clang'
     # LLVM/lld does not support exporting specific symbols. However, it works
