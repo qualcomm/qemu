@@ -210,8 +210,8 @@ static void hex_timer_update(QCTHextimerState *s)
 {
     /* Update interrupts.  */
     int level = s->int_level && (s->control & QCT_QTIMER_CNTP_CTL_ENABLE);
-    qemu_set_irq(s->irq, level);
-    qutimer_set_irq(s->qtimer, s->devid, level);
+    if (level) qemu_irq_pulse(s->irq);
+    else qemu_set_irq(s->irq, level);
 }
 
 static uint64_t hex_timer_read(void *opaque, hwaddr offset, unsigned size)
