@@ -166,8 +166,8 @@ static void hex_timer_update(QCTHextimerState *s)
     /* Update interrupts.  */
     int level = s->int_level && (s->control & QCT_QTIMER_CNTP_CTL_ENABLE);
     trace_qtimer_interrupt();
-
-    qemu_set_irq(s->irq, level);
+    if (level) qemu_irq_pulse(s->irq);
+    else qemu_set_irq(s->irq, level);
 }
 
 static MemTxResult hex_timer_read(void *opaque,
