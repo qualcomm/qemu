@@ -219,6 +219,9 @@ ExportedFct('set_cpu_kick_cb', 'void', [ 'LibQemuCpuKickFn', 'void *' ],
 PrivateInclude('qemu/coroutine.h')
 ExportedFct('coroutine_yield', 'void', [], priv = 'qemu_coroutine_yield')
 
+PrivateInclude('include/sysemu/sysemu.h')
+ExportedFct('finish_qemu_init', 'void', [ ], priv='finish_qemu_init', on_iothread = True)
+
 # AArch64 specific exports
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
