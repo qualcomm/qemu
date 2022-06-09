@@ -3767,8 +3767,46 @@ void qemu_init(int argc, char **argv)
         exit(0);
     }
 
+#ifndef CONFIG_LIBQEMU
     if (!preconfig_requested) {
         qmp_x_exit_preconfig(&error_fatal);
+    }
+    qemu_init_displays();
+    accel_setup_post(current_machine);
+    os_setup_post();
+    resume_mux_open();
+#else
+    qemu_init_board();
+    qemu_create_cli_devices();
+#endif
+}
+
+void finish_qemu_init(void) {
+
+    Error *local_err = NULL;
+    qemu_machine_creation_done(&local_err);
+    if (local_err) {
+        error_reportf_err(local_err, "qemu_machine creation failed: ");
+        exit(1);
+    }
+
+    if (loadvm) {
+        load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
+    }
+    if (replay_mode != REPLAY_MODE_NONE) {
+        replay_vmstate_init();
+    }
+
+    if (incoming) {
+        if (strcmp(incoming, "defer") != 0) {
+            qmp_migrate_incoming(incoming, false, NULL, true, true, &local_err);
+            if (local_err) {
+                error_reportf_err(local_err, "-incoming %s: ", incoming);
+                exit(1);
+            }
+        }
+    } else if (autostart) {
+        qmp_cont(NULL);
     }
     qemu_init_displays();
     accel_setup_post(current_machine);
