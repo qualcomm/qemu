@@ -222,6 +222,8 @@ ExportedFct('coroutine_yield', 'void', [], priv = 'qemu_coroutine_yield')
 PrivateInclude('include/sysemu/sysemu.h')
 ExportedFct('finish_qemu_init', 'void', [ ], priv='finish_qemu_init', on_iothread = True)
 
+ExportedFct('sysbus_get_default', 'BusState *', [ ])
+
 # AArch64 specific exports
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
