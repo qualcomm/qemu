@@ -1844,7 +1844,8 @@ static void handle_backward(GArray *params, void *user_ctx)
 
 static void handle_v_cont_query(GArray *params, void *user_ctx)
 {
-    put_packet("vCont;c;C;s;S");
+    /* Disabled to workaround QTOOL-82084 */
+    put_packet("");
 }
 
 static void handle_v_cont(GArray *params, void *user_ctx)
