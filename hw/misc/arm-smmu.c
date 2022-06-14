@@ -1752,12 +1752,19 @@ static IOMMUTLBEntry smmu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
 
 static void smmu_fsr_pw(RegisterInfo *reg, uint64_t val)
 {
-    SMMU *s = XILINX_SMMU500(reg->opaque);
-    unsigned int i;
+    /* These lines were removed because moving to cold-plugging devices
+     * made it impossible to call anything that runs on the SystemC during qemu_init
+     * and qemu_finish init. Calling such a function leads to a deadlock because the SystemC
+     * thread is waiting in a spinlock for Qemu to finish initalization. This function can
+     * trigger interrupts in SystemC.
+     */
 
-    for (i = 0; i < 16; i++) {
-        smmu_update_ctx_irq(s, i);
-    }
+    // SMMU *s = XILINX_SMMU500(reg->opaque);
+    // unsigned int i;
+
+    // for (i = 0; i < 16; i++) {
+    //     smmu_update_ctx_irq(s, i);
+    // }
 }
 
 static const RegisterAccessInfo smmu500_regs_info[] = {
