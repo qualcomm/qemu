@@ -7,9 +7,9 @@ set(QEMU_CONF_ARGS
     -Db_staticpic=true
     --disable-debug-tcg
     --disable-sparse
-    --disable-sdl
-    --disable-gtk
-    --disable-vnc
+    --enable-sdl
+    --enable-gtk
+    --enable-vnc
     --disable-xen
     --disable-brlapi
     --disable-vnc-sasl
@@ -35,8 +35,8 @@ set(QEMU_CONF_ARGS
     --disable-libusb
     --disable-tools
     --disable-nettle
-    --disable-virglrenderer
-    --disable-opengl
+    --enable-virglrenderer
+    --enable-opengl
     --disable-vde
     --disable-vte
     --disable-rbd
