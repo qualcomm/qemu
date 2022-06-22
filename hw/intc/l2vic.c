@@ -57,7 +57,7 @@ typedef struct L2VICState {
     MemoryRegion fast_iomem;
     uint32_t level;
     uint32_t vid_group[4]; /* offset 0:vid group 0 etc, 10 bits in each group are used. */
-    bool     vidpending;
+    bool     vidactive;
     uint32_t vid0;
     uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(16);  /* Clear Status of Active Edge interrupt, not used*/
     uint32_t int_enable[SLICE_MAX] QEMU_ALIGNED(16); /* Enable interrupt source */
@@ -91,7 +91,6 @@ static uint32_t *get_int_group(L2VICState *s, int irq)
         return s->int_group_n2;
     }
     return s->int_group_n3;
-
 }
 
 static int find_slice(int irq)
@@ -114,7 +113,7 @@ static int get_vid(L2VICState *s, int irq)
 
 static void l2vic_update(L2VICState *s, int irq)
 {
-    if (s->vidpending) {
+    if (s->vidactive) {
         D("L2VIC: busy\n");
         return;
     }
@@ -128,7 +127,7 @@ static void l2vic_update(L2VICState *s, int irq)
         /* ensure the irq line goes low after going high */
 
         if (!test_bit(irq, (unsigned long *)s->int_type)) {
-            s->vidpending = true;
+            s->vidactive = true;
         }
         s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
@@ -145,15 +144,16 @@ static void l2vic_update(L2VICState *s, int irq)
 }
 static void l2vic_update_all(L2VICState *s)
 {
-    for (int i = 0; !s->vidpending && i < L2VIC_INTERRUPT_MAX; i++) {
+    for (int i = 0; !s->vidactive && i < L2VIC_INTERRUPT_MAX; i++) {
         l2vic_update(s, i);
     }
 }
-
 static void l2vic_set_irq(void *opaque, int irq, int level)
 {
     L2VICState *s = (L2VICState *) opaque;
-    if (level) {
+    s->level = level;
+
+    if (level) { // && test_bit(irq, (unsigned long *)s->int_enable)) {
         D("ACK, irq:level = %d, %d\n", irq, level);
         D("\t(L2VICA(s->int_enable, 4 * (irq / 32)) = 0x%x\n",
           L2VICA(s->int_enable, 4 * (irq / 32)));
@@ -177,8 +177,8 @@ static void l2vic_write(void *opaque, hwaddr offset,
         if ((int)val != L2VIC_NO_PENDING) {
             s->vid0 = val;
         }
-        if (s->vidpending) {
-            s->vidpending = false;
+        if (s->vidactive) {
+            s->vidactive = false;
         }
     } else if (offset == L2VIC_VID_1) {
         g_assert_not_reached(); /* No support of VID1 at the moment */
@@ -371,7 +371,7 @@ static void l2vic_reset(DeviceState *d)
     memset(s->int_group_n2, 0, sizeof(s->int_group_n2));
     memset(s->int_group_n3, 0, sizeof(s->int_group_n3));
     s->int_soft = 0;
-    s->vidpending = false;
+    s->vidactive = false;
     s->vid0 = 0;
 
     l2vic_update(s, 0);
@@ -402,7 +402,7 @@ static const VMStateDescription vmstate_l2vic = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, L2VICState),
         VMSTATE_UINT32_ARRAY(vid_group, L2VICState, 4),
-        VMSTATE_BOOL (vidpending,L2VICState),
+        VMSTATE_BOOL (vidactive,L2VICState),
         VMSTATE_UINT32(vid0, L2VICState),
         VMSTATE_UINT32_ARRAY(int_enable, L2VICState, SLICE_MAX),
         VMSTATE_UINT32(int_enable_clear, L2VICState),
