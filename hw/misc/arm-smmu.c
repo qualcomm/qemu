@@ -1712,15 +1712,16 @@ static IOMMUTLBEntry smmu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
 
 {
     TBU *tbu = container_of(mr, TBU, iommu);
+    addr += tbu->offset;
     SMMU *s = tbu->smmu;
     IOMMUTLBEntry ret = {
         .target_as = tbu->as,
-        .translated_addr = addr + tbu->offset,
+        .translated_addr = addr,
         .addr_mask = (1ULL << 12) - 1,
         .perm = IOMMU_RW,
     };
     int cb;
-    uint64_t va = addr & ~ADDRMASK;
+    uint64_t va = (addr & ~ADDRMASK) & 0xffffffff;
     hwaddr pa = va;
     int prot;
     bool err = false;
