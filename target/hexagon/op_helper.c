@@ -1851,7 +1851,6 @@ static void hexagon_wait_thread(CPUHexagonState *env)
         qemu_log("WARNING: executing wait() with acquired lock"
                  "may lead to deadlock\n");
     }
-    g_assert(get_exe_mode(env) != HEX_EXE_MODE_WAIT);
 
     cs = env_cpu(env);
     /*
