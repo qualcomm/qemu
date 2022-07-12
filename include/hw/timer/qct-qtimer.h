@@ -28,8 +28,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(QCTQtimerState, QCT_QTIMER)
 OBJECT_DECLARE_SIMPLE_TYPE(QCTHextimerState, QCT_HEXTIMER)
 
 struct QCTHextimerState {
-    SysBusDevice parent_obj;
-    MemoryRegion iomem;
     QCTQtimerState *qtimer;
     ptimer_state *timer;
     uint64_t cntval;       /* Physical timer compare value interrupt when cntpct > cntval */
@@ -48,10 +46,13 @@ struct QCTQtimerState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+    MemoryRegion view_iomem;
     uint32_t secure;
     struct QCTHextimerState timer[QCT_QTIMER_TIMER_ELTS];
     uint32_t frame_id;
     uint32_t freq;
+    uint32_t nr_frames;
+    uint32_t nr_views;
     int level[QCT_QTIMER_TIMER_ELTS];
     qemu_irq irq;
 };

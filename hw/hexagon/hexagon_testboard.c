@@ -259,13 +259,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
             sysbus_create_varargs(TYPE_QCT_QTIMER, 0xfab20000, NULL));
 
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
-    sysbus_mmio_map(SYS_BUS_DEVICE(&qtimer->timer[0]), 0,
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
                     cfgExtensions->qtmr_rg0);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&qtimer->timer[0]), 0,
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(dev, QTMR0_IRQ));
-    sysbus_mmio_map(SYS_BUS_DEVICE(&qtimer->timer[1]), 0,
-                    cfgExtensions->qtmr_rg1);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&qtimer->timer[1]), 0,
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 2,
                        qdev_get_gpio_in(dev, 4));
 
     hexagon_config_table *config_table = cfgTable;
