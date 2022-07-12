@@ -171,7 +171,11 @@ static void hex_timer_update(QCTHextimerState *s)
     else qemu_set_irq(s->irq, level);
 }
 
-static uint64_t hex_timer_read(void *opaque, hwaddr offset, unsigned size)
+static MemTxResult hex_timer_read(void *opaque,
+                                hwaddr offset,
+                                uint64_t *data,
+                                unsigned size,
+                                MemTxAttrs attrs)
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
     uint32_t slot_nr = (offset & 0xF000) >> 12;
@@ -180,38 +184,69 @@ static uint64_t hex_timer_read(void *opaque, hwaddr offset, unsigned size)
     uint32_t frame = slot_nr / qct_s->nr_views;
 
     if (frame >= qct_s->nr_frames) {
-        return 0;
+        *data = 0;
+        return MEMTX_ACCESS_ERROR;
     }
     QCTHextimerState *s = &qct_s->timer[frame];
 
 
     // This is the case were we have 2 views, but the second one is not implemented
-        return 0;
     if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
+        *data = 0;
+        return MEMTX_OK;
     }
 
     switch (reg_offset) {
         case (QCT_QTIMER_CNT_FREQ): /* Ticks/Second */
-            return s->freq;
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RFRQ)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = s->freq;
+            return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CVAL_LO): /* TimerLoad */
-            return LOW_32((s->cntval));
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = LOW_32((s->cntval));
+            return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CVAL_HI): /* TimerLoad */
-            return HIGH_32((s->cntval));
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = HIGH_32((s->cntval));
+            return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_LO:
-            return LOW_32((s->cntpct + (ptimer_get_count(s->timer))));
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = LOW_32((s->cntpct + (ptimer_get_count(s->timer))));
+            return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_HI:
-            return HIGH_32((s->cntpct + (ptimer_get_count(s->timer))));
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = HIGH_32((s->cntpct + (ptimer_get_count(s->timer))));
+            return MEMTX_OK;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
-            return (s->cntval -
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = (s->cntval -
                     (HIGH_32((s->cntpct + (ptimer_get_count(s->timer)))) +
                      LOW_32((s->cntpct + (ptimer_get_count(s->timer))))));
+            return MEMTX_OK;
 
         case (QCT_QTIMER_CNTP_CTL): /* TimerMIS */
-            return s->int_level;
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+            *data = s->int_level;
+            return MEMTX_OK;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Bad offset %x\n", __func__, (int)offset);
-            return 0;
+            *data = 0;
+            return MEMTX_ACCESS_ERROR;
     }
 }
 
@@ -227,8 +262,11 @@ static void hex_timer_recalibrate(QCTHextimerState *s, int reload)
     ptimer_set_limit(s->timer, limit, reload);
 }
 
-static void hex_timer_write(void *opaque, hwaddr offset,
-                            uint64_t value, unsigned size)
+static MemTxResult hex_timer_write(void *opaque,
+                                    hwaddr offset,
+                                    uint64_t value,
+                                    unsigned size,
+                                    MemTxAttrs attrs)
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
     uint32_t slot_nr = (offset & 0xF000) >> 12;
@@ -237,7 +275,7 @@ static void hex_timer_write(void *opaque, hwaddr offset,
     uint32_t frame = slot_nr / qct_s->nr_views;
 
     if (frame >= qct_s->nr_frames) {
-        return;
+        return MEMTX_ACCESS_ERROR;
     }
     QCTHextimerState *s = &qct_s->timer[frame];
 
@@ -245,8 +283,8 @@ static void hex_timer_write(void *opaque, hwaddr offset,
     HEX_TIMER_LOG("\ta timer write: %" PRIu64 ", %" PRIu64 "\n", offset, value);
 
     // This is the case were we have 2 views, but the second one is not implemented
-        return;
     if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
+        return MEMTX_OK;
     }
 
     switch (reg_offset) {
@@ -261,6 +299,11 @@ static void hex_timer_write(void *opaque, hwaddr offset,
             HEX_TIMER_LOG("value(%" PRId64 ") - cntcval(%" PRId64 ") = %" PRId64
                           "\n",
                           value, s->cntval, value - s->cntval);
+
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             s->int_level = 0;
             s->cntval = value;
             ptimer_transaction_begin(s->timer);
@@ -276,11 +319,19 @@ static void hex_timer_write(void *opaque, hwaddr offset,
             ptimer_transaction_commit(s->timer);
             break;
         case (QCT_QTIMER_CNTP_CVAL_HI):
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: QCT_QTIMER_CNTP_CVAL_HI is read-only\n", __func__);
             break;
         case (QCT_QTIMER_CNTP_CTL): /* Timer control register */
             HEX_TIMER_LOG("\tctl write: %" PRIu64 "\n", value);
+
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             ptimer_transaction_begin(s->timer);
             if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
                 /* Pause the timer if it is running.  This may cause some
@@ -297,6 +348,10 @@ static void hex_timer_write(void *opaque, hwaddr offset,
             ptimer_transaction_commit(s->timer);
             break;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
+            if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             ptimer_transaction_begin(s->timer);
             if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
                 /* Pause the timer if it is running.  This may cause some
@@ -314,9 +369,11 @@ static void hex_timer_write(void *opaque, hwaddr offset,
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Bad offset %x\n", __func__, (int)offset);
-            break;
+            return MEMTX_ACCESS_ERROR;
     }
     hex_timer_update(s);
+    return MEMTX_OK;
+
 }
 
 static void hex_timer_tick(void *opaque)
@@ -332,8 +389,8 @@ static void hex_timer_tick(void *opaque)
 }
 
 static const MemoryRegionOps hex_timer_ops = {
-        .read = hex_timer_read,
-        .write = hex_timer_write,
+        .read_with_attrs = hex_timer_read,
+        .write_with_attrs = hex_timer_write,
         .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
