@@ -69,6 +69,7 @@ static uint64_t qct_qtimer_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     QCTQtimerState *s = (QCTQtimerState *)opaque;
+    uint32_t frame = 0;
 
     switch (offset) {
     case QCT_QTIMER_AC_CNTFRQ:
@@ -76,13 +77,16 @@ static uint64_t qct_qtimer_read(void *opaque, hwaddr offset,
     case QCT_QTIMER_AC_CNTSR:
        return s->secure;
     case QCT_QTIMER_AC_CNTTID:
-       return 0x11; /* Only frame 0 and frame 1 are implemented. */
-    case QCT_QTIMER_AC_CNTACR_0:
-        return s->timer[0].cnt_ctrl;
-    case QCT_QTIMER_AC_CNTACR_1:
-        return s->timer[1].cnt_ctrl;
-    case QCT_QTIMER_AC_CNTACR_2:
-        return s->timer[2].cnt_ctrl;
+       return s->cnttid;
+    case QCT_QTIMER_AC_CNTACR_START ... QCT_QTIMER_AC_CNTACR_END:
+        frame = (offset - 0x40) / 0x4;
+        if (frame >= s->nr_frames) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                        "%s: QCT_QTIMER_AC_CNT: Bad offset %x\n",
+                        __func__, (int) offset);
+            return 0x0;
+        }
+        return s->timer[frame].cnt_ctrl;
     case QCT_QTIMER_VERSION:
         return 0x10000000;
     default:
@@ -101,6 +105,7 @@ static void qct_qtimer_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     QCTQtimerState *s = (QCTQtimerState *)opaque;
+    uint32_t frame = 0;
 
     if (offset < 0x1000) {
         switch (offset) {
@@ -108,20 +113,21 @@ static void qct_qtimer_write(void *opaque, hwaddr offset,
             s->freq = value;
             return;
         case QCT_QTIMER_AC_CNTSR:
-            if (value > 3)
+            if (value > 0xFF)
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: QCT_QTIMER_AC_CNTSR: Bad value %x\n",
                               __func__, (int) value);
             else
                 s->secure = value;
             return;
-        case QCT_QTIMER_AC_CNTACR_0:
-            s->timer[0].cnt_ctrl = value;
-            return;
-        case QCT_QTIMER_AC_CNTACR_1:
-            s->timer[1].cnt_ctrl = value;
-            return;
-        case QCT_QTIMER_AC_CNTACR_2:
-            s->timer[2].cnt_ctrl = value;
+        case QCT_QTIMER_AC_CNTACR_START ... QCT_QTIMER_AC_CNTACR_END:
+            frame = (offset - 0x40) / 0x4;
+            if (frame >= s->nr_frames) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                            "%s: QCT_QTIMER_AC_CNT: Bad offset %x\n",
+                            __func__, (int) offset);
+                return;
+            }
+            s->timer[frame].cnt_ctrl = value;
             return;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: QCT_QTIMER_AC_CNT: Bad offset %x\n",
@@ -155,8 +161,6 @@ static void qct_qtimer_init(Object *obj)
 
     object_property_add_uint32_ptr(obj, "secure", &s->secure, OBJ_PROP_FLAG_READ);
     object_property_add_uint32_ptr(obj, "frame_id", &s->frame_id, OBJ_PROP_FLAG_READ);
-    s->secure = QCT_QTIMER_AC_CNTSR_NSN_1 | QCT_QTIMER_AC_CNTSR_NSN_2
-        | QCT_QTIMER_AC_CNTSR_NSN_3;
 }
 
 static void hex_timer_update(QCTHextimerState *s)
@@ -171,9 +175,20 @@ static uint64_t hex_timer_read(void *opaque, hwaddr offset, unsigned size)
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
     uint32_t slot_nr = (offset & 0xF000) >> 12;
-    uint32_t frame = slot_nr / qct_s->nr_views;
-    QCTHextimerState *s = &qct_s->timer[frame];
     uint32_t reg_offset = offset & 0xFFF;
+    uint32_t view = slot_nr % qct_s->nr_views;
+    uint32_t frame = slot_nr / qct_s->nr_views;
+
+    if (frame >= qct_s->nr_frames) {
+        return 0;
+    }
+    QCTHextimerState *s = &qct_s->timer[frame];
+
+
+    // This is the case were we have 2 views, but the second one is not implemented
+        return 0;
+    if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
+    }
 
     switch (reg_offset) {
         case (QCT_QTIMER_CNT_FREQ): /* Ticks/Second */
@@ -217,11 +232,22 @@ static void hex_timer_write(void *opaque, hwaddr offset,
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
     uint32_t slot_nr = (offset & 0xF000) >> 12;
-    uint32_t frame = slot_nr / qct_s->nr_views;
-    QCTHextimerState *s = &qct_s->timer[frame];
     uint32_t reg_offset = offset & 0xFFF;
+    uint32_t view = slot_nr % qct_s->nr_views;
+    uint32_t frame = slot_nr / qct_s->nr_views;
+
+    if (frame >= qct_s->nr_frames) {
+        return;
+    }
+    QCTHextimerState *s = &qct_s->timer[frame];
+
 
     HEX_TIMER_LOG("\ta timer write: %" PRIu64 ", %" PRIu64 "\n", offset, value);
+
+    // This is the case were we have 2 views, but the second one is not implemented
+        return;
+    if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
+    }
 
     switch (reg_offset) {
         case (QCT_QTIMER_CNTP_CVAL_LO): /* TimerLoad */
@@ -333,8 +359,15 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
     QCTQtimerState *s = QCT_QTIMER(dev);
     unsigned int i;
 
-    s->nr_frames = QCT_QTIMER_TIMER_ELTS;
-    s->nr_views = 1;
+    if (s->nr_frames > QCT_QTIMER_TIMER_ELTS) {
+        error_setg(errp, "nr_frames too high");
+        return;
+    }
+
+    if (s->nr_views > 2) {
+        error_setg(errp, "nr_views too high");
+        return;
+    }
 
     memory_region_init_io(&s->iomem, OBJECT(sbd), &qct_qtimer_ops, s,
                           "qutimer", QTIMER_MEM_SIZE_BYTES);
@@ -345,7 +378,7 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
                           "qutimer_views", QTIMER_MEM_SIZE_BYTES * s->nr_frames * s->nr_views);
     sysbus_init_mmio(sbd, &s->view_iomem);
 
-    for (i = 0; i < QCT_QTIMER_TIMER_ELTS; i++) {
+    for (i = 0; i < s->nr_frames; i++) {
         s->timer[i].limit = 1;
         s->timer[i].control = QCT_QTIMER_CNTP_CTL_ENABLE;
         s->timer[i].cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
@@ -354,6 +387,8 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
         s->timer[i].devid = i;
         s->timer[i].qtimer = s;
         s->timer[i].freq = QTIMER_DEFAULT_FREQ_HZ;
+
+        s->secure |= (1 << i);
 
         sysbus_init_irq(sbd, &(s->timer[i].irq));
 
@@ -364,6 +399,9 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
 
 static Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
+    DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
+    DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
+    DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
     DEFINE_PROP_END_OF_LIST(),
 };
 

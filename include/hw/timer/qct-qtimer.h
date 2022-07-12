@@ -41,7 +41,7 @@ struct QCTHextimerState {
     qemu_irq irq;
 };
 
-#define QCT_QTIMER_TIMER_ELTS (3)
+#define QCT_QTIMER_TIMER_ELTS (8)
 struct QCTQtimerState {
     SysBusDevice parent_obj;
 
@@ -53,6 +53,7 @@ struct QCTQtimerState {
     uint32_t freq;
     uint32_t nr_frames;
     uint32_t nr_views;
+    uint32_t cnttid;
     int level[QCT_QTIMER_TIMER_ELTS];
     qemu_irq irq;
 };
@@ -83,5 +84,7 @@ struct QCTQtimerState {
 #define QCT_QTIMER_CNTP_CTL_ISTAT (1 << 2)
 #define QCT_QTIMER_CNTP_CTL_INTEN (1 << 1)
 #define QCT_QTIMER_CNTP_CTL_ENABLE (1 << 0)
+#define QCT_QTIMER_AC_CNTACR_START 0x40
+#define QCT_QTIMER_AC_CNTACR_END 0x5C
 
 #endif /* TIMER_QCT_QTIMER_H */
