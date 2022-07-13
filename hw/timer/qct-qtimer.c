@@ -201,46 +201,88 @@ static MemTxResult hex_timer_read(void *opaque,
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RFRQ)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !((s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0PCTEN)
+                   || (s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0VCTEN))) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = s->freq;
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CVAL_LO): /* TimerLoad */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = LOW_32((s->cntval));
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CVAL_HI): /* TimerLoad */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = HIGH_32((s->cntval));
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_LO:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0PCTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = LOW_32((s->cntpct + (ptimer_get_count(s->timer))));
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_HI:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0PCTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = HIGH_32((s->cntpct + (ptimer_get_count(s->timer))));
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = (s->cntval -
                     (HIGH_32((s->cntpct + (ptimer_get_count(s->timer)))) +
                      LOW_32((s->cntpct + (ptimer_get_count(s->timer))))));
             return MEMTX_OK;
-
         case (QCT_QTIMER_CNTP_CTL): /* TimerMIS */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             *data = s->int_level;
+            return MEMTX_OK;
+        case QCT_QTIMER_CNTPL0ACR:
+            if (view) {
+                *data = 0;
+            } else {
+                *data = s->cntpl0acr;
+            }
             return MEMTX_OK;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -304,6 +346,11 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
+
             s->int_level = 0;
             s->cntval = value;
             ptimer_transaction_begin(s->timer);
@@ -322,6 +369,11 @@ static MemTxResult hex_timer_write(void *opaque,
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: QCT_QTIMER_CNTP_CVAL_HI is read-only\n", __func__);
             break;
@@ -329,6 +381,10 @@ static MemTxResult hex_timer_write(void *opaque,
             HEX_TIMER_LOG("\tctl write: %" PRIu64 "\n", value);
 
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
                 return MEMTX_ACCESS_ERROR;
             }
 
@@ -352,6 +408,10 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
+            if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
+                return MEMTX_ACCESS_ERROR;
+            }
+
             ptimer_transaction_begin(s->timer);
             if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
                 /* Pause the timer if it is running.  This may cause some
@@ -365,6 +425,13 @@ static MemTxResult hex_timer_write(void *opaque,
                 ptimer_run(s->timer, 0);
             }
             ptimer_transaction_commit(s->timer);
+            break;
+        case QCT_QTIMER_CNTPL0ACR:
+            if (view) {
+                break;
+            }
+
+            s->cntpl0acr = value;
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,

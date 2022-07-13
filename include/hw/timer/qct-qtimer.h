@@ -34,6 +34,7 @@ struct QCTHextimerState {
     uint64_t cntpct;       /* Physical counter */
     uint32_t control;
     uint32_t cnt_ctrl;
+    uint32_t cntpl0acr;
     uint64_t limit;
     uint32_t freq;
     uint32_t devid;
@@ -77,6 +78,11 @@ struct QCTQtimerState {
 #define QCT_QTIMER_CNTPCT_LO (0x000)
 #define QCT_QTIMER_CNTPCT_HI (0x004)
 #define QCT_QTIMER_CNT_FREQ (0x010)
+#define QCT_QTIMER_CNTPL0ACR (0x014)
+#define QCT_QTIMER_CNTPL0ACR_PL0CTEN  (1 << 9)
+#define QCT_QTIMER_CNTPL0ACR_PL0TVEN  (1 << 8)
+#define QCT_QTIMER_CNTPL0ACR_PL0VCTEN (1 << 1)
+#define QCT_QTIMER_CNTPL0ACR_PL0PCTEN (1 << 0)
 #define QCT_QTIMER_CNTP_CVAL_LO (0x020)
 #define QCT_QTIMER_CNTP_CVAL_HI (0x024)
 #define QCT_QTIMER_CNTP_TVAL (0x028)
