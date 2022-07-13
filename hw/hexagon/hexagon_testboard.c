@@ -271,9 +271,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
                     0xfab20000);
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
                     cfgExtensions->qtmr_rg0);
-    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
                        qdev_get_gpio_in(dev, QTMR0_IRQ));
-    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 2,
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(dev, 4));
 
     hexagon_config_table *config_table = cfgTable;

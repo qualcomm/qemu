@@ -48,19 +48,6 @@
 #define HIGH_32(val) (0x0ffffffffULL & (val >> 32))
 #define LOW_32(val) (0x0ffffffffULL & val)
 
-/* Merge the IRQs from the component devices.  */
-static void qutimer_set_irq(QCTQtimerState *s, int irq, int level)
-{
-    s->level[irq] = level;
-    /*
-     * FIXME: Do we really want to do this ?
-     * s->timer[0].int_level = level;
-     * s->timer[1].int_level = level;
-     * s->timer[2].int_level = level;
-     */
-    qemu_set_irq(s->irq, s->level[0] || s->level[1]);
-}
-
 /* qct_qtimer_read/write:
  * if offset < 0x1000 read restricted registers:
  * QCT_QTIMER_AC_CNTFREQ/CNTSR/CNTTID/CNTACR/CNTOFF_(LO/HI)/QCT_QTIMER_VERSION
@@ -150,7 +137,6 @@ static const VMStateDescription vmstate_qct_qtimer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(level, QCTQtimerState, QCT_QTIMER_TIMER_ELTS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -496,7 +482,6 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem, OBJECT(sbd), &qct_qtimer_ops, s,
                           "qutimer", QTIMER_MEM_SIZE_BYTES);
     sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->view_iomem, OBJECT(sbd), &hex_timer_ops, s,
                           "qutimer_views", QTIMER_MEM_SIZE_BYTES * s->nr_frames * s->nr_views);
@@ -508,7 +493,6 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
         s->timer[i].cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
                     QCT_QTIMER_AC_CNTACR_RVOFF | QCT_QTIMER_AC_CNTACR_RFRQ |
                     QCT_QTIMER_AC_CNTACR_RPVCT | QCT_QTIMER_AC_CNTACR_RPCT);
-        s->timer[i].devid = i;
         s->timer[i].qtimer = s;
         s->timer[i].freq = QTIMER_DEFAULT_FREQ_HZ;
 

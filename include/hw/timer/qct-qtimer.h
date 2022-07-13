@@ -37,7 +37,6 @@ struct QCTHextimerState {
     uint32_t cntpl0acr;
     uint64_t limit;
     uint32_t freq;
-    uint32_t devid;
     uint32_t int_level;
     qemu_irq irq;
 };
@@ -55,8 +54,6 @@ struct QCTQtimerState {
     uint32_t nr_frames;
     uint32_t nr_views;
     uint32_t cnttid;
-    int level[QCT_QTIMER_TIMER_ELTS];
-    qemu_irq irq;
 };
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)
