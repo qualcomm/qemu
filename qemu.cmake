@@ -53,6 +53,18 @@ if (APPLE)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --disable-strip)
 endif()
 
+if (GS_ENABLE_SANITIZERS)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-sanitizers)
+endif()
+
+if (GS_ENABLE_LLD)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} "--extra-ldflags='-fuse-ld=lld'")
+endif()
+
+if (GS_ENABLE_LTO)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-lto)
+endif()
+
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE)
 message(STATUS "Build type : ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
