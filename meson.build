@@ -2428,6 +2428,11 @@ if virgl.found()
                                       'get_egl_display',
                                       prefix: '#include <virglrenderer.h>',
                                       dependencies: virgl))
+
+  config_host_data.set('HAVE_VIRGL_CONTEXT_INIT',
+                         cc.has_function('virgl_renderer_context_create_with_flags',
+                                         prefix: '#include <virglrenderer.h>',
+                                         dependencies: virgl))
 endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
