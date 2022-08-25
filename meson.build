@@ -2661,6 +2661,11 @@ if virgl.found()
                                       'get_egl_display',
                                       prefix: '#include <virglrenderer.h>',
                                       dependencies: virgl))
+
+  config_host_data.set('HAVE_VIRGL_CONTEXT_INIT',
+                         cc.has_function('virgl_renderer_context_create_with_flags',
+                                         prefix: '#include <virglrenderer.h>',
+                                         dependencies: virgl))
 endif
 if vcl.found()
   config_host_data.set('HAVE_VCL_D3D_INFO_EXT',
