@@ -2540,9 +2540,20 @@ config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 if virgl.found()
-  config_host_data.set('VIRGL_VERSION_MAJOR', virgl.version().split('.')[0])
-  config_host_data.set('VIRGL_VERSION_MINOR', virgl.version().split('.')[1])
-  config_host_data.set('VIRGL_VERSION_MICRO', virgl.version().split('.')[2])
+  config_host_data.set('VIRGL_VERSION_MAJOR', virgl_version.split('.')[0])
+  config_host_data.set('VIRGL_VERSION_MINOR', virgl_version.split('.')[1])
+  config_host_data.set('VIRGL_VERSION_MICRO', virgl_version.split('.')[2])
+
+  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+                       cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
+                                     prefix: '#include <virglrenderer.h>',
+                                     dependencies: virgl))
+
+  config_host_data.set('HAVE_VIRGL_CBS_GET_EGL_DISPLAY',
+                       cc.has_member('struct virgl_renderer_callbacks',
+                                     'get_egl_display',
+                                     prefix: '#include <virglrenderer.h>',
+                                     dependencies: virgl))
 endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
