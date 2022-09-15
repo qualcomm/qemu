@@ -21,6 +21,7 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 
 #include "ui/egl-helpers.h"
+#include <epoxy/egl.h>
 
 #include <virglrenderer.h>
 
@@ -1078,8 +1079,17 @@ static int virgl_make_context_current(void *opaque, int scanout_idx,
                                    qctx);
 }
 
+#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
+static void *virgl_get_egl_display(void *opaque)
+{
+    return eglGetCurrentDisplay();
+}
+#endif
+
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
-#if VIRGL_VERSION_MAJOR >= 1
+#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
+    .version             = 4,
+#elif VIRGL_VERSION_MAJOR >= 1
     .version             = 3,
 #else
     .version             = 1,
@@ -1090,6 +1100,9 @@ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
     .make_current        = virgl_make_context_current,
 #if VIRGL_VERSION_MAJOR >= 1
     .write_context_fence = virgl_write_context_fence,
+#endif
+#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
+    .get_egl_display     = virgl_get_egl_display,
 #endif
 };
 
