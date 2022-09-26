@@ -50,6 +50,7 @@ TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
 TCGv hex_new_value_usr;
+TCGv hex_gpreg_written;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -234,11 +235,9 @@ static bool check_for_attrib(Packet *pkt, int attrib)
 
 static bool need_slot_cancelled(Packet *pkt)
 {
-    /* We only need slot_cancelled for conditional store instructions */
     for (int i = 0; i < pkt->num_insns; i++) {
         uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_CONDEXEC) &&
-            GET_ATTRIB(opcode, A_SCALAR_STORE)) {
+        if (GET_ATTRIB(opcode, A_CONDEXEC)) {
             return true;
         }
     }
@@ -440,6 +439,7 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+    tcg_gen_movi_tl(hex_gpreg_written, 0);
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
@@ -1058,6 +1058,9 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
+
+    hex_gpreg_written = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, gpreg_written), "gpreg_written");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,

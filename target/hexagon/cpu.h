@@ -28,6 +28,7 @@
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
+#define NUM_GPREGS 32
 
 #define SLOTS_MAX 4
 #define STORES_MAX 2
@@ -78,6 +79,9 @@ typedef struct CPUArchState {
 
     uint8_t slot_cancelled;
     target_ulong new_value_usr;
+    target_ulong gpreg_written;
+    QEMU_BUILD_BUG_MSG(NUM_GPREGS > CHAR_BIT * sizeof(target_ulong),
+                       "Hexagon's CPUArchState.gpreg_written type is too small");
 
     MemLog mem_log_stores[STORES_MAX];
 
