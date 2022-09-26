@@ -100,6 +100,7 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
 
     gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
     tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
+    gen_helper_check_reg_write(tcg_env, tcg_constant_tl(rnum));
 }
 
 static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
@@ -113,6 +114,8 @@ static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
     /* High word */
     tcg_gen_extrh_i64_i32(val32, val);
     gen_log_reg_write(ctx, rnum + 1, val32);
+
+    gen_helper_check_reg_write_pair(tcg_env, tcg_constant_tl(rnum));
 }
 
 TCGv get_result_pred(DisasContext *ctx, int pnum)

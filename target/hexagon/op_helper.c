@@ -59,12 +59,56 @@ void log_store32(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data32 = val;
 }
 
+static void do_check_reg_write(CPUHexagonState *env, int rnum)
+{
+    target_ulong mask = 1 << rnum;
+    if (rnum >= NUM_GPREGS) {
+        return;
+    }
+    if ((env->gpreg_written & mask) == 0) {
+        env->gpreg_written |= mask;
+        return;
+    }
+#ifdef CONFIG_USER_ONLY
+    hexagon_raise_exception_err(env, HEX_CAUSE_REG_WRITE_CONFLICT, 0);
+#else
+    env->cause_code = HEX_CAUSE_REG_WRITE_CONFLICT;
+    hexagon_raise_exception_err(env, HEX_EVENT_PRECISE, 0);
+#endif
+}
+
 void log_store64(CPUHexagonState *env, target_ulong addr,
                  int64_t val, int width, int slot)
 {
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
+}
+
+void HELPER(check_reg_write)(CPUHexagonState *env, int rnum)
+{
+    do_check_reg_write(env, rnum);
+}
+
+void HELPER(check_cond_reg_write)(CPUHexagonState *env, int rnum, int skip)
+{
+    if (!skip) {
+        do_check_reg_write(env, rnum);
+    }
+}
+
+void HELPER(check_reg_write_pair)(CPUHexagonState *env, int rnum)
+{
+    do_check_reg_write(env, rnum);
+    do_check_reg_write(env, rnum + 1);
+}
+
+void HELPER(check_cond_reg_write_pair)(CPUHexagonState *env, int rnum, int skip)
+{
+    if (!skip) {
+        do_check_reg_write(env, rnum);
+        do_check_reg_write(env, rnum + 1);
+    }
 }
 
 static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)

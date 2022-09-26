@@ -50,6 +50,7 @@ TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
 TCGv hex_new_value_usr;
+TCGv hex_gpreg_written;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -438,6 +439,7 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+    tcg_gen_movi_tl(hex_gpreg_written, 0);
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
@@ -1056,6 +1058,9 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
+
+    hex_gpreg_written = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, gpreg_written), "gpreg_written");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,
