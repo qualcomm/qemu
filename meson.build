@@ -760,14 +760,16 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
                      kwargs: static_kwargs)
+  virgl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                             dependencies: virgl)
 
   config_host_data.set('HAVE_VIRGL_RESOURCE_BLOB',
-                       cc.has_function('virgl_renderer_resource_create_blob',
+                       cc.has_type('struct virgl_renderer_resource_create_blob_args',
                                        prefix: '#include <virglrenderer.h>',
                                        dependencies: virgl))
   config_host_data.set('HAVE_VIRGL_CONTEXT_INIT',
-                       cc.has_function('virgl_renderer_context_create_with_flags',
-                                       prefix: '#include <virglrenderer.h>',
+                       cc.has_header_symbol('virglrenderer.h',
+                                       'VIRGL_RENDERER_CONTEXT_FLAG_CAPSET_ID_MASK',
                                        dependencies: virgl))
   config_host_data.set('HAVE_VIRGL_CBS_GET_EGL_DISPLAY',
                        cc.has_member('struct virgl_renderer_callbacks',
