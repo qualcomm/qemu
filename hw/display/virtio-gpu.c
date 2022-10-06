@@ -143,7 +143,7 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
     }
 
     if (require_backing) {
-        if (!res->iov || (!res->image && !res->blob)) {
+        if (!res->iov || (!res->image && !res->blob) || !res->mapped) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: no backing storage %d\n",
                           caller, resource_id);
             if (error) {
@@ -663,6 +663,8 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
         }
 
         data = res->blob;
+    } else if (res->mapped) {
+        data = (uint8_t *)res->mapped;
     } else {
         data = (uint8_t *)pixman_image_get_data(res->image);
     }
@@ -740,8 +742,8 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
                               &fb, res, &ss.r, &cmd->error);
 }
 
-static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
-                                        struct virtio_gpu_ctrl_command *cmd)
+void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
+                                 struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_framebuffer fb = { 0 };
@@ -899,9 +901,11 @@ void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
 void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
                                 struct virtio_gpu_simple_resource *res)
 {
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
     if (res->mapped) {
         virtio_gpu_virgl_resource_unmap(g, res);
     }
+#endif
 
     virtio_gpu_cleanup_mapping_iov(g, res->iov, res->iov_cnt);
     res->iov = NULL;
