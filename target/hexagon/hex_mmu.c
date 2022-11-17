@@ -574,7 +574,7 @@ void hex_tlb_lock(CPUHexagonState *env)
         }
         qemu_log_mask(CPU_LOG_MMU, "\tWaiting\n");
         env->tlb_lock_state = HEX_LOCK_WAITING;
-        cpu_stop_current();
+        cpu_exit(env_cpu(env));
     } else {
         qemu_log_mask(CPU_LOG_MMU, "\tAcquired\n");
         env->tlb_lock_state = HEX_LOCK_OWNER;
