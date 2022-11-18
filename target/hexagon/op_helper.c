@@ -1535,28 +1535,26 @@ static void hex_k0_lock(CPUHexagonState *env)
 {
     HEX_DEBUG_LOG("Before hex_k0_lock: %d\n", env->threadId);
     print_thread_states("\tThread");
+    const bool exception_context = qemu_mutex_iothread_locked();
+    if (!exception_context) qemu_mutex_lock_iothread();
 
-    qemu_mutex_lock_iothread();
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (env->k0_lock_state == HEX_LOCK_OWNER) {
             HEX_DEBUG_LOG("Already the owner\n");
-            qemu_mutex_unlock_iothread();
-            env->gpr[HEX_REG_PC] = env->next_PC;
+            if (!exception_context) qemu_mutex_unlock_iothread();
             return;
         }
         HEX_DEBUG_LOG("\tWaiting\n");
         env->k0_lock_state = HEX_LOCK_WAITING;
-        env->next_PC = env->gpr[HEX_REG_PC];
         cpu_exit(env_cpu(env));
     } else {
         HEX_DEBUG_LOG("\tAcquired\n");
         env->k0_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
-        env->gpr[HEX_REG_PC] = env->next_PC;
     }
 
-    qemu_mutex_unlock_iothread();
+    if (!exception_context) qemu_mutex_unlock_iothread();
     HEX_DEBUG_LOG("After hex_k0_lock: %d\n", env->threadId);
     print_thread_states("\tThread");
 }
@@ -1621,12 +1619,11 @@ static void hex_k0_unlock(CPUHexagonState *env)
         }
     }
     if (unlock_thread) {
-        cs = CPU(container_of(unlock_thread, HexagonCPU, env));
+        cs = env_cpu(unlock_thread);
 
         print_thread("\tWaiting thread found", cs);
         unlock_thread->k0_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
-        unlock_thread->gpr[HEX_REG_PC] = unlock_thread->next_PC;
         cpu_resume(cs);
     }
 
