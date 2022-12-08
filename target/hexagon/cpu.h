@@ -61,6 +61,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define TOTAL_PER_THREAD_REGS 64
 #define NUM_GPREGS 32
 #define NUM_GLOBAL_GCYCLE 6
+#define NUM_PMU_CTRS 8
 
 #define SLOTS_MAX 4
 #define STORES_MAX 2
@@ -296,6 +297,10 @@ typedef enum {
         OLD = __atomic_exchange_n((VAR_ADDR), (NEW), __ATOMIC_SEQ_CST); \
         smp_mb(); /* multiple hw threads access this VAR */             \
     }
+
+typedef struct PMUState {
+    uint16_t *g_events;
+} PMUState;
 #endif
 
 #define LOCK_IOTHREAD(VAR)          \
@@ -420,6 +425,7 @@ typedef struct CPUArchState {
     uint32_t exe_arch;
     gchar *lib_search_dir;
     bool ss_pending;
+    PMUState pmu;
 #endif
 } CPUHexagonState;
 #define mmvecx_t CPUHexagonState

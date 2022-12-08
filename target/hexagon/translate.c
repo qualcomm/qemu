@@ -1621,7 +1621,6 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 
     ctx->num_packets = 0;
     ctx->num_cycles = 0;
-    ctx->hvx_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
     ctx->zero = tcg_constant_tl(0);

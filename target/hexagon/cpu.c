@@ -606,6 +606,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
         *(env->g_pcycle_base) = 0;
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
         memset(env->g_gcycle, 0, sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
+        memset(env->pmu.g_events, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_EVB, cpu->boot_evb);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
@@ -764,6 +765,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->g_sreg = g_malloc0(sizeof(target_ulong) * NUM_SREGS);
         env->g_gcycle = g_malloc0(sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
+        env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
     } else {
         CPUState *cpu0_s = NULL;
         CPUHexagonState *env0 = NULL;
@@ -778,6 +780,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->cmdline = env0->cmdline;
         env->lib_search_dir = env0->lib_search_dir;
         env->g_pcycle_base = env0->g_pcycle_base;
+        env->pmu.g_events = env0->pmu.g_events;
 
         dma_t *dma_ptr = env->processor_ptr->dma[env->threadId];
         udma_ctx_t *udma_ctx = (udma_ctx_t *)dma_ptr->udma_ctx;

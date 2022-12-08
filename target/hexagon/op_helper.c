@@ -43,6 +43,7 @@
 #include "hex_mmu.h"
 
 #include "hex_interrupts.h"
+#include "pmu.h"
 #endif
 #include "mmvec/macros.h"
 #include "translate.h"
@@ -2202,6 +2203,34 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
            (((uint64_t)sreg_read(env, reg + 1)) << 32);
 }
 
+#define DECL_PMU_EVENT(name, val) case name:
+static bool pmu_event_implemented(int event)
+{
+    switch (event) {
+    HEX_PMU_EVENTS
+        return true;
+    default:
+        return false;
+    }
+}
+#undef DECL_PMU_EVENT
+
+static inline void log_if_unimp_pmu_event(int event)
+{
+    if (qemu_loglevel_mask(LOG_UNIMP) && !pmu_event_implemented(event)) {
+        qemu_log("PMU event %d (0x%x) not implemented\n", event, event);
+    }
+}
+
+static void check_all_pmu_events(CPUHexagonState *env)
+{
+    if (qemu_loglevel_mask(LOG_UNIMP)) {
+        for (int i = 0; i < NUM_PMU_CTRS; i++) {
+            log_if_unimp_pmu_event(env->pmu.g_events[i]);
+        }
+    }
+}
+
 static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 {
     /* get old value and then store new value */
@@ -2244,6 +2273,68 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
             qemu_log("HVX: 64 bits vector length is unsupported\n");
         }
     }
+
+    uint8_t old_pm = GET_SYSCFG_FIELD(SYSCFG_PM, old);
+    uint8_t new_pm = GET_SYSCFG_FIELD(SYSCFG_PM, val);
+    if (!old_pm && new_pm) {
+        check_all_pmu_events(env);
+    }
+}
+
+static void set_pmu_event(CPUHexagonState *env, unsigned int index,
+                          uint16_t event)
+{
+    g_assert(index < NUM_PMU_CTRS);
+
+    uint16_t old_event = env->pmu.g_events[index];
+    env->pmu.g_events[index] = event;
+
+    bool pmu_enabled =
+            GET_SYSCFG_FIELD(SYSCFG_PM, env->g_sreg[HEX_SREG_SYSCFG]);
+
+    if (pmu_enabled && event != old_event) {
+        log_if_unimp_pmu_event(event);
+        /* TODO: we must zero the statistics associated with this event. */
+    }
+}
+
+static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
+                                  uint32_t val)
+{
+    uint32_t old = ARCH_GET_SYSTEM_REG(env, reg);
+    uint32_t new = val;
+
+    if (reg == HEX_SREG_PMUSTID0 || reg == HEX_SREG_PMUSTID1) {
+        if (old != new) {
+            qemu_log_mask(LOG_UNIMP, "PMUSTID settings not implemented.");
+        }
+        ARCH_SET_SYSTEM_REG(env, reg, val);
+        return true;
+    } else if (reg == HEX_SREG_PMUCFG) {
+        int old_thmask = GET_FIELD(PMUCFG_THMASK, old);
+        int new_thmask = GET_FIELD(PMUCFG_THMASK, val);
+        if (old_thmask != new_thmask && new_thmask) {
+            qemu_log_mask(LOG_UNIMP, "Only PMUCFG thread mask 0 is implemented.");
+        }
+        for (int i = 0; i < NUM_PMU_CTRS; i++) {
+            uint16_t new_bits = GET_FIELD(PMUCFG_CNT0_MSB + i, val);
+            set_pmu_event(env, i,
+                          deposit16(env->pmu.g_events[i], 8, 2, new_bits));
+        }
+        ARCH_SET_SYSTEM_REG(env, reg, val);
+        return true;
+    } else if (reg == HEX_SREG_PMUEVTCFG || reg == HEX_SREG_PMUEVTCFG1) {
+        int half_pmu_ctrs = NUM_PMU_CTRS / 2;
+        for (int i = 0; i < half_pmu_ctrs; i++) {
+            int index = i + (reg == HEX_SREG_PMUEVTCFG1 ? half_pmu_ctrs : 0);
+            uint16_t new_bits = GET_FIELD(PMUEVTCFG_CNT0_LSB + i, val);
+            set_pmu_event(env, index,
+                          deposit16(env->pmu.g_events[index], 0, 8, new_bits));
+        }
+        ARCH_SET_SYSTEM_REG(env, reg, val);
+        return true;
+    }
+    return false;
 }
 
 static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
@@ -2266,7 +2357,7 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
         hexagon_set_sys_pcycle_count_low(env, val);
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
-    } else {
+    } else if (!handle_pmu_sreg_write(env, reg, val)) {
         if (reg >= HEX_SREG_GLB_START) {
             const bool exception_context = qemu_mutex_iothread_locked();
             LOCK_IOTHREAD(exception_context);
