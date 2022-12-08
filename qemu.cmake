@@ -57,12 +57,13 @@ if (APPLE)
     --disable-opengl)
 endif()
 
+set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
 if (GS_ENABLE_SANITIZERS)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-sanitizers)
 endif()
 
 if (GS_ENABLE_LLD)
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} "--extra-ldflags='-fuse-ld=lld'")
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --extra-ldflags=-fuse-ld=lld)
 endif()
 
 if (GS_ENABLE_LTO)
