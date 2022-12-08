@@ -299,7 +299,11 @@ typedef enum {
     }
 
 typedef struct PMUState {
+    uint32_t *g_ctrs_off;
     uint16_t *g_events;
+
+    /* Internal counters */
+    uint32_t num_packets;
 } PMUState;
 #endif
 

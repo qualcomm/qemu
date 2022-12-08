@@ -39,6 +39,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hex_mmu.h"
 #include "hex_interrupts.h"
+#include "pmu.h"
 #endif
 #include "sysemu/runstate.h"
 #include "trace.h"
@@ -821,6 +822,91 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
         CPUHexagonState *env_ = &cpu->env;
         env_->t_cycle_count = 0;
     }
+}
+
+static CPUHexagonState *get_cpu(unsigned int num)
+{
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *env = &cpu->env;
+        if (env->threadId == num) {
+            return env;
+        }
+    }
+    g_assert_not_reached();
+}
+
+static int num_cpus(void)
+{
+    int num = 0;
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        num++;
+    }
+    return num;
+}
+
+uint32_t hexagon_get_pmu_event_stats(int event)
+{
+    int th;
+
+    switch (event) {
+    case COMMITTED_PKT_T0:
+    case COMMITTED_PKT_T1:
+    case COMMITTED_PKT_T2:
+    case COMMITTED_PKT_T3:
+    case COMMITTED_PKT_T4:
+    case COMMITTED_PKT_T5:
+    case COMMITTED_PKT_T6:
+    case COMMITTED_PKT_T7:
+        th = event < COMMITTED_PKT_T6 ?
+             event - COMMITTED_PKT_T0 :
+             6 + event - COMMITTED_PKT_T6;
+        return th < num_cpus() ? get_cpu(th)->pmu.num_packets : 0;
+    default:
+        return 0;
+    }
+}
+
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, uint32_t reg)
+{
+    int index = pmu_index_from_sreg(reg);
+    int event = env->pmu.g_events[index];
+    return env->pmu.g_ctrs_off[index] + hexagon_get_pmu_event_stats(event);
+}
+
+/*
+ * Note: this does NOT touch the offset value.
+ * For that, use hexagon_set_pmu_counter().
+ */
+void hexagon_reset_pmu_event_stats(int event)
+{
+    int th;
+    switch (event) {
+    case COMMITTED_PKT_T0:
+    case COMMITTED_PKT_T1:
+    case COMMITTED_PKT_T2:
+    case COMMITTED_PKT_T3:
+    case COMMITTED_PKT_T4:
+    case COMMITTED_PKT_T5:
+    case COMMITTED_PKT_T6:
+    case COMMITTED_PKT_T7:
+        th = pmu_committed_pkt_thread(event);
+        if (th < num_cpus()) {
+            get_cpu(th)->pmu.num_packets = 0;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void hexagon_set_pmu_counter(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    int index = pmu_index_from_sreg(reg);
+    env->pmu.g_ctrs_off[index] = val;
+    hexagon_reset_pmu_event_stats(env->pmu.g_events[index]);
 }
 
 #endif

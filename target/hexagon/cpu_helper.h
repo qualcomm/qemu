@@ -124,4 +124,8 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t);
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t);
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t);
 
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, uint32_t reg);
+uint32_t hexagon_get_pmu_event_stats(int event);
+void hexagon_reset_pmu_event_stats(int event);
+void hexagon_set_pmu_counter(CPUHexagonState *env, uint32_t reg, uint32_t val);
 #endif

@@ -76,6 +76,7 @@ TCGv hex_cause_code;
 TCGv_i32 hex_last_cpu;
 TCGv_i32 hex_thread_id;
 TCGv ss_pending;
+TCGv_i32 hex_pmu_num_packets;
 #endif
 TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -174,6 +175,12 @@ static void gen_exec_counters(DisasContext *ctx)
      *     depending on the value.
      */
     gen_pcycle_counters(ctx);
+#ifndef CONFIG_USER_ONLY
+    if (ctx->pmu_enabled) {
+        tcg_gen_addi_i32(hex_pmu_num_packets, hex_pmu_num_packets,
+                         ctx->num_packets);
+    }
+#endif
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -1819,6 +1826,8 @@ void hexagon_translate_init(void)
                 hexagon_sregnames[i]);
         }
     }
+    hex_pmu_num_packets = tcg_global_mem_new(tcg_env,
+            offsetof(CPUHexagonState, pmu.num_packets), "pmu.num_packets");
 #endif
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");

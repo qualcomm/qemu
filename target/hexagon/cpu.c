@@ -606,6 +606,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
         *(env->g_pcycle_base) = 0;
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
         memset(env->g_gcycle, 0, sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
+        memset(env->pmu.g_ctrs_off, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         memset(env->pmu.g_events, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_EVB, cpu->boot_evb);
@@ -650,6 +651,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
 #ifndef CONFIG_USER_ONLY
      memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
      memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+     env->pmu.num_packets = 0;
 #endif
 
     ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, env->threadId);
@@ -765,6 +767,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->g_sreg = g_malloc0(sizeof(target_ulong) * NUM_SREGS);
         env->g_gcycle = g_malloc0(sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
+        env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
     } else {
         CPUState *cpu0_s = NULL;
@@ -780,6 +783,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->cmdline = env0->cmdline;
         env->lib_search_dir = env0->lib_search_dir;
         env->g_pcycle_base = env0->g_pcycle_base;
+        env->pmu.g_ctrs_off = env0->pmu.g_ctrs_off;
         env->pmu.g_events = env0->pmu.g_events;
 
         dma_t *dma_ptr = env->processor_ptr->dma[env->threadId];
@@ -1171,13 +1175,13 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
     case HEX_GREG_GPMUCNT2:
     case HEX_GREG_GPMUCNT3:
         off = reg - HEX_GREG_GPMUCNT0;
-        return ssr_pe ? ARCH_GET_SYSTEM_REG(env, HEX_SREG_PMUCNT0 + off) : 0;
+        return ssr_pe ? hexagon_get_pmu_counter(env, HEX_SREG_PMUCNT0 + off) : 0;
     case HEX_GREG_GPMUCNT4:
     case HEX_GREG_GPMUCNT5:
     case HEX_GREG_GPMUCNT6:
     case HEX_GREG_GPMUCNT7:
         off = reg - HEX_GREG_GPMUCNT4;
-        return ssr_pe ? ARCH_GET_SYSTEM_REG(env, HEX_SREG_PMUCNT4 + off) : 0;
+        return ssr_pe ? hexagon_get_pmu_counter(env, HEX_SREG_PMUCNT4 + off) : 0;
     default:
         return 0;
     }
