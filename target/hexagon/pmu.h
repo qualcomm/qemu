@@ -57,4 +57,19 @@ static inline int pmu_committed_pkt_thread(int event)
            6 + event - COMMITTED_PKT_T6;
 }
 
+#define pmu_lock() \
+    bool __needs_pmu_lock = !qemu_mutex_iothread_locked(); \
+    do { \
+        if (__needs_pmu_lock) { \
+            qemu_mutex_lock_iothread(); \
+        } \
+    } while (0)
+
+#define pmu_unlock() \
+    do { \
+        if (__needs_pmu_lock) { \
+            qemu_mutex_unlock_iothread(); \
+        } \
+    } while (0)
+
 #endif /* HEXAGON_PMU_H */
