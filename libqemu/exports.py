@@ -78,7 +78,8 @@ ExportedFct('memory_region_init_io', 'void',
             'void *', 'const char *', 'uint64_t' ], priv = 'libqemu_memory_region_init_io')
 
 ExportedFct('memory_region_init_ram_ptr', 'void',
-        [ 'MemoryRegion *', 'Object *', 'const char *', 'uint64_t', 'void *' ])
+        [ 'MemoryRegion *', 'Object *', 'const char *', 'uint64_t', 'void *' ],
+        iothread_locked = True)
 
 ExportedFct('memory_region_init_alias', 'void',
         [ 'MemoryRegion *', 'Object *', 'const char *', 'MemoryRegion *', 'hwaddr', 'uint64_t' ])
