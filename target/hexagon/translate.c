@@ -34,6 +34,7 @@
 #include "translate.h"
 #include "genptr.h"
 #include "printinsn.h"
+#include "pmu.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -158,6 +159,15 @@ static inline void gen_pcycle_counters(DisasContext *ctx)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+static void gen_pmu_counters(DisasContext *ctx)
+{
+    if (!ctx->pmu_enabled) {
+        return;
+    }
+}
+#endif
+
 static void gen_exec_counters(DisasContext *ctx)
 {
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
@@ -177,12 +187,7 @@ static void gen_exec_counters(DisasContext *ctx)
      */
     gen_pcycle_counters(ctx);
 #ifndef CONFIG_USER_ONLY
-    if (ctx->pmu_enabled) {
-        tcg_gen_addi_i32(hex_pmu_num_packets, hex_pmu_num_packets,
-                         ctx->num_packets);
-        tcg_gen_addi_i32(hex_pmu_hvx_packets, hex_pmu_hvx_packets,
-                         ctx->hvx_packets);
-    }
+    gen_pmu_counters(ctx);
 #endif
 }
 
@@ -524,6 +529,19 @@ static bool pkt_has_pcycle_read(Packet *pkt)
     }
     return false;
 }
+
+#ifndef CONFIG_USER_ONLY
+static bool pkt_has_pmu_read(Packet *pkt)
+{
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn *insn = &pkt->insn[i];
+        if (insn->opcode == Y2_tfrscrr && IS_PMU_REG(insn->regno[1])) {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
 
 static bool need_next_PC(DisasContext *ctx)
 {
@@ -1020,6 +1038,9 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     if (pkt->pkt_has_hvx && !ctx->hvx_coproc_enabled && !ctx->hvx_check_emitted) {
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt->pc);
         ctx->hvx_check_emitted = true;
+    }
+    if (pkt_has_pmu_read(pkt)) {
+        gen_pmu_counters(ctx);
     }
 #endif
     if (pkt_has_pcycle_read(pkt)) {
