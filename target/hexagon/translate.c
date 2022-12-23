@@ -77,6 +77,7 @@ TCGv_i32 hex_last_cpu;
 TCGv_i32 hex_thread_id;
 TCGv ss_pending;
 TCGv_i32 hex_pmu_num_packets;
+TCGv_i32 hex_pmu_hvx_packets;
 #endif
 TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -179,6 +180,8 @@ static void gen_exec_counters(DisasContext *ctx)
     if (ctx->pmu_enabled) {
         tcg_gen_addi_i32(hex_pmu_num_packets, hex_pmu_num_packets,
                          ctx->num_packets);
+        tcg_gen_addi_i32(hex_pmu_hvx_packets, hex_pmu_hvx_packets,
+                         ctx->hvx_packets);
     }
 #endif
 }
@@ -1426,6 +1429,7 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_packets++;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
+    ctx->hvx_packets += (num_hvx_insns > 0);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1628,6 +1632,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 
     ctx->num_packets = 0;
     ctx->num_cycles = 0;
+    ctx->hvx_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
     ctx->zero = tcg_constant_tl(0);
@@ -1828,6 +1833,8 @@ void hexagon_translate_init(void)
     }
     hex_pmu_num_packets = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, pmu.num_packets), "pmu.num_packets");
+    hex_pmu_hvx_packets = tcg_global_mem_new(tcg_env,
+            offsetof(CPUHexagonState, pmu.hvx_packets), "pmu.hvx_packets");
 #endif
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
