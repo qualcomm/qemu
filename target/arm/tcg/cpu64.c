@@ -335,6 +335,8 @@ static void aarch64_a76_initfn(Object *obj)
 
     /* From D5.1 AArch64 PMU register summary */
     cpu->isar.reset_pmcr_el0 = 0x410b3000;
+
+    define_cortex_a76_cp_reginfo(cpu);
 }
 
 static void aarch64_a64fx_initfn(Object *obj)
