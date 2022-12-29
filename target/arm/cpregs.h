@@ -1094,8 +1094,10 @@ static inline bool arm_cpreg_in_idspace(const ARMCPRegInfo *ri)
 
 #ifdef CONFIG_USER_ONLY
 static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
+static inline void define_cortex_a76_cp_reginfo(ARMCPU *cpu) { }
 #else
 void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
+void define_cortex_a76_cp_reginfo(ARMCPU *cpu);
 #endif
 
 CPAccessResult access_tvm_trvm(CPUARMState *, const ARMCPRegInfo *, bool);
