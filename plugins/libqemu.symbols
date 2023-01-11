@@ -1,0 +1,2 @@
+QEMU_PLUGIN_API
+libqemu_init()
