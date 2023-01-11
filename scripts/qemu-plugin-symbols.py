@@ -30,10 +30,12 @@ def extract_symbols(plugin_header):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Extract QEMU plugin symbols')
-    parser.add_argument('plugin_header', help='Path to QEMU plugin header.')
+    parser.add_argument('plugin_header', help='Path to QEMU plugin header.', nargs='+')
     args = parser.parse_args()
 
-    syms = extract_symbols(args.plugin_header)
+    syms = []
+    for header in args.plugin_header:
+        syms += extract_symbols(header)
 
     print('{')
     for s in syms:

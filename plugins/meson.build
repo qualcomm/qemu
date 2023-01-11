@@ -2,8 +2,13 @@ if not get_option('plugins')
   subdir_done()
 endif
 
+plugin_headers = [files('../include/qemu/qemu-plugin.h')]
+if enable_libqemu
+  plugin_headers += files('./libqemu.symbols')
+endif
+
 qemu_plugin_symbols = configure_file(
-  input: files('../include/qemu/qemu-plugin.h'),
+  input: plugin_headers,
   output: 'qemu-plugin.symbols',
   capture: true,
   command: [files('../scripts/qemu-plugin-symbols.py'), '@INPUT@'])
