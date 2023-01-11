@@ -1,4 +1,3 @@
-{
   qemu_plugin_bool_parse;
   qemu_plugin_end_code;
   qemu_plugin_entry_code;
@@ -22,7 +21,6 @@
   qemu_plugin_path_to_binary;
   qemu_plugin_register_atexit_cb;
   qemu_plugin_register_flush_cb;
-  libqemu_init;
   qemu_plugin_register_vcpu_exit_cb;
   qemu_plugin_register_vcpu_idle_cb;
   qemu_plugin_register_vcpu_init_cb;
@@ -43,4 +41,3 @@
   qemu_plugin_tb_vaddr;
   qemu_plugin_uninstall;
   qemu_plugin_vcpu_for_each;
-};
