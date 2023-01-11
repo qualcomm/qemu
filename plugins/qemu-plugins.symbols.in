@@ -1,0 +1,4 @@
+{
+@qemu_plugins_symbols@
+@libqemu_symbols@
+};

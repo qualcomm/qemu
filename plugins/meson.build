@@ -4,15 +4,27 @@ endif
 
 # Modules need more symbols than just those in plugins/qemu-plugins.symbols
 if not enable_modules
+  conf_data = configuration_data()
+  fs = import('fs')
+  conf_data.set('qemu_plugins_symbols', fs.read('qemu-plugins.symbols'))
+  if enable_libqemu
+    conf_data.set('libqemu_symbols', fs.read('libqemu.symbols'))
+  endif
+
+  qemu_plugins_symbol_list = configure_file(
+      input: files('qemu-plugins.symbols.in'),
+      output: 'qemu-plugins.symbols',
+      configuration: conf_data)
+
   if host_os == 'darwin'
     configure_file(
-      input: files('qemu-plugins.symbols'),
+      input: qemu_plugins_symbol_list,
       output: 'qemu-plugins-ld64.symbols',
       capture: true,
       command: ['sed', '-ne', 's/^[[:space:]]*\\(\\(lib\\)\{0,1\}qemu_.*\\);/_\\1/p', '@INPUT@'])
     emulator_link_args += ['-Wl,-exported_symbols_list,plugins/qemu-plugins-ld64.symbols']
   else
-    emulator_link_args += ['-Xlinker', '--dynamic-list=' + (meson.project_source_root() / 'plugins/qemu-plugins.symbols')]
+    emulator_link_args += ['-Xlinker', '--dynamic-list=plugins/qemu-plugins.symbols']
   endif
 endif
 
