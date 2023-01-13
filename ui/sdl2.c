@@ -96,6 +96,13 @@ void sdl2_window_create(struct sdl2_console *scon)
 #ifdef CONFIG_OPENGL
     if (scon->opengl) {
         flags |= SDL_WINDOW_OPENGL;
+        if (scon->opts->gl == DISPLAYGL_MODE_ES) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                                SDL_GL_CONTEXT_PROFILE_ES);
+        }
+        // This is the minimum version required by the texture blit shaders
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     }
 #endif
 

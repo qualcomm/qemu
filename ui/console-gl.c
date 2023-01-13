@@ -73,7 +73,6 @@ void surface_gl_create_texture(QemuGLShader *gls,
     }
 
     glGenTextures(1, &surface->texture);
-    glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, surface->texture);
     glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT,
                   surface_stride(surface) / surface_bytes_per_pixel(surface));
