@@ -8,7 +8,6 @@ set(QEMU_CONF_ARGS
     --disable-debug-tcg
     --disable-sparse
     --enable-sdl
-    --enable-gtk
     --enable-vnc
     --disable-xen
     --disable-brlapi
@@ -55,8 +54,7 @@ if (APPLE)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
         --disable-strip
         --disable-pie
-        --disable-virglrenderer
-        --disable-opengl)
+        --disable-gtk)
 endif()
 
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
