@@ -151,6 +151,15 @@ void qemu_notify_event(void)
     qemu_bh_schedule(qemu_notify_bh);
 }
 
+static inline GMainContext *get_g_main_context(void)
+{
+    GMainContext *ret = g_main_context_get_thread_default();
+    if (ret) {
+        return ret;
+    }
+    return g_main_context_default();
+}
+
 static GArray *gpollfds;
 
 int qemu_init_main_loop(Error **errp)
@@ -174,11 +183,11 @@ int qemu_init_main_loop(Error **errp)
     gpollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
     src = aio_get_g_source(qemu_aio_context);
     g_source_set_name(src, "aio-context");
-    g_source_attach(src, g_main_context_get_thread_default());
+    g_source_attach(src, get_g_main_context());
     g_source_unref(src);
     src = iohandler_get_g_source();
     g_source_set_name(src, "io-handler");
-    g_source_attach(src, g_main_context_get_thread_default());
+    g_source_attach(src, get_g_main_context());
     g_source_unref(src);
     return 0;
 }
@@ -251,7 +260,7 @@ static int glib_n_poll_fds;
 
 static void glib_pollfds_fill(int64_t *cur_timeout)
 {
-    GMainContext *context = g_main_context_get_thread_default();
+    GMainContext *context = get_g_main_context();
     int timeout = 0;
     int64_t timeout_ns;
     int n;
@@ -280,7 +289,7 @@ static void glib_pollfds_fill(int64_t *cur_timeout)
 
 static void glib_pollfds_poll(void)
 {
-    GMainContext *context = g_main_context_get_thread_default();
+    GMainContext *context = get_g_main_context();
     GPollFD *pfds = &g_array_index(gpollfds, GPollFD, glib_pollfds_idx);
 
     if (g_main_context_check(context, max_priority, pfds, glib_n_poll_fds)) {
@@ -292,7 +301,7 @@ static void glib_pollfds_poll(void)
 
 static int os_host_main_loop_wait(int64_t timeout)
 {
-    GMainContext *context = g_main_context_get_thread_default();
+    GMainContext *context = get_g_main_context();
     int ret;
 
     g_main_context_acquire(context);
@@ -458,7 +467,7 @@ static void pollfds_poll(GArray *pollfds, int nfds, fd_set *rfds,
 
 static int os_host_main_loop_wait(int64_t timeout)
 {
-    GMainContext *context = g_main_context_get_thread_default();
+    GMainContext *context = get_g_main_context();
     GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
     int select_ret = 0;
     int g_poll_ret, ret, i, n_poll_fds;
