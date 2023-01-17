@@ -1,6 +1,7 @@
 /GNUmakefile
 /build/
 *.pyc
+.DS_Store
 .sdk
 .stgit-*
 .git-submodule-status
