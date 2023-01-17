@@ -234,6 +234,7 @@ struct DisplayChangeListener {
     const DisplayChangeListenerOps *ops;
     DisplayState *ds;
     QemuConsole *con;
+    void *user_data;
 
     QLIST_ENTRY(DisplayChangeListener) next;
 };
@@ -265,6 +266,7 @@ struct DisplayGLCtx {
 
 DisplayState *init_displaystate(void);
 
+void register_displaychangelistener(DisplayChangeListener *dcl);
 void qemu_console_register_listener(QemuConsole *con,
                                     DisplayChangeListener *dcl,
                                     const DisplayChangeListenerOps *ops);

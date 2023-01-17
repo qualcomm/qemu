@@ -737,8 +737,8 @@ void sdl2_poll_events(struct sdl2_console *scon)
     }
 }
 
-static void sdl_mouse_warp(DisplayChangeListener *dcl,
-                           int x, int y, bool on)
+void sdl_mouse_warp(DisplayChangeListener *dcl,
+                    int x, int y, bool on)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
@@ -763,8 +763,7 @@ static void sdl_mouse_warp(DisplayChangeListener *dcl,
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(DisplayChangeListener *dcl,
-                             QEMUCursor *c)
+void sdl_mouse_define(DisplayChangeListener *dcl, QEMUCursor *c)
 {
 
     if (guest_sprite) {
@@ -808,7 +807,7 @@ static void sdl_cleanup(void)
     for (i = 0; i < sdl2_num_outputs; i++) {
         qemu_console_unregister_listener(&sdl2_console[i].dcl);
         qkbd_state_free(sdl2_console[i].kbd);
-        sdl2_window_destroy(&sdl2_console[i]);
+        sdl2_window_destroy(&sdl2_console[i].dcl);
     }
     g_clear_pointer(&sdl2_console, g_free);
     sdl2_num_outputs = 0;
@@ -850,9 +849,8 @@ static const DisplayChangeListenerOps dcl_gl_ops = {
 #endif
 };
 
-static bool
-sdl2_gl_is_compatible_dcl(DisplayGLCtx *dgc,
-                          DisplayChangeListener *dcl)
+static bool sdl2_gl_is_compatible_dcl(DisplayGLCtx *dgc,
+                                      DisplayChangeListener *dcl)
 {
     return dcl->ops == &dcl_gl_ops;
 }

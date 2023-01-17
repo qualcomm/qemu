@@ -617,6 +617,23 @@ dcl_set_graphic_cursor(DisplayChangeListener *dcl, QemuGraphicConsole *con)
     }
 }
 
+void register_displaychangelistener(DisplayChangeListener *dcl)
+{
+    assert(!dcl->ds);
+
+    trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
+    dcl->ds = get_alloc_displaystate();
+    QLIST_INSERT_HEAD(&dcl->ds->listeners, dcl, next);
+    gui_setup_refresh(dcl->ds);
+    displaychangelistener_display_console(dcl, &error_fatal);
+    if (QEMU_IS_GRAPHIC_CONSOLE(dcl->con)) {
+        dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(dcl->con));
+    } else if (QEMU_IS_TEXT_CONSOLE(dcl->con)) {
+        qemu_text_console_update_size(QEMU_TEXT_CONSOLE(dcl->con));
+    }
+    vt100_update_cursor();
+}
+
 /*
  * qemu_console_register_listener:
  * @con: the console to attach the listener to
@@ -632,22 +649,10 @@ void qemu_console_register_listener(QemuConsole *con,
                                     DisplayChangeListener *dcl,
                                     const DisplayChangeListenerOps *ops)
 {
-    assert(!dcl->ds);
 
     dcl->con = con;
     dcl->ops = ops;
-
-    trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
-    dcl->ds = get_alloc_displaystate();
-    QLIST_INSERT_HEAD(&dcl->ds->listeners, dcl, next);
-    gui_setup_refresh(dcl->ds);
-    displaychangelistener_display_console(dcl, &error_fatal);
-    if (QEMU_IS_GRAPHIC_CONSOLE(dcl->con)) {
-        dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(dcl->con));
-    } else if (QEMU_IS_TEXT_CONSOLE(dcl->con)) {
-        qemu_text_console_update_size(QEMU_TEXT_CONSOLE(dcl->con));
-    }
-    vt100_update_cursor();
+    register_displaychangelistener(dcl);
 }
 
 void qemu_console_listener_set_refresh(DisplayChangeListener *dcl,
