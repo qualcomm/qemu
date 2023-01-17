@@ -18,20 +18,20 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/thread.h"
 #include "qemu/main-loop.h"
 #include "qemu/rcu.h"
-#include "tcg/tcg.h"
+#include "qemu/thread.h"
 #include "sysemu/sysemu.h"
+#include "tcg/tcg.h"
 
-#include "libqemu.h"
+#include "callbacks.h"
 #include "ctors.h"
 #include "fill.h"
-#include "callbacks.h"
+#include "libqemu.h"
 #include "wrappers/libqemu.h"
 
 /* The QEMU main function */
-int main(int argc, const char * const argv[], char **envp);
+int main(int argc, const char *const argv[], char **envp);
 
 typedef struct LibQemuContext LibQemuContext;
 
@@ -65,7 +65,7 @@ static LibQemuContext context;
  */
 static void *iothread_entry(void *arg)
 {
-    LibQemuContext *context = (LibQemuContext*) arg;
+    LibQemuContext *context = (LibQemuContext *)arg;
 
     g_main_context_push_thread_default(context->iothread_context);
 
@@ -100,7 +100,7 @@ extern Coroutine *qmp_dispatcher_co;
 
 static void wait_for_iothread_startup(void)
 {
-    while(qatomic_read(&qmp_dispatcher_co) == NULL) {
+    while (qatomic_read(&qmp_dispatcher_co) == NULL) {
         cpu_relax();
     }
 
@@ -117,12 +117,12 @@ static void start_iothread(int argc, char **argv)
     context.argv = argv;
     context.iothread_context = g_main_context_new();
 
-    qemu_thread_create(&context.iothread, "qemu-iothread",
-                       iothread_entry, &context, QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&context.iothread, "qemu-iothread", iothread_entry,
+                       &context, QEMU_THREAD_JOINABLE);
     wait_for_iothread_startup();
 }
 
-LibQemuExports *LIBQEMU_INIT_SYM(int argc, char ** argv)
+LibQemuExports *LIBQEMU_INIT_SYM(int argc, char **argv)
 {
     libqemu_exports_fill(&context.exports);
     start_iothread(argc, argv);
@@ -162,3 +162,7 @@ void libqemu_cpu_kick_cb(CPUState *cpu)
     }
 }
 
+void libqemu_enable_opengl(void)
+{
+    display_opengl = true;
+}
