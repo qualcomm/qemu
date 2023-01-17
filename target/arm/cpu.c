@@ -204,6 +204,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
     assert(oldvalue == newvalue);
 }
 
+#ifndef CONFIG_USER_ONLY
 static void async_reset_msp_pc(CPUState *s, run_on_cpu_data data)
 {
     ARMCPU *cpu = ARM_CPU(s);
@@ -241,6 +242,7 @@ static void async_reset_msp_pc(CPUState *s, run_on_cpu_data data)
     env->thumb = initial_pc & 1;
     env->thumb |= arm_feature(env, ARM_FEATURE_M);
 }
+#endif
 
 static void arm_cpu_reset_hold(Object *obj)
 {
