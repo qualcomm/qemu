@@ -3,6 +3,7 @@
 /.cache/
 /.vscode/
 *.pyc
+.DS_Store
 .sdk
 .stgit-*
 .git-submodule-status
