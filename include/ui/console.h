@@ -272,6 +272,7 @@ struct DisplayChangeListener {
     const DisplayChangeListenerOps *ops;
     DisplayState *ds;
     QemuConsole *con;
+    void *user_data;
 
     QLIST_ENTRY(DisplayChangeListener) next;
 };
