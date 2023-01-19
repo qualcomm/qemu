@@ -67,6 +67,7 @@ TCGv hex_imprecise_exception;
 TCGv hex_cause_code;
 TCGv_i32 hex_last_cpu;
 TCGv_i32 hex_thread_id;
+TCGv ss_pending;
 #endif
 TCGv_i64 hex_packet_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -121,6 +122,11 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
+void gen_debug_exception(int excp, target_ulong PC)
+{
+    gen_helper_raise_debug_exception(cpu_env, tcg_constant_i32(excp),
+                               tcg_constant_tl(PC));
+}
 void gen_exception(int excp)
 {
     gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
@@ -452,6 +458,17 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx,
     }
     // FIXME: this was moved out of the conditional init above:
     tcg_gen_movi_tl(hex_next_PC, next_PC);
+#if !defined(CONFIG_USER_ONLY)
+    if (!ctx->ss_pending) {
+        if (ctx->ss_active) {
+            tcg_gen_movi_tl(hex_cause_code, HEX_CAUSE_DEBUG_SINGLESTEP);
+            tcg_gen_movi_tl(ss_pending, 1);
+        }
+    } else {
+        gen_debug_exception(HEX_EVENT_DEBUG, ctx->base.pc_next);
+    }
+#endif
+
     if (need_pred_written(pkt)) {
         tcg_gen_movi_tl(hex_pred_written, 0);
     }
@@ -1168,6 +1185,11 @@ static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
     ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
     ctx->resched_required = false;
     ctx->intcheck_required = false;
+    ctx->ss_active = hex_flags.ss_active && (ctx->mem_idx == MMU_USER_IDX);
+    ctx->ss_pending = hex_flags.ss_pending;
+    if (ctx->ss_active) {
+        ctx->base.max_insns = 1;
+    }
 #endif
     ctx->has_single_direct_branch = false;
     ctx->branch_cond = NULL;
@@ -1407,6 +1429,9 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, last_cpu), "last_cpu");
     hex_thread_id = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, threadId), "threadId");
+    ss_pending = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, ss_pending), "ss_pending");
+
 #endif
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);

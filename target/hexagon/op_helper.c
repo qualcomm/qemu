@@ -112,6 +112,31 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
+void do_raise_debug_exception(CPUHexagonState *env, uint32_t exception,
+                        target_ulong PC, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+#ifdef CONFIG_USER_ONLY
+    qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
+#else
+    qemu_log_mask(CPU_LOG_INT, "%s: %d, @ %08" PRIx32 ", tbl = %d\n",
+                  __func__, exception, PC,
+                  env->gpr[HEX_REG_QEMU_CPU_TB_CNT]);
+#endif
+
+    env->gpr[HEX_REG_PC] = PC;
+    cs->exception_index = exception;
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
+
+G_NORETURN void HELPER(raise_debug_exception)(CPUHexagonState *env, uint32_t excp,
+                                        target_ulong PC)
+{
+    do_raise_debug_exception(env, excp, PC, 0);
+}
+
+
 static void log_reg_write(CPUHexagonState *env, int rnum,
                           target_ulong val, uint32_t slot)
 {

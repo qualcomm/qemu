@@ -448,6 +448,7 @@ static void hexagon_cpu_reset(DeviceState *dev)
 
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->ss_pending = false;
 
     hexagon_cpu_soft_reset(env);
 #endif

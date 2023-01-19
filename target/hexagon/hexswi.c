@@ -1166,6 +1166,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
             (cs->exception_index << 2));
         break;
 
+    case HEX_EVENT_DEBUG:
+        hexagon_ssr_set_cause(env, env->cause_code);
+        set_addresses(env, 0, cs->exception_index);
+        env->ss_pending = false;
+        break;
+
     case HEX_EVENT_PRECISE:
         switch(env->cause_code) {
         case HEX_CAUSE_FETCH_NO_XPAGE:

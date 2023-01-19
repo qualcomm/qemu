@@ -546,6 +546,7 @@ typedef struct CPUArchState {
     GList *dir_list;
     uint32_t exe_arch;
     gchar *lib_search_dir;
+    bool ss_pending;
 #endif
 } CPUHexagonState;
 #define mmvecx_t CPUHexagonState
@@ -595,10 +596,13 @@ typedef union {
         int mmu_index:3;
 #ifndef CONFIG_USER_ONLY
         bool pcycle_enabled:1;
+        bool ss_active:1;
+        bool ss_pending:1;
 #endif
         bool is_tight_loop:1;
     };
 } HexStateFlags;
+
 
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
@@ -618,6 +622,12 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
     if (pcycle_enabled) {
         hex_flags.pcycle_enabled = true;
     }
+    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    hex_flags.ss_active = extract32(ssr,
+            reg_field_info[SSR_SS].offset,
+            reg_field_info[SSR_SS].width);
+
+    hex_flags.ss_pending = env->ss_pending;
 #else
     hex_flags.mmu_index = MMU_USER_IDX;
 #endif

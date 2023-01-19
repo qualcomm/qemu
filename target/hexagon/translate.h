@@ -78,6 +78,8 @@ typedef struct DisasContext {
     TCGv_i64 ones64;
     bool gen_cacheop_exceptions;
     bool should_advance_pc;
+    bool ss_active;
+    bool ss_pending;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
@@ -212,6 +214,7 @@ extern TCGv hex_slot;
 extern TCGv hex_imprecise_exception;
 #endif
 
+void gen_debug_exception(int excp, target_ulong PC);
 void gen_exception(int excp);
 void gen_exception_end_tb(DisasContext *ctx, int excp);
 bool is_gather_store_insn(Insn *insn, Packet *pkt);
