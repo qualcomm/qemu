@@ -3069,7 +3069,9 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
              * Debug accesses on virtual addresses on I/O region
              * end up there so do them.
              */
-            address_space_write(as, addr, attrs, buf, l);
+            if (buf) {
+                address_space_write(as, addr, attrs, buf, l);
+            }
         } else {
             /* ROM/RAM case */
             ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
@@ -3084,7 +3086,9 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             }
         }
         len -= l;
-        buf += l;
+        if (buf) {
+            buf += l;
+        }
         addr += l;
     }
     return MEMTX_OK;
