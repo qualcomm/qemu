@@ -50,7 +50,11 @@ set(QEMU_CONF_ARGS
 
 # may be un-necissary in future releases of QEMU?
 if (APPLE)
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --disable-strip)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
+        --disable-strip
+        --disable-pie
+        --disable-virglrenderer
+        --disable-opengl)
 endif()
 
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
