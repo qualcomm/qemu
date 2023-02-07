@@ -211,7 +211,7 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
     )
 
     bison = generator(
-        find_program('bison'),
+        find_program('bison', version: '>=3.0'),
         output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
         arguments: ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@']
     )
