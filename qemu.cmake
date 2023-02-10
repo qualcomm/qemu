@@ -73,7 +73,7 @@ endif()
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE)
 message(STATUS "Build type : ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-debug)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-debug --enable-debug-tcg)
 endif()
 
 # With cmake 3.12 we could use the list(TRANSFORM ...) operator
