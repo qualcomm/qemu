@@ -73,6 +73,9 @@ ExportedType('QemuMemoryRegionOps', 'MemoryRegionOps')
 
 ExportedFct('memory_region_new', 'MemoryRegion *', [], priv = 'libqemu_memory_region_new')
 
+ExportedFct('memory_region_init', 'void',
+        [ 'MemoryRegion *', 'Object *', 'const char *', 'uint64_t' ])
+
 ExportedFct('memory_region_init_io', 'void',
         [ 'MemoryRegion *', 'Object *', 'const MemoryRegionOps *',
             'void *', 'const char *', 'uint64_t' ], priv = 'libqemu_memory_region_init_io')
@@ -86,6 +89,9 @@ ExportedFct('memory_region_init_alias', 'void',
 
 ExportedFct('memory_region_add_subregion', 'void',
         [ 'MemoryRegion *', 'hwaddr', 'MemoryRegion *' ], iothread_locked = True)
+
+ExportedFct('memory_region_add_subregion_overlap', 'void',
+        [ 'MemoryRegion *', 'hwaddr' , 'MemoryRegion *', 'int' ], iothread_locked = True)
 
 ExportedFct('memory_region_del_subregion', 'void',
         [ 'MemoryRegion *', 'MemoryRegion *' ], iothread_locked = True)
