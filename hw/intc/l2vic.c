@@ -57,7 +57,6 @@ typedef struct L2VICState {
     MemoryRegion fast_iomem;
     uint32_t level;
     uint32_t vid_group[4]; /* offset 0:vid group 0 etc, 10 bits in each group are used. */
-    bool     vidactive;
     uint32_t vid0;
     uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(16);  /* Clear Status of Active Edge interrupt, not used*/
     uint32_t int_enable[SLICE_MAX] QEMU_ALIGNED(16); /* Enable interrupt source */
@@ -111,12 +110,22 @@ static int get_vid(L2VICState *s, int irq)
     }
 }
 
-static void l2vic_update(L2VICState *s, int irq)
+static inline bool vid_active(L2VICState *s)
+
 {
-    if (s->vidactive) {
+    /* scan all 1024 bits in int_status arrary */
+    const int size = sizeof(s->int_status) * CHAR_BIT;
+    const int active_irq = find_first_bit((unsigned long *)s->int_status, size);
+    return ((active_irq != size)) ? true : false;
+}
+
+static bool l2vic_update(L2VICState *s, int irq)
+{
+    if (vid_active(s)) {
         D("L2VIC: busy\n");
-        return;
+        return true;
     }
+
     bool pending = test_bit(irq, (unsigned long *)s->int_pending);
     bool enable = test_bit(irq, (unsigned long *)s->int_enable);
     if (pending && enable) {
@@ -125,35 +134,32 @@ static void l2vic_update(L2VICState *s, int irq)
         clear_bit(irq, (unsigned long *)s->int_pending);
         clear_bit(irq, (unsigned long *)s->int_enable);
         /* ensure the irq line goes low after going high */
-
-        if (!test_bit(irq, (unsigned long *)s->int_type)) {
-            s->vidactive = true;
-        }
         s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
 
+        /* already low: now call pulse */
+        /*     pulse: calls qemu_upper() and then qemu_lower()) */
         qemu_irq_pulse(s->irq[vid + 2]);
         D("L2VIC: delivered %d (vid %d)\n", irq, vid);
-    } else {
-        if (pending) {
-            D("L2VIC: pending (not enabled) %d\n", irq);
-        }
-        int vid = get_vid(s, irq);
-        qemu_set_irq(s->irq[vid + 2], 0);
+        return true;
     }
+    return false;
 }
+
 static void l2vic_update_all(L2VICState *s)
 {
-    for (int i = 0; !s->vidactive && i < L2VIC_INTERRUPT_MAX; i++) {
-        l2vic_update(s, i);
+    for (int i = 0; i < L2VIC_INTERRUPT_MAX; i++) {
+        if (l2vic_update(s, i) == true) {
+            /* once vid is active, no-one else can set it until ciad */
+            return;
+        }
     }
 }
+
 static void l2vic_set_irq(void *opaque, int irq, int level)
 {
     L2VICState *s = (L2VICState *) opaque;
-    s->level = level;
-
-    if (level) { // && test_bit(irq, (unsigned long *)s->int_enable)) {
+    if (level) {
         D("ACK, irq:level = %d, %d\n", irq, level);
         D("\t(L2VICA(s->int_enable, 4 * (irq / 32)) = 0x%x\n",
           L2VICA(s->int_enable, 4 * (irq / 32)));
@@ -174,11 +180,11 @@ static void l2vic_write(void *opaque, hwaddr offset,
     D("L2Vic write 0x%" PRIx64 " 0x%" PRIx64 "\n", offset, val);
 
     if (offset == L2VIC_VID_0) {
-        if ((int)val != L2VIC_NO_PENDING) {
+        if ((int)val != L2VIC_CIAD_INSTRUCTION) {
             s->vid0 = val;
-        }
-        if (s->vidactive) {
-            s->vidactive = false;
+        } else {
+            /* ciad issued: clear int_status */
+            clear_bit(s->vid0, (unsigned long *)s->int_status);
         }
     } else if (offset == L2VIC_VID_1) {
         g_assert_not_reached(); /* No support of VID1 at the moment */
@@ -371,7 +377,6 @@ static void l2vic_reset(DeviceState *d)
     memset(s->int_group_n2, 0, sizeof(s->int_group_n2));
     memset(s->int_group_n3, 0, sizeof(s->int_group_n3));
     s->int_soft = 0;
-    s->vidactive = false;
     s->vid0 = 0;
 
     l2vic_update(s, 0);
@@ -399,25 +404,24 @@ static const VMStateDescription vmstate_l2vic = {
     .name = "l2vic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(level, L2VICState),
-        VMSTATE_UINT32_ARRAY(vid_group, L2VICState, 4),
-        VMSTATE_BOOL (vidactive,L2VICState),
-        VMSTATE_UINT32(vid0, L2VICState),
-        VMSTATE_UINT32_ARRAY(int_enable, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32(int_enable_clear, L2VICState),
-        VMSTATE_UINT32(int_enable_set, L2VICState),
-        VMSTATE_UINT32_ARRAY(int_type, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_status, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_clear, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32(int_soft, L2VICState),
-        VMSTATE_UINT32_ARRAY(int_pending, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_group_n0, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_group_n1, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_group_n2, L2VICState, SLICE_MAX),
-        VMSTATE_UINT32_ARRAY(int_group_n3, L2VICState, SLICE_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields =
+        (VMStateField[]){
+            VMSTATE_UINT32(level, L2VICState),
+            VMSTATE_UINT32_ARRAY(vid_group, L2VICState, 4),
+            VMSTATE_UINT32(vid0, L2VICState),
+            VMSTATE_UINT32_ARRAY(int_enable, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32(int_enable_clear, L2VICState),
+            VMSTATE_UINT32(int_enable_set, L2VICState),
+            VMSTATE_UINT32_ARRAY(int_type, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_status, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_clear, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32(int_soft, L2VICState),
+            VMSTATE_UINT32_ARRAY(int_pending, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_group_n0, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_group_n1, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_group_n2, L2VICState, SLICE_MAX),
+            VMSTATE_UINT32_ARRAY(int_group_n3, L2VICState, SLICE_MAX),
+            VMSTATE_END_OF_LIST() }
 };
 
 static void l2vic_class_init(ObjectClass *klass, void *data)

@@ -658,7 +658,7 @@ static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
      * currently only l2vic is the only attached it uses vid0, remove
      * the assert below if anther is added
      */
-    hexagon_set_vid(env, offset, L2VIC_NO_PENDING);
+    hexagon_set_vid(env, offset, L2VIC_CIAD_INSTRUCTION);
 }
 
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)

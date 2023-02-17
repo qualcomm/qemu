@@ -21,7 +21,7 @@ static inline void setvid(uint32_t val)
 int
 main()
 {
-    uint32_t testval = 0xff00ff;
+    uint32_t testval = 0x3ff;
     setvid (testval);
     if (testval != getvid()) {
 	printf ("ERROR: vid read returned: 0x%08lx\n", getvid());
