@@ -2964,6 +2964,14 @@ config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
     void foo(uint8x16_t *p) { *p = vaesmcq_u8(*p); }
   '''))
 
+# QUIC
+# NEEDSWORK: this config is currently causing an error in CI with
+# --enable-sanitizers due to an out-of-bounds write at uleb128_encode_small
+# (util/cutils.c:831). It's likely an upstream bug. Disable the code for now
+# until we fix it.
+config_host_data.set('CONFIG_AVX512BW_OPT', false)
+# QUIC-end
+
 if get_option('membarrier').disabled()
   have_membarrier = false
 elif host_os == 'windows'
