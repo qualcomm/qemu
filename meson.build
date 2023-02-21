@@ -2373,6 +2373,14 @@ config_host_data.set('CONFIG_AVX512BW_OPT', get_option('avx512bw') \
     int main(int argc, char *argv[]) { return bar(argv[0]); }
   '''), error_message: 'AVX512BW not available').allowed())
 
+# QUIC
+# NEEDSWORK: this config is currently causing an error in CI with
+# --enable-sanitizers due to an out-of-bounds write at uleb128_encode_small
+# (util/cutils.c:831). It's likely an upstream bug. Disable the code for now
+# until we fix it.
+config_host_data.set('CONFIG_AVX512BW_OPT', false)
+# QUIC-end
+
 have_pvrdma = get_option('pvrdma') \
   .require(rdma.found(), error_message: 'PVRDMA requires OpenFabrics libraries') \
   .require(cc.compiles(gnu_source_prefix + '''
