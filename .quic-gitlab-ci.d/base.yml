@@ -75,6 +75,7 @@ checkpatch:
         git fetch mainrepo $target_branch || exit 1;
         error=0;
         for rev in $(git rev-list --first-parent FETCH_HEAD..HEAD); do
+          git rev-parse --verify -q $rev^2 >/dev/null && continue;
           echo "========= Checking commit $(git log --pretty=reference $rev^!)";
           ./scripts/checkpatch.pl --no-signoff --branch "$rev^!";
           error=$(($error || $?));
