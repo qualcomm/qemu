@@ -335,6 +335,9 @@ static void set_wait_mode(CPUHexagonState *env)
 void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
 
 {
+    const bool exception_context = qemu_mutex_iothread_locked();
+    LOCK_IOTHREAD(exception_context);
+
     if (qemu_loglevel_mask(LOG_GUEST_ERROR) &&
         (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_UNLOCKED ||
          ATOMIC_LOAD(env->tlb_lock_state) != HEX_LOCK_UNLOCKED)) {
@@ -349,11 +352,13 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
      */
     if ((cs->exception_index != HEX_EVENT_NONE) ||
         (cpu_has_work(cs))) {
+        UNLOCK_IOTHREAD(exception_context);
         return;
     }
     set_wait_mode(env);
     env->wait_next_pc = PC + 4;
 
+    UNLOCK_IOTHREAD(exception_context);
     cpu_stop_current();
 }
 
@@ -581,6 +586,8 @@ const char *get_exe_mode_str(CPUHexagonState *env)
 
 int get_exe_mode(CPUHexagonState *env)
 {
+    g_assert(qemu_mutex_iothread_locked());
+
     target_ulong modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);

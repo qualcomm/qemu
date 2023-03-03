@@ -1619,6 +1619,9 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
 #if HEX_DEBUG
 static void print_thread(const char *str, CPUState *cs)
 {
+    const bool exception_context = qemu_mutex_iothread_locked();
+    LOCK_IOTHREAD(exception_context);
+
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *thread = &cpu->env;
     bool is_stopped = cpu_is_stopped(cs);
@@ -1637,6 +1640,7 @@ static void print_thread(const char *str, CPUState *cs)
            lock_state == HEX_LOCK_WAITING ? "waiting" :
            lock_state == HEX_LOCK_OWNER ? "owner" :
            "unknown");
+    UNLOCK_IOTHREAD(exception_context);
 }
 
 static void print_thread_states(const char *str)
@@ -2501,6 +2505,9 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
  */
 static uint32_t get_ready_count(CPUHexagonState *env)
 {
+    const bool exception_context = qemu_mutex_iothread_locked();
+    LOCK_IOTHREAD(exception_context);
+
     uint32_t ready_count = 0;
     CPUState *cs;
     CPU_FOREACH(cs) {
@@ -2514,6 +2521,7 @@ static uint32_t get_ready_count(CPUHexagonState *env)
             ready_count += 1;
         }
     }
+    UNLOCK_IOTHREAD(exception_context);
     return ready_count;
 }
 
