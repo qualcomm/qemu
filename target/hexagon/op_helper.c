@@ -782,8 +782,9 @@ int32_t HELPER(cabacdecbin_pred)(int64_t RssV, int64_t RttV)
     return p0;
 }
 
-static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
-                        bool is_predicated, uintptr_t retaddr)
+static inline __attribute__((always_inline)) void
+probe_store(CPUHexagonState *env, int slot, int mmu_idx,
+            bool is_predicated, uintptr_t retaddr)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
