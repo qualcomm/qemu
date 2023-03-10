@@ -704,8 +704,8 @@ void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
 }
 #endif
 
-static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
-                        bool is_predicated)
+static inline __attribute__((always_inline)) void
+probe_store(CPUHexagonState *env, int slot, int mmu_idx, bool is_predicated)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
