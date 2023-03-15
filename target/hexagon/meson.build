@@ -344,8 +344,10 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
         arguments: ['-o', '@OUTPUT0@', '--header-file=@OUTPUT1@', '@INPUT@']
     )
 
+    # Apple's bison is too old, so look for the brew version first
+    # in order to work "out-of-the-box" on macOS.
     bison = generator(
-        find_program('bison', version: '>=3.0'),
+        find_program('/opt/homebrew/opt/bison/bin/bison', 'bison', version: '>=3.0'),
         output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
         arguments: ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@']
     )
