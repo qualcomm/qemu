@@ -214,14 +214,19 @@ static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest, bool
+                        move_to_pc)
 {
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(idx);
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_exit_tb(ctx->base.tb, idx);
     } else {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -237,13 +242,13 @@ static void gen_end_tb(DisasContext *ctx)
             TCGLabel *skip = gen_new_label();
             tcg_gen_brcondi_tl(ctx->branch_cond, hex_branch_taken, 0, skip);
             gen_cpu_limit(ctx, tcg_constant_tl(ctx->branch_dest));
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);
             gen_cpu_limit(ctx, tcg_constant_tl(ctx->next_PC));
-            gen_goto_tb(ctx, 1, ctx->next_PC);
+            gen_goto_tb(ctx, 1, ctx->next_PC, false);
         } else {
             gen_cpu_limit(ctx, tcg_constant_tl(ctx->branch_dest));
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
         }
     } else if (ctx->is_tight_loop &&
                pkt->insn[pkt->num_insns - 1].opcode == J2_endloop0) {
@@ -255,10 +260,10 @@ static void gen_end_tb(DisasContext *ctx)
         tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
         tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
         gen_cpu_limit(ctx, tcg_constant_tl(ctx->base.tb->pc));
-        gen_goto_tb(ctx, 0, ctx->base.tb->pc);
+        gen_goto_tb(ctx, 0, ctx->base.tb->pc, true);
         gen_set_label(skip);
         gen_cpu_limit(ctx, tcg_constant_tl(ctx->next_PC));
-        gen_goto_tb(ctx, 1, ctx->next_PC);
+        gen_goto_tb(ctx, 1, ctx->next_PC, false);
     } else {
         gen_cpu_limit(ctx, hex_gpr[HEX_REG_PC]);
         tcg_gen_lookup_and_goto_ptr();
@@ -587,17 +592,23 @@ static bool pkt_has_pmu_read(Packet *pkt)
 static bool need_next_PC(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
-
-    /* Check for conditional control flow or HW loop end */
-    for (int i = 0; i < pkt->num_insns; i++) {
-        uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) {
-            return true;
+    if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
+        for (int i = 0; i < pkt->num_insns; i++) {
+            uint16_t opcode = pkt->insn[i].opcode;
+            if ((GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) ||
+                GET_ATTRIB(opcode, A_HWLOOP0_END) ||
+                GET_ATTRIB(opcode, A_HWLOOP1_END)) {
+                return true;
+            }
         }
-        if (GET_ATTRIB(opcode, A_HWLOOP0_END) ||
-            GET_ATTRIB(opcode, A_HWLOOP1_END)) {
-            return true;
-        }
+    }
+    /*
+     * We end the TB on some instructions that do not change the flow (for
+     * other reasons). In these cases, we must set pc too, as the insn won't
+     * do it themselves.
+     */
+    if (ctx->pkt_ends_tb && !check_for_attrib(pkt, A_COF)) {
+        return true;
     }
     return false;
 }
@@ -713,20 +724,11 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
-#if 0
-    if (pkt->pkt_has_cof || pkt->pkt_has_fp_op) {
-#else
-    if (pkt->pkt_has_cof) {
-#endif
-        if (pkt->pkt_has_multi_cof) {
-            tcg_gen_movi_tl(hex_branch_taken, 0);
-        }
-        if (need_next_PC(ctx)) {
-            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
-        }
+    if (pkt->pkt_has_multi_cof) {
+        tcg_gen_movi_tl(hex_branch_taken, 0);
     }
     ctx->pkt_ends_tb = pkt_ends_tb(pkt);
-    if (ctx->pkt_ends_tb) {
+    if (need_next_PC(ctx)) {
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
     }
 #ifndef CONFIG_USER_ONLY
