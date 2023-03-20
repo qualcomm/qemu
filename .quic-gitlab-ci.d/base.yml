@@ -16,7 +16,7 @@ variables:
   HEX_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --target-list=hexagon-softmmu,hexagon-linux-user
   AARCH64_CONFIG_CMD: $GENERIC_CONFIG_CMD $AARCH64_CONFIG_OPTS --target-list=aarch64-softmmu,aarch64-linux-user
 
-  QQVP_PROJECT_URL: gitlab.qualcomm.com/qqvp
+  GITLAB_URL: echo "$CI_SERVER_URL" | sed -e 's/^.*:\/\///g' -e 's/:[0-9]*$//g'
 
 ###################################################################
 #    Base templates
@@ -56,37 +56,11 @@ variables:
 ###################################################################
 
 checkpatch:
-  variables:
-    REMOTE_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/qemu/qemu.git
-    AUTH: "PRIVATE-TOKEN: $CI_API_TOKEN"
-    QEMU_PROJ_ID: 3968
-    MR_API_URL: "https://gitlab.qualcomm.com/api/v4/projects/$QEMU_PROJ_ID/merge_requests?source_branch=$CI_COMMIT_REF_NAME"
   allow_failure: true
-  # Note: we try set-url first because gitlab runners will preserve the repo
-  # configs in between builds, so `remote add` would fail.
   script:
-    - git remote set-url mainrepo $REMOTE_URL >/dev/null 2>&1 || git remote add mainrepo $REMOTE_URL
     - sleep 4 # Wait a bit after MR creation so that GitLab-API doesn't miss it
-    - echo 'Querying "$MR_API_URL"'
-    - reply="$(curl -LsS -H "$AUTH" "$MR_API_URL")"
-    - target_branch=$(printf "%s" "$reply" | tr -d "[:space:]" | sed -ne 's/.*"target_branch":"\([^"]*\)".*/\1/p')
-    - if test -n "$target_branch"; then
-        echo "Found target branch '$target_branch'";
-        git fetch mainrepo $target_branch || exit 1;
-        error=0;
-        for rev in $(git rev-list --first-parent FETCH_HEAD..HEAD); do
-          git rev-parse --verify -q $rev^2 >/dev/null && continue;
-          echo "========= Checking commit $(git log --pretty=reference $rev^!)";
-          ./scripts/checkpatch.pl --no-signoff --branch "$rev^!";
-          error=$(($error || $?));
-        done;
-        if test $? -ne 0 || test $error -ne 0; then
-          exit 1;
-        fi;
-      else
-        echo "DIDN'T FIND TARGET BRANCH";
-        printf "API reply is '%s'\n" "$reply";
-      fi
+    - .quic-gitlab-ci.d/checkpatch-job.sh "$(eval "$GITLAB_URL")" "$CI_API_V4_URL"
+        "$CI_PROJECT_ID" "$GITLAB_API_TOKEN" "$CI_JOB_TOKEN" "$CI_COMMIT_REF_NAME"
 
 hexagon_build:
   extends: .base-build
@@ -169,6 +143,7 @@ test_hexagon_perf:
   script:
     - echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl ;
       perf stat /bin/true
+    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
     - res=0 ;
