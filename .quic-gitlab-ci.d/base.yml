@@ -169,8 +169,8 @@ test_hexagon_perf:
   script:
     - echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl ;
       perf stat /bin/true
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/qemu/qemu-hexagon-perf.git
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/qemu/qemu-hexagon-benchmarks.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
     - res=0 ;
       for mode in default mttcg; do
           cfg=${PERF_TEST_CFG} ;
