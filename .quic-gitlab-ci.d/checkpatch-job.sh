@@ -32,6 +32,8 @@ remote_url="https://gitlab-ci-token:${JOB_TOKEN}@${GITLAB_URL}/${target_repo}.gi
 if test -z "$target_repo"
 then
     echo "Failed to query target repo"
+    echo "Reply:"
+    printf "%s\n" "$reply"
     exit 1
 fi
 
