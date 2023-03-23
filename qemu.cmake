@@ -58,6 +58,13 @@ if (APPLE)
 endif()
 
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
+set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cxx=${CMAKE_CXX_COMPILER})
+# QEMU compiles some helper programs to run at building time. Set this to
+# your host compiler if you are cross-compiling libqemu to another platform.
+if(LIBQEMU_HOST_CC)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --host-cc=${LIBQEMU_HOST_CC})
+endif()
+
 if (GS_ENABLE_SANITIZERS)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-sanitizers)
 endif()
@@ -70,10 +77,24 @@ if (GS_ENABLE_LTO)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-lto)
 endif()
 
+if(GS_ENABLE_TSAN)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-tsan)
+endif()
+
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE)
 message(STATUS "Build type : ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-debug --enable-debug-tcg)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-debug --enable-debug-tcg --enable-debug-info)
+elseif(CMAKE_BUILD_TYPE STREQUAL "RELWITHDEBINFO")
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-debug-info)
+endif()
+
+set(cflags "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}}")
+set(cxxflags "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
+set(ldflags "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}")
+
+if(${CMAKE_CXX_STANDARD})
+    set(cxxflags "-std=c++${CMAKE_CXX_STANDARD} ${cxxflags}")
 endif()
 
 # With cmake 3.12 we could use the list(TRANSFORM ...) operator
@@ -97,11 +118,14 @@ endforeach()
 ExternalProject_Add(qemu
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configure
+        '--extra-ldflags=${ldflags}'
+        '--extra-cflags=${cflags}'
+        '--extra-cxxflags=${cxxflags}'
         --prefix=<INSTALL_DIR>
         --enable-libqemu
         --target-list=${target_list}
         ${QEMU_CONF_ARGS}
-    INSTALL_COMMAND make install
+    INSTALL_COMMAND ${CMAKE_MAKE_PROGRAM} install
     BUILD_ALWAYS on
 )
 
