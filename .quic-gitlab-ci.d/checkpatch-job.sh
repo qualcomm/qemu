@@ -33,7 +33,7 @@ json_parse() {
 "import sys, json
 data = json.load(sys.stdin)
 if type(data) == list:
-    val = data[$key]
+    val = data[$key] if abs($key) < len(data) else 'none'
 elif type(data) == dict:
     val = data['$key'] if '$key' in data else 'none'
 else:
@@ -78,7 +78,13 @@ remote_url="https://gitlab-ci-token:${JOB_TOKEN}@${GITLAB_URL}/${target_repo}.gi
 git remote set-url mainrepo $remote_url >/dev/null 2>&1 || git remote add mainrepo $remote_url || exit 1
 
 reply="$(api_query "$API_URL/projects/$target_id/merge_requests?source_branch=$REF_NAME")"
-target_branch="$(json_parse "$(json_parse "$reply" 0)" target_branch)"
+mr_data="$(json_parse "$reply" 0)"
+if test "$mr_data" != none
+then
+    target_branch="$(json_parse "$mr_data" target_branch)"
+else
+    target_branch=none
+fi
 
 if test "$target_branch" != none
 then
