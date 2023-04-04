@@ -870,6 +870,18 @@ struct MemoryListener {
      */
     void (*coalesced_io_del)(MemoryListener *listener, MemoryRegionSection *section,
                                hwaddr addr, hwaddr len);
+
+    /**
+     * @map:
+     *
+     * Called during an address space map.
+     *
+     * @opaque: User data opaque object
+     * @addr: address within that address space
+     * @len: length of buffer
+     */
+    void (*map)(void *opaque, hwaddr addr, hwaddr len);
+
     /**
      * @priority:
      *
@@ -878,6 +890,13 @@ struct MemoryListener {
      * or "stop" callbacks.
      */
     unsigned priority;
+
+    /**
+     * @opaque:
+     *
+     * Opaque pointer to user data
+     */
+    void *opaque;
 
     /**
      * @name:
