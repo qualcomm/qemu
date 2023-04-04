@@ -42,6 +42,29 @@ user_guide:
     paths: [ "build" ]
     expire_in: 4 days
 
+.base-trigger:
+  trigger:
+    strategy: depend
+  allow_failure: true
+  inherit:
+    variables: false
+  variables:
+    OVERRIDE_PKG: libqemu
+    OVERRIDE_REF: $CI_COMMIT_REF_NAME
+    # Workaround for CI_REPOSITORY_URL not being exported:
+    # https://gitlab.com/gitlab-org/gitlab/-/issues/231663
+    OVERRIDE_URL: "${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+
+qqvp_trigger:
+  extends: .base-trigger
+  trigger:
+    project: qqvp/qqvp
+
+qbox_trigger:
+  extends: .base-trigger
+  trigger:
+    project: qqvp/qbox
+
 # QEMU Hexagon for Linux on x86_64
 hexagon-linux-x86_64:
   stage: build
