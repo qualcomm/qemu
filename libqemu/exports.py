@@ -131,6 +131,15 @@ ExportedFct('address_space_read', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', '
 ExportedFct('address_space_write', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'const void *', 'hwaddr' ])
 ExportedFct('address_space_get_system_memory', 'AddressSpace *', [], priv = 'libqemu_address_space_get_system_memory')
 
+ExportedType('QemuMemoryListener', 'MemoryListener')
+ExportedFct('memory_listener_new', 'MemoryListener *', [ 'void *', 'const char*' ],
+            priv = 'libqemu_memory_listener_new')
+ExportedFct('memory_listener_free', 'void', [ 'MemoryListener *' ],
+            priv = 'libqemu_memory_listener_free')
+ExportedFct('memory_listener_register', 'void', [ 'MemoryListener *', 'AddressSpace *' ])
+ExportedFct('memory_listener_set_map_cb', 'void', ['MemoryListener *', 'LibQemuMlMapCb' ],
+            priv='libqemu_memory_listener_set_map_cb')
+
 PrivateInclude('hw/irq.h')
 PublicInclude('libqemu/wrappers/gpio.h')
 ExportedType('QemuGpio', 'struct IRQState')

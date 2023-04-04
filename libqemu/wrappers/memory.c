@@ -227,3 +227,21 @@ AddressSpace *libqemu_address_space_get_system_memory(void)
 {
     return &address_space_memory;
 }
+
+MemoryListener *libqemu_memory_listener_new(void *opaque, const char *name)
+{
+    MemoryListener *ret = g_new0(MemoryListener, 1);
+    ret->opaque = opaque;
+    ret->name = name;
+    return ret;
+}
+
+void libqemu_memory_listener_free(MemoryListener *ml)
+{
+    g_free(ml);
+}
+
+void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb)
+{
+    ml->map = cb;
+}
