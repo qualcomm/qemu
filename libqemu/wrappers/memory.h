@@ -27,6 +27,7 @@ typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
 typedef struct Object Object;
 typedef struct AddressSpace AddressSpace;
+typedef struct MemoryListener MemoryListener;
 
 typedef MemTxResult (*LibQemuMrReadCb)(void *opaque,
                                        hwaddr addr,
@@ -40,7 +41,7 @@ typedef MemTxResult (*LibQemuMrWriteCb)(void *opaque,
                                         unsigned int size,
                                         MemTxAttrs attrs);
 
-MemoryRegionOps * libqemu_mr_ops_new(void);
+MemoryRegionOps *libqemu_mr_ops_new(void);
 void libqemu_mr_ops_free(MemoryRegionOps *);
 void libqemu_mr_ops_set_read_cb(MemoryRegionOps *ops, LibQemuMrReadCb cb);
 void libqemu_mr_ops_set_write_cb(MemoryRegionOps *ops, LibQemuMrWriteCb cb);
@@ -60,5 +61,11 @@ void libqemu_cpu_do_io(void);
 AddressSpace *libqemu_address_space_new(void);
 void libqemu_address_space_free(AddressSpace *);
 AddressSpace *libqemu_address_space_get_system_memory(void);
+
+typedef void (*LibQemuMlMapCb)(void *opaque, hwaddr addr, hwaddr len);
+
+MemoryListener *libqemu_memory_listener_new(void *opaque, const char *name);
+void libqemu_memory_listener_free(MemoryListener *ml);
+void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb);
 
 #endif
