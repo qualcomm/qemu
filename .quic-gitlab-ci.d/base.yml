@@ -1,4 +1,6 @@
-image: $CI_REGISTRY/qqvp/containers/qqvp-dev:latest
+include:
+  - project: 'qqvp/cmake-boilerplate'
+    file: 'base.yml'
 
 # TODO
 # - Cache builds to avoid re-building same commit
@@ -54,29 +56,15 @@ variables:
     sleep 1 && touch -c config-host.mak meson.stamp build.ninja.stamp &&
     make check
 
-.base-trigger:
-  trigger:
-    strategy: depend
-  allow_failure: true
-  inherit:
-    variables: false
-  variables:
-    OVERRIDE_PKG: libqemu
-    OVERRIDE_REF: $CI_COMMIT_REF_NAME
-    # Workaround for CI_REPOSITORY_URL not being exported:
-    # https://gitlab.com/gitlab-org/gitlab/-/issues/231663
-    OVERRIDE_URL: "${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-
 ##################################################################
 #    Jobs
 ###################################################################
 
 checkpatch:
+  extends: .mr-job
+  stage: test
+  script: .quic-gitlab-ci.d/checkpatch.sh $TARGET_REF $SOURCE_REF
   allow_failure: true
-  script:
-    - sleep 4 # Wait a bit after MR creation so that GitLab-API doesn't miss it
-    - .quic-gitlab-ci.d/checkpatch-job.sh "$(eval "$GITLAB_URL")" "$CI_API_V4_URL"
-        "$CI_PROJECT_ID" "$GITLAB_API_TOKEN" "$CI_JOB_TOKEN" "$CI_COMMIT_REF_NAME"
 
 hexagon_build:
   extends: .base-build
@@ -187,10 +175,14 @@ test_hexagon_perf:
 
 qqvp_trigger:
   extends: .base-trigger
+  variables:
+    OVERRIDE_PKG: libqemu
   trigger:
     project: qqvp/qqvp
 
 qbox_trigger:
   extends: .base-trigger
+  variables:
+    OVERRIDE_PKG: libqemu
   trigger:
     project: qqvp/qbox
