@@ -50,6 +50,7 @@ set(QEMU_CONF_ARGS
 # may be un-necissary in future releases of QEMU?
 if (APPLE)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
+        --enable-hvf
         --disable-strip
         --disable-pie
         --disable-gtk
