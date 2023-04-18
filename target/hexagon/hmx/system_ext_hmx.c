@@ -43,6 +43,12 @@
 #define memwrap_memtrace_ld(...)
 #define memwrap_memtrace_st(...)
 #define warn(...) {}
+/*
+ * TODO: this needs some study.  The following was removed when we moved
+ * from 7.0 to 7.2 and because of it qnn fails to run.  Adding back now
+ * with the intent to understand what is acutally needed.
+ */
+#define register_coproc_ldst_exception(...) {}
 
 // Get Arch option through thread
 #define ARCH_OPT_TH(OPTION) (thread->processor_ptr->arch_proc_options->OPTION)
