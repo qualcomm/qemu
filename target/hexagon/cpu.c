@@ -130,7 +130,7 @@ static Property hexagon_cpu_properties[] = {
 };
 
 
-const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
+const char * const hexagon_regnames[] = {
 #ifdef CONFIG_USER_ONLY
     "r0", "r1",  "r2",  "r3",  "r4",   "r5",  "r6",  "r7",
     "r8", "r9",  "r10", "r11", "r12",  "r13", "r14", "r15",
@@ -142,16 +142,19 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
     "r24", "r25", "r26", "r27", "r28",  "r29", "r30", "r31",
     "sa0", "lc0", "sa1", "lc1", "p3_0", "c5",  "m0",  "m1",
     "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "upcyclelo", "upcyclehi",
-    "framelimit", "framekey", "pktcountlo", "pktcounthi", "pkt_cnt",  "insn_cnt", "hvx_cnt", "c23",
-    "c24", "c25", "c26", "c27", "c28",  "c29", "utimerlo", "utimerhi",
+    "framelimit", "framekey", "pktcountlo", "pktcounthi", "pkt_cnt",
+    "insn_cnt", "hvx_cnt", "c23", "c24", "c25", "c26", "c27", "c28",
+    "c29", "utimerlo", "utimerhi",
 };
+
+G_STATIC_ASSERT(TOTAL_PER_THREAD_REGS == ARRAY_SIZE(hexagon_regnames));
 
 #ifndef CONFIG_USER_ONLY
 const char * const hexagon_sregnames[] = {
     "sgp0",       "sgp1",       "stid",       "elr",        "badva0",
     "badva1",     "ssr",        "ccr",        "htid",       "badva",
-    "imask",      "gevb",       "rsv12",      "rsv13",      "rsv14",
-    "rsv15",      "evb",        "modectl",    "syscfg",     "free19",
+    "imask",      "gevb",       "s12",        "s13",        "s14",
+    "s15",        "evb",        "modectl",    "syscfg",     "free19",
     "ipendad",    "vid",        "vid1",       "bestwait",   "free24",
     "schedcfg",   "free26",     "cfgbase",    "diag",       "rev",
     "pcyclelo",   "pcyclehi",   "isdbst",     "isdbcfg0",   "isdbcfg1",
@@ -159,9 +162,16 @@ const char * const hexagon_sregnames[] = {
     "isdbmbxin",  "isdbmbxout", "isdben",     "isdbgpr",    "pmucnt4",
     "pmucnt5",    "pmucnt6",    "pmucnt7",    "pmucnt0",    "pmucnt1",
     "pmucnt2",    "pmucnt3",    "pmuevtcfg",  "pmustid0",   "pmuevtcfg1",
-    "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "rsv59",
-    "rsv60",      "rsv61",      "rsv62",      "rsv63"
+    "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "s59",
+    "s60",        "s61",        "s62",        "s63",        "commit1t",
+    "commit2t",   "commit3t",   "commit4t",   "commit5t",   "commit6t",
+    "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
+    "pcycle6t",   "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",
+    "rgdr3",      "commit7t",   "commit8t",   "pcycle7t",   "pcycle8t",
+    "s85",
 };
+
+G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
 
 const char * const hexagon_gregnames[] = {
     "g0",         "g1",         "g2",       "g3",
@@ -590,6 +600,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
                             HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_REV, cpu->rev_reg);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_ISDBVER, 0);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
