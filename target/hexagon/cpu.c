@@ -608,6 +608,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
                             HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_REV, cpu->rev_reg);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_ISDBVER, 0);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
         SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_TRUSTED, cpu->isdben_trusted);
         SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_SECURE, cpu->isdben_secure);
