@@ -286,6 +286,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
         isdben_val |= (1 << 3);  /* Secure bit */
     }
     s->regs[HEX_SREG_ISDBEN] = isdben_val;
+    s->regs[HEX_SREG_ISDBVER] = 0;
     s->regs[HEX_SREG_MODECTL] = 0x1;
 
     /*
