@@ -24,7 +24,10 @@
  * serviced then return to wait mode.
  *
  */
+#include <assert.h>
+
 #include "qtimer.h"
+
 int main()
 {
     int i;
@@ -42,6 +45,12 @@ int main()
     init_l2vic();
     // initialize qtimers 1 and 2
     init_qtimers(3);
+
+    u32 ver1 = read_ver1();
+    printf("QTimer, frame 1 version: '%08x'\n", (int)ver1);
+    u32 ver2 = read_ver2();
+    printf("QTimer, frame 2 version: '%08x'\n", (int)ver2);
+    assert(ver2 == ver1);
 
     while (qtimer2_cnt < 2) {
         /* Thread 0 waits for interrupts */

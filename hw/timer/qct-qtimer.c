@@ -48,6 +48,17 @@
 #define HIGH_32(val) (0x0ffffffffULL & (val >> 32))
 #define LOW_32(val) (0x0ffffffffULL & val)
 
+/*
+ * QTimer version reg:
+ *
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | Major |         Minor         |           Step                |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+static unsigned int TIMER_VERSION = 0x20020000;
+
 /* qct_qtimer_read/write:
  * if offset < 0x1000 read restricted registers:
  * QCT_QTIMER_AC_CNTFREQ/CNTSR/CNTTID/CNTACR/CNTOFF_(LO/HI)/QCT_QTIMER_VERSION
@@ -75,7 +86,7 @@ static uint64_t qct_qtimer_read(void *opaque, hwaddr offset,
         }
         return s->timer[frame].cnt_ctrl;
     case QCT_QTIMER_VERSION:
-        return 0x10000000;
+        return TIMER_VERSION;
     default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: QCT_QTIMER_AC_CNT: Bad offset %x\n",
@@ -270,6 +281,11 @@ static MemTxResult hex_timer_read(void *opaque,
                 *data = s->cntpl0acr;
             }
             return MEMTX_OK;
+
+        case QCT_QTIMER_VERSION:
+            *data = TIMER_VERSION;
+            return MEMTX_OK;
+
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Bad offset %x\n", __func__, (int)offset);

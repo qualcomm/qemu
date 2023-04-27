@@ -42,12 +42,14 @@ typedef volatile unsigned long long vu64;
 
 #define QTMR_BASE ((CSR_BASE) + 0x20000)
 #define QTMR_AC_CNTACR ((vu32 *)((QTMR_BASE) + 0x40))
+#define QTMR_AC_VER   ((vu32 *)((QTMR_BASE) + 0x0fd0))
 #define QTMR_CNTPCT_LO ((vu32 *)((QTMR_BASE) + 0x1000))
 #define QTMR_CNTPCT_HI ((vu32 *)((QTMR_BASE) + 0x1004))
 #define QTMR_CNTP_CVAL_LO ((vu32 *)((QTMR_BASE) + 0x1020))
 #define QTMR_CNTP_CVAL_HI ((vu32 *)((QTMR_BASE) + 0x1024))
 #define QTMR_CNTP_TVAL ((vu32 *)((QTMR_BASE) + 0x1028))
 #define QTMR_CNTP_CTL ((vu32 *)((QTMR_BASE) + 0x102c))
+#define QTMR_CNTP_VER   ((vu32 *)((QTMR_BASE) + 0x1fd0))
 
 #define QTMR_CNTPCT2_LO ((vu32 *)((QTMR_BASE) + 0x2000))
 #define QTMR_CNTPCT2_HI ((vu32 *)((QTMR_BASE) + 0x2004))
@@ -55,6 +57,7 @@ typedef volatile unsigned long long vu64;
 #define QTMR_CNTP2_CVAL_HI ((vu32 *)((QTMR_BASE) + 0x2024))
 #define QTMR_CNTP2_TVAL ((vu32 *)((QTMR_BASE) + 0x2028))
 #define QTMR_CNTP2_CTL ((vu32 *)((QTMR_BASE) + 0x202c))
+#define QTMR_CNTP2_VER  ((vu32 *)((QTMR_BASE) + 0x2fd0))
 
 #define L2VIC_BASE ((CSR_BASE) + 0x10000)
 #define L2VIC_INT_ENABLE(n) ((vu32 *)((L2VIC_BASE) + 0x100 + 4 * (n / 32)))
@@ -200,3 +203,22 @@ void enable_core_interrupt()
 #endif
     register_interrupt(irq, intr_handler);
 }
+
+u32 read_ver(void)
+{
+    u32 ver = *QTMR_AC_VER;
+    return ver;
+}
+
+u32 read_ver1(void)
+{
+    u32 ver = *QTMR_CNTP_VER;
+    return ver;
+}
+
+u32 read_ver2(void)
+{
+    u32 ver = *QTMR_CNTP2_VER;
+    return ver;
+}
+
