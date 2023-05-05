@@ -88,7 +88,8 @@ static inline uint32_t lower_power_of_two(unsigned long x)
     return x>>1;
 }
 
-static inline uint16_t get_height(HEXAGON_DmaDescriptor2D_t *desc, dma_decoded_descriptor_t *desc_state) {
+static inline uint16_t get_height(HEXAGON_DmaDescriptor2D_t *desc,
+                                  dma_decoded_descriptor_t *desc_state) {
     if (desc_state->wide) {
         return (desc->height_hi << 8) | desc->height_lo;
     } else {
@@ -1444,8 +1445,8 @@ ARCH_FUNCTION(dma_instruction_latency)(dma_t *dma, dma_cmd_report_t *report, uin
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void load_dma_descriptor(thread_t *env, uint32_t desc_addr, dma_descriptor_type0_t *desc)
-
+static void load_dma_descriptor_type0(thread_t *env, uint32_t desc_addr,
+                                      dma_descriptor_type0_t *desc)
 {
     uint8_t *store_ptr = (uint8_t *)desc;
     for (uint32_t i = 0; i < sizeof(dma_descriptor_type0_t); i += 4) {
@@ -1453,19 +1454,48 @@ static void load_dma_descriptor(thread_t *env, uint32_t desc_addr, dma_descripto
     }
 }
 
-static void preload_buffers(dma_t *dma, uint32_t new)
+static void load_dma_descriptor_type1(thread_t *env, uint32_t desc_addr,
+                                      dma_descriptor_type1_t *desc)
+{
+    uint8_t *store_ptr = (uint8_t *)desc;
+    for (uint32_t i = 0; i < sizeof(dma_descriptor_type1_t); i += 4) {
+        DEBUG_MEMORY_READ(desc_addr + i, 4, store_ptr + i);
+    }
+}
 
+static void preload_buffers(dma_t *dma, uint32_t new)
 {
     /* make sure tlb miss doesn't happen when dma actually in progress */
     thread_t* env = dma_adapter_retrieve_thread(dma);
-    dma_descriptor_type0_t desc;
+    dma_descriptor_type0_t desc0;
     uint32_t desc_addr = new;
-    while (desc_addr) {
-        load_dma_descriptor(env, desc_addr, &desc);
-        uint32_t dest_va = (uint32_t)(desc.dst);
-        uint32_t length = get_dma_desc_length(&desc);
-        hexagon_touch_memory(env, dest_va, length);
-        desc_addr = desc.next;
+    load_dma_descriptor_type0(env, desc_addr, &desc0);
+    uint32_t dma_type = get_dma_desc_desctype((void *)&desc0);
+    if (dma_type == 0) {
+        while (desc_addr) {
+            load_dma_descriptor_type0(env, desc_addr, &desc0);
+            uint32_t length = get_dma_desc_length(&desc0);
+            uint32_t dst_va = (uint32_t)(desc0.dst);
+            uint32_t src_va = (uint32_t)(desc0.src);
+            hexagon_touch_memory(env, dst_va, length);
+            hexagon_touch_memory(env, src_va, length);
+            desc_addr = desc0.next;
+        }
+    } else if (dma_type == 1) {
+        dma_descriptor_type1_t desc1;
+        while (desc_addr) {
+            load_dma_descriptor_type1(env, desc_addr, &desc1);
+            uint32_t size = get_dma_desc_roiwidth(&desc1) *
+                            get_dma_desc_roiheight(&desc1);
+            uint32_t dst_va = (uint32_t)(desc1.dst);
+            uint32_t src_va = (uint32_t)(desc1.src);
+            hexagon_touch_memory(env, dst_va, size);
+            hexagon_touch_memory(env, src_va, size);
+            desc_addr = desc1.next;
+        }
+
+    } else {
+        g_assert_not_reached();
     }
 }
 #endif
