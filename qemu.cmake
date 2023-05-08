@@ -52,7 +52,8 @@ if (APPLE)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
         --disable-strip
         --disable-pie
-        --disable-gtk)
+        --disable-gtk
+	--disable-sdl-image)
 endif()
 
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
