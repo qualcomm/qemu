@@ -134,6 +134,7 @@ ExportedFct('address_space_destroy', 'void', [ 'AddressSpace *' ], iothread_lock
 ExportedFct('address_space_read', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'void *', 'hwaddr' ])
 ExportedFct('address_space_write', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'const void *', 'hwaddr' ])
 ExportedFct('address_space_get_system_memory', 'AddressSpace *', [], priv = 'libqemu_address_space_get_system_memory')
+ExportedFct('get_system_memory', 'MemoryRegion *', [], priv = 'libqemu_get_system_memory')
 
 ExportedType('QemuMemoryListener', 'MemoryListener')
 ExportedFct('memory_listener_new', 'MemoryListener *', [ 'void *', 'const char*' ],

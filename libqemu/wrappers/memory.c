@@ -23,6 +23,7 @@
 #include "qemu/module.h"
 
 #include "memory.h"
+#include "exec/address-spaces.h"
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
@@ -227,6 +228,11 @@ void libqemu_address_space_free(AddressSpace *as)
 AddressSpace *libqemu_address_space_get_system_memory(void)
 {
     return &address_space_memory;
+}
+
+MemoryRegion *libqemu_get_system_memory(void)
+{
+    return get_system_memory();
 }
 
 MemoryListener *libqemu_memory_listener_new(void *opaque, const char *name)
