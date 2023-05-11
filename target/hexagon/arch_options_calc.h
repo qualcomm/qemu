@@ -20,6 +20,8 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include "hex_mmu.h"
+
 #define VTCM_CFG_BASE_OFF 0x38
 #define VTCM_CFG_SIZE_OFF 0x3c
 
@@ -46,7 +48,23 @@ static inline bool in_vtcm_space_impl(thread_t *thread, paddr_t paddr,
         vtcm_size *= 1024;
     }
 
-    return paddr >= vtcm_base && paddr < (vtcm_base + vtcm_size);
+    if (paddr >= vtcm_base && paddr < (vtcm_base + vtcm_size))
+        return true;
+    /*
+     * This could be a VA that is mapped to VTCM
+     */
+    paddr_t phys;
+    int prot;
+    int size;
+    int32_t excp;
+    if (hex_tlb_find_match(thread, paddr, MMU_DATA_LOAD, &phys, &prot, &size,
+         &excp, cpu_mmu_index(thread, false))) {
+        if ((excp != HEX_EVENT_PRECISE) &&
+            (phys >= vtcm_base && phys < (vtcm_base + vtcm_size))) {
+            return true;
+        }
+    }
+    return false;
 }
 #else
 #define in_vtcm_space(proc, paddr, warning) 1
