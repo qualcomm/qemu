@@ -117,6 +117,8 @@ static Property hexagon_cpu_properties[] = {
         0xffffffffULL),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
         false),
+    DEFINE_PROP_UINT32("thread-count", HexagonCPU, cluster_thread_count,
+        THREADS_MAX),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -522,16 +524,16 @@ static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 }
 
 dma_t *dma_adapter_init(processor_t *proc, int dmanum);
-const rev_features_t rev_features_v68 = {
+static const rev_features_t rev_features_v68 = {
 };
 
-const options_struct options_struct_v68 = {
+static const options_struct options_struct_v68 = {
     .l2tcm_base  = 0,  /* FIXME - Should be l2tcm_base ?? */
     .hmx_mac_fxp_callback = (void *)0,
     .hmx_mac_flt_callback = (void *)0,
 };
 
-const arch_proc_opt_t arch_proc_opt_v68 = {
+static const arch_proc_opt_t arch_proc_opt_v68 = {
     .vtcm_size = VTCM_SIZE,
     .vtcm_offset = VTCM_OFFSET,
     .dmadebugfile = NULL,
@@ -581,13 +583,13 @@ const arch_proc_opt_t arch_proc_opt_v68 = {
     .QDSP6_VX_VEC_SZ = 1024,
 };
 
-struct ProcessorState ProcessorStateV68 = {
+static struct ProcessorState ProcessorStateV68 = {
     .features = &rev_features_v68,
     .options = &options_struct_v68,
     .arch_proc_options = &arch_proc_opt_v68,
-    .runnable_threads_max = THREADS_MAX,
-    .thread_system_mask = 0xf,
     .shared_extptr = 0,
+    .runnable_threads_max = 0,
+    .thread_system_mask = 0,
     .timing_on = 0,
 };
 
@@ -613,6 +615,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     CPUHexagonState *env = &cpu->env;
     env->threadId = cs->cpu_index;
     env->processor_ptr = &ProcessorStateV68;
+    env->processor_ptr->runnable_threads_max = cpu->cluster_thread_count;
+    env->processor_ptr->thread_system_mask   = (1 << cpu->cluster_thread_count) - 1;
     env->processor_ptr->thread[env->threadId] = env;
     env->processor_ptr->dma[env->threadId] = dma_adapter_init(
         env->processor_ptr,

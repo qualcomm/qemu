@@ -2353,6 +2353,8 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     const bool exception_context = qemu_mutex_iothread_locked();
     CPUState *cs;
 
+    g_assert(env->processor_ptr->thread_system_mask != 0);
+
     LOCK_IOTHREAD(exception_context);
     thread &= env->processor_ptr->thread_system_mask;
     CPU_FOREACH(cs) {
@@ -2375,6 +2377,8 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
 {
     const bool exception_context = qemu_mutex_iothread_locked();
     CPUState *cs;
+
+    g_assert(env->processor_ptr->thread_system_mask != 0);
 
     LOCK_IOTHREAD(exception_context);
     pred &= env->processor_ptr->thread_system_mask;

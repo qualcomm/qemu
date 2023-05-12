@@ -44,7 +44,6 @@ static hexagon_config_extensions *cfgExtensions;
 static bool syscfg_is_linux = false;
 
 
-extern struct ProcessorState ProcessorStateV68;
 /* Board init.  */
 static struct hexagon_board_boot_info hexagon_binfo;
 static int ELF_FLAG_ARCH_MASK = 0x0ff;
@@ -150,8 +149,6 @@ static gchar *hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev)
 {
-    ProcessorStateV68.runnable_threads_max = machine->smp.cpus;
-
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     if (machine->kernel_filename) {
         hexagon_binfo.ram_size = machine->ram_size;
@@ -198,6 +195,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         CPUHexagonState *env = &cpu->env;
+
+        qdev_prop_set_uint32(DEVICE(cpu), "thread-count", machine->smp.cpus);
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", cfgExtensions->cfgbase);
         if (cpu->rev_reg == 0) {
             qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);

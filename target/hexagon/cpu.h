@@ -640,6 +640,7 @@ struct ArchCPU {
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool paranoid_commit_state;
+    uint32_t cluster_thread_count;
 };
 
 #ifndef CONFIG_USER_ONLY

@@ -698,6 +698,7 @@ void dma_adapter_tlb_invalidate(thread_t *thread, int tlb_idx, uint64_t tlb_entr
 	//dma_t *dma = NULL; // This is a global invalidate so it should go to all DMA's
 	//uint32_t tlb_asid = GET_FIELD(PTE_ASID, tlb_entry_old);
 
+    g_assert(thread->processor_ptr->runnable_threads_max > 0);
 	// On TLB Write, single the dma's that the tlbw entry has been erased.
 	// timing model will flush it self if it can't translate
 	//if (proc->timing_on) {
@@ -1144,6 +1145,7 @@ size4u_t dma_adapter_cmd_cfgrd(thread_t *thread,
 }
 
 void dma_adapter_snapshot_flush(processor_t * proc) {
+    g_assert(proc->runnable_threads_max > 0);
 	for (int32_t tnum = 0; tnum < proc->runnable_threads_max; tnum++) {
 		thread_t * thread = proc->thread[tnum];
 		dma_t *dma = thread->processor_ptr->dma[tnum];
@@ -1183,6 +1185,7 @@ size4u_t dma_adapter_cmd_cfgwr(thread_t *thread,
 }
 void dma_adapter_set_dm5(dma_t *dma, uint32_t addr) {
 	thread_t* thread = dma_adapter_retrieve_thread(dma);
+    g_assert(thread->processor_ptr->runnable_threads_max > 0);
 	for (int tnum = 0; tnum < thread->processor_ptr->runnable_threads_max; tnum++) {
 		dma_t *dma_ptr = thread->processor_ptr->dma[thread->threadId];
 		CALL_DMA_CMD(dma_cmd_cfgwr, dma_ptr, 5, addr, NULL);
