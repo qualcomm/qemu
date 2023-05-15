@@ -15,9 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <malloc.h>
-#include <string.h>
-#include <assert.h>
+#include "qemu/osdep.h"
 #include "hmx/hmx_utils.h"
 #include "hmx/hmx_hex_arch_types.h"
 #include "hmx/hmx_coproc.h"
