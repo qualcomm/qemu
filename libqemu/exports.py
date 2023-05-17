@@ -112,6 +112,7 @@ ExportedFct('memory_region_dispatch_write', 'MemTxResult',
 
 ExportedFct('memory_region_size', 'uint64_t', [ 'MemoryRegion *' ])
 
+ExportedFct('memory_region_set_ops', 'void', [ 'MemoryRegion *', 'const MemoryRegionOps *'], priv = 'libqemu_memory_region_set_ops')
 
 ExportedFct('mr_ops_new', 'MemoryRegionOps *', [], priv = 'libqemu_mr_ops_new')
 
