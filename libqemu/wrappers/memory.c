@@ -206,6 +206,10 @@ void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRe
     memory_region_init_io(mr, obj, &wrapper->ops, wrapper, name, size);
 }
 
+void libqemu_memory_region_set_ops(MemoryRegion* mr, const MemoryRegionOps *ops) {
+    mr->ops = ops;
+}
+
 void libqemu_cpu_do_io(void)
 {
     CPUCoroutineIOInfo *io;
