@@ -119,6 +119,10 @@ static Property hexagon_cpu_properties[] = {
         false),
     DEFINE_PROP_UINT32("thread-count", HexagonCPU, cluster_thread_count,
         THREADS_MAX),
+    DEFINE_PROP_BOOL("isdben-etm-enable", HexagonCPU, isdben_etm_enable, false),
+    DEFINE_PROP_BOOL("isdben-dfd-enable", HexagonCPU, isdben_dfd_enable, false),
+    DEFINE_PROP_BOOL("isdben-trusted", HexagonCPU, isdben_trusted, false),
+    DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -636,10 +640,17 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                             HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_REV, cpu->rev_reg);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_ISDBVER, 0);
+
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
+
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_ISDBEN, 0);
+        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_TRUSTED, cpu->isdben_trusted);
+        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_SECURE, cpu->isdben_secure);
+        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_ETM_EN, cpu->isdben_etm_enable);
+        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_DFD_EN, cpu->isdben_dfd_enable);
 
         /*
          * These register indices are placeholders in these arrays
