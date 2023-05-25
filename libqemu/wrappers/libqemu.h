@@ -31,5 +31,6 @@ void libqemu_set_cpu_end_of_loop_cb(LibQemuCpuEndOfLoopFn cb, void *opaque);
 void libqemu_set_cpu_kick_cb(LibQemuCpuKickFn cb, void *opaque);
 
 void libqemu_enable_opengl(void);
+void libqemu_set_autostart(int);
 
 #endif

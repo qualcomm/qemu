@@ -259,6 +259,7 @@ ExportedFct('cpu_get_mem_io_pc', 'uintptr_t', [ 'Object *' ], priv = 'libqemu_cp
 
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
+ExportedFct('libqemu_set_autostart', 'void', ['int'])
 
 PrivateInclude('include/sysemu/runstate.h')
 ExportedFct('vm_start', 'void', [])

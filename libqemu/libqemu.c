@@ -166,3 +166,8 @@ void libqemu_enable_opengl(void)
 {
     display_opengl = true;
 }
+
+void libqemu_set_autostart(int a)
+{
+    autostart = a;
+}
