@@ -2263,15 +2263,16 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         }
         break;
     case EC_INSNABORT: {
-        uint32_t set = (syndrome >> 12) & 3;
-        bool fnv = (syndrome >> 10) & 1;
-        bool ea = (syndrome >> 9) & 1;
-        bool s1ptw = (syndrome >> 7) & 1;
-        uint32_t ifsc = (syndrome >> 0) & 0x3f;
+        uint32_t sas = (syndrome >> 22) & 3;
+        uint32_t len = 1 << sas;
+        uint64_t val = 0;
 
-        trace_hvf_insn_abort(env->pc, set, fnv, ea, s1ptw, ifsc);
-
-        /* fall through */
+        MemTxResult res = address_space_read(
+            &address_space_memory, hvf_exit->exception.physical_address,
+            MEMTXATTRS_UNSPECIFIED, &val, len);
+        assert(res == MEMTX_OK);
+        flush_cpu_state(cpu);
+        break;
     }
     default:
         cpu_synchronize_state(cpu);
