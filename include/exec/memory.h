@@ -2638,6 +2638,8 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
+void address_space_update_topology(AddressSpace *as);
+
 /**
  * address_space_destroy: destroy an address space
  *

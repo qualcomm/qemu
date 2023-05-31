@@ -1097,7 +1097,7 @@ static void address_space_set_flatview(AddressSpace *as)
     }
 }
 
-static void address_space_update_topology(AddressSpace *as)
+void address_space_update_topology(AddressSpace *as)
 {
     MemoryRegion *physmr = memory_region_get_flatview_root(as->root);
 

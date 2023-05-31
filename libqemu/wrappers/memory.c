@@ -228,6 +228,11 @@ void libqemu_address_space_free(AddressSpace *as)
     g_free(as);
 }
 
+void libqemu_address_space_update_topology(AddressSpace *as)
+{
+    address_space_update_topology(as);
+}
+
 AddressSpace *libqemu_address_space_get_system_memory(void)
 {
     return &address_space_memory;
