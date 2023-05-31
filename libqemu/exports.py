@@ -24,6 +24,10 @@ PrivateInclude('qemu/main-loop.h')
 ExportedFct('qemu_mutex_lock_iothread', 'void', [], priv = 'libqemu_mutex_lock_iothread')
 ExportedFct('qemu_mutex_unlock_iothread', 'void', [])
 
+PrivateInclude('libqemu/wrappers/rcu.h')
+ExportedFct('rcu_read_lock', 'void', [], priv = 'libqemu_rcu_read_lock')
+ExportedFct('rcu_read_unlock', 'void', [], priv = 'libqemu_rcu_read_unlock')
+
 PrivateInclude('qom/object.h')
 
 ExportedType('QemuObject', 'Object')
