@@ -12,7 +12,7 @@ include:
 variables:
   COMMON_CONFIG_OPTS: --enable-lto --disable-capstone --disable-guest-agent --enable-plugins --assert-target-compiler
   HEX_CONFIG_OPTS: --disable-fdt --disable-tools --disable-slirp --disable-sdl --disable-vnc --disable-gtk --disable-install-blobs
-  AARCH64_CONFIG_OPTS: --enable-fdt --enable-slirp --disable-debug-info --disable-debug-tcg --enable-virtfs --enable-avx2 --enable-avx512f --disable-png --disable-sanitizers
+  AARCH64_CONFIG_OPTS: --enable-fdt --enable-slirp --disable-debug-info --disable-debug-tcg --enable-virtfs --enable-avx2 --enable-avx512f --disable-png --disable-sanitizers --gdb=gdb-multiarch
 
   GENERIC_CONFIG_CMD: installdir="$(realpath "$(mktemp -d -p .)")" && ../configure --prefix="$$installdir" $COMMON_CONFIG_OPTS
   HEX_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --target-list=hexagon-softmmu,hexagon-linux-user
