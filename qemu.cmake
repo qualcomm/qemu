@@ -56,6 +56,10 @@ if (APPLE)
 	--disable-sdl-image)
 endif()
 
+if (GS_ENABLE_CAPSTONE)
+    message(STATUS "libqemu: enabling capstone dependency")
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-capstone)
+endif()
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cc=${CMAKE_C_COMPILER})
 set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cxx=${CMAKE_CXX_COMPILER})
 # QEMU compiles some helper programs to run at building time. Set this to
