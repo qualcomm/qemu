@@ -21,9 +21,17 @@
 #include "hw/virtio/virtio-iommu.h"
 #include <epoxy/egl.h>
 
+#include "ui/egl-helpers.h"
+
 #include <virglrenderer.h>
 
-static struct virgl_renderer_callbacks virtio_gpu_3d_cbs;
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+static void *
+virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
+{
+    return qemu_egl_display;
+}
+#endif
 
 static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                          struct virtio_gpu_ctrl_command *cmd)
@@ -826,6 +834,13 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
 {
     int ret;
 
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+    if (qemu_egl_display) {
+        virtio_gpu_3d_cbs.version = 4;
+        virtio_gpu_3d_cbs.get_egl_display = virgl_get_egl_display;
+    }
+#endif
+
 #ifdef VIRGL_RENDERER_VENUS
     ret = virgl_renderer_init(g, VIRGL_RENDERER_VENUS, &virtio_gpu_3d_cbs);
     if (ret != 0) {
@@ -834,6 +849,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
         ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
     }
 #else
+
     ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
 #endif
     if (ret != 0) {
