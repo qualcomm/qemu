@@ -95,7 +95,7 @@ void sdl2_window_create(struct sdl2_console *scon)
     }
 #ifdef CONFIG_OPENGL
     if (scon->opengl) {
-        flags |= SDL_WINDOW_OPENGL;
+        flags |= SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
         if (scon->opts->gl == DISPLAYGL_MODE_ES) {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                                 SDL_GL_CONTEXT_PROFILE_ES);
