@@ -76,7 +76,6 @@ mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
 {
 	mem_access_info_t *maptr = &thread->mem_access[slot];
 
-
 #ifdef FIXME
 	maptr->is_memop = 0;
 	maptr->log_as_tag = 0;
@@ -103,29 +102,59 @@ mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
 
     int size = 1024 * 1024;
 #ifndef CONFIG_USER_ONLY
+    /* make sure vaddr in tlb */
     hwaddr phys;
     int prot;
-    int32_t excp;
-    /* make sure vaddr in tlb */
-    hexagon_touch_memory(thread, vaddr, width);
+    int32_t excp = 0;
+    void *out_host;
+    int flags __attribute__ ((unused));
+    int access_type = (type_for_xlate == TYPE_LOAD) ?
+                       MMU_DATA_LOAD : MMU_DATA_STORE;
+    CPUTLBEntryFull *_full;
+    flags = probe_access_full(thread, vaddr, access_type,
+                              cpu_mmu_index(thread, false),
+                              true, &out_host, &_full, 0);
+
     /* now get tlb size for this vaddr */
-    if (!hex_tlb_find_match(thread, vaddr, MMU_DATA_LOAD, &phys, &prot, &size,
+    if (hex_tlb_find_match(thread, vaddr, access_type, &phys, &prot, &size,
                             &excp, cpu_mmu_index(thread, false))) {
-        HEX_DEBUG_LOG("%s: tlb lookup failed: vaddr=0x%x\n",
-            __func__, vaddr);
-        g_assert_not_reached();
+        /*
+         * If a matching entry was found but doesn't have read or write
+         * permission, raise a permission execption
+         */
+        if (excp == HEX_EVENT_PRECISE) {
+           bool read_perm = (prot & (PAGE_VALID | PAGE_READ)) ==
+                            (PAGE_VALID | PAGE_READ);
+           bool write_perm = (prot & (PAGE_VALID | PAGE_WRITE)) ==
+                             (PAGE_VALID | PAGE_WRITE);
+           if (!(read_perm && write_perm)) {
+               CPUState *cs = env_cpu(thread);
+               uintptr_t retaddr = GETPC();
+               raise_perm_exception(cs, vaddr, slot, access_type, excp);
+               do_raise_exception(thread, cs->exception_index,
+                                  thread->gpr[HEX_REG_PC], retaddr);
+           }
+        }
+    } else {
+        /* If no TLB match found, raise a TLB miss exception */
+        CPUState *cs = env_cpu(thread);
+        uintptr_t retaddr = GETPC();
+        raise_tlbmiss_exception(cs, vaddr, slot, access_type);
+        do_raise_exception(thread, cs->exception_index,
+                           thread->gpr[HEX_REG_PC], retaddr);
+        thread->status |= 0x100;
     }
 #endif
     maptr->size = 31 - clz32(size); /* range validation not done in user mode */
 
-	/* Attributes of the packet that are needed by the uarch */
+    /* Attributes of the packet that are needed by the uarch */
     maptr->slot = slot;
     maptr->paddr = vaddr;
     xlate_info_t *xinfo = &(maptr->xlate_info);
     memset(xinfo,0,sizeof(*xinfo));
     xinfo->size = maptr->size;
 
-	return (maptr->paddr);
+    return maptr->paddr;
 }
 
 paddr_t
