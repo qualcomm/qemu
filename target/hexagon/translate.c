@@ -173,7 +173,9 @@ static void gen_exec_counters(DisasContext *ctx)
      *     This means, we'll generate code for the TB differently
      *     depending on the value.
      */
-    gen_pcycle_counters(ctx);
+    if (ctx->pcycle_enabled) {
+        tcg_gen_addi_i64(hex_cycle_count, hex_cycle_count, ctx->num_cycles);
+    }
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -1621,6 +1623,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 
     ctx->num_packets = 0;
     ctx->num_cycles = 0;
+    ctx->hvx_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
     ctx->zero = tcg_constant_tl(0);
