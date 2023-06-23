@@ -105,16 +105,16 @@ static size4u_t dma_adapter_cmd_tlbsynch(thread_t *thread, size4u_t dummy1, size
 // in src/arch/external_api.h.
 // ============================================================================
 dma_adapter_cmd_impl_t dma_adapter_cmd_impl_tab[DMA_CMD_UND] = {
-	&dma_adapter_cmd_start,             // dmstart.
-	&dma_adapter_cmd_link,              // dmlink
-	&dma_adapter_cmd_poll,              // dmpoll
-	&dma_adapter_cmd_wait,              // dmwait
-	&dma_adapter_cmd_syncht,            // dmsyncht
-	&dma_adapter_cmd_cfgrd,             // dmcfgrd
-	&dma_adapter_cmd_cfgwr,             // dmcfgwr
-	&dma_adapter_cmd_pause,             // dmpause
-	&dma_adapter_cmd_resume,            // dmresume
-	&dma_adapter_cmd_tlbsynch,          // dmtlbsynch
+    [DMA_CMD_START]    = &dma_adapter_cmd_start,             /* dmstart */
+    [DMA_CMD_LINK]     = &dma_adapter_cmd_link,              /* dmlink */
+    [DMA_CMD_POLL]     = &dma_adapter_cmd_poll,              /* dmpoll */
+    [DMA_CMD_WAIT]     = &dma_adapter_cmd_wait,              /* dmwait */
+    [DMA_CMD_SYNCHT]   = &dma_adapter_cmd_syncht,            /* dmsyncht */
+    [DMA_CMD_CFGRD]    = &dma_adapter_cmd_cfgrd,             /* dmcfgrd */
+    [DMA_CMD_CFGWR]    = &dma_adapter_cmd_cfgwr,             /* dmcfgwr */
+    [DMA_CMD_PAUSE]    = &dma_adapter_cmd_pause,             /* dmpause */
+    [DMA_CMD_RESUME]   = &dma_adapter_cmd_resume,            /* dmresume */
+    [DMA_CMD_TLBSYNCH] = &dma_adapter_cmd_tlbsynch,          /* dmtlbsynch */
 };
 
 
@@ -1220,7 +1220,7 @@ size4u_t dma_adapter_cmd(thread_t *thread, dma_cmd_t opcode,
 			// completeness checker back.
 			dma_insn_checker_ptr insn_checker = NULL;
 
-	        assert(thread->processor_ptr->dma[thread->threadId]);
+                g_assert(thread->processor_ptr->dma[thread->threadId]);
 			ret_val = (*impl)(thread, arg1, arg2, &insn_checker);
 
 			// If the engine gave us an instruction completeness checker, let's set up
