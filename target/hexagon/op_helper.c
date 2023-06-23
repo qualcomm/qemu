@@ -705,14 +705,13 @@ void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
 }
 #endif
 
-static inline __attribute__((always_inline)) void
-probe_store(CPUHexagonState *env, int slot, int mmu_idx)
+static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
+                        uintptr_t retaddr)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
-        uintptr_t ra = GETPC();
-        probe_write(env, va, width, mmu_idx, ra);
+        probe_write(env, va, width, mmu_idx, retaddr);
     }
 }
 
@@ -730,7 +729,8 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
 /* Called during packet commit when there are two scalar stores */
 void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
 {
-    probe_store(env, 0, mmu_idx);
+    uintptr_t ra = GETPC();
+    probe_store(env, 0, mmu_idx, ra);
 }
 
 void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
@@ -780,12 +780,13 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
     bool has_st0        = (mask >> 0) & 1;
     bool has_st1        = (mask >> 1) & 1;
     bool has_hvx_stores = (mask >> 2) & 1;
+    uintptr_t ra = GETPC();
 
     if (has_st0) {
-        probe_store(env, 0, mmu_idx);
+        probe_store(env, 0, mmu_idx, ra);
     }
     if (has_st1) {
-        probe_store(env, 1, mmu_idx);
+        probe_store(env, 1, mmu_idx, ra);
     }
     if (has_hvx_stores) {
         HELPER(probe_hvx_stores)(env, mmu_idx);
