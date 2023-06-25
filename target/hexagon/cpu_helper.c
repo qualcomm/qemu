@@ -636,16 +636,23 @@ void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause)
     hexagon_modify_ssr(env, new, old);
 }
 
+static MMVector VRegs[4][NUM_VREGS];
+static MMQReg QRegs[4][NUM_QREGS];
+
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
+    const bool exception_context = qemu_mutex_iothread_locked();
+    LOCK_IOTHREAD(exception_context);
     bool old_EX = GET_SSR_FIELD(SSR_EX, old);
     bool old_UM = GET_SSR_FIELD(SSR_UM, old);
     bool old_GM = GET_SSR_FIELD(SSR_GM, old);
     bool old_IE = GET_SSR_FIELD(SSR_IE, old);
+    uint8_t old_XA = GET_SSR_FIELD(SSR_XA, old);
     bool new_EX = GET_SSR_FIELD(SSR_EX, new);
     bool new_UM = GET_SSR_FIELD(SSR_UM, new);
     bool new_GM = GET_SSR_FIELD(SSR_GM, new);
     bool new_IE = GET_SSR_FIELD(SSR_IE, new);
+    uint8_t new_XA = GET_SSR_FIELD(SSR_XA, new);
 
     if ((old_EX != new_EX) ||
         (old_UM != new_UM) ||
@@ -660,11 +667,34 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         tlb_flush(cs);
     }
 
+    if (old_XA != new_XA) {
+        int old_unit = old_XA - 4;
+        int new_unit = new_XA - 4;
+        /* Ownership exchange */
+        if ((old_XA != 0) && (new_XA != 0)) {
+            memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+            memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+            memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+            memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+        }
+        /* New owner acquire */
+        else if (new_XA != 0) {
+            memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+            memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+        }
+        /* Done using HVX */
+        else {
+            memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+            memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+        }
+    }
+
     /* See if the interrupts have been enabled or we have exited EX mode */
     if ((new_IE && !old_IE) ||
         (!new_EX && old_EX)) {
         hex_interrupt_update(env);
     }
+    UNLOCK_IOTHREAD(exception_context);
 }
 
 static const int PCYCLES_PER_PACKET = 3;
