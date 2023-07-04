@@ -26,7 +26,7 @@
 struct sdl2_console;
 typedef struct SDL_Window SDL_Window;
 
-struct sdl2_console *libqemu_sdl2_console_new(QemuConsole *, void *);
+void libqemu_sdl2_console_init(struct sdl2_console *, QemuConsole *, void *);
 void libqemu_sdl2_console_set_hidden(struct sdl2_console *, bool);
 void libqemu_sdl2_console_set_idx(struct sdl2_console *, int);
 void libqemu_sdl2_console_set_opts(struct sdl2_console *, DisplayOptions *);

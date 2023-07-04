@@ -186,6 +186,7 @@ ExportedFct('gpex_set_irq_num', 'int', [ 'SysBusDevice *', 'int', 'int' ],
 
 PublicInclude('libqemu/wrappers/display.h')
 PrivateInclude('libqemu/wrappers/console.h')
+PrivateInclude('ui/sdl2.h')
 ExportedType('QemuConsole', 'Console')
 ExportedType('DisplayGLCtxOps')
 ExportedType('DisplayGLCtx')
@@ -203,7 +204,12 @@ ExportedFct('console_get_index', 'int', [ 'QemuConsole *' ], priv = 'qemu_consol
 ExportedFct('console_is_graphic', 'bool', [ 'QemuConsole *' ], priv = 'qemu_console_is_graphic')
 ExportedFct('console_set_display_gl_ctx', 'void', [ 'QemuConsole *', 'DisplayGLCtx *' ], priv = 'qemu_console_set_display_gl_ctx')
 ExportedFct('console_set_window_id', 'void', [ 'QemuConsole *', 'int' ], priv = 'qemu_console_set_window_id')
-ExportedFct('sdl2_console_new', 'sdl2_console *', [ 'QemuConsole *', 'void *' ], priv = 'libqemu_sdl2_console_new')
+ExportedFct('sdl2_create_consoles', 'void', [ 'int' ])
+ExportedFct('sdl2_get_console', 'sdl2_console *', [ 'int' ])
+ExportedFct('sdl_cleanup', 'void', [])
+ExportedFct('sdl2_console_init', 'void',
+            [ 'sdl2_console *', 'QemuConsole *', 'void *' ],
+            priv = 'libqemu_sdl2_console_init')
 ExportedFct('sdl2_console_set_hidden', 'void', [ 'sdl2_console *', 'bool' ], priv = 'libqemu_sdl2_console_set_hidden')
 ExportedFct('sdl2_console_set_idx', 'void', [ 'sdl2_console *', 'int' ], priv = 'libqemu_sdl2_console_set_idx')
 ExportedFct('sdl2_console_set_opts', 'void', [ 'sdl2_console *', 'DisplayOptions *' ], priv = 'libqemu_sdl2_console_set_opts')
