@@ -107,7 +107,7 @@
         int i0; \
         target_ulong va = EA; \
         target_ulong va_high = EA + LEN; \
-        uintptr_t ra = GETPC(); \
+        uintptr_t ra = CPU_MEMOP_PC(env); \
         int log_bank = 0; \
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEMENT_SIZE; i0++) { \
@@ -130,7 +130,7 @@
 #endif
 #define SCATTER_OP_WRITE_TO_MEM(TYPE) \
     do { \
-        uintptr_t ra = GETPC(); \
+        uintptr_t ra = CPU_MEMOP_PC(env); \
         for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 TYPE dst = 0; \

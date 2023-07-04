@@ -129,7 +129,7 @@ mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
                              (PAGE_VALID | PAGE_WRITE);
            if (!(read_perm && write_perm)) {
                CPUState *cs = env_cpu(thread);
-               uintptr_t retaddr = GETPC();
+               uintptr_t retaddr = CPU_MEMOP_PC(thread);
                raise_perm_exception(cs, vaddr, slot, access_type, excp);
                do_raise_exception(thread, cs->exception_index,
                                   thread->gpr[HEX_REG_PC], retaddr);
@@ -138,7 +138,7 @@ mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
     } else {
         /* If no TLB match found, raise a TLB miss exception */
         CPUState *cs = env_cpu(thread);
-        uintptr_t retaddr = GETPC();
+        uintptr_t retaddr = CPU_MEMOP_PC(thread);
         raise_tlbmiss_exception(cs, vaddr, slot, access_type);
         do_raise_exception(thread, cs->exception_index,
                            thread->gpr[HEX_REG_PC], retaddr);

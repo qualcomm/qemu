@@ -147,6 +147,9 @@ def gen_helper_return_opn(f, regtype, regid, i):
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
+def needs_cpu_memop_pc(tag):
+    return any(A in hex_common.attribdict[tag] for A in ['A_LOAD', 'A_STORE', 'A_DMA'])
+
 ##
 ## Generate the TCG code to call the helper
 ##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
@@ -253,6 +256,8 @@ def gen_helper_function(f, tag, tagregs, tagimms):
             if i > 0: f.write(", ")
             f.write("uint32_t part1")
         f.write(")\n{\n")
+        if needs_cpu_memop_pc(tag):
+            f.write("    CPU_MEMOP_PC_SET(env);\n")
         if (not hex_common.need_slot(tag)):
             f.write("    uint32_t slot __attribute__((unused)) = 4;\n" )
         if hex_common.need_ea(tag): gen_decl_ea(f)

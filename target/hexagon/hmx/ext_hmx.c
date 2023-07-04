@@ -45,11 +45,11 @@
 #endif
 
 #define sim_mem_write1(X, Y, addr, val) cpu_stb_mmuidx_ra(thread, addr, val, \
-    CPU_MMU_INDEX(thread), GETPC())
+    CPU_MMU_INDEX(thread), CPU_MEMOP_PC(thread))
 #define sim_mem_write2(X, Y, addr, val) cpu_stw_mmuidx_ra(thread, addr, val, \
-    CPU_MMU_INDEX(thread), GETPC())
+    CPU_MMU_INDEX(thread), CPU_MEMOP_PC(thread))
 #define sim_mem_write4(X, Y, addr, val) cpu_stl_mmuidx_ra(thread, addr, val, \
-    CPU_MMU_INDEX(thread), GETPC())
+    CPU_MMU_INDEX(thread), CPU_MEMOP_PC(thread))
 
 #ifdef HEX_CONFIG_INT128
 static inline size4u_t int128_getword(size16s_t data, int word_select)

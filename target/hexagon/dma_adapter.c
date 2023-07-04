@@ -556,16 +556,16 @@ static size8u_t memread(thread_t *thread, mem_access_info_t *memaptr, int do_tra
 
     switch (width) {
         case 1:
-            data = cpu_ldub_data_ra(thread, paddr, GETPC());
+            data = cpu_ldub_data_ra(thread, paddr, CPU_MEMOP_PC(thread));
             break;
         case 2:
-            data = cpu_lduw_data_ra(thread, paddr, GETPC());
+            data = cpu_lduw_data_ra(thread, paddr, CPU_MEMOP_PC(thread));
             break;
         case 4:
-            data = cpu_ldl_data_ra(thread, paddr, GETPC());
+            data = cpu_ldl_data_ra(thread, paddr, CPU_MEMOP_PC(thread));
             break;
         case 8:
-            data = cpu_ldq_data_ra(thread, paddr, GETPC());
+            data = cpu_ldq_data_ra(thread, paddr, CPU_MEMOP_PC(thread));
             break;
         default:
             g_assert_not_reached();
@@ -581,16 +581,16 @@ static void memwrite(thread_t *thread, mem_access_info_t *memaptr)
 
     switch (width) {
         case 1:
-            cpu_stb_data_ra(thread, paddr, data, GETPC());
+            cpu_stb_data_ra(thread, paddr, data, CPU_MEMOP_PC(thread));
             break;
         case 2:
-            cpu_stw_data_ra(thread, paddr, data, GETPC());
+            cpu_stw_data_ra(thread, paddr, data, CPU_MEMOP_PC(thread));
             break;
         case 4:
-            cpu_stl_data_ra(thread, paddr, data, GETPC());
+            cpu_stl_data_ra(thread, paddr, data, CPU_MEMOP_PC(thread));
             break;
         case 8:
-            cpu_stq_data_ra(thread, paddr, data, GETPC());
+            cpu_stq_data_ra(thread, paddr, data, CPU_MEMOP_PC(thread));
             break;
         default:
             g_assert_not_reached();

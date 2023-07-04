@@ -1053,6 +1053,8 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
             "\t%s: event 0x%x:%s, cause 0x%x(%d)\n", __func__,
             cs->exception_index, event_name[cs->exception_index], env->cause_code, env->cause_code);
 
+    CPU_MEMOP_PC_SET_ON_EXCEPTION(env);
+
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         HEX_DEBUG_LOG("\ttid = %u, trap0, pc = 0x%x, elr = 0x%x, "

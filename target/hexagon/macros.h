@@ -635,8 +635,8 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) \
     do { \
-        check_noshuf(env, pkt_has_scalar_store_s1, slot, EA, SIZE, GETPC()); \
-        DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(env, EA, GETPC()); \
+        check_noshuf(env, pkt_has_scalar_store_s1, slot, EA, SIZE, CPU_MEMOP_PC(env)); \
+        DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(env, EA, CPU_MEMOP_PC(env)); \
     } while (0)
 #endif
 

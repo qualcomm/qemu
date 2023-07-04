@@ -29,13 +29,13 @@
 #endif
 
 #define mem_read1(env, paddr) \
-    (size1u_t)cpu_ldub_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), GETPC());
+    (size1u_t)cpu_ldub_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), CPU_MEMOP_PC(env));
 #define mem_read2(env, paddr) \
-    (size2u_t)cpu_lduw_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), GETPC());
+    (size2u_t)cpu_lduw_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), CPU_MEMOP_PC(env));
 #define mem_read4(env, paddr) \
-    (size4u_t)cpu_ldl_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), GETPC());
+    (size4u_t)cpu_ldl_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), CPU_MEMOP_PC(env));
 #define mem_read8(env, paddr) \
-    (size8u_t)cpu_ldq_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), GETPC());
+    (size8u_t)cpu_ldq_mmuidx_ra(env, paddr, CPU_MMU_INDEX(env), CPU_MEMOP_PC(env));
 
 /* Misc functions */
 void cancel_slot(CPUHexagonState *env, uint32_t slot);

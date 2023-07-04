@@ -587,6 +587,9 @@ typedef struct CPUArchState {
     FILE *fp_hmx_debug;
     uint64_t t_packet_count;
     uint64_t *g_pcycle_base;
+    /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
+    uintptr_t cpu_memop_pc;
+    bool cpu_memop_pc_set;
 #ifndef CONFIG_USER_ONLY
     int slot;                    /* Needed for exception generation */
     hex_exception_info einfo;
@@ -665,6 +668,28 @@ FIELD(TB_FLAGS, PMU_ENABLED, 7, 1)
 FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
 FIELD(TB_FLAGS, SS_PENDING, 9, 1)
 
+static inline uintptr_t CPU_MEMOP_PC(CPUHexagonState *env)
+{
+    assert(env->cpu_memop_pc_set);
+    return env->cpu_memop_pc;
+}
+
+/* MUST be called from top level helpers ONLY. */
+#define CPU_MEMOP_PC_SET(ENV) do { \
+    assert(!(ENV)->cpu_memop_pc_set); \
+    (ENV)->cpu_memop_pc = GETPC(); \
+    (ENV)->cpu_memop_pc_set = true; \
+} while (0)
+
+/*
+ * To be called by exception handler ONLY. In this case we don't to unwind,
+ * so we set te memop pc to 0. Also, it doesn't matter if it was already set
+ * as the helper could reach an exception.
+ */
+#define CPU_MEMOP_PC_SET_ON_EXCEPTION(ENV) do { \
+    (ENV)->cpu_memop_pc = 0; \
+    (ENV)->cpu_memop_pc_set = true; \
+} while (0)
 
 static inline bool rev_implements_64b_hvx(CPUHexagonState *env)
 {
