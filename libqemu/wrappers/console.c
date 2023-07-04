@@ -30,12 +30,13 @@ DisplayOptions *libqemu_display_options_new(void)
     return opts;
 }
 
-struct sdl2_console *libqemu_sdl2_console_new(QemuConsole *con, void *user_data)
+void libqemu_sdl2_console_init(struct sdl2_console *sdl2_con,
+                               QemuConsole *con,
+                               void *user_data)
 {
-    struct sdl2_console *sdl2_con = g_new0(struct sdl2_console, 1);
     sdl2_con->dcl.con = con;
     sdl2_con->dcl.user_data = user_data;
-    return sdl2_con;
+    sdl2_con->kbd = qkbd_state_init(con);
 }
 
 void libqemu_sdl2_console_set_hidden(struct sdl2_console *sdl2_con, bool hidden)

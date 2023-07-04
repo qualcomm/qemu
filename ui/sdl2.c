@@ -792,7 +792,7 @@ void sdl_mouse_define(DisplayChangeListener *dcl, QEMUCursor *c)
     }
 }
 
-static void sdl_cleanup(void)
+void sdl_cleanup(void)
 {
     if (guest_sprite) {
         SDL_FreeCursor(guest_sprite);
@@ -882,6 +882,19 @@ static void sdl2_set_hint_x11_force_egl(void)
 
     XCloseDisplay(x_disp);
 #endif
+}
+
+void sdl2_create_consoles(int num)
+{
+    assert(num > 0);
+    sdl2_num_outputs = num;
+    sdl2_console = g_new0(struct sdl2_console, sdl2_num_outputs);
+}
+
+struct sdl2_console *sdl2_get_console(int index)
+{
+    assert(index >= 0 && index < sdl2_num_outputs);
+    return &sdl2_console[index];
 }
 
 static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
