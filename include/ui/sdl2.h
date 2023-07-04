@@ -53,6 +53,10 @@ struct sdl2_console {
 #endif
 };
 
+void sdl2_create_consoles(int num);
+struct sdl2_console *sdl2_get_console(int index);
+void sdl_cleanup(void);
+
 void sdl2_window_create(struct sdl2_console *scon);
 void sdl2_window_destroy(struct sdl2_console *scon);
 void sdl2_window_resize(struct sdl2_console *scon);
