@@ -237,9 +237,8 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
     }
 }
 
-void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
+static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     uint8_t width = env->mem_log_stores[slot_num].width;
     target_ulong va = env->mem_log_stores[slot_num].va;
 
@@ -259,6 +258,12 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     default:
         g_assert_not_reached();
     }
+}
+
+void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
+{
+    uintptr_t ra = GETPC();
+    commit_store(env, slot_num, ra);
 }
 
 void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
@@ -738,9 +743,8 @@ void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
     probe_store(env, 0, mmu_idx, ra);
 }
 
-void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
+static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx, uintptr_t retaddr)
 {
-    uintptr_t retaddr = GETPC();
     int i;
 
     /* Normal (possibly masked) vector store */
@@ -779,6 +783,12 @@ void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
     }
 }
 
+void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
+{
+    uintptr_t ra = GETPC();
+    probe_hvx_stores(env, mmu_idx, ra);
+}
+
 void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
                                          int mmu_idx)
 {
@@ -794,7 +804,7 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
         probe_store(env, 1, mmu_idx, ra);
     }
     if (has_hvx_stores) {
-        HELPER(probe_hvx_stores)(env, mmu_idx);
+        probe_hvx_stores(env, mmu_idx, ra);
     }
 }
 
@@ -803,6 +813,23 @@ void HELPER(assert_store_valid)(CPUHexagonState *env, int slot)
     if (env->mem_log_stores[slot].va == PARANOID_VALUE) {
         CPUState *cs = env_cpu(env);
         cpu_abort(cs, "Invalid store found at PC 0x%x\n", env->gpr[HEX_REG_PC]);
+    }
+}
+
+/*
+ * mem_noshuf
+ * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
+ *
+ * If the load is in slot 0 and there is a store in slot1 (that
+ * wasn't cancelled), we have to do the store first.
+ */
+void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
+                  uint32_t slot, target_ulong vaddr, int size, uintptr_t ra)
+{
+    if (slot == 0 && pkt_has_store_s1 &&
+        ((env->slot_cancelled & (1 << 1)) == 0)) {
+        probe_read(env, vaddr, size, MMU_USER_IDX, ra);
+        commit_store(env, 1, ra);
     }
 }
 

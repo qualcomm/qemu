@@ -628,8 +628,16 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef QEMU_GENERATE
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) MEM_LOAD##SIZE##SIGN(DST, EA)
 #else
+#define MEM_LOAD1 cpu_ldub_data_ra
+#define MEM_LOAD2 cpu_lduw_data_ra
+#define MEM_LOAD4 cpu_ldl_data_ra
+#define MEM_LOAD8 cpu_ldq_data_ra
+
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) \
-    DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE##SIGN(EA)
+    do { \
+        check_noshuf(env, pkt_has_scalar_store_s1, slot, EA, SIZE, GETPC()); \
+        DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(env, EA, GETPC()); \
+    } while (0)
 #endif
 
 #define fMEMOP(NUM, SIZE, SIGN, EA, FNTYPE, VALUE)
