@@ -108,11 +108,16 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
+G_NORETURN void raise_exception(CPUHexagonState *env, uint32_t excp,
+                                target_ulong PC)
+{
+    do_raise_exception(env, excp, PC, 0);
+}
 
 G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
                                         target_ulong PC)
 {
-    do_raise_exception(env, excp, PC, 0);
+    raise_exception(env, excp, PC);
 }
 
 void log_reg_write(CPUHexagonState *env, int rnum,
@@ -2081,7 +2086,8 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
     }
 }
 
-uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
+static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
+                                                    uint32_t reg)
 {
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         const bool exception_context = qemu_mutex_iothread_locked();
@@ -2111,6 +2117,11 @@ uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
     return ARCH_GET_SYSTEM_REG(env, reg);
 }
 
+uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    return sreg_read(env, reg);
+}
+
 uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
     if (reg == HEX_SREG_TIMERLO) {
@@ -2122,8 +2133,8 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
     } else if (reg == HEX_SREG_PCYCLELO) {
         return hexagon_get_sys_pcycle_count(env);
     }
-    return   (uint64_t)HELPER(sreg_read)(env, reg) |
-           (((uint64_t)HELPER(sreg_read)(env, reg + 1)) << 32);
+    return   (uint64_t)sreg_read(env, reg) |
+           (((uint64_t)sreg_read(env, reg + 1)) << 32);
 }
 
 #define DECL_PMU_EVENT(name, val) case name:
@@ -2268,7 +2279,8 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
     return false;
 }
 
-void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
+static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
+                                                 uint32_t reg, uint32_t val)
 
 {
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
@@ -2299,11 +2311,16 @@ void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
     }
 }
 
+void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    sreg_write(env, reg, val);
+}
+
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
 
 {
-    HELPER(sreg_write)(env, reg, val & 0xFFFFFFFF);
-    HELPER(sreg_write)(env, reg + 1, val >> 32);
+    sreg_write(env, reg, val & 0xFFFFFFFF);
+    sreg_write(env, reg + 1, val >> 32);
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
@@ -2349,6 +2366,8 @@ uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
     return 0;
 }
 
+static void resched(CPUHexagonState *env);
+
 void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
 {
     const bool exception_context = qemu_mutex_iothread_locked();
@@ -2365,7 +2384,7 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
             SET_SYSTEM_FIELD(found_env, HEX_SREG_STID, STID_PRIO, prio);
             qemu_log_mask(CPU_LOG_INT, "%s: tid %d prio = 0x%x\n",
                           __func__, found_env->threadId, prio);
-            HELPER(resched)(env);
+            resched(env);
             UNLOCK_IOTHREAD(exception_context);
             return;
         }
@@ -2431,8 +2450,7 @@ typedef struct {
     CPUHexagonState *env;
 } thread_entry;
 
-
-void HELPER(resched)(CPUHexagonState *env)
+static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
 {
     const bool exception_context = qemu_mutex_iothread_locked();
     uint32_t schedcfg;
@@ -2484,6 +2502,11 @@ void HELPER(resched)(CPUHexagonState *env)
         hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
     }
     UNLOCK_IOTHREAD(exception_context);
+}
+
+void HELPER(resched)(CPUHexagonState *env)
+{
+    resched(env);
 }
 
 void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
@@ -2552,7 +2575,7 @@ void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
     if (ready_count > 1 &&
         env->gpr[HEX_REG_QEMU_CPU_TB_CNT] >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
         env->gpr[HEX_REG_PC] = next_PC;
-        HELPER(raise_exception)(env, EXCP_YIELD, next_PC);
+        raise_exception(env, EXCP_YIELD, next_PC);
         env->gpr[HEX_REG_QEMU_CPU_TB_CNT] = 0;
     }
     env->last_cpu = env->threadId;

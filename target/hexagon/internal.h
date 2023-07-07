@@ -43,6 +43,8 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
         uint32_t exception,
         target_ulong PC,
         uintptr_t retaddr);
+G_NORETURN void raise_exception(CPUHexagonState *env, uint32_t excp,
+                                target_ulong PC);
 
 extern void hexagon_dump(CPUHexagonState *env, FILE *f, int flags);
 extern int hexagon_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);

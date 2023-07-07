@@ -415,7 +415,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     do {                                                         \
         if (((A) & PCALIGN_MASK) != 0) {                         \
             env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;          \
-            HELPER(raise_exception)(env, HEX_EVENT_PRECISE, PC); \
+            raise_exception(env, HEX_EVENT_PRECISE, PC); \
         }                                                        \
     } while (0)
 
@@ -734,7 +734,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef CONFIG_USER_ONLY
 #define fTRAP(TRAPTYPE, IMM) \
     do { \
-        HELPER(raise_exception)(env, HEX_EVENT_TRAP0, PC); \
+        raise_exception(env, HEX_EVENT_TRAP0, PC); \
     } while (0)
 #endif
 
