@@ -18,6 +18,9 @@
 #
 
 ExportedType('QemuError', 'Error')
+PrivateInclude('libqemu/wrappers/error.h')
+ExportedFct('error_get_pretty', 'const char *', ['const Error *'],
+            priv = 'libqemu_error_get_pretty')
 
 PrivateInclude('libqemu/wrappers/iothread.h')
 PrivateInclude('qemu/main-loop.h')
