@@ -22,6 +22,9 @@ PrivateInclude('libqemu/wrappers/error.h')
 ExportedFct('error_get_pretty', 'const char *', ['const Error *'],
             priv = 'libqemu_error_get_pretty')
 
+PrivateInclude('libqemu/wrappers/virgl.h')
+ExportedFct('virgl_has_blob', 'bool', [], priv = 'libqemu_virgl_has_blob')
+
 PrivateInclude('libqemu/wrappers/iothread.h')
 PrivateInclude('qemu/main-loop.h')
 ExportedFct('qemu_mutex_lock_iothread', 'void', [], priv = 'libqemu_mutex_lock_iothread')
