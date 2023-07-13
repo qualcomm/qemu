@@ -258,7 +258,9 @@ def gen_iothread_wrapped_worker(f):
     gen_c('{')
     indent_push()
 
-    gen_c('struct {0}_params *params = (struct {0}_params *) opaque;'.format(f.priv))
+    if f.ret != 'void' or len(f.args) > 0:
+        fmt_str = 'struct {0}_params *params = (struct {0}_params *) opaque;'
+        gen_c(fmt_str.format(f.priv))
 
     ret = ''
     if f.ret != 'void':
