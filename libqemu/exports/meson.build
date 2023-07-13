@@ -1,5 +1,5 @@
-export = meson.source_root() / 'libqemu/exports.py'
-wrap = meson.source_root() / 'scripts/libqemu-wrappers.py'
+export = meson.project_source_root() / 'libqemu/exports.py'
+wrap = meson.project_source_root() / 'scripts/libqemu-wrappers.py'
 
 headers_to_install = [ 'typedefs.h', 'struct.h' ]
 
