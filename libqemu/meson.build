@@ -9,3 +9,4 @@ subdir('exports')
 
 install_headers('../include/exec/hwaddr.h', '../include/exec/memattrs.h', subdir : 'libqemu/exec')
 install_headers('libqemu.h', subdir : 'libqemu/libqemu')
+install_headers(meson.project_build_root() / 'config-host.h', subdir: 'libqemu/libqemu')
