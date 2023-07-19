@@ -34,9 +34,14 @@ typedef struct DisasContext {
     uint32_t mem_idx;
     uint32_t num_packets;
     uint32_t num_cycles;
-    uint32_t hvx_packets;
     uint32_t num_insns;
     uint32_t num_hvx_insns;
+
+#ifndef CONFIG_USER_ONLY
+    /* Used for PMU counters. */
+    uint32_t pmu_num_packets;
+    uint32_t pmu_hvx_packets;
+#endif
 
     int reg_log[REG_WRITES_MAX];
     int reg_log_idx;
