@@ -83,6 +83,7 @@ TESTS += \
 	pmu \
 	start \
 	single_step \
+	hvx-multi \
 	$()
 
 CFLAGS+=-G0 -O2
@@ -144,6 +145,8 @@ neg-hvx_nocoproc: hvx_nocoproc.o
 hvx_64b: hvx_64b.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
+hvx-multi.o: hvx-multi.c
+hvx-multi: hvx-multi.o hvx-multi-asm.o
 pendalot: pendalot.o
 vid-group: vid-group.o
 levelint: levelint.o
@@ -181,6 +184,8 @@ standalone_%: LDFLAGS+= -lc -lstandalone -mhvx -fvectorize
 standalone_vec.o: CFLAGS+= -mv69 -O2 -mhvx  -fvectorize
 hvx_nocoproc.o: CFLAGS+= -O2 -mhvx
 hvx_64b.o: CFLAGS+= -O2 -mhvx
+hvx-multi.o: CFLAGS+= -O2 -mhvx
+hvx-multi-asm.o: ASFLAGS+= -mhvx
 ieee_fp.o: CFLAGS += -mhvx -mhvx-length=128B -mhvx-ieee-fp
 hmx.o: CFLAGS+= -mhmx
 hmx_conv.o: CFLAGS+= -mhmx
