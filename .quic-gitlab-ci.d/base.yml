@@ -34,6 +34,7 @@ variables:
     make -j
   artifacts:
     paths: [ $BUILDDIR ]
+    expire_in: 1 day
 
 .base-install:
   script:
@@ -172,6 +173,7 @@ test_hexagon_perf:
   artifacts:
     when: always
     paths: [ "perf-results-default.json", "perf-results-mttcg.json" ]
+    expire_in: 4 days
 
 qqvp_trigger:
   extends: .base-trigger
