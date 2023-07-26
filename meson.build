@@ -760,8 +760,12 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
                      kwargs: static_kwargs)
-  virgl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
-                             dependencies: virgl)
+
+  if virgl.version().version_compare('>= 0.10.0')
+    message('Enabling virglrenderer unstable APIs')
+    virgl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                               dependencies: virgl)
+  endif
 
   config_host_data.set('HAVE_VIRGL_RESOURCE_BLOB',
                        cc.has_type('struct virgl_renderer_resource_create_blob_args',
