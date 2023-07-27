@@ -582,26 +582,12 @@ static int virgl_make_context_current(void *opaque, int scanout_idx,
                                    qctx);
 }
 
-#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
-static void *virgl_get_egl_display(void *opaque)
-{
-    return eglGetCurrentDisplay();
-}
-#endif
-
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
-#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
-    .version             = 4,
-#else
     .version = 1,
-#endif
     .write_fence         = virgl_write_fence,
     .create_gl_context   = virgl_create_context,
     .destroy_gl_context  = virgl_destroy_context,
     .make_current        = virgl_make_context_current,
-#ifdef HAVE_VIRGL_CBS_GET_EGL_DISPLAY
-    .get_egl_display     = virgl_get_egl_display,
-#endif
 };
 
 static void virtio_gpu_print_stats(void *opaque)
