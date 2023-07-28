@@ -109,6 +109,16 @@ void libqemu_cpu_reset(Object *obj)
     cpu_reset(CPU(obj));
 }
 
+static void libqemu_cpu_unhalted_async_job(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+    cpu->halted = 0;
+    cpu_resume(cpu);
+}
+/*
+ *  Sets halted=0 for 'unhalt' to handle processors started halted.
+ *  In all other cases, use the stop/resume mechanism, rather than 'halted'
+ */
 void libqemu_cpu_halt(Object *obj, bool halted)
 {
     CPUState *cpu = CPU(obj);
@@ -117,7 +127,11 @@ void libqemu_cpu_halt(Object *obj, bool halted)
         cpu->stop = true;
         qemu_cpu_kick(cpu);
     } else {
-        cpu_resume(cpu);
+        /*
+         * avoid race conditions on the 'halted' by ensuring the CPU
+         * is unhalted in async work
+         */
+        async_run_on_cpu(cpu, libqemu_cpu_unhalted_async_job, RUN_ON_CPU_NULL);
     }
 }
 
