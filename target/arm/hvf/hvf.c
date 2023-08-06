@@ -32,6 +32,11 @@
 #include "target/arm/gtimer.h"
 #include "trace/trace-target_arm_hvf.h"
 #include "migration/vmstate.h"
+#include "exec/cpu_ldst.h"
+
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
 
 #include "gdbstub/enums.h"
 
@@ -986,7 +991,14 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
     ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, &pfr);
     assert_hvf_ok(ret);
-    pfr |= env->gicv3state ? (1 << 24) : 0;
+    /*
+     * This code wont find the gicstate as the gic cant be realised before
+     * the CPU is realised.
+     * (In discussion with Alex Graff to find a good resolution)
+     * old code:
+     *     pfr |= env->gicv3state ? (1 << 24) : 0;
+     */
+    pfr |= (1 << 24);
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, pfr);
     assert_hvf_ok(ret);
 
@@ -1387,7 +1399,8 @@ static bool pmu_event_supported(uint16_t number)
     return false;
 }
 
-/* Returns true if the counter (pass 31 for PMCCNTR) should count events using
+/*
+ * Returns true if the counter (pass 31 for PMCCNTR) should count events using
  * the current EL, security state, and register configuration.
  */
 static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
@@ -1748,6 +1761,9 @@ static void hvf_wfi(CPUState *cpu)
 
     if (!(ctl & 1) || (ctl & 2)) {
         /* Timer disabled or masked, just wait for an IPI. */
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
         hvf_wait_for_ipi(cpu, NULL);
         return;
     }
@@ -1804,6 +1820,13 @@ static void hvf_sync_vtimer(CPUState *cpu)
     }
 }
 
+/*
+ * This global is used purly to enable local debug such that we can
+ * catch more easily instructions that we dont handle, without
+ * generating an infinite loop and a lot of trace. It should be removed
+ * once there is a more complete solution with the TCG.
+ */
+uint64_t last_exited_addr;
 int hvf_vcpu_exec(CPUState *cpu)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -1905,9 +1928,12 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t cm = (syndrome >> 8) & 0x1;
         uint64_t val = 0;
 
-        trace_hvf_data_abort(env->pc, hvf_exit->exception.virtual_address,
-                             hvf_exit->exception.physical_address, isv,
-                             iswrite, s1ptw, len, srt);
+        uint64_t pc;
+        hv_vcpu_get_reg(cpu->accel->fd, HV_REG_PC, &pc);
+
+        trace_hvf_data_abort(pc, hvf_exit->exception.virtual_address,
+                             hvf_exit->exception.physical_address, isv, iswrite,
+                             s1ptw, len, srt);
 
         if (cm) {
             /* We don't cache MMIO regions */
@@ -1915,15 +1941,78 @@ int hvf_vcpu_exec(CPUState *cpu)
             break;
         }
 
+        if (!isv) {
+            uint32_t ins;
+            CPUARMState *env = &arm_cpu->env;
+            cpu_memory_rw_debug(cpu, pc, &ins, 4, false);
+
+/*
+ * Here we handle instructions that cause invalid
+ * syndromes from the processor itself. Specifically we handle
+ * 32 and 64 bit LDR and STR with write back.
+ * A better patch would be to use the TCG to implement this
+ * However that requires major rework to enable a tcg context.
+ */
+            /* write back stores */
+            if ((ins & 0xbfe00c00) == 0xb8000400) {
+                uint32_t Rt = ins & 0x1f;
+                uint32_t Rn = (ins >> 5) & 0x1f;
+                uint32_t imm = (ins >> 12) & 0x1ff;
+
+                cpu_synchronize_state(cpu);
+                if (Rt == 0x1f) {
+                    uint64_t zero = 0;
+                    address_space_write(cpu->as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(zero),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+                } else {
+                    address_space_write(cpu->as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+                }
+                env->xregs[Rn] += imm;
+                advance_pc = true;
+                break;
+            }
+            /* write back loads */
+            if ((ins & 0xbfe00c00) == 0xb8400400) {
+                uint32_t Rt = ins & 0x1f;
+                uint32_t Rn = (ins >> 5) & 0x1f;
+                uint32_t imm = (ins >> 12) & 0x1ff;
+
+                cpu_synchronize_state(cpu);
+                address_space_read(cpu->as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+
+                env->xregs[Rn] += imm;
+                advance_pc = true;
+                break;
+            }
+            if (last_exited_addr == hvf_exit->exception.physical_address) {
+                error_report("0x%llx: unhandled data abort "
+                             "at 0x%llx (instruction: 0x%x)",
+                               env->pc,
+                               hvf_exit->exception.physical_address, ins);
+            } else {
+                /* use global address space to cause mapping for everyone */
+                address_space_read(&address_space_memory,
+                               hvf_exit->exception.physical_address,
+                               MEMTXATTRS_UNSPECIFIED, &val, 4);
+                last_exited_addr = hvf_exit->exception.physical_address;
+                break;
+            }
+        }
+
         assert(isv);
 
         if (iswrite) {
             val = hvf_get_reg(cpu, srt);
-            address_space_write(&address_space_memory,
+            address_space_write(cpu->as,
                                 hvf_exit->exception.physical_address,
                                 MEMTXATTRS_UNSPECIFIED, &val, len);
         } else {
-            address_space_read(&address_space_memory,
+            address_space_read(cpu->as,
                                hvf_exit->exception.physical_address,
                                MEMTXATTRS_UNSPECIFIED, &val, len);
             hvf_set_reg(cpu, srt, val);
@@ -1994,13 +2083,11 @@ int hvf_vcpu_exec(CPUState *cpu)
         }
         break;
     case EC_INSNABORT: {
-        uint32_t sas = (syndrome >> 22) & 3;
-        uint32_t len = 1 << sas;
         uint64_t val = 0;
 
         MemTxResult res = address_space_read(
             &address_space_memory, hvf_exit->exception.physical_address,
-            MEMTXATTRS_UNSPECIFIED, &val, len);
+            MEMTXATTRS_UNSPECIFIED, &val, 4);
         assert(res == MEMTX_OK);
         flush_cpu_state(cpu);
         break;
