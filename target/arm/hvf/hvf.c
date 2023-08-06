@@ -37,6 +37,11 @@
 #include "target/arm/trace.h"
 #include "trace.h"
 #include "migration/vmstate.h"
+#include "accel/tcg/cpu-ldst.h"
+
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
 
 #include "gdbstub/enums.h"
 
@@ -1338,7 +1343,14 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
     ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, &pfr);
     assert_hvf_ok(ret);
-    pfr |= env->gicv3state ? (1 << 24) : 0;
+    /*
+     * This code wont find the gicstate as the gic cant be realised before
+     * the CPU is realised.
+     * (In discussion with Alex Graff to find a good resolution)
+     * old code:
+     *     pfr |= env->gicv3state ? (1 << 24) : 0;
+     */
+    pfr |= (1 << 24);
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, pfr);
     assert_hvf_ok(ret);
 
@@ -1725,7 +1737,8 @@ static bool pmu_event_supported(uint16_t number)
     return false;
 }
 
-/* Returns true if the counter (pass 31 for PMCCNTR) should count events using
+/*
+ * Returns true if the counter (pass 31 for PMCCNTR) should count events using
  * the current EL, security state, and register configuration.
  */
 static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
@@ -2068,6 +2081,14 @@ static void hvf_sync_vtimer(CPUState *cpu)
     }
 }
 
+/*
+ * This global is used purly to enable local debug such that we can
+ * catch more easily instructions that we dont handle, without
+ * generating an infinite loop and a lot of trace. It should be removed
+ * once there is a more complete solution with the TCG.
+ */
+uint64_t last_exited_addr;
+
 static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
 {
     CPUARMState *env = cpu_env(cpu);
@@ -2168,6 +2189,68 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
             }
         }
 
+        if (!isv) {
+            uint32_t ins;
+            CPUARMState *env = &arm_cpu->env;
+            cpu_memory_rw_debug(cpu, env->pc, &ins, 4, false);
+
+            /*
+             * Here we handle instructions that cause invalid
+             * syndromes from the processor itself. Specifically we handle
+             * 32 and 64 bit LDR and STR with write back.
+             * A better patch would be to use the TCG to implement this
+             * However that requires major rework to enable a tcg context.
+             */
+            /* write back stores */
+            if ((ins & 0xbfe00c00) == 0xb8000400) {
+                uint32_t Rt = ins & 0x1f;
+                uint32_t Rn = (ins >> 5) & 0x1f;
+                uint32_t imm = (ins >> 12) & 0x1ff;
+
+                cpu_synchronize_state(cpu);
+                if (Rt == 0x1f) {
+                    uint64_t zero = 0;
+                    address_space_write(as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(zero),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+                } else {
+                    address_space_write(as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+                }
+                env->xregs[Rn] += imm;
+                advance_pc = true;
+                break;
+            }
+            /* write back loads */
+            if ((ins & 0xbfe00c00) == 0xb8400400) {
+                uint32_t Rt = ins & 0x1f;
+                uint32_t Rn = (ins >> 5) & 0x1f;
+                uint32_t imm = (ins >> 12) & 0x1ff;
+
+                cpu_synchronize_state(cpu);
+                address_space_read(as, env->xregs[Rn],
+                                    MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
+                                    (ins & 0x40000000) ? 0x8 : 0x4);
+
+                env->xregs[Rn] += imm;
+                advance_pc = true;
+                break;
+            }
+            if (last_exited_addr == ipa) {
+                error_report("0x%llx: unhandled data abort "
+                             "at 0x%llx (instruction: 0x%x)",
+                               env->pc, (unsigned long long)ipa, ins);
+            } else {
+                /* use global address space to cause mapping for everyone */
+                address_space_read(&address_space_memory,
+                               ipa,
+                               MEMTXATTRS_UNSPECIFIED, &val, 4);
+                last_exited_addr = ipa;
+                break;
+            }
+        }
+
         /*
          * TODO: If s1ptw, this is an error in the guest os page tables.
          * Inject the exception into the guest.
@@ -2263,13 +2346,11 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         }
         break;
     case EC_INSNABORT: {
-        uint32_t sas = (syndrome >> 22) & 3;
-        uint32_t len = 1 << sas;
         uint64_t val = 0;
 
         MemTxResult res = address_space_read(
             &address_space_memory, hvf_exit->exception.physical_address,
-            MEMTXATTRS_UNSPECIFIED, &val, len);
+            MEMTXATTRS_UNSPECIFIED, &val, 4);
         assert(res == MEMTX_OK);
         flush_cpu_state(cpu);
         break;
