@@ -765,10 +765,6 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     }
 
     if (old_XA != new_XA) {
-        if (unlikely((new_XA & 0x4) != 0x4)) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "invalid SSR:XA, bit 2 not set\n");
-        }
         int old_unit = parse_context_idx(env, old_XA);
         int new_unit = parse_context_idx(env, new_XA);
         trace_hexagon_ssr_xa(env->threadId, old_XA, new_XA);
