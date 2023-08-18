@@ -375,9 +375,6 @@ static MemTxResult hex_timer_write(void *opaque,
             if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
                 return MEMTX_ACCESS_ERROR;
             }
-
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: QCT_QTIMER_CNTP_CVAL_HI is read-only\n", __func__);
             break;
         case (QCT_QTIMER_CNTP_CTL): /* Timer control register */
             HEX_TIMER_LOG("\tctl write: %" PRIu64 "\n", value);

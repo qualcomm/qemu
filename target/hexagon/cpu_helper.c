@@ -668,10 +668,6 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     }
 
     if (old_XA != new_XA) {
-        if (unlikely((new_XA & 0x4) != 0x4)) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "invalid SSR:XA, bit 2 not set\n");
-        }
         /* SSR:XA bit 2 is presumed to be 1 for HVX */
         int old_unit = old_XA & 0x3;
         int new_unit = new_XA & 0x3;
