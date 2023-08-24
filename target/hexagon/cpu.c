@@ -509,7 +509,22 @@ static void hexagon_cpu_reset_hold(Object *obj)
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     hmx_reset(env->processor_ptr, env);
 
+    memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
+    memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
+    memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
+    memset(env->QRegs, 0, sizeof(MMQReg) * NUM_QREGS);
+    memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
     env->t_packet_count = 0;
+    env->cpu_memop_pc_set = false;
+    env->vtcm_pending = false;
+
+#ifndef CONFIG_USER_ONLY
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+    env->pmu.num_packets = 0;
+    env->pmu.hvx_packets = 0;
+#endif
+
 
 #ifndef CONFIG_USER_ONLY
     clear_wait_mode(env);
