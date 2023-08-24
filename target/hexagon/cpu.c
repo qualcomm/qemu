@@ -636,6 +636,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         hmx_configure_state(env);
         hex_mmu_init(env);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_EVB, 0x0);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_LIVELOCK, 0x0);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
                             HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_REV, cpu->rev_reg);
