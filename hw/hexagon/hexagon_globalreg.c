@@ -269,6 +269,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     s->g_pcycle_base = 0;
 
     s->regs[HEX_SREG_EVB] = s->boot_evb;
+    s->regs[HEX_SREG_LIVELOCK] = 0;
     s->regs[HEX_SREG_CFGBASE] = HEXAGON_CFG_ADDR_BASE(s->config_table_addr);
     s->regs[HEX_SREG_REV] = s->dsp_rev;
 
