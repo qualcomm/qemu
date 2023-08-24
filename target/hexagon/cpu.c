@@ -486,7 +486,7 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
 void hexagon_cpu_soft_reset(CPUHexagonState *env)
 {
     ARCH_SET_SYSTEM_REG(env, HEX_SREG_SSR, 0);
-    hexagon_ssr_set_cause(env, 0);
+    hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
     target_ulong evb = ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB);
     ARCH_SET_THREAD_REG(env, HEX_REG_PC, evb);
