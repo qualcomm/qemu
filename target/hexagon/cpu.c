@@ -605,6 +605,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         memset(env->pmu.g_events, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_EVB, cpu->boot_evb);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_LIVELOCK, 0x0);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
                             HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_REV, cpu->rev_reg);
