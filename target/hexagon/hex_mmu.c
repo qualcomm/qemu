@@ -235,9 +235,29 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
     hex_log_tlbw(myidx, value);
 }
 
-void hex_mmu_init(CPUHexagonState *env)
+void hex_mmu_realize(CPUHexagonState *env)
 {
-    env->hex_tlb = g_malloc0(sizeof(CPUHexagonTLBContext));
+    CPUState *cs = env_cpu(env);
+    if (cs->cpu_index == 0) {
+        env->hex_tlb = g_malloc0(sizeof(CPUHexagonTLBContext));
+    } else {
+        CPUState *cpu0_s = NULL;
+        CPUHexagonState *env0 = NULL;
+        CPU_FOREACH (cpu0_s) {
+            assert(cpu0_s->cpu_index == 0);
+            env0 = &(HEXAGON_CPU(cpu0_s)->env);
+            break;
+        }
+        env->hex_tlb = env0->hex_tlb;
+    }
+}
+
+void hex_mmu_reset(CPUHexagonState *env)
+{
+    CPUState *cs = env_cpu(env);
+    if (cs->cpu_index == 0) {
+        memset(env->hex_tlb, 0, sizeof(CPUHexagonTLBContext));
+    }
 }
 
 void hex_mmu_on(CPUHexagonState *env)
