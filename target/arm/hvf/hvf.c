@@ -1012,7 +1012,19 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
 void hvf_kick_vcpu_thread(CPUState *cpu)
 {
-    cpus_kick_thread(cpu);
+/*
+ * Considering thread_kicked is a race condition we replicate the
+ * cpu_kick_thread function here, but without the check for thread_kicked
+ */
+#ifndef _WIN32
+    int err = pthread_kill(cpu->thread->thread, SIG_IPI);
+    if (err && err != ESRCH) {
+        fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
+        exit(1);
+    }
+#else
+    qemu_sem_post(&cpu->sem);
+#endif
     hv_vcpus_exit(&cpu->accel->fd, 1);
 }
 
@@ -1869,7 +1881,8 @@ int hvf_vcpu_exec(CPUState *cpu)
         /* we got kicked, no exit to process */
         return 0;
     default:
-        g_assert_not_reached();
+        /* some unknown reason, treat as a kick dont g_assert_not_reached(); */
+        return 0;
     }
 
     hvf_sync_vtimer(cpu);
