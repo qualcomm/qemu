@@ -150,6 +150,16 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
         func(cpu, data);
         return;
     }
+#ifdef CONFIG_LIBQEMU
+    /*
+     * In the case that this is executing on the SystemC thread, while the CPU
+     * thread is blocked, we allow the function to complete on this thread.
+     */
+    if (current_cpu == cpu && !cpu->coroutine_yield_info.io_info.done) {
+        func(cpu, data);
+        return;
+    }
+#endif
 
     wi.func = func;
     wi.data = data;
