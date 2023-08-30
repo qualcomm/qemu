@@ -2210,11 +2210,11 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 cpu_synchronize_state(cpu);
                 if (Rt == 0x1f) {
                     uint64_t zero = 0;
-                    address_space_write(as, env->xregs[Rn],
+                    address_space_write(as, ipa,
                                     MEMTXATTRS_UNSPECIFIED, &(zero),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
                 } else {
-                    address_space_write(as, env->xregs[Rn],
+                    address_space_write(as, ipa,
                                     MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
                 }
@@ -2229,7 +2229,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 uint32_t imm = (ins >> 12) & 0x1ff;
 
                 cpu_synchronize_state(cpu);
-                address_space_read(as, env->xregs[Rn],
+                address_space_read(as, ipa,
                                     MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
 
