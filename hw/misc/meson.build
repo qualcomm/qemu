@@ -181,3 +181,6 @@ system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-qdsp6-gdscr.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-qdsp6-cc-swi.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-lmh.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-rsc.c'))
+
+# libqbox devices
+system_ss.add(files('reset_to_gpio.c'))
