@@ -1975,11 +1975,11 @@ int hvf_vcpu_exec(CPUState *cpu)
                 cpu_synchronize_state(cpu);
                 if (Rt == 0x1f) {
                     uint64_t zero = 0;
-                    address_space_write(cpu->as, env->xregs[Rn],
+                    address_space_write(cpu->as, hvf_exit->exception.physical_address,
                                     MEMTXATTRS_UNSPECIFIED, &(zero),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
                 } else {
-                    address_space_write(cpu->as, env->xregs[Rn],
+                    address_space_write(cpu->as, hvf_exit->exception.physical_address,
                                     MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
                 }
@@ -1994,7 +1994,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 uint32_t imm = (ins >> 12) & 0x1ff;
 
                 cpu_synchronize_state(cpu);
-                address_space_read(cpu->as, env->xregs[Rn],
+                address_space_read(cpu->as, hvf_exit->exception.physical_address,
                                     MEMTXATTRS_UNSPECIFIED, &(env->xregs[Rt]),
                                     (ins & 0x40000000) ? 0x8 : 0x4);
 
