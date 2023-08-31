@@ -27,35 +27,42 @@ variables:
 .base-build:
   variables: {BUILDDIR: $CI_JOB_NAME}
   script:
-    mkdir $BUILDDIR &&
-    cd $BUILDDIR &&
-    echo "Configuring with '$CONFIG_CMD'" &&
-    eval $CONFIG_CMD &&
-    make -j
+    - |
+      mkdir $BUILDDIR
+      cd $BUILDDIR
+      echo "Configuring with '$CONFIG_CMD'"
+      eval $CONFIG_CMD
+      make -j
   artifacts:
     paths: [ $BUILDDIR ]
     expire_in: 1 day
 
 .base-install:
   script:
-    builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build" &&
-    cd $builddir &&
-    sleep 1 && touch -c config-host.mak meson.stamp build.ninja.stamp &&
-    make install
+    - |
+      builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build"
+      cd $builddir
+      sleep 1
+      touch -c config-host.mak meson.stamp build.ninja.stamp
+      make install
 
 .base-check-tcg:
   script:
-    builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build" &&
-    cd $builddir &&
-    sleep 1 && touch -c config-host.mak meson.stamp build.ninja.stamp &&
-    make check-tcg V=1 LSAN_OPTIONS=detect_leaks=0
+    - |
+      builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build"
+      cd $builddir
+      sleep 1
+      touch -c config-host.mak meson.stamp build.ninja.stamp
+      make check-tcg V=1 LSAN_OPTIONS=detect_leaks=0
 
 .base-check:
   script:
-    builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build" &&
-    cd $builddir &&
-    sleep 1 && touch -c config-host.mak meson.stamp build.ninja.stamp &&
-    make check
+    - |
+      builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build"
+      cd $builddir
+      sleep 1
+      touch -c config-host.mak meson.stamp build.ninja.stamp
+      make check
 
 ##################################################################
 #    Jobs
