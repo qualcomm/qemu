@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-find_package(PythonInterp REQUIRED)
+find_package(Python COMPONENTS Interpreter REQUIRED)
 
 set(QEMU_CONF_ARGS
     --disable-debug-tcg
