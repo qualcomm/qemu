@@ -11,7 +11,7 @@ QEMU-hexagon 8.0.50.0 Release Notes
 The user guide for QEMU-hexagon is published in CreatePoint: Qualcomm®
 Hexagon QEMU (80-N2040-52).
 
-In this release: support for Hexagon arch v75, HVX, DMA, HMX.
+In this release: support for Hexagon arch v75, HVX, DMA, COPROC.
 
 MTTCG mode enables concurrent usage of host cores for each guest Hexagon
 vCPU thread.  Turn this mode on using `-accel tcg,thread=multi`.

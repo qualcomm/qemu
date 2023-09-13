@@ -573,7 +573,7 @@ int sys_in_user_mode(CPUHexagonState *env)
     return sys_in_user_mode_ssr(ssr);
 }
 
-static bool sys_hmx_active(CPUHexagonState *env)
+static bool sys_coproc_active(CPUHexagonState *env)
 {
     uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
     return (GET_SSR_FIELD(SSR_XE2, ssr) == 1);
@@ -740,7 +740,7 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         CPU_FOREACH(cs) {
             HexagonCPU *cpu = HEXAGON_CPU(cs);
             CPUHexagonState *env_ = &cpu->env;
-            if (sys_hmx_active(env_)) {
+            if (sys_coproc_active(env_)) {
                 xe2max++;
             }
         }

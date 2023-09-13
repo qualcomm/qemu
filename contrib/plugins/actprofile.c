@@ -46,7 +46,7 @@ static const char *get_tb_type_name(InstType inst_type) {
     case HEXAGON_SCALAR: return "scalar";
     case HEXAGON_BUS: return "bus";
     case HEXAGON_VEC: return "HVX";
-    case HEXAGON_MATRIX: return "HMX";
+    case HEXAGON_MATRIX: return "COPROC";
     case HEXAGON_SUPER: return "superuser";
     }
     g_assert_not_reached();
@@ -164,7 +164,7 @@ static InstType get_inst_type(struct qemu_plugin_insn *inst)
 
     uint32_t itype = ITYPE_MASK & opcode;
 
-    /* TODO: pluck out HMX from ST/LD_MISC, SUPER from various */
+    /* TODO: pluck out COPROC from ST/LD_MISC, SUPER from various */
 
     switch (itype) {
         case ITYPE_HVX:
