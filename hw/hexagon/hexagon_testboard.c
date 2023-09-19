@@ -50,39 +50,7 @@ static bool syscfg_is_linux;
 
 /* Board init.  */
 static struct hexagon_board_boot_info hexagon_binfo;
-static int ELF_FLAG_ARCH_MASK = 0x0ff;
 
-static GString *get_exe_dir(GString *exe_dir)
-{
-#ifdef __linux__
-    char exe_name[1024];
-    ssize_t exe_length;
-
-    exe_length = readlink("/proc/self/exe", exe_name, sizeof(exe_name));
-    if (exe_length == -1) {
-        return NULL;
-    }
-    exe_name[exe_length] = '\0';
-
-    gchar *dir_name = g_path_get_dirname(exe_name);
-    g_string_assign(exe_dir, dir_name);
-    free(dir_name);
-    return exe_dir;
-#elif __APPLE__
-    char buf[1024];
-    uint32_t size = sizeof(buf);
-    if (_NSGetExecutablePath(buf, &size) != 0) {
-        return NULL;
-    }
-
-    gchar *dir_name = g_path_get_dirname(buf);
-    g_string_assign(exe_dir, dir_name);
-    free(dir_name);
-    return exe_dir;
-#else
-#error "No host implementation for get_exe_dir() provided"
-#endif
-}
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
 static void hex_symbol_callback(const char *st_name, int st_info,
@@ -136,19 +104,6 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
     }
 }
 
-static gchar *hexagon_get_usefs_path(void)
-{
-    /* $exe_dir/../target/hexagon/lib/v$exe_elf_machine_flags/G0/pic/ */
-    GString *lib_search_dir = g_string_new("");
-    GString *exe_dir_str = g_string_new("");
-    exe_dir_str = get_exe_dir(exe_dir_str);
-    gchar *exe_dir = g_string_free(exe_dir_str, false);
-    g_string_printf(lib_search_dir,
-            "%s/../target/hexagon/lib/v%x/G0/pic", exe_dir,
-            (hexagon_binfo.kernel_elf_flags & ELF_FLAG_ARCH_MASK));
-    g_free(exe_dir);
-    return g_string_free(lib_search_dir, false);
-}
 #define SHMEM_VTCM "hexagon_vtcm"
 
 static void *vtcm_addr;
@@ -285,9 +240,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
         env->memfd_fd = memfd_fd;
         if (i == 0) {
             hexagon_init_bootstrap(machine, cpu);
-            if (!cpu->usefs) {
-                cpu->usefs = hexagon_get_usefs_path();
-            }
             cpu_0 = cpu;
 
             GString *argv = g_string_new(machine->kernel_filename);
