@@ -109,9 +109,9 @@ void libqemu_cpu_reset(Object *obj)
     cpu_reset(CPU(obj));
 }
 
-static void libqemu_cpu_unhalted_async_job(Object *obj)
+static void libqemu_cpu_unhalted_async_job(struct CPUState *cpu_, run_on_cpu_data)
 {
-    CPUState *cpu = CPU(obj);
+    CPUState *cpu = CPU(cpu_);
     cpu->halted = 0;
     cpu_resume(cpu);
 }
