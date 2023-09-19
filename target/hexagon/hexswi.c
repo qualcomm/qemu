@@ -42,7 +42,11 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define SYS_OPEN            0x01
+/*
+ * TODO: the trailing underscore is needed to avoid clashing with win32 symbols.
+ * We should probably rename all these to HEX_SYS_* instead.
+ */
+#define SYS_OPEN_           0x01
 #define SYS_CLOSE           0x02
 #define SYS_WRITEC          0x03
 #define SYS_WRITE0          0x04
@@ -99,7 +103,9 @@
 #define SYS_EXEC            0x185
 #define SYS_FTRUNC          0x186
 
+#ifndef _WIN32
 static const int DIR_INDEX_OFFSET = 0x0b000;
+#endif
 
 static int MapError(int ERR)
 {
@@ -308,7 +314,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     }
     break;
 
-    case SYS_OPEN:
+    case SYS_OPEN_:
     {
         char filename[BUFSIZ];
         target_ulong physicalFilenameAddr;
@@ -613,6 +619,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     break;
 
     case SYS_OPENDIR:
+#ifndef _WIN32
     {
         DIR *dir;
         char buf[BUFSIZ];
@@ -634,7 +641,15 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         ARCH_SET_THREAD_REG(env, HEX_REG_R00, dir_index);
         break;
     }
+#else
+    {
+        /* TODO: implement angel calls for Windows */
+        qemu_log_mask(LOG_UNIMP, "opendir() angel call not implemented\n");
+        break;
+    }
+#endif
     case SYS_READDIR:
+#ifndef _WIN32
     {
         DIR *dir;
         struct dirent *host_dir_entry = NULL;
@@ -671,8 +686,15 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
         break;
     }
-    break;
+#else
+    {
+        /* TODO: implement angel calls for Windows */
+        qemu_log_mask(LOG_UNIMP, "readdir() angel call not implemented\n");
+        break;
+    }
+#endif
     case SYS_CLOSEDIR:
+#ifndef _WIN32
     {
         DIR *dir;
         int ret = 0;
@@ -688,6 +710,13 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         ARCH_SET_THREAD_REG(env, HEX_REG_R00, ret);
         break;
     }
+#else
+    {
+        /* TODO: implement angel calls for Windows */
+        qemu_log_mask(LOG_UNIMP, "closedir() angel call not implemented\n");
+        break;
+    }
+#endif
 
     case SYS_COREDUMP:
       printf("CRASH!\n");
