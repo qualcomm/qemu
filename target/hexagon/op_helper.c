@@ -259,7 +259,7 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
             }
             int size = env->vstore[i].size;
 
-            u_int8_t *host = probe_contiguous(env, va, size, MMU_DATA_STORE,
+            uint8_t *host = probe_contiguous(env, va, size, MMU_DATA_STORE,
                                               CPU_MMU_INDEX(env), ra);
             if (likely(host)) {
                 for (int j = 0; j < size; j++) {
