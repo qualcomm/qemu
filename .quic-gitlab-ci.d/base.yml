@@ -223,13 +223,13 @@ no-idef-parser-hexagon_install:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 no-idef-parser-hexagon_check-tcg:
-  needs: [no-idef-parser-hexagon_build]
+  needs: [no-idef-parser-hexagon_build, coproc_build]
   extends: .base-check-tcg
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 no-idef-parser-hexagon_check:
-  needs: [no-idef-parser-hexagon_build]
+  needs: [no-idef-parser-hexagon_build, coproc_build]
   extends: .base-check
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
