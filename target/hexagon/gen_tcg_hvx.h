@@ -41,7 +41,7 @@ static inline bool vhist_tmp_valid(DisasContext *ctx)
     /* vhist instructions require exactly one .tmp to be defined */
     if (ctx->tmp_vregs_idx != 1) {
         qemu_log_mask(LOG_GUEST_ERROR,
-            "A vhist packet requires exactlty one .tmp be defined: PC 0x%lx\n",
+            "A vhist packet requires exactly one .tmp be defined: PC 0x%"VADDR_PRIX"\n",
             ctx->base.tb->pc);
         return false;
     }
