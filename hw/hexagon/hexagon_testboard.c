@@ -39,8 +39,6 @@
 #include "target/hexagon/internal.h"
 #include "libgen.h"
 
-#include <fcntl.h>
-#include <sys/mman.h>
 #include "machine_configs.h.inc"
 
 static hexagon_config_table *cfgTable;
@@ -113,7 +111,7 @@ static void vtcm_exit_handler(void)
 
 {
     if (vtcm_addr) {
-        #if defined(__APPLE__)
+        #if defined(__APPLE__) || defined(_WIN32)
         g_free(vtcm_addr);
         #else
         munmap(vtcm_addr, vtcm_size);
@@ -126,7 +124,7 @@ static int memfd_fd = -1;
 static void *setup_shared_vtcm(uint64_t vtcm_size)
 
 {
-    #if defined(__APPLE__)
+    #if defined(__APPLE__) || defined(_WIN32)
     void *addr = g_malloc0(vtcm_size);
     #else
     GString *s = g_string_new(NULL);
