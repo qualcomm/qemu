@@ -52,6 +52,7 @@ variables:
   HEX_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $HEX_CONFIG_OPTS --target-list=hexagon-softmmu,hexagon-linux-user
   AARCH64_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $AARCH64_CONFIG_OPTS --target-list=aarch64-softmmu,aarch64-linux-user
   HEX_MAC_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --disable-strip --disable-pie --disable-virglrenderer --disable-opengl --target-list=hexagon-softmmu
+  HEX_WIN_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --without-default-features --cross-prefix=x86_64-w64-mingw32- --target-list=hexagon-softmmu
 
   GITLAB_URL: echo "$CI_SERVER_URL" | sed -e 's/^.*:\/\///g' -e 's/:[0-9]*$//g'
 
@@ -107,8 +108,9 @@ coproc_build:
 
 .base-tarball:
   variables:
+    TARBALL_PREFIX: ""
     TARBALL_SUFFIX: "_${CI_COMMIT_REF_NAME}_local"
-    TARBALL_NAME: ${CI_PROJECT_NAME}${TARBALL_SUFFIX}.tgz
+    TARBALL_NAME: ${TARBALL_PREFIX}${CI_PROJECT_NAME}${TARBALL_SUFFIX}.tgz
   script:
     - |
       installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
@@ -182,6 +184,21 @@ hexagon_check:
 hexagon_qurt-tests:
   extends: .base-qurt-tests
   needs: [hexagon_build, coproc_build]
+
+hexagon-win_build:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
+  extends: .base-build
+  variables: { CONFIG_CMD: $HEX_WIN_CONFIG_CMD }
+hexagon-win_install:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
+  needs: [hexagon-win_build]
+  extends: .base-install
+hexagon-win_tarball:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
+  needs: [hexagon-win_install]
+  extends: .base-tarball
+  variables:
+    TARBALL_PREFIX: "windows-x86_64-"
 
 hexagon-mac_build:
   tags:
