@@ -319,21 +319,23 @@ hexagon_ss.add(analyze_funcs_generated)
 #)
 #hexagon_ss.add(coproc_cases_generated)
 
-rpclib_dir = 'subprojects/rpclib'
-cmake = import('cmake')
-cmake_opts = cmake.subproject_options()
-cmake_opts.append_compile_args('cpp', ['-Wno-class-memaccess', '-Wno-unused-but-set-variable'] + qemu_cflags)
-rpclib_proj = cmake.subproject('rpclib', options:cmake_opts)
-rpclib_dep = rpclib_proj.dependency('rpc')
-hexagon_ss.add(rpclib_dep)
+if targetos != 'windows'
+  rpclib_dir = 'subprojects/rpclib'
+  cmake = import('cmake')
+  cmake_opts = cmake.subproject_options()
+  cmake_opts.append_compile_args('cpp', ['-Wno-class-memaccess', '-Wno-unused-but-set-variable'] + qemu_cflags)
+  rpclib_proj = cmake.subproject('rpclib', options:cmake_opts)
+  rpclib_dep = rpclib_proj.dependency('rpc')
+  hexagon_ss.add(rpclib_dep)
 
-rpclib = 'rpc'
-rpclib_dir_abs_lib = meson.project_build_root() / rpclib_dir
-rpclib_dir_inc = include_directories('../../'+rpclib_dir / 'include')
-rpclib_dep = declare_dependency(
-    link_args : ['-L' + rpclib_dir_abs_lib, '-l' + rpclib] + qemu_ldflags,
-    include_directories : rpclib_dir_inc)
-coproc_rpc = static_library('coproc_rpc', 'coproc_rpc.cpp',dependencies : [rpclib_dep])
+  rpclib = 'rpc'
+  rpclib_dir_abs_lib = meson.project_build_root() / rpclib_dir
+  rpclib_dir_inc = include_directories('../../'+rpclib_dir / 'include')
+  rpclib_dep = declare_dependency(
+      link_args : ['-L' + rpclib_dir_abs_lib, '-l' + rpclib] + qemu_ldflags,
+      include_directories : rpclib_dir_inc)
+  coproc_rpc = static_library('coproc_rpc', 'coproc_rpc.cpp',dependencies : [rpclib_dep])
+endif
 
 target_arch += {'hexagon': hexagon_ss}
 target_softmmu_arch += {'hexagon': hexagon_softmmu_ss}

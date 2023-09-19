@@ -727,7 +727,7 @@ static struct ProcessorState ProcessorStateV68 = {
     .timing_on = 0,
 };
 
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) && !defined(_WIN32)
 #define COPROC_ENV_VAR "QEMU_HEXAGON_COPROC"
 static const char *get_coproc_env_path(void)
 
@@ -830,6 +830,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
+#if !defined(_WIN32)
         const char *coproc_path = get_coproc_path(env);
         if (coproc_path) {
             if (ATOMIC_LOAD(hexagon_coproc_available) == true) {
@@ -839,6 +840,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
             }
             g_free((void *)coproc_path);
         }
+#endif
 
         CoprocArgs args = {0};
         args.opcode = COPROC_INIT;

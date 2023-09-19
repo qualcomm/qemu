@@ -15,7 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) && !defined(_WIN32)
 
 #pragma GCC diagnostic ignored "-Wundef"
 #if !defined(__clang__)

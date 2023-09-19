@@ -3839,7 +3839,7 @@ foreach target : target_dirs
     endif
 
     libs_to_link = []
-    if target_name == 'hexagon'
+    if target_name == 'hexagon' and targetos != 'windows'
       libs_to_link = [coproc_rpc]
     endif
 
