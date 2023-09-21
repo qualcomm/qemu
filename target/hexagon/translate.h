@@ -38,7 +38,7 @@ typedef struct DisasContext {
     uint32_t num_hvx_insns;
     uint32_t num_coproc_insns;
 
-#ifndef CONFIG_USER_ONLY 
+#ifndef CONFIG_USER_ONLY
     /* Used for PMU counters. */
     uint32_t pmu_num_packets;
     uint32_t pmu_hvx_packets;
@@ -70,6 +70,7 @@ typedef struct DisasContext {
     bool pmu_enabled;
     TCGv t_sreg_new_value[NUM_SREGS];
     TCGv greg_new_value[NUM_GREGS];
+    uint32_t num_coproc_instance;
 #endif
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;

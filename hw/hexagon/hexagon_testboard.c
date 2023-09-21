@@ -41,8 +41,6 @@
 
 #include "machine_configs.h.inc"
 
-static hexagon_config_table *cfgTable;
-static hexagon_config_extensions *cfgExtensions;
 static bool syscfg_is_linux;
 
 
@@ -105,7 +103,9 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
 #define SHMEM_VTCM "hexagon_vtcm"
 
 static void *vtcm_addr;
-uint64_t vtcm_size;
+static uint64_t vtcm_size;
+static int memfd_fd = -1;
+volatile int hexagon_coproc_available; /* set/used by multipole threads */
 
 static void vtcm_exit_handler(void)
 
@@ -114,19 +114,20 @@ static void vtcm_exit_handler(void)
         #if defined(__APPLE__) || defined(_WIN32)
         g_free(vtcm_addr);
         #else
-        munmap(vtcm_addr, vtcm_size);
+        if (memfd_fd == -1) {
+            /* num_coproc_instance must have been 0 */
+            g_free(vtcm_addr);
+        } else {
+             munmap(vtcm_addr, vtcm_size);
+        }
         #endif
     }
 }
 
-volatile int hexagon_coproc_available; /* set/used by multipole threads */
-static int memfd_fd = -1;
+#if !defined(__APPLE__) && !defined(_WIN32)
 static void *setup_shared_vtcm(uint64_t vtcm_size)
 
 {
-    #if defined(__APPLE__) || defined(_WIN32)
-    void *addr = g_malloc0(vtcm_size);
-    #else
     GString *s = g_string_new(NULL);
 
     g_string_printf(s, "%s_%u", SHMEM_VTCM, getpid());
@@ -152,15 +153,38 @@ static void *setup_shared_vtcm(uint64_t vtcm_size)
         g_free(shm_name);
         exit(1);
     }
-    ATOMIC_STORE(hexagon_coproc_available, true);
     g_free(shm_name);
+    atexit(vtcm_exit_handler);
+
+    return addr;
+}
+#endif
+
+static void *setup_vtcm(uint64_t vtcm_size,
+    unsigned num_coproc_instance)
+
+{
+    void *addr;
+
+    #if defined(__APPLE__) || defined(_WIN32)
+    addr = g_malloc0(vtcm_size);
+    ATOMIC_STORE(hexagon_coproc_available, false);
+    #else
+    if (!num_coproc_instance) {
+        addr = g_malloc0(vtcm_size);
+        ATOMIC_STORE(hexagon_coproc_available, false);
+    } else {
+        addr = setup_shared_vtcm(vtcm_size);
+        ATOMIC_STORE(hexagon_coproc_available, true);
+    }
     #endif
     atexit(vtcm_exit_handler);
 
     return addr;
 }
 
-static void hexagon_common_init(MachineState *machine, Rev_t rev)
+static void hexagon_common_init(MachineState *machine, Rev_t rev,
+    hexagon_config_table *cfgTable, hexagon_config_extensions *cfgExtensions)
 {
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     if (machine->kernel_filename) {
@@ -185,7 +209,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
 
     MemoryRegion *vtcm = g_new(MemoryRegion, 1);
     vtcm_size = cfgTable->vtcm_size_kb * 1024;
-    vtcm_addr = setup_shared_vtcm(vtcm_size);
+    vtcm_addr = setup_vtcm(vtcm_size, (cfgTable->coproc2_reg0) ? 1 : 0);
 
     memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size, vtcm_addr);
     memory_region_add_subregion(address_space, cfgTable->vtcm_base, vtcm);
@@ -229,6 +253,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
          * explicitly enabled via start instruction.
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
+        qdev_prop_set_uint32(DEVICE(cpu), "num-coproc-instance",
+            (cfgTable->coproc2_reg0) ? 1 : 0);
 
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);
@@ -317,9 +343,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev)
 
 static void v66g_1024_config_init(MachineState *machine)
 {
-    cfgTable = &v66g_1024_cfgtable;
-    cfgExtensions = &v66g_1024_extensions;
-    hexagon_common_init(machine, v66_rev);
+    hexagon_common_init(machine, v66_rev, &v66g_1024_cfgtable,
+        &v66g_1024_extensions);
 }
 
 static void v66g_1024_init(ObjectClass *oc, void *data)
@@ -356,9 +381,8 @@ static void v66g_linux_init(ObjectClass *oc, void *data)
 static void v68n_1024_config_init(MachineState *machine)
 
 {
-    cfgTable = &v68n_1024_cfgtable;
-    cfgExtensions = &v68n_1024_extensions;
-    hexagon_common_init(machine, v68_rev);
+    hexagon_common_init(machine, v68_rev, &v68n_1024_cfgtable,
+        &v68n_1024_extensions);
 }
 
 static void v68n_1024_init(ObjectClass *oc, void *data)
@@ -396,9 +420,8 @@ static void v68g_h2_init(ObjectClass *oc, void *data)
 
 static void v69na_1024_config_init(MachineState *machine)
 {
-    cfgTable = &v69na_1024_cfgtable;
-    cfgExtensions = &v69na_1024_extensions;
-    hexagon_common_init(machine, v69_rev);
+    hexagon_common_init(machine, v69_rev, &v69na_1024_cfgtable,
+        &v69na_1024_extensions);
 }
 
 static void v69na_1024_init(ObjectClass *oc, void *data)
@@ -417,16 +440,14 @@ static void v69na_1024_init(ObjectClass *oc, void *data)
 
 static void v73na_1024_config_init(MachineState *machine)
 {
-    cfgTable = &v73na_1024_cfgtable;
-    cfgExtensions = &v73na_1024_extensions;
-    hexagon_common_init(machine, v73_rev);
+    hexagon_common_init(machine, v73_rev, &v73na_1024_cfgtable,
+        &v73na_1024_extensions);
 }
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    cfgTable = &SA8775P_cdsp0_cfgtable;
-    cfgExtensions = &SA8775P_cdsp0_extensions;
-    hexagon_common_init(machine, v73_rev);
+    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0_cfgtable,
+        &SA8775P_cdsp0_extensions);
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
@@ -445,9 +466,8 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
 
 static void SA8540P_cdsp0_config_init(MachineState *machine)
 {
-    cfgTable = &SA8540P_cdsp0_cfgtable;
-    cfgExtensions = &SA8540P_cdsp0_extensions;
-    hexagon_common_init(machine, v68_rev);
+    hexagon_common_init(machine, v68_rev, &SA8540P_cdsp0_cfgtable,
+        &SA8540P_cdsp0_extensions);
 }
 
 static void SA8540P_cdsp0_init(ObjectClass *oc, void *data)
@@ -501,9 +521,14 @@ static void v73na_1024_init(ObjectClass *oc, void *data)
 
 static void v75na_1024_config_init(MachineState *machine)
 {
-    cfgTable = &v75na_1024_cfgtable;
-    cfgExtensions = &v75na_1024_extensions;
-    hexagon_common_init(machine, v75_rev);
+    hexagon_common_init(machine, v75_rev, &v75na_1024_cfgtable,
+        &v75na_1024_extensions);
+}
+
+static void v75na_1024_nocoproc_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v75_rev, &v75na_1024_nocoproc_cfgtable,
+        &v75na_1024_nocoproc_extensions);
 }
 
 static void v75na_1024_linux_config_init(MachineState *machine)
@@ -546,8 +571,22 @@ static void virt_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Hexagon Virt";
-    mc->init = v75na_1024_config_init;
+    mc->init = v75na_1024_nocoproc_config_init;
     mc->is_default = true;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 6;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
+static void virt_coproc_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon Virt COPROC";
+    mc->init = v75na_1024_config_init;
+    mc->is_default = false;
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
     mc->default_cpus = 6;
@@ -604,6 +643,10 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("virt"),
         .parent = TYPE_MACHINE,
         .class_init = virt_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("virt_coproc"),
+        .parent = TYPE_MACHINE,
+        .class_init = virt_coproc_init,
     },
 };
 

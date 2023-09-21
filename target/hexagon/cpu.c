@@ -132,6 +132,7 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("isdben-trusted", HexagonCPU, isdben_trusted, false),
     DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
+    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance, 1),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -605,9 +606,11 @@ static void hexagon_cpu_reset_hold(Object *obj)
     clear_wait_mode(env);
 
     if (cs->cpu_index == 0) {
-        CoprocArgs args = {0};
-        args.opcode = COPROC_RESET;
-        coproc(&args);
+        if (cpu->num_coproc_instance) {
+            CoprocArgs args = {0};
+            args.opcode = COPROC_RESET;
+            coproc(&args);
+        }
 
         *(env->g_pcycle_base) = 0;
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
@@ -842,14 +845,16 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         }
 #endif
 
-        CoprocArgs args = {0};
-        args.opcode = COPROC_INIT;
-        args.vtcm_base = env->vtcm_base;
-        args.vtcm_size = env->vtcm_size;
-        args.minver = 0;
-        args.reg_usr = GET_FIELD(USR_FPCOPROC, env->gpr[HEX_REG_USR]);
-        args.fd = env->memfd_fd;
-        coproc(&args);
+        if (cpu->num_coproc_instance) {
+            CoprocArgs args = {0};
+            args.opcode = COPROC_INIT;
+            args.vtcm_base = env->vtcm_base;
+            args.vtcm_size = env->vtcm_size;
+            args.minver = 0;
+            args.reg_usr = GET_FIELD(USR_FPCOPROC, env->gpr[HEX_REG_USR]);
+            args.fd = env->memfd_fd;
+            coproc(&args);
+        }
     } else {
         CPUState *cpu0_s = NULL;
         CPUHexagonState *env0 = NULL;

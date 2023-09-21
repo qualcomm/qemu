@@ -79,6 +79,8 @@
         "check": ["sha256sum", "--status", "--check", "ref_{test_name}.sha256"],
         "prog-args": [],
         "qemu-args": [
+            "-M",
+            "virt_coproc",
             "-append",
             "pickle_driver.elf --pickle_in "
             "{test_name}.pickle --in_bhwd "
@@ -98,6 +100,8 @@
         "check": ["sha256sum", "--status", "--check", "ref_{test_name}.sha256"],
         "prog-args": [],
         "qemu-args": [
+            "-M",
+            "virt_coproc",
             "-append",
             "pickle_driver.elf --pickle_in "
             "{test_name}.pickle --in_bhwd "
@@ -114,6 +118,8 @@
         "check": ["sha256sum", "--status", "--check", "ref_{test_name}.sha256"],
         "prog-args": [],
         "qemu-args": [
+            "-M",
+            "virt_coproc",
             "-append",
             "pickle_driver.elf "
             "--pickle_in "

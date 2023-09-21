@@ -481,6 +481,7 @@ struct ArchCPU {
     bool isdben_dfd_enable;
     bool isdben_trusted;
     bool isdben_secure;
+    uint32_t num_coproc_instance;
 #endif
     uint32_t rev_reg;
     bool lldb_compat;

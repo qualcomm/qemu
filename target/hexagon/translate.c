@@ -1060,9 +1060,13 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt->pc);
         ctx->hvx_check_emitted = true;
     }
-    if (pkt->pkt_has_coproc && !ctx->coproc_check_emitted) {
-        gen_coproc_check(ctx);
-        ctx->coproc_check_emitted = true;
+    if (pkt->pkt_has_coproc) {
+        if (!ctx->num_coproc_instance) {
+            gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt->pc);
+        } else if (!ctx->coproc_check_emitted) {
+            gen_coproc_check(ctx);
+            ctx->coproc_check_emitted = true;
+        }
     }
     if (pkt_has_pmu_read(pkt)) {
         gen_pmu_counters(ctx);
@@ -1241,7 +1245,7 @@ static void gen_pred_writes(DisasContext *ctx)
         int pred_num = ctx->preg_log[i];
         tcg_gen_mov_tl(hex_pred[pred_num], ctx->new_pred_value[pred_num]);
      }
-    
+
 }
 
 static void gen_check_store_width(DisasContext *ctx, int slot_num)
@@ -1705,6 +1709,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 #ifndef CONFIG_USER_ONLY
     ctx->pmu_num_packets = 0;
     ctx->pmu_hvx_packets = 0;
+    ctx->num_coproc_instance = hex_cpu->num_coproc_instance;
 #endif
 
     ctx->mem_idx = FIELD_EX32(hex_flags, TB_FLAGS, MMU_INDEX);

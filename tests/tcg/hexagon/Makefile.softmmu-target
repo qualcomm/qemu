@@ -63,6 +63,7 @@ TESTS += \
 	hvx_64b \
 	neg-unaligned \
 	neg-vtcm_error \
+	neg-no-coproc \
 	pendalot \
 	vid-group \
 	levelint \
@@ -157,6 +158,7 @@ hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
+neg-no-coproc: coproc.o
 pendalot: pendalot.o
 vid-group: vid-group.o thread_common.o
 levelint: levelint.o
@@ -212,13 +214,14 @@ timer_reg.o: CFLAGS+= -DCSR_BASE=0xfc900000
 qtimer_test.o: CFLAGS+= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
 qtimer.o: CFLAGS+= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
 
-QEMU_BASE_MACHINE=-M V68N_1024 -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
+QEMU_BASE_MACHINE=-M virt -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
 QEMU_OPTS+=-display none
 QEMU_EXTRA_OPTS=
 # Set this before running make if you want to run tests with specific options,
 # such as MTTCG.
 OVERRIDE_OPTS?=
 QEMU_OPTS+=$(QEMU_BASE_MACHINE) $(QEMU_EXTRA_OPTS) $(OVERRIDE_OPTS) -kernel
+
 
 run-neg-framelimit: neg-framelimit
 run-neg-float_excp: neg-float_excp
@@ -233,6 +236,15 @@ run-neg-vtcm_error: neg-vtcm_error
 	$(call quiet-command, \
 		grep -q "exception 0x26" $<.stderr, \
 		"GREP", "exception 0x26");
+
+run-neg-no-coproc:neg-no-coproc
+	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
+	if [ $$? -ne 255 ] ; then \
+		return -1; \
+	fi
+	$(call quiet-command, \
+		grep -q "exception 0x18" $<.stderr, \
+		"GREP", "exception 0x18");
 
 run-vid-group: vid-group
 run-timer_reg: timer_reg
@@ -316,8 +328,18 @@ run-access: access
 	echo "valid" > _testfile_access
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $<)
 
+# coproc tests
+run-coproc:QEMU_EXTRA_OPTS=-M virt_coproc
+run-coproc:coproc
+run-coproc_conv:QEMU_EXTRA_OPTS=-M virt_coproc
+run-coproc_conv:coproc_conv
+run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
+run-coproc_range:coproc_range
+run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M virt_coproc
 run-coproc_conv_fp16: coproc_conv_fp16
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< --append "2 2 2 coproc_input_fp16.dat coproc_output_fp16.dat","$< on $(TARGET_NAME)")
+run-invalid_coproc:QEMU_EXTRA_OPTS=-M virt_coproc
+run-invalid_coproc:invalid_coproc
 
 run-hvx_64b: hvx_64b
 	$(call run-test, $<, $(QEMU) -M V66G_1024 -kernel $<, "$< on $(TARGET_NAME) V66")
