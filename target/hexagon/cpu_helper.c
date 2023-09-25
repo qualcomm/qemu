@@ -856,6 +856,13 @@ uint32_t hexagon_get_pmu_event_stats(int event)
     pmu_lock();
 
     switch (event) {
+    case COMMITTED_PKT_ANY:
+        CPU_FOREACH(cs) {
+            HexagonCPU *cpu = HEXAGON_CPU(cs);
+            CPUHexagonState *env = &cpu->env;
+            ret += env->pmu.num_packets;
+        }
+        break;
     case COMMITTED_PKT_T0:
     case COMMITTED_PKT_T1:
     case COMMITTED_PKT_T2:
@@ -905,6 +912,13 @@ void hexagon_reset_pmu_event_stats(int event)
     int th;
     CPUState *cs;
     switch (event) {
+    case COMMITTED_PKT_ANY:
+        CPU_FOREACH(cs) {
+            HexagonCPU *cpu = HEXAGON_CPU(cs);
+            CPUHexagonState *env = &cpu->env;
+            env->pmu.num_packets = 0;
+        }
+        break;
     case COMMITTED_PKT_T0:
     case COMMITTED_PKT_T1:
     case COMMITTED_PKT_T2:
