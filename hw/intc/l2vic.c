@@ -379,7 +379,18 @@ static void l2vic_reset(DeviceState *d)
     s->int_soft = 0;
     s->vid0 = 0;
 
-    l2vic_update(s, 0);
+    l2vic_update_all(s);
+}
+
+
+static void reset_irq_handler(void *opaque, int irq, int level)
+{
+    L2VICState *s = (L2VICState *) opaque;
+    DeviceState *dev = DEVICE(opaque);
+    if (level) {
+        l2vic_reset(dev);
+    }
+    l2vic_update_all(s);
 }
 
 static void l2vic_init(Object *obj)
@@ -395,6 +406,7 @@ static void l2vic_init(Object *obj)
     sysbus_init_mmio(sbd, &s->fast_iomem);
 
     qdev_init_gpio_in(dev, l2vic_set_irq, L2VIC_INTERRUPT_MAX);
+    qdev_init_gpio_in_named(dev, reset_irq_handler, "reset", 1);
     for (i=0; i<8; i++)
         sysbus_init_irq(sbd, &s->irq[i]);
     qemu_mutex_init(&s->active); /* TODO: Remove this is an experiment */
