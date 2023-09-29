@@ -5,6 +5,7 @@ config HEX_DSP
     imply PTIMER
     select L2VIC  # Vector PIC
     select QTIMER
+    select ARM_COMPATIBLE_SEMIHOSTING
 
 config HEX_VIRT
     bool

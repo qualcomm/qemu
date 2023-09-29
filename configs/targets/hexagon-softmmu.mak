@@ -5,3 +5,6 @@ TARGET_SUPPORTS_MTTCG=y
 TARGET_XML_FILES=gdb-xml/hexagon-core.xml gdb-xml/hexagon-hvx.xml gdb-xml/hexagon-sys.xml
 TARGET_SYSTBL=syscall.tbl
 TARGET_LONG_BITS=32
+
+CONFIG_SEMIHOSTING=y
+CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y

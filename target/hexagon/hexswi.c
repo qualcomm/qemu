@@ -30,80 +30,104 @@
 #endif
 #include "system/runstate.h"
 #include <dirent.h>
+#include "semihosting/common-semi.h"
+#include "semihosting/guestfd.h"
+#include "gdbstub/syscalls.h"
+#include "semihosting/syscalls.h"
 
 #ifndef CONFIG_USER_ONLY
 
+/* non-arm-compatible semihosting calls */
+#define HEXAGON_SPECIFIC_SWI_FLAGS \
+    DEF_SWI_FLAG(OPEN,             0x01) \
+    DEF_SWI_FLAG(WRITEC,           0x03) \
+    DEF_SWI_FLAG(WRITE0,           0x04) \
+    DEF_SWI_FLAG(ISTTY,            0x09) \
+    DEF_SWI_FLAG(ENTERSVC,         0x17) /* from newlib */ \
+    DEF_SWI_FLAG(EXCEPTION,        0x18) /* from newlib */ \
+    DEF_SWI_FLAG(READ_CYCLES,      0x40) \
+    DEF_SWI_FLAG(PROF_ON,          0x41) \
+    DEF_SWI_FLAG(PROF_OFF,         0x42) \
+    DEF_SWI_FLAG(WRITECREG,        0x43) \
+    DEF_SWI_FLAG(READ_TCYCLES,     0x44) \
+    DEF_SWI_FLAG(LOG_EVENT,        0x45) \
+    DEF_SWI_FLAG(REDRAW,           0x46) \
+    DEF_SWI_FLAG(READ_ICOUNT,      0x47) \
+    DEF_SWI_FLAG(PROF_STATSRESET,  0x48) \
+    DEF_SWI_FLAG(DUMP_PMU_STATS,   0x4a) \
+    DEF_SWI_FLAG(CAPTURE_SIGINT,   0x50) \
+    DEF_SWI_FLAG(OBSERVE_SIGINT,   0x51) \
+    DEF_SWI_FLAG(READ_PCYCLES,     0x52) \
+    DEF_SWI_FLAG(APP_REPORTED,     0x53) \
+    DEF_SWI_FLAG(COREDUMP,         0xCD) \
+    DEF_SWI_FLAG(SWITCH_THREADS,   0x75) \
+    DEF_SWI_FLAG(ISESCKEY_PRESSED, 0x76) \
+    DEF_SWI_FLAG(FTELL,            0x100) \
+    DEF_SWI_FLAG(FSTAT,            0x101) \
+    DEF_SWI_FLAG(FSTATVFS,         0x102) \
+    DEF_SWI_FLAG(STAT,             0x103) \
+    DEF_SWI_FLAG(GETCWD,           0x104) \
+    DEF_SWI_FLAG(ACCESS,           0x105) \
+    DEF_SWI_FLAG(FCNTL,            0x106) \
+    DEF_SWI_FLAG(GETTIMEOFDAY,     0x107) \
+    DEF_SWI_FLAG(OPENDIR,          0x180) \
+    DEF_SWI_FLAG(CLOSEDIR,         0x181) \
+    DEF_SWI_FLAG(READDIR,          0x182) \
+    DEF_SWI_FLAG(MKDIR,            0x183) \
+    DEF_SWI_FLAG(RMDIR,            0x184) \
+    DEF_SWI_FLAG(EXEC,             0x185) \
+    DEF_SWI_FLAG(FTRUNC,           0x186)
+
 /*
- * TODO: the trailing underscore is needed to avoid clashing with win32 symbols.
- * We should probably rename all these to HEX_SYS_* instead.
+ * We use the arm-compatible semihosting routines for these ones, but we do
+ * need some hexagon-specific preprocessing.
  */
-#define SYS_OPEN_           0x01
-#define SYS_CLOSE           0x02
-#define SYS_WRITEC          0x03
-#define SYS_WRITE0          0x04
-#define SYS_WRITE           0x05
-#define SYS_READ            0x06
-#define SYS_READC           0x07
-#define SYS_ISERROR         0x08
-#define SYS_ISTTY           0x09
-#define SYS_SEEK            0x0a
-#define SYS_FLEN            0x0c
-#define SYS_TMPNAM          0x0d
-#define SYS_REMOVE          0x0e
-#define SYS_RENAME          0x0f
-#define SYS_CLOCK           0x10
-#define SYS_TIME            0x11
-#define SYS_SYSTEM          0x12
-#define SYS_ERRNO           0x13
-#define SYS_GET_CMDLINE     0x15
-#define SYS_HEAPINFO        0x16
-#define SYS_ENTERSVC        0x17  /* from newlib */
-#define SYS_EXCEPTION       0x18  /* from newlib */
-#define SYS_ELAPSED         0x30
-#define SYS_TICKFREQ        0x31
-#define SYS_READ_CYCLES     0x40
-#define SYS_PROF_ON         0x41
-#define SYS_PROF_OFF        0x42
-#define SYS_WRITECREG       0x43
-#define SYS_READ_TCYCLES    0x44
-#define SYS_LOG_EVENT       0x45
-#define SYS_REDRAW          0x46
-#define SYS_READ_ICOUNT     0x47
-#define SYS_PROF_STATSRESET 0x48
-#define SYS_DUMP_PMU_STATS  0x4a
-#define SYS_CAPTURE_SIGINT  0x50
-#define SYS_OBSERVE_SIGINT  0x51
-#define SYS_READ_PCYCLES    0x52
-#define SYS_APP_REPORTED    0x53
-#define SYS_COREDUMP        0xCD
-#define SYS_SWITCH_THREADS  0x75
-#define SYS_ISESCKEY_PRESSED 0x76
-#define SYS_FTELL           0x100
-#define SYS_FSTAT           0x101
-#define SYS_FSTATVFS        0x102
-#define SYS_STAT            0x103
-#define SYS_GETCWD          0x104
-#define SYS_ACCESS          0x105
-#define SYS_FCNTL           0x106
-#define SYS_GETTIMEOFDAY    0x107
-#define SYS_OPENDIR         0x180
-#define SYS_CLOSEDIR        0x181
-#define SYS_READDIR         0x182
-#define SYS_MKDIR           0x183
-#define SYS_RMDIR           0x184
-#define SYS_EXEC            0x185
-#define SYS_FTRUNC          0x186
+#define HEX_SYS_READ        0x06
+#define HEX_SYS_READC       0x07
+
+#define DEF_SWI_FLAG(name, val) HEX_SYS_ ##name = val,
+enum hex_swi_flag {
+    HEXAGON_SPECIFIC_SWI_FLAGS
+};
+#undef DEF_SWI_FLAG
+
+#define DEF_SWI_FLAG(_, val) case val:
+static inline bool is_hexagon_specific_swi_flag(enum hex_swi_flag what_swi)
+{
+    switch (what_swi) {
+    HEXAGON_SPECIFIC_SWI_FLAGS
+        return true;
+    }
+    return false;
+}
+#undef DEF_SWI_FLAG
 
 #define BUFSIZE 2048
 
 /* We start from 1 as 0 is used to signal an error from opendir() */
 static const int DIR_INDEX_OFFSET = 1;
 
-static int MapError(int ERR)
+static void semi_set_return(CPUHexagonState *env, uint64_t ret, int err)
 {
-    return errno = ERR;
+    CPUState *cs = env_cpu(env);
+    common_semi_cb(cs, ret, err);
 }
 
+static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
+{
+    if (err) {
+        ret = -1;
+    }
+    common_semi_cb(cs, ret, err);
+}
+
+static void do_read_preload(CPUHexagonState *env, target_ulong swi_info)
+{
+    uint32_t addr, count;
+    DEBUG_MEMORY_READ(swi_info + 4, 4, &addr);
+    DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
+    hexagon_touch_memory(env, addr, count, HEX_MEM_WRITE);
+}
 
 static void sim_handle_trap0(CPUHexagonState *env)
 {
@@ -112,171 +136,19 @@ static void sim_handle_trap0(CPUHexagonState *env)
     target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
 
+    if (!is_hexagon_specific_swi_flag(what_swi)) {
+        if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC) {
+            /* avoid page faulting if the dest buffer is not in memory yet. */
+            do_read_preload(env, swi_info);
+        }
+        CPUState *cs = env_cpu(env);
+        do_common_semihosting(cs);
+        return;
+    }
+
     switch (what_swi) {
 
-    case SYS_GET_CMDLINE:
-    {
-        target_ulong bufptr;
-        target_ulong bufsize;
-        int i;
-        HexagonCPU *cpu = env_archcpu(env);
-        size_t cmdline_size = (cpu->cmdline != NULL) ? strlen(cpu->cmdline)
-            : 0;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &bufsize);
-
-        const target_ulong to_copy = MIN(bufsize - 1, cmdline_size);
-
-        for (i = 0; i < (int) to_copy; i++) {
-            DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) cpu->cmdline[i]);
-        }
-      DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) 0);
-      arch_set_thread_reg(env, HEX_REG_R00, cmdline_size - to_copy);
-    }
-    break;
-
-    case SYS_EXCEPTION:
-    {
-        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
-
-        /* sometimes qurt returns pointer to rval and sometimes the */
-        /* actual numeric value.  here we inspect value and make a  */
-        /* choice as to probable intent. */
-        target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
-        HexagonCPU *cpu = env_archcpu(env);
-        if (!cpu->vp_mode) {
-            hexagon_dump_json(env);
-            exit(ret);
-        } else {
-            CPUState *cs = CPU(cpu);
-            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR, "resetting\n");
-            CPU_FOREACH(cs) {
-                cpu_reset(cs);
-            }
-        }
-    }
-    break;
-
-    case SYS_WRITEC:
-    {
-        FILE *fp = stdout;
-        char c;
-        rcu_read_lock();
-        DEBUG_MEMORY_READ(swi_info, 1, &c);
-        fprintf(fp, "%c", c);
-        fflush(fp);
-        rcu_read_unlock();
-    }
-    break;
-
-    case SYS_WRITECREG:
-    {
-        char c = swi_info;
-        FILE *fp = stdout;
-
-        fprintf(fp, "%c", c);
-        fflush(stdout);
-    }
-    break;
-
-    case SYS_WRITE0:
-    {
-        FILE *fp = stdout;
-        char c;
-        int i = 0;
-        rcu_read_lock();
-        do {
-            DEBUG_MEMORY_READ(swi_info + i, 1, &c);
-            fprintf(fp, "%c", c);
-            i++;
-        } while (c);
-        fflush(fp);
-        rcu_read_unlock();
-        break;
-    }
-
-
-    case SYS_WRITE:
-    {
-        char buf[BUFSIZE];
-        int fd;
-        target_ulong bufaddr;
-        int count;
-        int retval = 0;
-        int write_size;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &fd);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &bufaddr);
-        DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
-
-        rcu_read_lock();
-        for (int to_write = count; to_write > 0; to_write -= write_size) {
-            write_size = to_write < BUFSIZE ? to_write : BUFSIZE;
-            for (int i = 0; i < write_size; i++) {
-                DEBUG_MEMORY_READ(bufaddr++, 1, &buf[i]);
-            }
-            int this_retval = write(fd, buf, write_size);
-            if (this_retval == -1) {
-                retval = -1;
-                break;
-            }
-            retval += this_retval;
-        }
-
-       if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, retval);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R00, count - retval);
-        }
-        rcu_read_unlock();
-    }
-    break;
-
-    case SYS_READ:
-    {
-        int fd;
-        char buf[BUFSIZE];
-        size4u_t bufaddr;
-        int count;
-        int retval = 0;
-        int read_size;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &fd);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &bufaddr);
-        DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
-/*
- * Need to make sure the page we are going to write to is available.
- * The file pointer advances with the read.  If the write to bufaddr
- * faults this function will be restarted but the file pointer
- * will be wrong.
- */
-        hexagon_touch_memory(env, bufaddr, count, HEX_MEM_WRITE);
-
-        for (int to_read = count; to_read > 0; to_read -= read_size) {
-            read_size = to_read < BUFSIZE ? to_read : BUFSIZE;
-            int this_retval = read(fd, buf, read_size);
-            if (this_retval == -1) {
-                retval = -1;
-                break;
-            }
-            retval += this_retval;
-            for (int i = 0; i < this_retval; i++) {
-                DEBUG_MEMORY_WRITE(bufaddr++, 1, buf[i]);
-            }
-        }
-
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, retval);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R00, count - retval);
-        }
-    }
-    break;
-
-    case SYS_OPEN_:
+    case HEX_SYS_OPEN:
     {
         char filename[BUFSIZ];
         target_ulong physicalFilenameAddr;
@@ -284,7 +156,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         unsigned int filemode;
         int length;
         int real_openmode;
-        int fd;
+        int ret, err = 0;
         static const unsigned int mode_table[] = {
             O_RDONLY,
             O_RDONLY | O_BINARY,
@@ -327,11 +199,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
                    __func__, __LINE__, filemode);
         }
 
+        ret = open(filename, real_openmode, 0644);
 
-        fd = open(filename, real_openmode, 0644);
-        arch_set_thread_reg(env, HEX_REG_R00, fd);
-
-        if (fd == -1) {
+        if (ret == -1) {
+            err = errno;
             HexagonCPU *cpu = env_archcpu(env);
             if (cpu->usefs && g_strrstr(filename, ".so") != NULL
                 && errno == ENOENT) {
@@ -343,89 +214,100 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
                 g_string_append_printf(lib_filename_str, "/%s", filename);
                 gchar *lib_filename = g_string_free(lib_filename_str, false);
-                fd = open(lib_filename, real_openmode, 0644);
-                arch_set_thread_reg(env, HEX_REG_R00, fd);
-
-                if (fd == -1) {
-                    arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+                ret = open(lib_filename, real_openmode, 0644);
+                if (ret == -1) {
+                    err = errno;
                 }
                 g_free(lib_filename);
-            } else {
-                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+            }
+        }
+
+        if (ret != -1) {
+            int guestfd = alloc_guestfd();
+            associate_guestfd(guestfd, ret);
+            ret = guestfd;
+        }
+        CPUState *cs = env_cpu(env);
+        common_semi_cb(cs, ret, err);
+    }
+    break;
+
+    case HEX_SYS_EXCEPTION:
+    {
+        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
+
+        /* sometimes qurt returns pointer to rval and sometimes the */
+        /* actual numeric value.  here we inspect value and make a  */
+        /* choice as to probable intent. */
+        target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
+        HexagonCPU *cpu = env_archcpu(env);
+        if (!cpu->vp_mode) {
+            hexagon_dump_json(env);
+            exit(ret);
+        } else {
+            CPUState *cs = CPU(cpu);
+            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR, "resetting\n");
+            CPU_FOREACH(cs) {
+                cpu_reset(cs);
             }
         }
     }
     break;
 
-    case SYS_CLOSE:
+    /* We override arm-compatible version to print at stdout, not console. */
+    case HEX_SYS_WRITEC:
+    {
+        FILE *fp = stdout;
+        char c;
+        rcu_read_lock();
+        DEBUG_MEMORY_READ(swi_info, 1, &c);
+        fprintf(fp, "%c", c);
+        fflush(fp);
+        rcu_read_unlock();
+    }
+    break;
+
+    case HEX_SYS_WRITECREG:
+    {
+        char c = swi_info;
+        FILE *fp = stdout;
+
+        fprintf(fp, "%c", c);
+        fflush(stdout);
+    }
+    break;
+
+    /* We override arm-compatible version to print at stdout, not console. */
+    case HEX_SYS_WRITE0:
+    {
+        FILE *fp = stdout;
+        char c;
+        int i = 0;
+        rcu_read_lock();
+        do {
+            DEBUG_MEMORY_READ(swi_info + i, 1, &c);
+            fprintf(fp, "%c", c);
+            i++;
+        } while (c);
+        fflush(fp);
+        rcu_read_unlock();
+        break;
+    }
+
+    /*
+     * Hexagon's SYS_ISTTY is a bit different than arm's: we do not return -1
+     * on error, neither errno. So we override with out own implementation.
+     */
+    case HEX_SYS_ISTTY:
     {
         int fd;
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
-
-        if (fd == 0 || fd == 1 || fd == 2) {
-            /* silently ignore request to close stdin/stdout */
-            arch_set_thread_reg(env, HEX_REG_R00, 0);
-        } else {
-            int closedret = close(fd);
-
-            if (closedret == -1) {
-                arch_set_thread_reg(env, HEX_REG_R01,
-                                    MapError(errno));
-            } else {
-                arch_set_thread_reg(env, HEX_REG_R00, closedret);
-            }
-        }
+        semi_set_return(env, isatty(fd), 0);
     }
     break;
 
-    case SYS_READC:
-    {
-        int c = getchar();
-        if (c == EOF && ferror(stdin)) {
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, c);
-    }
-    break;
-
-    case SYS_ISERROR:
-    {
-        int code;
-        DEBUG_MEMORY_READ(swi_info, 4, &code);
-        arch_set_thread_reg(env, HEX_REG_R00, code < 0 ? -1 : 0);
-    }
-    break;
-
-    case SYS_ISTTY:
-    {
-        int fd;
-        DEBUG_MEMORY_READ(swi_info, 4, &fd);
-        arch_set_thread_reg(env, HEX_REG_R00,
-                            isatty(fd));
-    }
-    break;
-
-    case SYS_SEEK:
-    {
-        int fd;
-        int pos;
-        int retval;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &fd);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &pos);
-
-        retval = lseek(fd, pos, SEEK_SET);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R00, retval);
-        }
-    }
-    break;
-
-    case SYS_STAT:
-    case SYS_FSTAT:
+    case HEX_SYS_STAT:
+    case HEX_SYS_FSTAT:
     {
         /*
          * This must match the caller's definition, it would be in the
@@ -452,7 +334,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         target_ulong statBufferAddr;
         DEBUG_MEMORY_READ(swi_info, 4, &physicalFilenameAddr);
 
-        if (what_swi == SYS_STAT) {
+        if (what_swi == HEX_SYS_STAT) {
             int i = 0;
             do {
                 DEBUG_MEMORY_READ(physicalFilenameAddr + i, 1, &filename[i]);
@@ -462,7 +344,12 @@ static void sim_handle_trap0(CPUHexagonState *env)
             err = errno;
         } else{
             int fd = physicalFilenameAddr;
-            rc = fstat(fd, &st_buf);
+            GuestFD *gf = get_guestfd(fd);
+            if (gf->type != GuestFDHost) {
+                fprintf(stderr, "fstat semihosting only implemented for native mode.\n");
+                g_assert_not_reached();
+            }
+            rc = fstat(gf->hostfd, &st_buf);
             err = errno;
         }
         if (rc == 0) {
@@ -481,66 +368,28 @@ static void sim_handle_trap0(CPUHexagonState *env)
             sys_stat.mtime = st_buf.st_mtime;
             sys_stat.ctime = st_buf.st_ctime;
 #endif
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R01, err);
         }
         DEBUG_MEMORY_READ(swi_info + 4, 4, &statBufferAddr);
 
         for (int i = 0; i < sizeof(sys_stat); i++) {
             DEBUG_MEMORY_WRITE(statBufferAddr + i, 1, st_bufptr[i]);
         }
-        arch_set_thread_reg(env, HEX_REG_R00, rc);
+        semi_set_return(env, rc, rc == 0 ? 0 : err);
     }
     break;
 
-    case SYS_FLEN:
-    {
-        off_t oldpos;
-        off_t len;
-        int fd;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &fd);
-
-        oldpos = lseek(fd, 0, SEEK_CUR);
-        if (oldpos == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            break;
-        }
-        len = lseek(fd, 0, SEEK_END);
-        if (len == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            break;
-        }
-        if (lseek(fd, oldpos, SEEK_SET) == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            break;
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, len);
-    }
-    break;
-
-    case SYS_FTRUNC:
+    case HEX_SYS_FTRUNC:
     {
         int fd;
-        int retval;
         off_t size_limit;
-
+        CPUState *cs = env_cpu(env);
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
         DEBUG_MEMORY_READ(swi_info + 4, 8, &size_limit);
-
-        retval = ftruncate(fd, size_limit);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R00, retval);
-        }
+        semihost_sys_ftruncate(cs, common_semi_cb, fd, size_limit);
     }
     break;
-    case SYS_ACCESS:
+
+    case HEX_SYS_ACCESS:
     {
         char filename[BUFSIZ];
         size4u_t FileNameAddr;
@@ -559,52 +408,47 @@ static void sim_handle_trap0(CPUHexagonState *env)
         DEBUG_MEMORY_READ(swi_info + 4, 4, &BufferMode);
 
         rc = access(filename, BufferMode);
-        if (rc != 0) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        }
-
-        arch_set_thread_reg(env, HEX_REG_R00, rc);
+        semi_set_return(env, rc, rc == 0 ? 0 : errno);
     }
     break;
-    case SYS_GETCWD:
+    case HEX_SYS_GETCWD:
     {
         char cwdPtr[PATH_MAX];
         size4u_t BufferAddr;
         size4u_t BufferSize;
+        int ret = 0, err = 0;
 
         DEBUG_MEMORY_READ(swi_info, 4, &BufferAddr);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &BufferSize);
 
         if (!getcwd(cwdPtr, PATH_MAX)) {
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            arch_set_thread_reg(env, HEX_REG_R00, 0);
+            err = errno;
         } else {
             size_t cwd_size = strlen(cwdPtr);
             if (cwd_size > BufferSize) {
-                arch_set_thread_reg(env, HEX_REG_R01, MapError(ERANGE));
-                arch_set_thread_reg(env, HEX_REG_R00, 0);
+                err = ERANGE;
             } else {
                 for (int i = 0; i < cwd_size; i++) {
                     DEBUG_MEMORY_WRITE(BufferAddr + i, 1, (size8u_t)cwdPtr[i]);
                 }
-                arch_set_thread_reg(env, HEX_REG_R00, BufferAddr);
+                ret = BufferAddr;
             }
         }
+        semi_set_return(env, ret, ret != 0 ? 0 : err);
         break;
     }
 
-    case SYS_EXEC:
+    case HEX_SYS_EXEC:
     {
         qemu_log_mask(LOG_UNIMP, "SYS_EXEC is deprecated\n");
     }
     break;
 
-    case SYS_OPENDIR:
+    case HEX_SYS_OPENDIR:
     {
         DIR *dir;
         char buf[BUFSIZ];
-        int dir_index = 0;
+        int dir_index = 0, err = 0;
 
         int i = 0;
         do {
@@ -616,27 +460,29 @@ static void sim_handle_trap0(CPUHexagonState *env)
         if (dir != NULL) {
             *env->g_dir_list = g_list_append(*env->g_dir_list, dir);
             dir_index = g_list_index(*env->g_dir_list, dir) + DIR_INDEX_OFFSET;
-        } else
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+        } else {
+            err = errno;
+        }
 
-        arch_set_thread_reg(env, HEX_REG_R00, dir_index);
+        semi_set_return(env, dir_index, dir_index != 0 ? 0 : err);
         break;
     }
 
-    case SYS_READDIR:
+    case HEX_SYS_READDIR:
     {
         struct dirent *host_dir_entry = NULL;
         int dir_index = swi_info - DIR_INDEX_OFFSET;
         DIR *dir = g_list_nth_data(*env->g_dir_list, dir_index);
+        int ret = 0, err = 0;
 
         if (dir) {
             errno = 0;
             host_dir_entry = readdir(dir);
             if (host_dir_entry == NULL) {
-                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+                err = errno;
             }
         } else {
-            arch_set_thread_reg(env, HEX_REG_R01, EBADF);
+            err = EBADF;
         }
 
         if (host_dir_entry) {
@@ -649,32 +495,33 @@ static void sim_handle_trap0(CPUHexagonState *env)
                     break;
                 }
             }
-            arch_set_thread_reg(env, HEX_REG_R00, guest_dir_entry);
-        } else {
-            arch_set_thread_reg(env, HEX_REG_R00, 0);
+            ret = guest_dir_entry;
         }
+
+        semi_set_return(env, ret, ret != 0 ? 0 : err);
         break;
     }
 
-    case SYS_CLOSEDIR:
+    case HEX_SYS_CLOSEDIR:
     {
         DIR *dir;
-        int ret = 0;
+        int ret = -1, err;
         int dir_index = swi_info - DIR_INDEX_OFFSET;
 
         dir = g_list_nth_data(*env->g_dir_list, dir_index);
         if (dir != NULL) {
             ret = closedir(dir);
             if (ret != 0) {
-                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+                err = errno;
             }
-        } else
-            arch_set_thread_reg(env, HEX_REG_R01, EBADF);
-        arch_set_thread_reg(env, HEX_REG_R00, ret);
+        } else {
+            err = EBADF;
+        }
+        semi_set_return(env, ret, ret == 0 ? 0 : err);
         break;
     }
 
-    case SYS_COREDUMP:
+    case HEX_SYS_COREDUMP:
       printf("CRASH!\n");
       printf("I think the exception was: ");
       switch (GET_SSR_FIELD(SSR_CAUSE, ssr)) {
@@ -798,149 +645,31 @@ static void sim_handle_trap0(CPUHexagonState *env)
       hexagon_dump(env, stdout, 0);
       break;
 
-    case SYS_FTELL:
+    case HEX_SYS_FTELL:
     {
         int fd;
-        off_t current_pos;
-
+        CPUState *cs = env_cpu(env);
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
-
-        current_pos = lseek(fd, 0, SEEK_CUR);
-        if (current_pos == -1) {
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, current_pos);
-
+        semihost_sys_lseek(cs, common_semi_ftell_cb, fd, 0, GDB_SEEK_CUR);
     }
     break;
 
-    case SYS_TMPNAM:
-    {
-        char buf[40];
-        size4u_t bufptr;
-        int id, rc;
-        int buflen;
-        int ftry = 0;
-        buf[39] = 0;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &id);
-        DEBUG_MEMORY_READ(swi_info + 8, 4, &buflen);
-
-        if (buflen < 40) {
-            CPUState *cs = env_cpu(env);
-            cpu_abort(cs, "Error: %s output buffer too small", __func__);
-        }
-        /*
-         * Loop until we find a file that doesn't alread exist.
-         */
-        do {
-            snprintf(buf, 40, "/tmp/sim-tmp-%d-%d", getpid() + ftry, id);
-            ftry++;
-        } while ((rc = access(buf, F_OK)) == 0);
-
-        for (int i = 0; i <= (int) strlen(buf); i++) {
-            DEBUG_MEMORY_WRITE(bufptr + i, 1, buf[i]);
-        }
-
-        arch_set_thread_reg(env, HEX_REG_R00, 0);
-    }
-    break;
-
-    case SYS_REMOVE:
-    {
-        char buf[BUFSIZ];
-        size4u_t bufptr;
-        int buflen, retval, i;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &buflen);
-        for (i = 0; i < buflen; i++) {
-            DEBUG_MEMORY_READ(bufptr + i, 1, &buf[i]);
-        }
-        buf[i] = '\0';
-
-        retval = unlink(buf);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, retval);
-    }
-    break;
-
-    case SYS_RENAME:
-    {
-        char buf[BUFSIZ];
-        char buf2[BUFSIZ];
-        size4u_t bufptr, bufptr2;
-        int buflen, buf2len, retval, i;
-
-        DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
-        DEBUG_MEMORY_READ(swi_info + 4, 4, &buflen);
-        DEBUG_MEMORY_READ(swi_info + 8, 4, &bufptr2);
-        DEBUG_MEMORY_READ(swi_info + 12, 4, &buf2len);
-
-        for (i = 0; i < buflen; i++) {
-            DEBUG_MEMORY_READ(bufptr + i, 1, &buf[i]);
-        }
-        buf[i] = '\0';
-        for (i = 0; i < buf2len; i++) {
-            DEBUG_MEMORY_READ(bufptr2 + i, 1, &buf2[i]);
-        }
-        buf2[i] = '\0';
-
-        retval = rename(buf, buf2);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, retval);
-    }
-    break;
-
-    case SYS_CLOCK:
-    {
-        int retval = time(NULL);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            break;
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, retval * 100);
-    }
-    break;
-
-    case SYS_TIME:
-    {
-        int retval = time(NULL);
-        if (retval == -1) {
-            arch_set_thread_reg(env, HEX_REG_R00, -1);
-            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
-            break;
-        }
-        arch_set_thread_reg(env, HEX_REG_R00, retval);
-    }
-    break;
-
-    case SYS_ERRNO:
-        arch_set_thread_reg(env, HEX_REG_R00, errno);
-        break;
-
-    case SYS_READ_CYCLES:
-    case SYS_READ_TCYCLES:
+    case HEX_SYS_READ_CYCLES:
+    case HEX_SYS_READ_TCYCLES:
     {
         arch_set_thread_reg(env, HEX_REG_R00, 0);
         arch_set_thread_reg(env, HEX_REG_R01, 0);
         break;
     }
 
-    case SYS_READ_ICOUNT:
+    case HEX_SYS_READ_ICOUNT:
     {
         arch_set_thread_reg(env, HEX_REG_R00, 0);
         arch_set_thread_reg(env, HEX_REG_R01, 0);
         break;
     }
 
-    case SYS_READ_PCYCLES:
+    case HEX_SYS_READ_PCYCLES:
     {
         arch_set_thread_reg(env, HEX_REG_R00,
             arch_get_system_reg(env, HEX_SREG_PCYCLELO));
@@ -949,17 +678,14 @@ static void sim_handle_trap0(CPUHexagonState *env)
         break;
     }
 
-    case SYS_APP_REPORTED:
+    case HEX_SYS_APP_REPORTED:
         break;
 
-    case SYS_PROF_ON:
-    case SYS_PROF_OFF:
-    case SYS_PROF_STATSRESET:
-    case SYS_DUMP_PMU_STATS:
-    case SYS_SYSTEM:
-    case SYS_HEAPINFO:
-        arch_set_thread_reg(env, HEX_REG_R00, -1);
-        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
+    case HEX_SYS_PROF_ON:
+    case HEX_SYS_PROF_OFF:
+    case HEX_SYS_PROF_STATSRESET:
+    case HEX_SYS_DUMP_PMU_STATS:
+        semi_set_return(env, -1, ENOSYS);
         qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
                       what_swi);
         break;

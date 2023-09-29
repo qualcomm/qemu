@@ -41,6 +41,7 @@
 #include "libgen.h"
 #include "system/reset.h"
 #include "system/qtest.h"
+#include "semihosting/semihost.h"
 
 #include "machine_configs.h.inc"
 #include "qemu/osdep.h"
@@ -343,17 +344,10 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             }
             hexagon_init_bootstrap(machine, cpu, &rev);
             cpu_0 = cpu;
-
-            GString *argv = g_string_new(machine->kernel_filename);
-            g_string_append(argv, " ");
-            g_string_append(argv, machine->kernel_cmdline);
-            qdev_prop_set_string(DEVICE(cpu), "cmdline", argv->str);
-            g_string_free(argv, true);
         } else {
             if (cpu_0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu_0->usefs);
             }
-            qdev_prop_set_string(DEVICE(cpu), "cmdline", cpu_0->cmdline);
         }
 
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
@@ -423,6 +417,7 @@ static void init_mc(MachineClass *mc)
     mc->no_serial = 1;
     mc->is_default = false;
     mc->max_cpus = THREADS_MAX;
+    qemu_semihosting_enable();
 }
 
 static void machcfg_disable_coproc(hexagon_machine_config *cfg)

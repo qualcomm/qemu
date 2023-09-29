@@ -35,6 +35,7 @@
 #include "genptr.h"
 #include "printinsn.h"
 #include "pmu.h"
+#include "semihosting/guestfd.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -1564,6 +1565,22 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 }
 
+static void init_semihosting_guestfds(void)
+{
+#ifndef CONFIG_USER_ONLY
+    static gsize initialized;
+    if (g_once_init_enter(&initialized)) {
+        alloc_guestfd();
+        associate_guestfd(0, 0);
+        alloc_guestfd();
+        associate_guestfd(1, 1);
+        alloc_guestfd();
+        associate_guestfd(2, 2);
+        g_once_init_leave(&initialized, 1);
+    }
+#endif
+}
+
 static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
@@ -1617,6 +1634,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         ctx->base.max_insns = 1;
     }
     ctx->short_circuit = hex_cpu->short_circuit;
+    init_semihosting_guestfds();
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
