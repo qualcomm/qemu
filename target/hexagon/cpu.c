@@ -833,19 +833,18 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
-#if !defined(_WIN32)
-        const char *coproc_path = get_coproc_path(env);
-        if (coproc_path) {
-            if (ATOMIC_LOAD(hexagon_coproc_available) == true) {
-                if (hexagon_coproc_rpclib_init(coproc_path) == 1) {
-                    g_assert_not_reached();
-                }
-            }
-            g_free((void *)coproc_path);
-        }
-#endif
-
         if (cpu->num_coproc_instance) {
+#if !defined(_WIN32)
+            const char *coproc_path = get_coproc_path(env);
+            if (coproc_path) {
+                if (ATOMIC_LOAD(hexagon_coproc_available)) {
+                    if (hexagon_coproc_rpclib_init(coproc_path) == 1) {
+                        g_assert_not_reached();
+                    }
+                }
+                g_free((void *)coproc_path);
+            }
+#endif
             CoprocArgs args = {0};
             args.opcode = COPROC_INIT;
             args.vtcm_base = env->vtcm_base;
