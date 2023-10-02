@@ -232,11 +232,6 @@ hexagon-mac_build:
     - mac
   extends: .base-build
   variables: { CONFIG_CMD: $HEX_MAC_CONFIG_CMD }
-hexagon-mac_qurt-tests:
-  tags:
-    - mac
-  extends: .base-qurt-tests
-  needs: [hexagon-mac_build]
 
 san-hexagon_build:
   extends: .base-build
