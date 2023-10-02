@@ -4,15 +4,37 @@
 [*                                                               *]
 [*===============================================================*]
 
-QEMU-hexagon 8.0.50.0 Release Notes
+QEMU-hexagon 10.0 Release Notes
 
 ----------------------------------------------------------------------
 
 The user guide for QEMU-hexagon is published in CreatePoint: Qualcomm®
 Hexagon QEMU (80-N2040-52).
 
-In this release: support for Hexagon arch v75, HVX, DMA, COPROC.
+In this release: support for Hexagon arch v75, HVX, DMA.
 
-MTTCG mode enables concurrent usage of host cores for each guest Hexagon
-vCPU thread.  Turn this mode on using `-accel tcg,thread=multi`.
+Main changes on this release:
 
+- Updated base point: now based on upstream QEMU v8.1.0-rc0.
+
+- HMX support has been removed from QEMU hexagon.
+
+- Support for Hexagon coprocessors can be added via Hexagon
+  coprocessor plugins now. Check the user guide for instructions on
+  how to configure/enable it.
+
+- First experimental build for Windows-x86_64. Note that there is no
+  semihosting (a.k.a. "angel call") support for this platform yet.
+
+- Optimizations HVX Store.
+
+- Implemented a few PMU registers and event counters.
+
+- Added new upstream idef-parser framework, which auto-generates TCG
+  code from Hexagon ISA description.
+
+- Other bug fixes, like:
+
+  * Do page-aligned reads SYS_READ semihosting to avoid missing data.
+  * Fix cpu reset logic to really reinitialize the system.
+  * Avoided redundant PC updates on translation.
