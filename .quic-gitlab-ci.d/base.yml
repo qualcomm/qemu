@@ -59,6 +59,9 @@ variables:
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
   HEX_COPROC_SHA: bba8fe40ed31d090da02bad2330e1e350902ff2a
+
+  TARBALLS_PATH: tarball-artifacts
+
 ###################################################################
 #    Base templates
 ###################################################################
@@ -109,15 +112,17 @@ coproc_build:
 .base-tarball:
   variables:
     TARBALL_PREFIX: ""
-    TARBALL_SUFFIX: "_${CI_COMMIT_REF_NAME}_local"
-    TARBALL_NAME: ${TARBALL_PREFIX}${CI_PROJECT_NAME}${TARBALL_SUFFIX}.tgz
   script:
     - |
       installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
       mv quic/RELEASE-NOTES.txt $installdir
-      tar --exclude-vcs -zcf $TARBALL_NAME --exclude="$installdir/bin/qemu-hexagon" $installdir
+      tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
+                 { echo -n "qemu_hexagon_" && git rev-parse --short HEAD; } )"
+      tarball_name=${TARBALL_PREFIX}${tagname}.tgz
+      mkdir -p $TARBALLS_PATH
+      tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name --exclude="$installdir/bin/qemu-hexagon" $installdir
   artifacts:
-    paths: [ $TARBALL_NAME ]
+    paths: [ $TARBALLS_PATH ]
     expire_in: 1 month
   only:
     - tags
@@ -155,6 +160,28 @@ coproc_build:
 ##################################################################
 #    Jobs
 ###################################################################
+
+src-tarball:
+  # We need GNU tar for the name transformation
+  tags:
+    - linux
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 1
+  script:
+    - |
+      tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
+                 { echo -n "qemu_hexagon_" && git rev-parse --short HEAD && echo -n "_src"; } )"
+      tarball_name=${tagname}.tgz
+      mkdir -p $TARBALLS_PATH
+      tar --exclude-vcs -zcf $TARBALLS_PATH/$tarball_name --exclude $TARBALLS_PATH . --transform "s/\./${CI_PROJECT_NAME}/"
+  artifacts:
+    paths: [ $TARBALLS_PATH ]
+    expire_in: 1 month
+  only:
+    - tags
+    - web
+    - schedules
 
 checkpatch:
   extends: .mr-job
