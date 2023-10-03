@@ -329,6 +329,8 @@ ExportedFct('cpu_arm_get_exclusive_val', 'uint64_t', [ 'const Object *' ],
         priv = 'libqemu_cpu_arm_get_exclusive_val', arch = 'aarch64')
 ExportedFct('cpu_arm_set_exclusive_val', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_exclusive_val', arch = 'aarch64')
+ExportedFct('cpu_arm_post_init', 'void', [ 'Object *' ],
+        priv = 'libqemu_cpu_arm_post_init', arch = 'aarch64')
 
 # RISC-V specific exports
 PublicInclude('libqemu/wrappers/target/riscv.h')
