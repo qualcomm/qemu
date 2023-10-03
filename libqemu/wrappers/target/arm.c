@@ -28,6 +28,7 @@
 #include "target/arm/kvm_arm.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/virt.h"
+#include "sysemu/reset.h"
 
 #include "arm.h"
 
@@ -132,4 +133,9 @@ void libqemu_cpu_arm_post_init(Object *obj)
             kvm_arm_pmu_init(arm_cpu);
         }
     }
+}
+
+void libqemu_cpu_arm_register_reset(Object *cpu)
+{
+    qemu_register_reset(do_cpu_reset, ARM_CPU(cpu));
 }

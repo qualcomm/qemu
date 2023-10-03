@@ -232,4 +232,6 @@ void arm_write_bootloader(const char *name,
                           const ARMInsnFixup *insns,
                           const uint32_t *fixupcontext);
 
+void do_cpu_reset(void *opaque);
+
 #endif /* HW_ARM_BOOT_H */
