@@ -31,7 +31,7 @@ variables:
     --enable-opengl --enable-tpm --enable-libudev
 
   DEFAULT_CONFIG_OPTS: >-
-    --without-default-features --disable-install-blobs --assert-target-compiler
+    --without-default-features --assert-target-compiler
     $QEMU_CONFIGURABLE_FEATURES_OPTS $QEMU_COMPILATION_OPTS
     $QEMU_TARGETS_AND_ACCELERATORS_OPTS $QEMU_BLOCK_LAYER_SUPPORT_OPTS
     $QEMU_CRYPTO_OPTS $QEMU_USER_INTERFACE_OPTS $QEMU_AUDIO_OPTS
@@ -48,7 +48,7 @@ variables:
     --enable-install-blobs --disable-png --disable-debug-info
     --disable-debug-tcg --gdb=aarch64-linux-gnu-gdb
 
-  GENERIC_CONFIG_CMD: ../configure --prefix="$$installdir"
+  GENERIC_CONFIG_CMD: ../configure --prefix="$$installdir" --disable-install-blobs
   HEX_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $HEX_CONFIG_OPTS --target-list=hexagon-softmmu,hexagon-linux-user
   AARCH64_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $AARCH64_CONFIG_OPTS --target-list=aarch64-softmmu,aarch64-linux-user
   HEX_MAC_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --disable-strip --disable-pie --disable-virglrenderer --disable-opengl --target-list=hexagon-softmmu
