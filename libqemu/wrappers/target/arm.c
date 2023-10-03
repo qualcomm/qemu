@@ -24,6 +24,10 @@
 #include "target/arm/cpregs.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/armv7m_nvic.h"
+#include "sysemu/kvm.h"
+#include "target/arm/kvm_arm.h"
+#include "hw/arm/boot.h"
+#include "hw/arm/virt.h"
 
 #include "arm.h"
 
@@ -102,4 +106,30 @@ void libqemu_cpu_arm_set_exclusive_val(Object *obj, uint64_t val)
     CPUARMState *env = &cpu->env;
 
     env->exclusive_val = val;
+}
+
+/*
+ * libqemu_cpu_arm_post_init() must be called after the CPUs have been realized
+ * and the GIC has been created.
+ *
+ * Extracted from virt_cpu_post_init(), this is essentialy doing the minimum
+ * required by KVM for the "none" machine.
+ */
+void libqemu_cpu_arm_post_init(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
+    CPUARMState *env = &arm_cpu->env;
+
+    bool pmu = object_property_get_bool(obj, "pmu", NULL);
+
+    if (kvm_enabled()) {
+        if (pmu) {
+            assert(arm_feature(env, ARM_FEATURE_PMU));
+            if (kvm_irqchip_in_kernel()) {
+                kvm_arm_pmu_set_irq(arm_cpu, VIRTUAL_PMU_IRQ);
+            }
+            kvm_arm_pmu_init(arm_cpu);
+        }
+    }
 }
