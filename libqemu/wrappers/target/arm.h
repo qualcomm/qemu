@@ -34,5 +34,6 @@ uint64_t libqemu_cpu_arm_get_exclusive_val(const Object *cpu);
 void libqemu_cpu_arm_set_exclusive_val(Object *cpu, uint64_t val);
 
 void libqemu_cpu_arm_post_init(Object *obj);
+void libqemu_cpu_arm_register_reset(Object *cpu);
 
 #endif
