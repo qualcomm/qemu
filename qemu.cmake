@@ -14,7 +14,6 @@ set(QEMU_CONF_ARGS
     --disable-png
     --disable-curses
     --disable-curl
-    --disable-kvm
     --disable-user
     --disable-linux-user
     --disable-bsd-user
@@ -45,6 +44,7 @@ set(QEMU_CONF_ARGS
     --audio-drv-list=
     --disable-werror
     --disable-capstone
+    --enable-kvm
 )
 
 # may be un-necissary in future releases of QEMU?
@@ -54,7 +54,9 @@ if (APPLE)
         --disable-strip
         --disable-pie
         --disable-gtk
-	--disable-sdl-image)
+        --disable-sdl-image
+        --disable-kvm
+    )
 endif()
 
 if (GS_ENABLE_CAPSTONE)
