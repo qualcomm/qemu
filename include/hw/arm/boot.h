@@ -183,4 +183,7 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
                                             hwaddr mvbar_addr);
 
+
+void do_cpu_reset(void *opaque);
+
 #endif /* HW_ARM_BOOT_H */
