@@ -67,6 +67,7 @@ struct kvm_regs {
 #define KVM_ARM_TARGET_CORTEX_A57	2
 #define KVM_ARM_TARGET_XGENE_POTENZA	3
 #define KVM_ARM_TARGET_CORTEX_A53	4
+#define KVM_ARM_TARGET_CORTEX_A76	5
 /* Generic ARM v8 target */
 #define KVM_ARM_TARGET_GENERIC_V8	5
 

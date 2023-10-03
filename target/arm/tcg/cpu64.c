@@ -364,6 +364,7 @@ static void aarch64_a76_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
 
+     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A76;
     /* Ordered by B2.4 AArch64 registers by functional group */
     cpu->clidr = 0x82000023;
     cpu->ctr = 0x8444C004;
