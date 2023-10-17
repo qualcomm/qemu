@@ -106,7 +106,12 @@ void libqemu_cpu_register_thread(Object *obj)
 
 void libqemu_cpu_reset(Object *obj)
 {
-    cpu_reset(CPU(obj));
+    CPUState *cpu = CPU(obj);
+    if (cpu_is_stopped(cpu)) {
+        cpu_reset(cpu);
+    } else {
+        cpu_interrupt(cpu, CPU_INTERRUPT_RESET);
+    }
 }
 
 static void libqemu_cpu_unhalted_async_job(struct CPUState *cpu_,
