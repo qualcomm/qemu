@@ -594,6 +594,7 @@ typedef struct CPUArchState {
     } serror;
 
     uint8_t ext_dabt_raised; /* Tracking/verifying injection of ext DABT */
+    uint64_t last_fault_ipa; /* Tracking last fault ipa for DABT NISV */
 
     /* State of our input IRQ/FIQ/VIRQ/VFIQ lines */
     uint32_t irq_line_state;

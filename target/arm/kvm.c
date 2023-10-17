@@ -1303,6 +1303,123 @@ static void kvm_arm_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+#ifdef CONFIG_LIBQEMU
+
+static bool ins_is_store(uint32_t ins)
+{
+    return (ins & 0xbfe00c00) == 0xb8000400;
+}
+
+static bool ins_is_load(uint32_t ins)
+{
+    return (ins & 0xbfe00c00) == 0xb8400400;
+}
+
+static int kvm_handle_load_store(CPUState *cs, uint64_t fault_ipa,
+                                 uint32_t ins)
+{
+    MemTxResult res;
+    assert(ins_is_store(ins) || ins_is_load(ins));
+
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    uint32_t rt = extract32(ins, 0, 5);
+    uint32_t rn = extract32(ins, 5, 5);
+    uint32_t imm = extract32(ins, 12, 9);
+
+    kvm_cpu_synchronize_state(cs);
+
+    if (ins_is_store(ins)) {
+        if (rt == 0x1f) {
+            uint64_t zero = 0;
+            res = address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+                                &(zero), (ins & 0x40000000) ? 0x8 : 0x4);
+        } else {
+            res = address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+                                &(env->xregs[rt]),
+                                (ins & 0x40000000) ? 0x8 : 0x4);
+        }
+    } else if (ins_is_load(ins)) {
+        res = address_space_read(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+                           &(env->xregs[rt]), (ins & 0x40000000) ? 0x8 : 0x4);
+    } else {
+        __builtin_unreachable();
+    }
+
+    if (res != MEMTX_OK) {
+        error_report("Failed to handle load/store due to datb_nisv");
+        return -1;
+    }
+
+    env->xregs[rn] += imm;
+    env->pc += sizeof(ins);
+    cs->vcpu_dirty = true;
+    return 0;
+}
+
+/**
+ * kvm_arm_handle_dabt_nisv:
+ * @cs: CPUState
+ * @esr_iss: ISS encoding (limited) for the exception from Data Abort
+ *           ISV bit set to '0b0' -> no valid instruction syndrome
+ * @fault_ipa: faulting address for the synchronous data abort
+ *
+ * Returns: 0 if the exception has been handled, < 0 otherwise
+ */
+static int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
+                                    uint64_t fault_ipa)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    if (!arm_feature(env, ARM_FEATURE_AARCH64)) {
+        error_report("Custom dabt handling has been tested only on aarch64");
+        return -1;
+    }
+
+    /* Read PC from KVM */
+    kvm_arch_get_registers(cs);
+
+    /* Get instruction at PC */
+    uint32_t ins;
+    if (cpu_memory_rw_debug(cs, env->pc, &ins, sizeof(ins), false)) {
+        error_report("Failed to read instruction at PC");
+        return -1;
+    }
+
+    if (ins_is_store(ins) || ins_is_load(ins)) {
+        return kvm_handle_load_store(cs, fault_ipa, ins);
+    }
+
+    /*
+     * Failed to decode the instruction as store or load, so we just do an
+     * unspecified memory acces to cause the memory region to be mapped.
+     */
+    MemTxResult res = MEMTX_ERROR;
+
+    if (env->last_fault_ipa != fault_ipa) {
+        int64_t val;
+        res = address_space_read(&address_space_memory, fault_ipa,
+                                 MEMTXATTRS_UNSPECIFIED, &val,
+                                 sizeof(val));
+        env->last_fault_ipa = fault_ipa;
+    }
+
+    if (res != MEMTX_OK) {
+        error_report(
+            "Data abort exception triggered by guest memory access "
+            "at physical address: 0x" TARGET_FMT_lx,
+            (target_ulong)fault_ipa);
+        error_printf("KVM unable to emulate faulting instruction.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#else /* CONFIG_LIBQEMU is not defined */
+
 /**
  * kvm_arm_handle_dabt_nisv:
  * @cpu: ARMCPU
@@ -1342,6 +1459,7 @@ static int kvm_arm_handle_dabt_nisv(ARMCPU *cpu, uint64_t esr_iss,
     }
     return -1;
 }
+#endif /* CONFIG_LIBQEMU */
 
 /**
  * kvm_arm_handle_debug:
