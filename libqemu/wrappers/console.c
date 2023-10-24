@@ -109,7 +109,7 @@ void *libqemu_dcl_get_user_data(DisplayChangeListener *dcl)
     return dcl->user_data;
 }
 
-DisplayChangeListenerOps *libqemu_dcl_ops_new()
+DisplayChangeListenerOps *libqemu_dcl_ops_new(void)
 {
     DisplayChangeListenerOps *ops = g_new0(DisplayChangeListenerOps, 1);
     // Trivial functions, no need to run on main thread
