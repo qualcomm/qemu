@@ -857,11 +857,8 @@ static MachineClass *find_default_machine(GSList *machines)
 
 static void version(void)
 {
-    printf("Hexagon QEMU emulator"
-#ifdef QEMU_HEXAGON_BRANCH
-           " (branch " QEMU_HEXAGON_BRANCH ".X)"
-#endif
-           "\nCommit " QEMU_HEXAGON_SHA "\n"
+    printf("Hexagon QEMU emulator " QEMU_HEXAGON_TAG "\n"
+           "Commit " QEMU_HEXAGON_SHA "\n"
            "Based on upstream QEMU version " QEMU_FULL_VERSION "\n"
            QEMU_COPYRIGHT "\n");
 }

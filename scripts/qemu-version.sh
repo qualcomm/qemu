@@ -24,21 +24,12 @@ if [ -n "$(git status --porcelain)" ]; then
     sha="$sha-dirty"
 fi
 
-# HACK/NEEDSWORK: once we have build tags, let's use them
-# instead of this limited branch matching
-hexagon_branch=
-for v in 8_5 8_6 8_7 8_8; do
-    if git merge-base --is-ancestor HEAD BRANCH_HEXAGON_$v >/dev/null 2>&1; then
-        hexagon_branch=$(echo $v | tr _ .)
-        break
-    fi
-done
+hexagon_tag="$(git describe --tags --exact-match --match 'qemu-hexagon-*' HEAD \
+               2>/dev/null | sed -e 's/^qemu-hexagon-//')" || hexagon_tag=""
 
 cat <<EOF
 #define QEMU_PKGVERSION "$pkgversion"
 #define QEMU_FULL_VERSION "$fullversion"
 #define QEMU_HEXAGON_SHA "$sha"
+#define QEMU_HEXAGON_TAG "$hexagon_tag"
 EOF
-if [ -n "$hexagon_branch" ]; then
-    echo "#define QEMU_HEXAGON_BRANCH \"$hexagon_branch\""
-fi
