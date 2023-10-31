@@ -110,17 +110,32 @@ coproc_build:
     expire_in: 1 day
 
 .base-tarball:
+  # We need GNU tar for --transform
+  tags:
+    - linux
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 1
   variables:
     TARBALL_PREFIX: ""
+    TARBALL_DIR_PREFIX: "Tools/QEMUHexagon/"
   script:
     - |
-      installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
-      mv quic/RELEASE-NOTES.txt $installdir
       tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
                  { echo -n "qemu-hexagon-" && git rev-parse --short HEAD; } )"
       tarball_name=${TARBALL_PREFIX}${tagname}.tgz
+      src_tarball_name=${tagname}-src.tgz
+      installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
+
       mkdir -p $TARBALLS_PATH
-      tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name --exclude="$installdir/bin/qemu-hexagon" $installdir
+      tar --exclude-vcs -zcf $installdir/$src_tarball_name \
+          --exclude $installdir --exclude $TARBALLS_PATH . \
+          --transform "s/\./${CI_PROJECT_NAME}/"
+
+      mv quic/RELEASE-NOTES.txt $installdir
+      tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name \
+          --exclude="$installdir/bin/qemu-hexagon" $installdir \
+          --transform "s,^$installdir,$TARBALL_DIR_PREFIX,"
   artifacts:
     paths: [ $TARBALLS_PATH ]
     expire_in: 1 month
@@ -160,28 +175,6 @@ coproc_build:
 ##################################################################
 #    Jobs
 ###################################################################
-
-src-tarball:
-  # We need GNU tar for the name transformation
-  tags:
-    - linux
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: 1
-  script:
-    - |
-      tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
-                 { echo -n "qemu-hexagon-" && git rev-parse --short HEAD; } )"
-      tarball_name=${tagname}-src.tgz
-      mkdir -p $TARBALLS_PATH
-      tar --exclude-vcs -zcf $TARBALLS_PATH/$tarball_name --exclude $TARBALLS_PATH . --transform "s/\./${CI_PROJECT_NAME}/"
-  artifacts:
-    paths: [ $TARBALLS_PATH ]
-    expire_in: 1 month
-  only:
-    - tags
-    - web
-    - schedules
 
 checkpatch:
   extends: .mr-job
