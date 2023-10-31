@@ -272,6 +272,8 @@ ExportedFct('cpu_loop_exit_noexc', 'void', [ 'Object *' ])
 ExportedFct('cpu_in_exclusive_context', 'bool', [ 'const Object *'])
 ExportedFct('cpu_get_index', 'int', [ 'const Object *' ], priv = 'libqemu_cpu_get_index')
 ExportedFct('cpu_get_mem_io_pc', 'uintptr_t', [ 'Object *' ], priv = 'libqemu_cpu_get_mem_io_pc')
+ExportedFct('cpu_set_vcpu_dirty', 'void', [ 'Object *', 'bool' ],
+        priv = 'libqemu_cpu_set_vcpu_dirty')
 
 PrivateInclude('exec/gdbstub.h')
 ExportedFct('gdbserver_start', 'void', ['const char *'], on_iothread = True)
