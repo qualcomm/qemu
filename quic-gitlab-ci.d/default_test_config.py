@@ -29,7 +29,7 @@
             '-cpu', 'any,usefs={test_dir},sched-limit=on', ],
         'check': None,
     },
-    'mp3decoder': {
+    'mp3decoder-Hikobe_Manor': {
         'qemu-program': 'qemu-hexagon',
         'test-dir': 'apps/mp3decoder/',
         'test-program': 'main',
