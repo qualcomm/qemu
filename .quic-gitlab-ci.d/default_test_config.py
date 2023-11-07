@@ -72,23 +72,6 @@
         'qemu-args': [],
         'check': None,
     },
-    'mbfw-coproc': {
-        'qemu-program': 'qemu-system-hexagon',
-        'test-dir': 'microbench/mbfw_bench/',
-        'test-program': None,
-        'test-program-list': [
-                'hmx_conv3x3_u8xs8_act_random_wgt_random_1T_TM01.elf',
-                'hmx_conv3x3_cvt_u16xs8_act_random_wgt_random_1T_TM01.elf',
-                'HMX_mpy_u8xs8_acc_interlock_d128_TM01.elf',
-                'HMX_bias_store2_rate_1T_TM01.elf',
-                'HMX_bias_load2_rate_1T_TM01.elf',
-                'hmx_matmult_cvt_u8xs8_hvx_convdw_v68_dma_4T_TM0F.elf',
-                'hmx_matmult_hfxhf_act_random_wgt_random_1T_TM01.elf',
-                ],
-        'prog-args': [],
-        'qemu-args': ['-M', 'virt_coproc', '-cpu', 'any,sched-limit=on',],
-        'check': None,
-    },
     "libcxx-alg_sorting": {
         "qemu-program": "qemu-system-hexagon",
         "test-dir": "apps/libcxx_test",

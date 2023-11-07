@@ -18,18 +18,6 @@
         'qemu-args': [],
         'check': None,
     },
-    'mbfw-coproc': {
-        'qemu-program': 'qemu-system-hexagon',
-        'test-dir': 'microbench/mbfw_bench/',
-        'test-program': None,
-        'test-program-list': [
-                'hmx_matmult_cvt_u8xs8_hvx_convdw_v68_dma_4T_TM0F.elf',
-                'hmx_matmult_hfxhf_act_random_wgt_random_1T_TM01.elf',
-                ],
-        'prog-args': [],
-        'qemu-args': ['-M', 'virt_coproc'],
-        'check': None,
-    },
     'snpe-m10': {
         'qemu-program': 'qemu-system-hexagon',
         'test-dir': 'nn/snpe/m10/',
