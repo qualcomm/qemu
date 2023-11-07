@@ -1,5 +1,5 @@
 {
-    'mp3decoder': {
+    'mp3decoder-48khz_s': {
         'qemu-program': 'qemu-hexagon',
         'test-dir': 'apps/mp3decoder/',
         'test-program': 'main',
