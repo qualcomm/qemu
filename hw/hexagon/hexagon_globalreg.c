@@ -14,6 +14,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
+#include "hw/timer/qct-qtimer.h"
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
 #include "trace/trace-hw_hexagon.h"
@@ -137,9 +138,11 @@ static inline uint32_t apply_write_mask(uint32_t new_val, uint32_t cur_val,
 
 static void read_timer(HexagonGlobalRegState *s, uint32_t *low, uint32_t *high)
 {
-    /* Not yet implemented */
-    *low = 0;
-    *high = 0;
+    const hwaddr low_addr  = s->qtimer_base_addr + QCT_QTIMER_CNTPCT_LO;
+    const hwaddr high_addr = s->qtimer_base_addr + QCT_QTIMER_CNTPCT_HI;
+
+    cpu_physical_memory_read(low_addr, low, sizeof(*low));
+    cpu_physical_memory_read(high_addr, high, sizeof(*high));
 }
 
 uint32_t hexagon_globalreg_read(HexagonCPU *cpu, uint32_t reg)
