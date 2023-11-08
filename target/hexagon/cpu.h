@@ -29,6 +29,8 @@ typedef struct SystemState system_t;
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "mmvec/mmvec.h"
+#include "dma/dma.h"
+#include "hw/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "max.h"
 

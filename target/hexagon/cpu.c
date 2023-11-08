@@ -682,6 +682,7 @@ static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     info->print_insn = print_insn_hexagon;
 }
 
+dma_t *dma_adapter_init(processor_t *proc, int dmanum);
 static const rev_features_t rev_features_v68 = {
 };
 
@@ -751,6 +752,9 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     env->processor_ptr->runnable_threads_max = cpu->cluster_thread_count;
     env->processor_ptr->thread_system_mask   = (1 << cpu->cluster_thread_count) - 1;
     env->processor_ptr->thread[env->threadId] = env;
+    env->processor_ptr->dma[env->threadId] = dma_adapter_init(
+        env->processor_ptr,
+        env->threadId);
     env->system_ptr = NULL;
 
 #ifndef CONFIG_USER_ONLY
@@ -773,6 +777,15 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->cmdline = env0->cmdline;
         env->lib_search_dir = env0->lib_search_dir;
         env->g_pcycle_base = env0->g_pcycle_base;
+
+        dma_t *dma_ptr = env->processor_ptr->dma[env->threadId];
+        udma_ctx_t *udma_ctx = (udma_ctx_t *)dma_ptr->udma_ctx;
+
+        dma_t *dma0_ptr = env->processor_ptr->dma[env0->threadId];
+        udma_ctx_t *udma0_ctx = (udma_ctx_t *)dma0_ptr->udma_ctx;
+
+        /* init dm2 of new thread to env_0 thread */
+        udma_ctx->dm2.val = udma0_ctx->dm2.val;
     }
 #else
     env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));

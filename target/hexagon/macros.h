@@ -730,6 +730,30 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fPREDUSE_TIMING()
 
+#define fSTORE_DMA(NUM,SIZE,EA,SRC) { mem_dmalink_store(thread, EA, SIZE, SRC, 0); }
+#define fDMSTART(NEWPTR) \
+    do { \
+        dma_adapter_cmd(thread, DMA_CMD_START, NEWPTR, 0); \
+        arch_dma_tick_until_stop(thread->processor_ptr, thread->threadId); \
+    } while (0)
+#define fDMLINK(CURPTR, NEWPTR) \
+    do { \
+        dma_adapter_cmd(thread, DMA_CMD_LINK, CURPTR, NEWPTR); \
+        arch_dma_tick_until_stop(thread->processor_ptr, thread->threadId); \
+    } while (0)
+#define fDMPOLL(DST) DST=dma_adapter_cmd(thread,DMA_CMD_POLL,0,0)
+#define fDMWAIT(DST) DST=dma_adapter_cmd(thread,DMA_CMD_WAIT,0,0)
+#define fDMSYNCHT(DST) DST=dma_adapter_cmd(thread,DMA_CMD_SYNCHT,0,0)
+#define fDMTLBSYNCH(DST) DST=dma_adapter_cmd(thread,DMA_CMD_TLBSYNCH,0,0)
+#define fDMPAUSE(DST) DST=dma_adapter_cmd(thread,DMA_CMD_PAUSE,0,0)
+#define fDMRESUME(PTR) dma_adapter_cmd(thread,DMA_CMD_RESUME,PTR,0)
+#define fDMWAITDESCRIPTOR(SRC,DST) DST=dma_adapter_cmd(thread,DMA_CMD_WAITDESCRIPTOR,SRC,0)
+#define fDMCFGRD(DMANUM,DST) DST=dma_adapter_cmd(thread,DMA_CMD_CFGRD,DMANUM,0)
+#define fDMCFGWR(DMANUM,DATA) dma_adapter_cmd(thread,DMA_CMD_CFGWR,DMANUM,DATA)
+#define GET_DMA_LDST_ERROR_BADVA(EXTENDED_VA, VA) \
+    ((EXTENDED_VA) ? (size4u_t)(((uint64_t)VA >> 32) | (VA & ~0xFFF)) \
+                   : (size4u_t)VA)
+
 #define fIN_DEBUG_MODE(TNUM) \
     0    /* FIXME */
 

@@ -35,6 +35,7 @@
 #include "mmvec/mmvec_qfloat.h"
 #include "arch_options_calc.h"
 #include "system.h"
+#include "dma_adapter.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/cpus.h"
 #include "hw/boards.h"
