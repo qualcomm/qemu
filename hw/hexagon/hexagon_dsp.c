@@ -3,7 +3,6 @@
  * subsystem with few peripherals, like the Compute DSP.
  *
  * Copyright (c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -120,6 +119,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
 
         if (i == 0) {
