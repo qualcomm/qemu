@@ -1512,20 +1512,6 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, uint32_t val)
-{
-    g_assert((offset == L2VIC_VID_0) || (offset == L2VIC_VID_1));
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
-    cpu_physical_memory_write(pend_mem, &val, sizeof(val));
-}
-
-static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
-{
-    hexagon_set_vid(env, offset, L2VIC_CIAD_INSTRUCTION);
-}
-
 /*
  * ciad - clear interrupt auto disable
  *  - When taking an interrupt the hardware will set ipend.iad to
@@ -1537,6 +1523,7 @@ static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
  */
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
+    HexagonCPU *cpu = env_archcpu(env);
     uint32_t ipendad;
     uint32_t iad;
 
@@ -1545,7 +1532,9 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
     iad = fGET_FIELD(ipendad, IPENDAD_IAD);
     fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
     arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
-    hexagon_clear_last_irq(env, L2VIC_VID_0);
+    if (cpu->l2vic) {
+        l2vic_clear_interrupt(cpu->l2vic);
+    }
     hex_interrupt_update(env);
 }
 
@@ -1812,17 +1801,6 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     }
 }
 
-static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
-{
-    int offset = (vid ==  HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1;
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
-    uint32_t irq;
-    cpu_physical_memory_read(pend_mem, &irq, sizeof(irq));
-    return irq;
-}
-
 static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
                                uint32_t *high)
 {
@@ -1834,14 +1812,7 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
 
 {
     g_assert(bql_locked());
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        if (val != L2VIC_NO_PENDING) {
-            hexagon_set_vid(env,
-                            (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
-                            val);
-            arch_set_system_reg(env, reg, val);
-        }
-    } else if (reg == HEX_SREG_SYSCFG) {
+    if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);
@@ -1851,11 +1822,7 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
     } else if (!handle_pmu_sreg_write(env, reg, val)) {
-        if (reg >= HEX_SREG_GLB_START) {
-            arch_set_system_reg(env, reg, val);
-        } else {
-            arch_set_system_reg(env, reg, val);
-        }
+        arch_set_system_reg(env, reg, val);
     }
 }
 
@@ -1864,16 +1831,7 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
 
 {
     g_assert(bql_locked());
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        HexagonCPU *cpu = env_archcpu(env);
-        if (cpu->globalregs) {
-            val = hexagon_globalreg_masked_value(cpu->globalregs, reg, val);
-        }
-        hexagon_set_vid(env,
-                        (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
-                        val);
-        arch_set_system_reg(env, reg, val);
-    } else if (reg == HEX_SREG_SYSCFG) {
+    if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);
@@ -1936,10 +1894,7 @@ uint32_t sreg_read(CPUHexagonState *env, uint32_t reg)
         qemu_log_mask(LOG_UNIMP, "PMU registers not yet implemented");
         return 0;
     }
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        const uint32_t vid = hexagon_find_last_irq(env, reg);
-        arch_set_system_reg(env, reg, vid);
-    } else if ((reg == HEX_SREG_TIMERLO) || (reg == HEX_SREG_TIMERHI)) {
+    if ((reg == HEX_SREG_TIMERLO) || (reg == HEX_SREG_TIMERHI)) {
         uint32_t low = 0;
         uint32_t high = 0;
         hexagon_read_timer(env, &low, &high);

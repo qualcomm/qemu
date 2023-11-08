@@ -32,6 +32,9 @@
 #include "mmvec/mmvec.h"
 #include "hw/core/registerfields.h"
 #include "qemu/bitmap.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/intc/l2vic.h"
+#endif
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
@@ -193,10 +196,10 @@ struct ArchCPU {
     bool short_circuit;
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
-    uint32_t l2vic_base_addr;
     uint32_t hvx_contexts;
     uint32_t boot_addr;
     struct HexagonGlobalRegState *globalregs;
+    L2VicInterface *l2vic;
 #endif
 };
 
