@@ -1,3 +1,4 @@
 config DRAGON
     bool
     imply PTIMER
+    select L2VIC  # Vector PIC

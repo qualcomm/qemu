@@ -26,6 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/timer/qct-qtimer.h"
+#include "hw/intc/l2vic.h"
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -185,6 +186,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (cpu->rev_reg == 0) {
             qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
         }
+        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr",
+            cfgExtensions->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr",
             cfgExtensions->qtmr_rg0);
         object_property_set_link(OBJECT(cpu), "vtcm", OBJECT(vtcm),
@@ -223,6 +226,21 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         }
     }
 
+    HexagonCPU *cpu = cpu_0;
+    DeviceState *l2vic_dev;
+    l2vic_dev = sysbus_create_varargs("l2vic", cfgExtensions->l2vic_base,
+                                             /* IRQ#, Evnt#,CauseCode */
+        qdev_get_gpio_in(DEVICE(cpu), 0), /* IRQ 0, 16, 0xc0 */
+        qdev_get_gpio_in(DEVICE(cpu), 1), /* IRQ 1, 17, 0xc1 */
+        qdev_get_gpio_in(DEVICE(cpu), 2), /* IRQ 2, 18, 0xc2  VIC0 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 3), /* IRQ 3, 19, 0xc3  VIC1 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 4), /* IRQ 4, 20, 0xc4  VIC2 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 5), /* IRQ 5, 21, 0xc5  VIC3 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
+        qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
+        NULL);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1, cfgTable->fastl2vic_base);
+
     /*
      * This is tightly with the IRQ selected must match the value below
      * or the interrupts will not be seen
@@ -238,10 +256,15 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
 
+    unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0,
                     0xfab20000);
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
                     cfgExtensions->qtmr_rg0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(l2vic_dev, QTMR0_IRQ));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(l2vic_dev, 4));
 
     hexagon_config_table *config_table = cfgTable;
 
