@@ -239,6 +239,8 @@ M: Brian Cain <brian.cain@oss.qualcomm.com>
 S: Supported
 F: target/hexagon/
 F: hw/hexagon/
+F: hw/timer/qct-qtimer.c
+F: include/hw/timer/qct-qtimer.h
 F: include/hw/hexagon/
 F: hw/intc/l2vic.[ch]
 X: target/hexagon/idef-parser/

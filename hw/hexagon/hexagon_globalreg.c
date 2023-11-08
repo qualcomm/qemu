@@ -14,6 +14,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
+#include "hw/timer/qct-qtimer.h"
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
 #include "trace/trace-hw_hexagon.h"
