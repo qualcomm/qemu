@@ -16,6 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/loader.h"
+#include "hw/timer/qct-qtimer.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -93,6 +94,16 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
+        QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+        object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                2, &error_fatal);
+        object_property_set_uint(OBJECT(qtimer), "nr_views",
+                1, &error_fatal);
+        object_property_set_uint(OBJECT(qtimer), "cnttid",
+                0x111, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
         DeviceState *l2vic_dev;
         l2vic_dev = sysbus_create_varargs("l2vic", m_cfg->l2vic_base,
                 /* IRQ#, Evnt#,CauseCode */
@@ -107,6 +118,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                 NULL);
         sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
             m_cfg->cfgtable.fastl2vic_base);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                qdev_get_gpio_in(l2vic_dev, 3));
+        sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                qdev_get_gpio_in(l2vic_dev, 4));
+
 
         /*
          * CPU #0 is the only CPU running at boot, others must be
