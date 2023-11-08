@@ -252,6 +252,8 @@ R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Supported
 F: target/hexagon/
 F: hw/hexagon/
+F: hw/timer/qct-qtimer.c
+F: include/hw/timer/qct-qtimer.h
 F: include/hw/hexagon/
 F: hw/intc/l2vic.c
 F: include/hw/intc/l2vic.h
