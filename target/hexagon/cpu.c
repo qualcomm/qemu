@@ -26,6 +26,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
+#include "dma/dma.h"
 #include "trace.h"
 #include "hw/hexagon/hexagon.h"
 

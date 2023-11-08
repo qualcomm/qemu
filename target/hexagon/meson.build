@@ -160,6 +160,10 @@ hexagon_ss.add(files(
     'int16_emu.c',
     'system.c',
     'arch_options_calc.c',
+    'dma_adapter.c',
+    'dma/dma.c',
+    'dma/dma_descriptor.c',
+    'dma/desc_tracker.c',
     'uarch/queue.c',
 ))
 
