@@ -230,6 +230,7 @@ M: Brian Cain <bcain@quicinc.com>
 S: Supported
 F: target/hexagon/
 F: hw/hexagon/
+F: hw/intc/l2vic.[ch]
 F: include/hw/hexagon/
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
