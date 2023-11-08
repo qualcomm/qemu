@@ -376,7 +376,6 @@ static void virt_init(MachineState *ms)
                              m_cfg->cfgtable.ext_contexts);
         object_property_set_link(OBJECT(cpu), "global-regs",
                                  OBJECT(gsregs_dev), errp);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
 

@@ -61,10 +61,10 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
-    DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
-        0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
+    DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
+                     TYPE_L2VIC_INTERFACE, L2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
 #endif
