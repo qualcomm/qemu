@@ -17,6 +17,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
 #include "hw/register.h"
+#include "hw/timer/qct-qtimer.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
@@ -256,6 +258,24 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
     }
 }
 
+static void create_qtimer(HexagonVirtMachineState *vms,
+                          const hexagon_machine_config *m_cfg)
+{
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames", 2, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views", 1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
+}
+
 static void virt_instance_init(Object *obj)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
@@ -316,7 +336,6 @@ static void do_cpu_reset(void *opaque)
 static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
-    Error **errp = NULL;
     const hexagon_machine_config *m_cfg = &v68n_1024;
 
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
@@ -327,7 +346,8 @@ static void virt_init(MachineState *ms)
     vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
     clock_set_hz(vms->apb_clk, 24000000);
 
-    memory_region_init_ram(&vms->ram, NULL, "ddr.ram", ms->ram_size, errp);
+    memory_region_init_ram(&vms->ram, NULL, "ddr.ram",
+                           ms->ram_size, &error_fatal);
     memory_region_add_subregion(vms->sys, 0x0, &vms->ram);
 
     if (m_cfg->l2tcm_size) {
@@ -338,9 +358,9 @@ static void virt_init(MachineState *ms)
     }
 
     memory_region_init_rom(&vms->cfgtable, NULL, "config_table.rom",
-                           sizeof(m_cfg->cfgtable), errp);
+                           sizeof(m_cfg->cfgtable), &error_fatal);
     memory_region_add_subregion(vms->sys, m_cfg->cfgbase, &vms->cfgtable);
-    fdt_add_hvx(vms, m_cfg, errp);
+    fdt_add_hvx(vms, m_cfg, &error_fatal);
     const char *cpu_model = ms->cpu_type;
 
     if (!cpu_model) {
@@ -352,7 +372,7 @@ static void virt_init(MachineState *ms)
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
     qdev_prop_set_uint32(gsregs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
 
     HexagonCPU *cpu_0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
@@ -375,11 +395,11 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
         object_property_set_link(OBJECT(cpu), "global-regs",
-                                 OBJECT(gsregs_dev), errp);
+                                 OBJECT(gsregs_dev), &error_fatal);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
 
-        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal)) {
             return;
         }
     }
@@ -396,6 +416,7 @@ static void virt_init(MachineState *ms)
     fdt_add_clocks(vms);
     fdt_add_uart(vms, VIRT_UART0);
     fdt_add_gpt_node(vms);
+    create_qtimer(vms, m_cfg);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
