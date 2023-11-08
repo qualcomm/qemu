@@ -3,6 +3,7 @@ config HEX_DSP
     default y
     depends on HEXAGON && TCG
     imply PTIMER
+    select L2VIC
 
 config HEX_VIRT
     bool
