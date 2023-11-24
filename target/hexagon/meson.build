@@ -458,7 +458,7 @@ cmake = import('cmake')
 rpclib_cmake_opts = cmake.subproject_options()
 rpclib_cmake_opts.append_compile_args(
   'cpp', '-Wno-unused-but-set-variable', '-Wno-unused-variable',
-  '-Wno-unused-function', '-std=gnu++17'
+  '-Wno-unused-function', '-std=gnu++17', '-fPIC'
 )
 
 if host_machine.system() == 'linux' or (host_machine.system() == 'windows' and host_machine.cpu_family() != 'aarch64')
@@ -485,6 +485,7 @@ coproc_lib = static_library(
   ],
   dependencies : [ rpclib_dep, glib ],
   sources: [ genh, opcodes_def_generated ],
+  pic: true,
 )
 
 coproc_link_args = [ qemu_ldflags ]
