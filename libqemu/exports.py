@@ -179,6 +179,10 @@ ExportedFct('qdev_get_gpio_in', 'struct IRQState *', [ 'DeviceState *', 'int' ])
 ExportedFct('qdev_get_gpio_in_named', 'struct IRQState *', [ 'DeviceState *', 'const char *', 'int' ])
 ExportedFct('qdev_prop_set_chr', 'void', [ 'DeviceState *', 'const char *', 'Chardev *'])
 
+PrivateInclude('libqemu/wrappers/qdev.h')
+ExportedFct('qdev_prop_set_uint_array', 'void', [ 'DeviceState *', 'const char *', 'unsigned int *', 'int'],
+            priv = 'libqemu_qdev_prop_set_uint_array')
+
 PrivateInclude('hw/sysbus.h')
 ExportedType('QemuSysBusDevice', 'SysBusDevice')
 
