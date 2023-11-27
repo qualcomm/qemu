@@ -3407,6 +3407,11 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     Int128 diff;
 
     assert(len > 0);
+    /*
+     *  Dummy read to make sure that systemc TLM DMI access is granted early.
+     */
+    uint64_t dummy_buf;
+    address_space_read(as,  addr, MEMTXATTRS_UNSPECIFIED, &dummy_buf, sizeof(dummy_buf));
 
     l = len;
     cache->fv = address_space_get_flatview(as);
