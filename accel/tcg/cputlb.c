@@ -2486,6 +2486,18 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
         this_size = 1 << this_mop;
         this_mop |= MO_LE;
 
+        /*
+         * Sometimes, a dmi region is installed between the moment qemu determines
+         * the access is an IO, and the moment it gets the corresponding MR.
+         * In such a case, we end up here with a ram mr that does not support IO,
+         * which causes a transaction fail (and a DATA_ABORT on the cpu).
+         * Prevent this by copying parent (cpu) ops to dmi region ops.
+         */
+        if (mr->ram && !mr->opaque && !strcmp(mr->name, "dmi")) {
+            mr->ops = mr->container->ops;
+            mr->opaque = mr->container->opaque;
+        }
+
         r = memory_region_dispatch_write(mr, mr_offset, val_le,
                                          this_mop, full->attrs);
         if (r == MEMTX_OK_EXIT_TB) {
