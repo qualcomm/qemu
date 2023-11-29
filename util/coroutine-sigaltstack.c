@@ -52,11 +52,12 @@ typedef struct {
 
     /** Information for the signal handler (trampoline) */
     sigjmp_buf tr_reenter;
-    volatile sig_atomic_t tr_called;
-    void *tr_handler;
+    CoroutineSigAltStack *tr_handler;
 } CoroutineThreadState;
 
 static pthread_key_t thread_state_key;
+
+static void coroutine_trampoline(int signal);
 
 static CoroutineThreadState *coroutine_get_thread_state(void)
 {
@@ -80,10 +81,45 @@ static void qemu_coroutine_thread_cleanup(void *opaque)
 static void QEMU_CONSTRUCTOR(coroutine_init)(void)
 {
     int ret;
+    sigset_t sigs;
+    struct sigaction sa;
 
     ret = pthread_key_create(&thread_state_key, qemu_coroutine_thread_cleanup);
     if (ret != 0) {
         fprintf(stderr, "unable to create leader key: %s\n", strerror(errno));
+        abort();
+    }
+
+    /*
+     * This constructor function is running in the main thread. Masking SIGUSR2
+     * here means that both the main thread, and directly or indirectly
+     * descendant threads thereof, will block SIGUSR2. (The signal mask is
+     * thread-specific, and inherited through pthread_create().)
+     */
+    sigemptyset(&sigs);
+    sigaddset(&sigs, SIGUSR2);
+    pthread_sigmask(SIG_BLOCK, &sigs, NULL);
+
+    /*
+     * Establish the SIGUSR2 signal handler. This is a process-wide operation,
+     * and so will apply to all threads from here on.
+     *
+     * We'll only unblock the delivery of SIGUSR2 in a narrow window, in
+     * qemu_coroutine_new().
+     *
+     * While the handler is running, SIGUSR2 itself will be blocked due to
+     * setting none of the SA_NODEFER and SA_RESETHAND flags below. All other
+     * signals will *remain* blocked, from where we unblock SIGUSR2 in
+     * qemu_coroutine_new(). Still, we need to set "sa_mask" below *somehow*,
+     * and then it's simplest to make it block all signals, even though it
+     * makes no difference to the signal mask that's already going to be in
+     * effect when the handler is entered.
+     */
+    sa.sa_handler = coroutine_trampoline;
+    sigfillset(&sa.sa_mask);
+    sa.sa_flags = SA_ONSTACK;
+    if (sigaction(SIGUSR2, &sa, NULL) != 0) {
+        perror("Unable to install SIGUSR2 handler");
         abort();
     }
 }
@@ -120,7 +156,16 @@ static void coroutine_trampoline(int signal)
     /* Get the thread specific information */
     coTS = coroutine_get_thread_state();
     self = coTS->tr_handler;
-    coTS->tr_called = 1;
+
+    if (!self) {
+        /*
+         * Never reached -- the top of coroutine_trampoline() can only be
+         * entered from the sigsuspend() call in qemu_coroutine_new().
+         */
+        abort();
+    }
+
+    coTS->tr_handler = NULL;
     co = &self->base;
 
     /*
@@ -149,14 +194,10 @@ Coroutine *qemu_coroutine_new(void)
 {
     CoroutineSigAltStack *co;
     CoroutineThreadState *coTS;
-    struct sigaction sa;
-    struct sigaction osa;
     stack_t ss;
     stack_t oss;
     sigset_t sigs;
-    sigset_t osigs;
     sigjmp_buf old_env;
-    static pthread_mutex_t sigusr2_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     /* The way to manipulate stack is with the sigaltstack function. We
      * prepare a stack, with it delivering a signal to ourselves and then
@@ -172,26 +213,10 @@ Coroutine *qemu_coroutine_new(void)
     co->stack = qemu_alloc_stack(&co->stack_size);
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
-    coTS = coroutine_get_thread_state();
-    coTS->tr_handler = co;
-
-    /*
-     * Preserve the SIGUSR2 signal state, block SIGUSR2,
-     * and establish our signal handler. The signal will
-     * later transfer control onto the signal stack.
-     */
-    sigemptyset(&sigs);
-    sigaddset(&sigs, SIGUSR2);
-    pthread_sigmask(SIG_BLOCK, &sigs, &osigs);
-    sa.sa_handler = coroutine_trampoline;
-    sigfillset(&sa.sa_mask);
-    sa.sa_flags = SA_ONSTACK;
-
     /*
      * sigaction() is a process-global operation.  We must not run
      * this code in multiple threads at once.
      */
-    pthread_mutex_lock(&sigusr2_mutex);
     if (sigaction(SIGUSR2, &sa, &osa) != 0) {
         abort();
     }
@@ -209,17 +234,14 @@ Coroutine *qemu_coroutine_new(void)
     /*
      * Now transfer control onto the signal stack and set it up.
      * It will return immediately via "return" after the sigsetjmp()
-     * was performed. Be careful here with race conditions.  The
-     * signal can be delivered the first time sigsuspend() is
-     * called.
+     * was performed.
      */
-    coTS->tr_called = 0;
+    coTS = coroutine_get_thread_state();
+    coTS->tr_handler = co;
     pthread_kill(pthread_self(), SIGUSR2);
     sigfillset(&sigs);
     sigdelset(&sigs, SIGUSR2);
-    while (!coTS->tr_called) {
-        sigsuspend(&sigs);
-    }
+    sigsuspend(&sigs);
 
     /*
      * Inform the system that we are back off the signal stack by
@@ -235,14 +257,6 @@ Coroutine *qemu_coroutine_new(void)
     if (!(oss.ss_flags & SS_DISABLE)) {
         sigaltstack(&oss, NULL);
     }
-
-    /*
-     * Restore the old SIGUSR2 signal handler and mask
-     */
-    sigaction(SIGUSR2, &osa, NULL);
-    pthread_mutex_unlock(&sigusr2_mutex);
-
-    pthread_sigmask(SIG_SETMASK, &osigs, NULL);
 
     /*
      * Now enter the trampoline again, but this time not as a signal
