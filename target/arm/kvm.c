@@ -913,11 +913,6 @@ static int kvm_handle_load_store(CPUState *cs, uint64_t fault_ipa,
         __builtin_unreachable();
     }
 
-    if (res != MEMTX_OK) {
-        error_report("Failed to handle load/store due to datb_nisv");
-        return -1;
-    }
-
     env->xregs[rn] += imm;
     env->pc += sizeof(ins);
     cs->vcpu_dirty = true;
