@@ -53,27 +53,5 @@ void libqemu_dcl_ops_set_gfx_switch(DisplayChangeListenerOps *,
                                     LibQemuGfxSwitchFn);
 void libqemu_dcl_ops_set_refresh(DisplayChangeListenerOps *, LibQemuRefreshFn);
 
-void sdl2_2d_update(DisplayChangeListener *dcl, int x, int y, int w, int h);
-void sdl2_2d_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface);
-void sdl2_2d_refresh(DisplayChangeListener *dcl);
-
-void sdl2_gl_update(DisplayChangeListener *dcl, int x, int y, int w, int h);
-void sdl2_gl_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface);
-void sdl2_gl_refresh(DisplayChangeListener *dcl);
-
-void sdl_mouse_warp(DisplayChangeListener *dcl, int x, int y, int on);
-void sdl_mouse_define(DisplayChangeListener *dcl, QEMUCursor *c);
-
-void sdl2_gl_scanout_disable(DisplayChangeListener *dcl);
-void sdl2_gl_scanout_texture(DisplayChangeListener *dcl, uint32_t backing_id,
-                             bool backing_y_0_top, uint32_t backing_width,
-                             uint32_t backing_height, uint32_t x, uint32_t y,
-                             uint32_t w, uint32_t h);
-void sdl2_gl_scanout_flush(DisplayChangeListener *dcl, uint32_t x, uint32_t y,
-                           uint32_t w, uint32_t h);
-
-QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *, QEMUGLParams *);
-void sdl2_gl_destroy_context(DisplayGLCtx *, QEMUGLContext);
-int sdl2_gl_make_context_current(DisplayGLCtx *, QEMUGLContext);
 
 #endif

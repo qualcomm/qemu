@@ -24,8 +24,6 @@
 #include "memory.h"
 #include "exec/address-spaces.h"
 
-extern AddressSpace address_space_memory;
-
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
     return g_new0(MemoryRegionOps, 1);
