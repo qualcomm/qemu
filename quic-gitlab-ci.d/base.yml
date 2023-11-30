@@ -69,7 +69,6 @@ variables:
   HEX_INSTALL_PREFIX: "Tools"
   HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
   HEX_QEMU_DIR: "$HEX_INSTALL_PREFIX/QEMUHexagon"
-  TARBALLS_PATH: tarball-artifacts
 
 ###################################################################
 #    Base templates
@@ -133,56 +132,6 @@ variables:
   artifacts:
     paths: [ $CI_JOB_NAME ]
     expire_in: 1 day
-
-.base-tarball:
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: 1
-  variables:
-    TARBALL_PREFIX: ""
-    CUSTOM_INSTALL_SCRIPT: ""
-  script:
-    - |
-      tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
-                 { echo -n "qemu-hexagon-" && git rev-parse --short HEAD; } )"
-      tarball_name=${TARBALL_PREFIX}${tagname}.tgz
-      src_tarball_name=${tagname}-src.tgz
-      installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
-
-      mkdir -p $TARBALLS_PATH
-      tar --exclude-vcs -zcf $installdir/$src_tarball_name \
-          --exclude $installdir --exclude $TARBALLS_PATH . \
-          --transform "s/\./${CI_PROJECT_NAME}/"
-
-      if test -n "$CUSTOM_INSTALL_SCRIPT"
-      then
-        mv "$CUSTOM_INSTALL_SCRIPT" $installdir
-      fi
-
-      mv quic/RELEASE-NOTES.txt $installdir
-
-      mkdir -p $(dirname $HEX_QEMU_DIR)
-      mv $installdir $HEX_QEMU_DIR
-
-      tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name \
-          --exclude="$HEX_QEMU_DIR/bin/qemu-hexagon" $HEX_INSTALL_PREFIX
-  artifacts:
-    paths: [ $TARBALLS_PATH ]
-    expire_in: 1 month
-  only:
-    - tags
-    - web
-    - schedules
-
-# A small job only to make sure we keep artifacts for tags forever
-.base-tarball-tag:
-  script:
-    - echo OK
-  artifacts:
-    paths: [ $TARBALLS_PATH ]
-    expire_in: never
-  only:
-    - tags
 
 .base-check-tcg:
   extends: .after-build
@@ -334,12 +283,6 @@ hexagon_and_coproc_build:
 hexagon_install:
   needs: [hexagon_build]
   extends: .base-install
-hexagon_tarball:
-  needs: [hexagon_install, coproc_build]
-  extends: .base-tarball
-hexagon_tarball_tag:
-  needs: [hexagon_tarball]
-  extends: .base-tarball-tag
 hexagon_check-tcg:
   needs: [hexagon_and_coproc_build]
   extends: .base-check-tcg
@@ -356,46 +299,6 @@ hexagon_qurt-tests:
 hexagon_sival-tests:
   extends: .base-sival-tests
   needs: [hexagon_and_coproc_build]
-hexagon_publish:
-  tags: [publish_runner]
-  variables:
-    PUBLISH_PATH: /prj/qct/llvm/target/vp_qemu_llvm/qemu_builds/
-    QEMU_RELPATH: Tools/QEMUHexagon
-    MAX_PUBLISH_NR: 90 # 3 months
-  needs: [hexagon_tarball, hexagon_build_ug]
-  script:
-    - |
-      rel_publishdir="build-$(date +%Y%m%d)"
-      publishdir="$PUBLISH_PATH/$rel_publishdir"
-      rm -rf "$PUBLISH_PATH/build-latest" "$publishdir"
-
-      mkdir "$publishdir"
-      tar -xf $TARBALLS_PATH/*.tgz -C "$publishdir"
-
-      ug_dir="$publishdir/${QEMU_RELPATH}/user_guide"
-      mkdir -p "$ug_dir/pdf"
-      mv quic/user_guide/_build/html "$ug_dir/"
-      mv quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "$ug_dir/pdf/"
-
-      ln -s $rel_publishdir "$PUBLISH_PATH/build-latest"
-
-      nr="$(ls "$PUBLISH_PATH" | wc -l)"
-      if test $nr -gt $(($MAX_PUBLISH_NR + 1))
-      then
-          to_rm=$(( $nr - $MAX_PUBLISH_NR - 1 ))
-          (
-              cd $PUBLISH_PATH
-              for f in $(ls | head -n $to_rm)
-              do
-                  echo "Removing old $f"
-                  rm -rf $f
-              done
-          )
-      fi
-  only:
-    - tags
-    - web
-    - schedules
 
 hexagon-win_build:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
@@ -411,16 +314,6 @@ hexagon-win_check-tcg:
   # the build dir in this mingw64/wine setup.
   needs: [hexagon-win_build, hexagon-win_install]
   extends: .base-check-tcg
-hexagon-win_tarball:
-  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
-  needs: [hexagon-win_install]
-  extends: .base-tarball
-  variables:
-    TARBALL_PREFIX: "windows-x86_64-"
-    CUSTOM_INSTALL_SCRIPT: "quic/install_win_deps.bat"
-hexagon-win_tarball_tag:
-  needs: [hexagon-win_tarball]
-  extends: .base-tarball-tag
 
 hexagon-mac_build:
   tags:
