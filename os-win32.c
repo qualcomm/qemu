@@ -28,6 +28,7 @@
 #include <mmsystem.h>
 #include "sysemu/runstate.h"
 
+#ifndef WIN32
 static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 {
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
@@ -39,6 +40,7 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 
     return TRUE;
 }
+#endif
 
 static TIMECAPS mm_tc;
 
