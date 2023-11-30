@@ -162,7 +162,7 @@ void libqemu_cpu_kick_cb(CPUState *cpu)
     }
 }
 
-void libqemu_enable_opengl()
+void libqemu_enable_opengl(void)
 {
     display_opengl = true;
 }
