@@ -77,6 +77,7 @@ static void *iothread_entry(void *arg)
 
     g_main_context_pop_thread_default(context->iothread_context);
 
+    exit(status);
     return NULL;
 }
 
