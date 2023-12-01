@@ -851,6 +851,8 @@ void dpy_gfx_replace_surface(QemuConsole *con,
         }
 
         new_surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
+    } else if (surface == old_surface) {
+        return;
     }
 
     assert(old_surface != new_surface);
@@ -866,6 +868,11 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     }
     dpy_gfx_destroy_texture(con, old_surface);
     qemu_free_displaysurface(old_surface);
+}
+
+void dcl_dpy_gfx_replace_surface(DisplayChangeListener *dcl, DisplaySurface *surface)
+{
+    dpy_gfx_replace_surface(dcl->con, surface);
 }
 
 bool dpy_gfx_check_format(QemuConsole *con,
