@@ -289,6 +289,8 @@ void qemu_console_set_mouse(QemuConsole *con, int x, int y, bool on);
 void qemu_console_set_cursor(QemuConsole *con, QEMUCursor *cursor);
 bool qemu_console_check_format(QemuConsole *con,
                                pixman_format_code_t format);
+void dcl_dpy_gfx_replace_surface(DisplayChangeListener *con,
+                                  DisplaySurface *surface);
 
 void qemu_console_gl_scanout_disable(QemuConsole *con);
 void qemu_console_gl_scanout_texture(QemuConsole *con,
