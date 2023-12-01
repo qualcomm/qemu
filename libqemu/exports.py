@@ -245,6 +245,7 @@ ExportedFct('sdl2_2d_refresh', 'void', [ 'DisplayChangeListener *' ])
 ExportedFct('sdl2_gl_update', 'void', [ 'DisplayChangeListener *', 'int', 'int', 'int' , 'int' ])
 ExportedFct('sdl2_gl_switch', 'void', [ 'DisplayChangeListener *', 'DisplaySurface *' ])
 ExportedFct('sdl2_gl_refresh', 'void', [ 'DisplayChangeListener *' ])
+ExportedFct('dcl_dpy_gfx_replace_surface', 'void', [ 'DisplayChangeListener *', 'DisplaySurface *' ])
 
 ExportedFct('sdl2_gl_create_context', 'QEMUGLContext', [ 'DisplayGLCtx*', 'QEMUGLParams*' ])
 ExportedFct('sdl2_gl_destroy_context', 'void', [ 'DisplayGLCtx*', 'QEMUGLContext' ])
