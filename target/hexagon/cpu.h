@@ -34,10 +34,6 @@
 #include "hw/core/registerfields.h"
 
 #ifndef CONFIG_USER_ONLY
-#error "Hexagon does not support system emulation"
-#endif
-
-#ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
 typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #endif

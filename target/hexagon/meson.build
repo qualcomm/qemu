@@ -235,6 +235,7 @@ decodetree_trans_funcs_generated = custom_target(
     command: [python, files('gen_trans_funcs.py'), semantics_generated, '@OUTPUT@'],
 )
 hexagon_ss.add(decodetree_trans_funcs_generated)
+hexagon_softmmu_ss = ss.source_set()
 
 hexagon_ss.add(files(
     'cpu.c',
@@ -254,6 +255,13 @@ hexagon_ss.add(files(
     'mmvec/system_ext_mmvec.c',
 ))
 
+hexagon_softmmu_ss.add(files(
+    'hex_mmu.c',
+    'hex_interrupts.c',
+    'hexswi.c',
+    'machine.c',
+))
+
 #
 # Step 4.5
 # We use flex/bison based idef-parser to generate TCG code for a lot
@@ -263,7 +271,8 @@ hexagon_ss.add(files(
 #     idef-generated-enabled-instructions
 #
 idef_parser_enabled = get_option('hexagon_idef_parser')
-if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
+if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
+                            'hexagon-softmmu' in target_dirs)
     idef_parser_input_generated = custom_target(
         'idef_parser_input.h.inc',
         output: 'idef_parser_input.h.inc',
@@ -400,3 +409,4 @@ analyze_funcs_generated = custom_target(
 hexagon_ss.add(analyze_funcs_generated)
 
 target_arch += {'hexagon': hexagon_ss}
+target_system_arch += {'hexagon': hexagon_softmmu_ss}
