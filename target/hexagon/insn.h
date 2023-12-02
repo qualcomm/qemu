@@ -24,6 +24,7 @@
 #define REG_OPERANDS_MAX 5
 #define IMMEDS_MAX 2
 
+//typedef struct CPUHexagonState CPUHexagonState;
 struct Instruction;
 struct Packet;
 struct DisasContext;
@@ -32,7 +33,7 @@ typedef void (*SemanticInsn)(struct DisasContext *ctx);
 
 struct Instruction {
     SemanticInsn generate;            /* pointer to genptr routine */
-    uint8_t regno[REG_OPERANDS_MAX];    /* reg operands including predicates */
+    uint8_t regno[REG_OPERANDS_MAX]; /* reg operands including predicates */
     uint16_t opcode;
 
     uint32_t iclass:6;
@@ -47,6 +48,7 @@ struct Instruction {
     bool extension_valid;   /* Has a constant extender attached */
     bool is_endloop;   /* This is an end of loop */
     int32_t immed[IMMEDS_MAX];    /* immediate field */
+    uint32_t cycles; /* An estimate for the number of cycles used. */
 };
 
 typedef struct Instruction Insn;
@@ -60,16 +62,22 @@ struct Packet {
     bool pkt_has_cof;          /* Has any change-of-flow */
     bool pkt_has_multi_cof;    /* Has more than one change-of-flow */
     bool pkt_has_endloop;
-
     bool pkt_has_dczeroa;
 
-    bool pkt_has_store_s0;
-    bool pkt_has_store_s1;
+    /* When a predicate cancels something, track that */
+    bool pkt_has_fp_op;
+    /* load store for slots */
+    bool pkt_has_load_s0;
+    bool pkt_has_load_s1;
+    bool pkt_has_scalar_store_s0;
+    bool pkt_has_scalar_store_s1;
 
-    bool pkt_has_hvx;
     Insn *vhist_insn;
+    bool pkt_has_hvx;
+    bool pkt_has_hvx_vs_3src;
 
-    Insn insn[INSTRUCTIONS_MAX];
+	/* This MUST be the last thing in this structure */
+	Insn insn[INSTRUCTIONS_MAX];
 };
 
 typedef struct Packet Packet;

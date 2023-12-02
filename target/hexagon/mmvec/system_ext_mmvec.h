@@ -18,8 +18,11 @@
 #ifndef HEXAGON_SYSTEM_EXT_MMVEC_H
 #define HEXAGON_SYSTEM_EXT_MMVEC_H
 
+#define thread_t CPUHexagonState
+extern void mem_vector_scatter_init(thread_t* thread, Insn * insn, vaddr_t base_vaddr, int length, int element_size);
+extern void mem_vector_scatter_finish(thread_t* thread, Insn * insn, int op);
+extern void mem_vector_gather_finish(thread_t* thread, Insn * insn);
+extern void mem_vector_gather_init(thread_t* thread, Insn * insn, vaddr_t base_vaddr,  int length, int element_size);
 void mem_gather_store(CPUHexagonState *env, target_ulong vaddr, int slot);
-void mem_vector_scatter_init(CPUHexagonState *env);
-void mem_vector_gather_init(CPUHexagonState *env);
 
 #endif

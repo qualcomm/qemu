@@ -21,4 +21,9 @@ set -e
 set -o pipefail
 
 # Run the preprocessor and drop comments
-cpp "$@"
+if [[ "$OSTYPE" == "darwin"* ]]
+then
+    cc -xc -E "$@"
+else
+    cpp "$@"
+fi

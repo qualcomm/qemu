@@ -312,7 +312,7 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "fREAD_PC()"             { return PC; }
 "USR.LPCFG"              { return LPCFG; }
 "LOAD_CANCEL(EA)"        { return LOAD_CANCEL; }
-"STORE_CANCEL(EA)"       { return STORE_CANCEL; }
+"STORE_CANCEL(EA)"       |
 "CANCEL"                 { return CANCEL; }
 "N"{LOWER_ID}"N"         { yylval->rvalue.type = REGISTER_ARG;
                            yylval->rvalue.reg.type = DOTNEW;

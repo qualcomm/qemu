@@ -1,0 +1,4 @@
+# cpu.c
+hexagon_irq_line(int irq, int level) "line: %d level:%d"
+hexagon_irq_thread_candidates(size_t count, int best_index, int interruptible)  "count: %zu best_index: %d interruptible:%d"
+hexagon_ssr_xa(int htid, int oldctx, int newctx) "HTID: %d: OLD: ssr_XA: 0x%x, NEW: ssr:xa: 0x%x"

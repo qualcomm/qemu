@@ -1720,12 +1720,13 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
 
 void gen_cancel(Context *c, YYLTYPE *locp)
 {
-    OUT(c, locp, "gen_cancel(insn->slot);\n");
+    OUT(c, locp, "gen_cancel(ctx);\n");
 }
 
 void gen_load_cancel(Context *c, YYLTYPE *locp)
 {
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    gen_cancel(c, locp);
+    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_scalar_store_s1) {\n");
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
@@ -1750,7 +1751,7 @@ void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
 
     /* Lookup the effective address EA */
     find_variable(c, locp, ea, ea);
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_scalar_store_s1) {\n");
     OUT(c, locp, "probe_noshuf_load(", ea, ", ", width, ", ctx->mem_idx);\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
@@ -1761,7 +1762,7 @@ void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
     if (signedness == SIGNED) {
         OUT(c, locp, " | MO_SIGN");
     }
-    OUT(c, locp, " | MO_TE);\n");
+    OUT(c, locp, " | MO_TE | MO_ALIGN);\n");
 }
 
 void gen_store(Context *c, YYLTYPE *locp, HexValue *width, HexValue *ea,
@@ -1980,7 +1981,7 @@ HexValue gen_rvalue_fscr(Context *c, YYLTYPE *locp, HexValue *value)
     *value = gen_rvalue_extend(c, locp, value);
     OUT(c, locp, "gen_read_reg(", &frame_key, ", HEX_REG_FRAMEKEY);\n");
     OUT(c, locp, "tcg_gen_concat_i32_i64(",
-        &key, ", ", &frame_key, ", ", &frame_key, ");\n");
+        &key, ", tcg_constant_tl(0), ", &frame_key, ");\n");
     OUT(c, locp, "tcg_gen_xor_i64(", &res, ", ", value, ", ", &key, ");\n");
     return res;
 }

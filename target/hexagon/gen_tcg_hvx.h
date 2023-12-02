@@ -15,6 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "exec/translation-block.h"
+
 #ifndef HEXAGON_GEN_TCG_HVX_H
 #define HEXAGON_GEN_TCG_HVX_H
 
@@ -34,16 +36,23 @@
  *         Generate the call to the helper
  */
 
-static inline void assert_vhist_tmp(DisasContext *ctx)
+static inline bool vhist_tmp_valid(DisasContext *ctx)
 {
     /* vhist instructions require exactly one .tmp to be defined */
-    g_assert(ctx->tmp_vregs_idx == 1);
+    if (ctx->tmp_vregs_idx != 1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "A vhist packet requires exactly one .tmp be defined: PC 0x%"VADDR_PRIX"\n",
+            ctx->base.tb->pc);
+        return false;
+    }
+    return true;
 }
 
 #define fGEN_TCG_V6_vhist(SHORTCODE) \
     if (!ctx->pre_commit) { \
-        assert_vhist_tmp(ctx); \
-        gen_helper_vhist(tcg_env); \
+        if (vhist_tmp_valid(ctx)) { \
+            gen_helper_vhist(tcg_env); \
+        } \
     }
 #define fGEN_TCG_V6_vhistq(SHORTCODE) \
     do { \
@@ -52,14 +61,16 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
             tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
                              sizeof(MMVector), sizeof(MMVector)); \
         } else { \
-            assert_vhist_tmp(ctx); \
-            gen_helper_vhistq(tcg_env); \
+            if (vhist_tmp_valid(ctx)) { \
+                gen_helper_vhistq(tcg_env); \
+            } \
         } \
     } while (0)
 #define fGEN_TCG_V6_vwhist256(SHORTCODE) \
     if (!ctx->pre_commit) { \
-        assert_vhist_tmp(ctx); \
-        gen_helper_vwhist256(tcg_env); \
+        if (vhist_tmp_valid(ctx)) { \
+            gen_helper_vwhist256(tcg_env); \
+        } \
     }
 #define fGEN_TCG_V6_vwhist256q(SHORTCODE) \
     do { \
@@ -68,14 +79,16 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
             tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
                              sizeof(MMVector), sizeof(MMVector)); \
         } else { \
-            assert_vhist_tmp(ctx); \
-            gen_helper_vwhist256q(tcg_env); \
+            if (vhist_tmp_valid(ctx)) {  \
+                gen_helper_vwhist256q(tcg_env); \
+            } \
         } \
     } while (0)
 #define fGEN_TCG_V6_vwhist256_sat(SHORTCODE) \
     if (!ctx->pre_commit) { \
-        assert_vhist_tmp(ctx); \
-        gen_helper_vwhist256_sat(tcg_env); \
+        if (vhist_tmp_valid(ctx)) { \
+            gen_helper_vwhist256_sat(tcg_env); \
+        } \
     }
 #define fGEN_TCG_V6_vwhist256q_sat(SHORTCODE) \
     do { \
@@ -84,14 +97,16 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
             tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
                              sizeof(MMVector), sizeof(MMVector)); \
         } else { \
-            assert_vhist_tmp(ctx); \
-            gen_helper_vwhist256q_sat(tcg_env); \
+            if (vhist_tmp_valid(ctx)) { \
+                gen_helper_vwhist256q_sat(tcg_env); \
+            } \
         } \
     } while (0)
 #define fGEN_TCG_V6_vwhist128(SHORTCODE) \
     if (!ctx->pre_commit) { \
-        assert_vhist_tmp(ctx); \
-        gen_helper_vwhist128(tcg_env); \
+        if (vhist_tmp_valid(ctx)) { \
+            gen_helper_vwhist128(tcg_env); \
+        } \
     }
 #define fGEN_TCG_V6_vwhist128q(SHORTCODE) \
     do { \
@@ -100,15 +115,16 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
             tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
                              sizeof(MMVector), sizeof(MMVector)); \
         } else { \
-            assert_vhist_tmp(ctx); \
-            gen_helper_vwhist128q(tcg_env); \
+            if (vhist_tmp_valid(ctx)) { \
+                gen_helper_vwhist128q(tcg_env); \
+            } \
         } \
     } while (0)
 #define fGEN_TCG_V6_vwhist128m(SHORTCODE) \
     if (!ctx->pre_commit) { \
-        TCGv tcgv_uiV = tcg_constant_tl(uiV); \
-        assert_vhist_tmp(ctx); \
-        gen_helper_vwhist128m(tcg_env, tcgv_uiV); \
+        if (vhist_tmp_valid(ctx)) { \
+            gen_helper_vwhist128m(tcg_env, tcg_constant_tl(uiV)); \
+        } \
     }
 #define fGEN_TCG_V6_vwhist128qm(SHORTCODE) \
     do { \
@@ -117,9 +133,9 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
             tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
                              sizeof(MMVector), sizeof(MMVector)); \
         } else { \
-            TCGv tcgv_uiV = tcg_constant_tl(uiV); \
-            assert_vhist_tmp(ctx); \
-            gen_helper_vwhist128qm(tcg_env, tcgv_uiV); \
+            if (vhist_tmp_valid(ctx)) { \
+                gen_helper_vwhist128qm(tcg_env, tcg_constant_tl(uiV)); \
+            } \
         } \
     } while (0)
 
@@ -426,7 +442,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
         tcg_gen_gvec_cmp(COND, TYPE, tmpoff, VuV_off, VvV_off, \
                          sizeof(MMVector), sizeof(MMVector)); \
-        vec_to_qvec(SIZE, QdV_off, tmpoff); \
+        vec_to_qvec(SIZE, QdV_off, tmpoff, ctx->zero64); \
     } while (0)
 
 #define fGEN_TCG_V6_vgtw(SHORTCODE) \
@@ -456,7 +472,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         intptr_t qoff = offsetof(CPUHexagonState, qtmp); \
         tcg_gen_gvec_cmp(COND, TYPE, tmpoff, VuV_off, VvV_off, \
                          sizeof(MMVector), sizeof(MMVector)); \
-        vec_to_qvec(SIZE, qoff, tmpoff); \
+        vec_to_qvec(SIZE, qoff, tmpoff, ctx->zero64); \
         OP(MO_64, QxV_off, QxV_off, qoff, sizeof(MMQReg), sizeof(MMQReg)); \
     } while (0)
 

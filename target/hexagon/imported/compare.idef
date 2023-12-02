@@ -141,72 +141,74 @@ Q6INSN(C4_cmplteu,"Pd4=!cmp.gtu(Rs32,Rt32)",ATTRIBS(), "And-Compare for Greater 
 
 /* Predicate Logical Operations */
 
-Q6INSN(C2_and,"Pd4=and(Pt4,Ps4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_and,"Pd4=and(Pt4,Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Predicate AND",
-{PdV=PsV & PtV;})
+{fPREDUSE_TIMING();PdV=PsV & PtV;})
 
-Q6INSN(C2_or,"Pd4=or(Pt4,Ps4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_or,"Pd4=or(Pt4,Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Predicate OR",
-{PdV=PsV | PtV;})
+{fPREDUSE_TIMING();PdV=PsV | PtV;})
 
-Q6INSN(C2_xor,"Pd4=xor(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_xor,"Pd4=xor(Ps4,Pt4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Predicate XOR",
-{PdV=PsV ^ PtV;})
+{fPREDUSE_TIMING();PdV=PsV ^ PtV;})
 
-Q6INSN(C2_andn,"Pd4=and(Pt4,!Ps4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_andn,"Pd4=and(Pt4,!Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Predicate AND NOT",
-{PdV=PtV & (~PsV);})
+{fPREDUSE_TIMING();PdV=PtV & (~PsV);})
 
-Q6INSN(C2_not,"Pd4=not(Ps4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_not,"Pd4=not(Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Logical NOT Predicate",
-{PdV=~PsV;})
+{fPREDUSE_TIMING();PdV=~PsV;})
 
-Q6INSN(C2_orn,"Pd4=or(Pt4,!Ps4)",ATTRIBS(A_ARCHV2,A_CRSLOT23),
+Q6INSN(C2_orn,"Pd4=or(Pt4,!Ps4)",ATTRIBS(A_ARCHV2,A_CRSLOT23,A_NOTE_CRSLOT23),
 "Predicate OR NOT",
-{PdV=PtV | (~PsV);})
+{fPREDUSE_TIMING();PdV=PtV | (~PsV);})
 
 
 
 
 
-Q6INSN(C4_and_and,"Pd4=and(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound And-And", { PdV = PsV & PtV & PuV; })
+Q6INSN(C4_and_and,"Pd4=and(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound And-And", { fPREDUSE_TIMING();PdV = PsV & PtV & PuV; })
 
-Q6INSN(C4_and_or,"Pd4=and(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound And-Or", { PdV = PsV &  (PtV | PuV); })
+Q6INSN(C4_and_or,"Pd4=and(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound And-Or", { fPREDUSE_TIMING();PdV = PsV &  (PtV | PuV); })
 
-Q6INSN(C4_or_and,"Pd4=or(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound Or-And", { PdV = PsV | (PtV & PuV); })
+Q6INSN(C4_or_and,"Pd4=or(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound Or-And", { fPREDUSE_TIMING();PdV = PsV | (PtV & PuV); })
 
-Q6INSN(C4_or_or,"Pd4=or(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound Or-Or", { PdV = PsV | PtV | PuV; })
-
-
-
-Q6INSN(C4_and_andn,"Pd4=and(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound And-And", { PdV = PsV & PtV & (~PuV); })
-
-Q6INSN(C4_and_orn,"Pd4=and(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound And-Or", { PdV = PsV &  (PtV | (~PuV)); })
-
-Q6INSN(C4_or_andn,"Pd4=or(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound Or-And", { PdV = PsV | (PtV & (~PuV)); })
-
-Q6INSN(C4_or_orn,"Pd4=or(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
-"Compound Or-Or", { PdV = PsV | PtV | (~PuV); })
+Q6INSN(C4_or_or,"Pd4=or(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound Or-Or", { fPREDUSE_TIMING();PdV = PsV | PtV | PuV; })
 
 
-Q6INSN(C2_any8,"Pd4=any8(Ps4)",ATTRIBS(A_CRSLOT23),
+
+Q6INSN(C4_and_andn,"Pd4=and(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound And-And", { fPREDUSE_TIMING();PdV = PsV & PtV & (~PuV); })
+
+Q6INSN(C4_and_orn,"Pd4=and(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound And-Or", { fPREDUSE_TIMING();PdV = PsV &  (PtV | (~PuV)); })
+
+Q6INSN(C4_or_andn,"Pd4=or(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound Or-And", { fPREDUSE_TIMING();PdV = PsV | (PtV & (~PuV)); })
+
+Q6INSN(C4_or_orn,"Pd4=or(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
+"Compound Or-Or", { fPREDUSE_TIMING();PdV = PsV | PtV | (~PuV); })
+
+
+Q6INSN(C2_any8,"Pd4=any8(Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Logical ANY of low 8 predicate bits",
 { PdV = (PsV ? 0xff : 0x00); })
 
-Q6INSN(C2_all8,"Pd4=all8(Ps4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C2_all8,"Pd4=all8(Ps4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Logical ALL of low 8 predicate bits",
 { PdV = (PsV == 0xff ? 0xff : 0x00); })
 
 Q6INSN(C2_vitpack,"Rd32=vitpack(Ps4,Pt4)",ATTRIBS(),
 "Pack the odd and even bits of two predicate registers",
-{ RdV = (PsV&0x55) | (PtV&0xAA); })
+{ fPREDUSE_TIMING();RdV = (PsV&0x55) | (PtV&0xAA); })
+
+
 
 /* Mux instructions */
 
@@ -233,7 +235,7 @@ Q6INSN(C2_cmoveif,"if (!Pu4) Rd32=#s12",ATTRIBS(A_ARCHV2),
 
 
 
-Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ROPS_2,A_ARCHV2),
 "Conditionally combine two words into a register pair",
 { if (fLSBNEW(PuN)) {
     fSETWORD(0,RddV,RtV);
@@ -241,7 +243,7 @@ Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2
   } else {CANCEL;}
 })
 
-Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
 "Conditionally combine two words into a register pair",
 { if (fLSBNEWNOT(PuN)) {
     fSETWORD(0,RddV,RtV);
@@ -249,7 +251,7 @@ Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV
   } else {CANCEL;}
 })
 
-Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
 "Conditionally combine two words into a register pair",
 { if (fLSBOLD(PuV)) {
     fSETWORD(0,RddV,RtV);
@@ -257,7 +259,7 @@ Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
   } else {CANCEL;}
 })
 
-Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
 "Conditionally combine two words into a register pair",
 { if (fLSBOLDNOT(PuV)) {
     fSETWORD(0,RddV,RtV);
@@ -286,7 +288,7 @@ Q6INSN(C2_muxri,"Rd32=mux(Pu4,#s8,Rs32)",ATTRIBS(A_ARCHV2),
 
 Q6INSN(C2_vmux,"Rdd32=vmux(Pu4,Rss32,Rtt32)",ATTRIBS(),
 "Vector MUX",
-{
+{   fPREDUSE_TIMING();
     fHIDE(int i;)
     for (i = 0; i < 8; i++) {
         fSETBYTE(i,RddV,(fGETBIT(i,PuV)?(fGETBYTE(i,RssV)):(fGETBYTE(i,RttV))));
@@ -295,7 +297,7 @@ Q6INSN(C2_vmux,"Rdd32=vmux(Pu4,Rss32,Rtt32)",ATTRIBS(),
 
 Q6INSN(C2_mask,"Rdd32=mask(Pt4)",ATTRIBS(),
 "Vector Mask Generation",
-{
+{   fPREDUSE_TIMING();
     fHIDE(int i;)
     for (i = 0; i < 8; i++) {
         fSETBYTE(i,RddV,(fGETBIT(i,PtV)?(0xff):(0x00)));
@@ -576,7 +578,8 @@ Q6INSN(A4_boundscheck_lo,"Pd4=boundscheck(Rss32,Rtt32):raw:lo",ATTRIBS(),
     PdV = f8BITSOF((fCAST4u(src) >= fGETUWORD(0,RttV)) && (fCAST4u(src) < fGETUWORD(1,RttV)));
 })
 
-Q6INSN(A4_tlbmatch,"Pd4=tlbmatch(Rss32,Rt32)",ATTRIBS(),
+
+Q6INSN(A4_tlbmatch,"Pd4=tlbmatch(Rss32,Rt32)",ATTRIBS(A_NOTE_LATEPRED,A_RESTRICT_LATEPRED),
 "Detect if a VA/ASID matches a TLB entry",
 {
     fHIDE(size4u_t TLBHI; size4u_t TLBLO; size4u_t MASK; size4u_t SIZE;)
@@ -586,17 +589,18 @@ Q6INSN(A4_tlbmatch,"Pd4=tlbmatch(Rss32,Rt32)",ATTRIBS(),
     SIZE = fMIN(6,fCL1_4(~fBREV_4(TLBLO)));
     MASK &= (0xffffffff << 2*SIZE);
     PdV = f8BITSOF(fGETBIT(31,TLBHI) && ((TLBHI & MASK) == (RtV & MASK)));
+	fHIDE(MARK_LATE_PRED_WRITE(PdN))
 })
 
 Q6INSN(C2_tfrpr,"Rd32=Ps4",ATTRIBS(),
-"Transfer predicate to general register", { RdV = fZXTN(8,32,PsV); })
+"Transfer predicate to general register", { fPREDUSE_TIMING();RdV = fZXTN(8,32,PsV); })
 
 Q6INSN(C2_tfrrp,"Pd4=Rs32",ATTRIBS(),
 "Transfer general register to Predicate", { PdV = fGETUBYTE(0,RsV); })
 
-Q6INSN(C4_fastcorner9,"Pd4=fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C4_fastcorner9,"Pd4=fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Determine whether the predicate sources define a corner",
-{
+{   fPREDUSE_TIMING();
     fHIDE(size4u_t tmp = 0; size4u_t i;)
     fSETHALF(0,tmp,(PsV<<8)|PtV);
     fSETHALF(1,tmp,(PsV<<8)|PtV);
@@ -606,9 +610,10 @@ Q6INSN(C4_fastcorner9,"Pd4=fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
     PdV = f8BITSOF(tmp != 0);
 })
 
-Q6INSN(C4_fastcorner9_not,"Pd4=!fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+Q6INSN(C4_fastcorner9_not,"Pd4=!fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23,A_NOTE_CRSLOT23),
 "Determine whether the predicate sources define a corner",
 {
+    fPREDUSE_TIMING();
     fHIDE(size4u_t tmp = 0; size4u_t i;)
     fSETHALF(0,tmp,(PsV<<8)|PtV);
     fSETHALF(1,tmp,(PsV<<8)|PtV);

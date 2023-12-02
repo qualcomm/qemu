@@ -49,8 +49,8 @@ SlotMask find_iclass_slots(Opcode opcode, int itype)
         return SLOTS_2;
     } else if (GET_ATTRIB(opcode, A_RESTRICT_NOSLOT1)) {
         return SLOTS_0;
-    } else if ((opcode == J2_trap0) ||
-               (opcode == Y2_isync) ||
+    } else if ((opcode == J2_trap0) || (opcode == J2_trap1) ||
+               (opcode == Y2_isync) || (opcode == J2_rte) ||
                (opcode == J2_pause)) {
         return SLOTS_2;
     } else if (opcode == J4_hintjumpr) {
@@ -65,6 +65,25 @@ SlotMask find_iclass_slots(Opcode opcode, int itype)
         return SLOTS_23;
     } else if ((opcode == J4_jumpseti) || (opcode == J4_jumpsetr)) {
         return SLOTS_23;
+    } else if (GET_ATTRIB(opcode, A_EXTENSION) && GET_ATTRIB(opcode, A_CVI)) {
+        /* CVI EXTENSIONS */
+        if (GET_ATTRIB(opcode, A_CVI_VM)) {
+            return SLOTS_01;
+        } else if (GET_ATTRIB(opcode, A_RESTRICT_SLOT2ONLY)) {
+            return SLOTS_2;
+        } else if (GET_ATTRIB(opcode, A_CVI_SLOT23)) {
+            return SLOTS_23;
+        } else if (GET_ATTRIB(opcode, A_CVI_VX)) {
+            return SLOTS_23;
+        } else if (GET_ATTRIB(opcode, A_CVI_VX_DV)) {
+            return SLOTS_23;
+        } else if (GET_ATTRIB(opcode, A_CVI_VS_VX)) {
+            return SLOTS_23;
+        } else if (GET_ATTRIB(opcode, A_MEMLIKE)) {
+            return SLOTS_01;
+        } else {
+            return SLOTS_0123;
+        }
     } else {
         return iclass_info[itype];
     }

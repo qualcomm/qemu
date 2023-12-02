@@ -22,11 +22,10 @@
 #include "opcodes.h"
 #include "insn.h"
 
-void decode_init(void);
+extern void decode_init(void);
 
-void decode_send_insn_to(Packet *packet, int start, int newloc);
+extern void decode_send_insn_to(Packet *packet, int start, int newloc);
 
-int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
+extern int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
                   bool disas_only);
-
 #endif

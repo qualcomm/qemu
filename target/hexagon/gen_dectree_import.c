@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ static const char *get_opcode_enc_class(int opcode)
     const char *tmp = opcode_encodings[opcode].encoding;
     if (tmp == NULL) {
         const char *test = "V6_";        /* HVX */
-        const char *name = opcode_names[opcode];
+        char *name = (char *)opcode_names[opcode];
         if (strncmp(name, test, strlen(test)) == 0) {
             return "EXT_mmvec";
         }

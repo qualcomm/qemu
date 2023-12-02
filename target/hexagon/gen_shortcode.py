@@ -39,22 +39,13 @@ def main():
         f.write("#define DEF_SHORTCODE(TAG,SHORTCODE)    /* Nothing */\n")
         f.write("#endif\n")
 
-        for tag in hex_common.tags:
-            ## Skip the priv instructions
-            if "A_PRIV" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the guest instructions
-            if "A_GUEST" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the diag instructions
-            if tag == "Y6_diag":
-                continue
-            if tag == "Y6_diag0":
-                continue
-            if tag == "Y6_diag1":
-                continue
-
+        for tag in hex_common.get_user_tags():
             gen_shortcode(f, tag)
+
+        f.write("#if !defined(CONFIG_USER_ONLY)\n")
+        for tag in hex_common.get_sys_tags():
+            gen_shortcode(f, tag)
+        f.write("#endif\n")
 
         f.write("#undef DEF_SHORTCODE\n")
 

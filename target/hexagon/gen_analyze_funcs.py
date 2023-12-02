@@ -26,13 +26,9 @@ import hex_common
 ##
 ## Helpers for gen_analyze_func
 ##
-def is_predicated(tag):
-    return "A_CONDEXEC" in hex_common.attribdict[tag]
-
-
 def analyze_opn_old(f, tag, regtype, regid, regno):
     regN = f"{regtype}{regid}N"
-    predicated = "true" if is_predicated(tag) else "false"
+    predicated = "true" if hex_common.is_predicated(tag) else "false"
     if regtype == "R":
         if regid in {"ss", "tt"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
@@ -117,9 +113,11 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
             hex_common.bad_register(regtype, regid)
     elif regtype == "G":
         if regid in {"dd"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_greg_write_pair(ctx, {regN});\n")
         elif regid in {"d"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_greg_write(ctx, {regN});\n")
         elif regid in {"ss"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
         elif regid in {"s"}:
@@ -128,9 +126,11 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
             hex_common.bad_register(regtype, regid)
     elif regtype == "S":
         if regid in {"dd"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_sreg_write_pair(ctx, {regN});\n")
         elif regid in {"d"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_sreg_write(ctx, {regN});\n")
         elif regid in {"ss"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
         elif regid in {"s"}:
@@ -198,6 +198,14 @@ def gen_analyze_func(f, tag, regs, imms):
     f.write(f"static void analyze_{tag}(DisasContext *ctx)\n")
     f.write("{\n")
 
+    if hex_common.tag_ignore(tag):
+        f.write("}\n\n")
+        return
+
+    if ("A_PRIV" in hex_common.attribdict[tag] or
+        "A_GUEST" in hex_common.attribdict[tag]):
+        f.write("#ifndef CONFIG_USER_ONLY\n")
+
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
 
     i = 0
@@ -215,6 +223,10 @@ def gen_analyze_func(f, tag, regs, imms):
         "A_CVI" in hex_common.attribdict[tag]):
         f.write("    ctx->has_hvx_helper = true;\n")
 
+    if ("A_PRIV" in hex_common.attribdict[tag] or
+        "A_GUEST" in hex_common.attribdict[tag]):
+        f.write("#endif /* !CONFIG_USER_ONLY */\n")
+
     f.write("}\n\n")
 
 
@@ -223,18 +235,19 @@ def main():
     hex_common.read_attribs_file(sys.argv[2])
     hex_common.read_overrides_file(sys.argv[3])
     hex_common.read_overrides_file(sys.argv[4])
+    hex_common.read_overrides_file(sys.argv[5])
     ## Whether or not idef-parser is enabled is
     ## determined by the number of arguments to
     ## this script:
     ##
-    ##   5 args. -> not enabled,
-    ##   6 args. -> idef-parser enabled.
+    ##   6 args. -> not enabled,
+    ##   7 args. -> idef-parser enabled.
     ##
-    ## The 6:th arg. then holds a list of the successfully
+    ## The 7:th arg. then holds a list of the successfully
     ## parsed instructions.
-    is_idef_parser_enabled = len(sys.argv) > 6
+    is_idef_parser_enabled = len(sys.argv) > 7
     if is_idef_parser_enabled:
-        hex_common.read_idef_parser_enabled_file(sys.argv[5])
+        hex_common.read_idef_parser_enabled_file(sys.argv[6])
     hex_common.calculate_attribs()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()

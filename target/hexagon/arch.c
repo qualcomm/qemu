@@ -16,11 +16,19 @@
  */
 
 #include "qemu/osdep.h"
+#ifndef CONFIG_USER_ONLY
+#include "exec/exec-all.h"
+#include "migration/vmstate.h"
+#include "qapi/error.h"
+#include "qemu/log.h"
+#include "qemu/qemu-print.h"
+#endif
 #include "fpu/softfloat.h"
 #include "cpu.h"
 #include "fma_emu.h"
-#include "arch.h"
 #include "macros.h"
+#include "internal.h"
+#include "arch.h"
 
 #define SF_BIAS        127
 #define SF_MAXEXP      254
@@ -130,6 +138,7 @@ uint64_t interleave(uint32_t odd, uint32_t even)
     /* Convert to long long */
     uint64_t myodd = odd;
     uint64_t myeven = even;
+
     /* First, spread bits out */
     myodd = (myodd | (myodd << 16)) & HALF_MASK_8;
     myeven = (myeven | (myeven << 16)) & HALF_MASK_8;
@@ -185,7 +194,6 @@ int32_t conv_round(int32_t a, int n)
 }
 
 /* Floating Point Stuff */
-
 static const FloatRoundMode softfloat_roundingmodes[] = {
     float_round_nearest_even,
     float_round_to_zero,
@@ -208,6 +216,14 @@ void arch_fpop_start(CPUHexagonState *env)
  * model it in qemu user mode.
  */
 #define RAISE_FP_EXCEPTION   do {} while (0)
+#else
+#define RAISE_FP_EXCEPTION \
+    do { \
+        CPUState *cs = env_cpu(env); \
+        cs->exception_index = HEX_EVENT_FPTRAP; \
+        env->cause_code = HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT; \
+        do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC], 0); \
+    } while (0)
 #endif
 
 #define SOFTFLOAT_TEST_FLAG(FLAG, MYF, MYE) \

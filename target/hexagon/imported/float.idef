@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,10 +17,13 @@
 
 /*
  * Floating-Point Instructions
+ *
+ * $Id$
+ *
  */
 
 /*************************************/
-/* Scalar FP                         */
+/* Scalar FP			 */
 /*************************************/
 Q6INSN(F2_sfadd,"Rd32=sfadd(Rs32,Rt32)",ATTRIBS(),
 "Floating-Point Add",
@@ -41,10 +44,11 @@ Q6INSN(F2_sffma,"Rx32+=sfmpy(Rs32,Rt32)",ATTRIBS(),
 Q6INSN(F2_sffma_sc,"Rx32+=sfmpy(Rs32,Rt32,Pu4):scale",ATTRIBS(),
 "Floating-Point Fused Multiply Add w/ Additional Scaling (2**Pu)",
 {
-    fHIDE(size4s_t tmp;)
-    fCHECKSFNAN3(RxV,RxV,RsV,RtV);
-    tmp=fUNFLOAT(fFMAFX(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV),PuV));
-    if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+    fPREDUSE_TIMING();
+	fHIDE(size4s_t tmp;)
+	fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+	tmp=fUNFLOAT(fFMAFX(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV),PuV));
+	if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
 })
 
 Q6INSN(F2_sffms,"Rx32-=sfmpy(Rs32,Rt32)",ATTRIBS(),
@@ -54,31 +58,31 @@ Q6INSN(F2_sffms,"Rx32-=sfmpy(Rs32,Rt32)",ATTRIBS(),
 Q6INSN(F2_sffma_lib,"Rx32+=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 "Floating-Point Fused Multiply Add for Library Routines",
 { fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)
-  infminusinf = ((isinf(fFLOAT(RxV))) &&
-                 (fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
-                 (fGETBIT(31,RsV ^ RxV ^ RtV) != 0));
-  infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
-  fCHECKSFNAN3(RxV,RxV,RsV,RtV);
-  tmp=fUNFLOAT(fFMAF(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
-  if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
-  fFPCANCELFLAGS();
-  if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
-  if (infminusinf) RxV = 0;
+	infminusinf = ((isinf(fFLOAT(RxV))) &&
+		(fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
+		(fGETBIT(31,RsV ^ RxV ^ RtV) != 0));
+	infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
+	fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+	tmp=fUNFLOAT(fFMAF(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
+	if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+	fFPCANCELFLAGS();
+	if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
+	if (infminusinf) RxV = 0;
 })
 
 Q6INSN(F2_sffms_lib,"Rx32-=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 "Floating-Point Fused Multiply Add for Library Routines",
 { fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)
-  infminusinf = ((isinf(fFLOAT(RxV))) &&
-                 (fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
-                 (fGETBIT(31,RsV ^ RxV ^ RtV) == 0));
-  infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
-  fCHECKSFNAN3(RxV,RxV,RsV,RtV);
-  tmp=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
-  if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
-  fFPCANCELFLAGS();
-  if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
-  if (infminusinf) RxV = 0;
+	infminusinf = ((isinf(fFLOAT(RxV))) &&
+		(fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
+		(fGETBIT(31,RsV ^ RxV ^ RtV) == 0));
+	infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
+	fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+	tmp=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
+	if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+	fFPCANCELFLAGS();
+	if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
+	if (infminusinf) RxV = 0;
 })
 
 
@@ -115,34 +119,34 @@ Q6INSN(F2_sfmin,"Rd32=sfmin(Rs32,Rt32)",ATTRIBS(),
 Q6INSN(F2_sfclass,"Pd4=sfclass(Rs32,#u5)",ATTRIBS(),
 "Classify Floating-Point Value",
 {
-    fHIDE(int class;)
-    PdV = 0;
-    class = fpclassify(fFLOAT(RsV));
-    /* Is the value zero? */
-    if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
-    if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
-    if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
-    if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
-    if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
-    fFPCANCELFLAGS();
+	fHIDE(int class;)
+	PdV = 0;
+	class = fpclassify(fFLOAT(RsV));
+	/* Is the value zero? */
+	if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
+	if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
+	if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
+	if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
+	if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
+	fFPCANCELFLAGS();
 })
 
 /* Range: +/- (1.0 .. 1+(63/64)) * 2**(-6 .. +9) */
 /* More immediate bits should probably be used for more precision? */
 
-Q6INSN(F2_sfimm_p,"Rd32=sfmake(#u10):pos",ATTRIBS(),
+Q6INSN(F2_sfimm_p,"Rd32=sfmake(#u10):pos",ATTRIBS(A_SFMAKE),
 "Make Floating Point Value",
 {
-    RdV = (127 - 6) << 23;
-    RdV += uiV << 17;
+	RdV = (127 - 6) << 23;
+	RdV += uiV << 17;
 })
 
-Q6INSN(F2_sfimm_n,"Rd32=sfmake(#u10):neg",ATTRIBS(),
+Q6INSN(F2_sfimm_n,"Rd32=sfmake(#u10):neg",ATTRIBS(A_SFMAKE),
 "Make Floating Point Value",
 {
-    RdV = (127 - 6) << 23;
-    RdV += (uiV << 17);
-    RdV |= (1 << 31);
+	RdV = (127 - 6) << 23;
+	RdV += (uiV << 17);
+	RdV |= (1 << 31);
 })
 
 
@@ -165,9 +169,9 @@ Q6INSN(F2_sfrecipa,"Rd32,Pe4=sfrecipa(Rs32,Rt32)",ATTRIBS(),
 Q6INSN(F2_sffixupn,"Rd32=sffixupn(Rs32,Rt32)",ATTRIBS(),
 "Fix Up Numerator",
 {
-    fHIDE(int adjust;)
-    fSF_RECIP_COMMON(RsV,RtV,RdV,adjust);
-    RdV = RsV;
+	fHIDE(int adjust;)
+	fSF_RECIP_COMMON(RsV,RtV,RdV,adjust);
+	RdV = RsV;
 })
 
 Q6INSN(F2_sffixupd,"Rd32=sffixupd(Rs32,Rt32)",ATTRIBS(),
@@ -178,7 +182,7 @@ Q6INSN(F2_sffixupd,"Rd32=sffixupd(Rs32,Rt32)",ATTRIBS(),
     RdV = RtV;
 })
 
-Q6INSN(F2_sfinvsqrta,"Rd32,Pe4=sfinvsqrta(Rs32)",ATTRIBS(),
+Q6INSN(F2_sfinvsqrta,"Rd32,Pe4=sfinvsqrta(Rs32)",ATTRIBS(A_NOTE_COMPAT_ACCURACY,A_NOTE_LATEPRED,A_RESTRICT_LATEPRED),
 "Reciprocal Square Root Approximation",
 {
     fHIDE(int idx;)
@@ -197,13 +201,19 @@ Q6INSN(F2_sfinvsqrta,"Rd32,Pe4=sfinvsqrta(Rs32)",ATTRIBS(),
 Q6INSN(F2_sffixupr,"Rd32=sffixupr(Rs32)",ATTRIBS(),
 "Fix Up Radicand",
 {
-    fHIDE(int adjust;)
-    fSF_INVSQRT_COMMON(RsV,RdV,adjust);
-    RdV = RsV;
+	fHIDE(int adjust;)
+	fSF_INVSQRT_COMMON(RsV,RdV,adjust);
+	RdV = RsV;
+})
+
+Q6INSN(F2_sfsqrtcheat,"Rd32=sfsqrtcheat(Rs32)",ATTRIBS(A_FAKEINSN),
+"Cheating instruction for SQRT Testing",
+{
+	RdV = fUNFLOAT(sqrtf(fFLOAT(RsV)));
 })
 
 /*************************************/
-/* Scalar DP                         */
+/* Scalar DP			 */
 /*************************************/
 Q6INSN(F2_dfadd,"Rdd32=dfadd(Rss32,Rtt32)",ATTRIBS(),
 "Floating-Point Add",
@@ -224,33 +234,95 @@ Q6INSN(F2_dfmin,"Rdd32=dfmin(Rss32,Rtt32)",ATTRIBS(),
 Q6INSN(F2_dfmpyfix,"Rdd32=dfmpyfix(Rss32,Rtt32)",ATTRIBS(),
 "Fix Up Multiplicand for Multiplication",
 {
-    if (fDF_ISDENORM(RssV) && fDF_ISBIG(RttV) && fDF_ISNORMAL(RttV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p52);
-    else if (fDF_ISDENORM(RttV) && fDF_ISBIG(RssV) && fDF_ISNORMAL(RssV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p-52);
-    else RddV = RssV;
+	if (fDF_ISDENORM(RssV) && fDF_ISBIG(RttV) && fDF_ISNORMAL(RttV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p52);
+	else if (fDF_ISDENORM(RttV) && fDF_ISBIG(RssV) && fDF_ISNORMAL(RssV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p-52);
+	else RddV = RssV;
 })
 
 Q6INSN(F2_dfmpyll,"Rdd32=dfmpyll(Rss32,Rtt32)",ATTRIBS(),
 "Multiply low*low and shift off low 32 bits into sticky (in MSB)",
 {
-    fHIDE(size8u_t prod;)
-    prod = fMPY32UU(fGETUWORD(0,RssV),fGETUWORD(0,RttV));
-    RddV = (prod >> 32) << 1;
-    if (fGETUWORD(0,prod) != 0) fSETBIT(0,RddV,1);
+	fHIDE(size8u_t prod;)
+	prod = fMPY32UU(fGETUWORD(0,RssV),fGETUWORD(0,RttV));
+	RddV = (prod >> 32) << 1;
+	if (fGETUWORD(0,prod) != 0) fSETBIT(0,RddV,1);
 })
 
 Q6INSN(F2_dfmpylh,"Rxx32+=dfmpylh(Rss32,Rtt32)",ATTRIBS(),
 "Multiply low*high and accumulate",
 {
-    RxxV += (fGETUWORD(0,RssV) * (0x00100000 | fZXTN(20,64,fGETUWORD(1,RttV)))) << 1;
+	RxxV += (fGETUWORD(0,RssV) * (0x00100000 | fZXTN(20,64,fGETUWORD(1,RttV)))) << 1;
 })
 
 Q6INSN(F2_dfmpyhh,"Rxx32+=dfmpyhh(Rss32,Rtt32)",ATTRIBS(),
 "Multiply high*high and accumulate with L*H value",
 {
-    RxxV = fUNDOUBLE(fDF_MPY_HH(fDOUBLE(RssV),fDOUBLE(RttV),RxxV));
+	RxxV = fUNDOUBLE(fDF_MPY_HH(fDOUBLE(RssV),fDOUBLE(RttV),RxxV));
 })
 
 
+
+#ifdef ADD_DP_OPS
+Q6INSN(F2_dfmpy,"Rdd32=dfmpy(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Floating-Point Multiply",
+{ FLATENCY(4);RddV=fUNDOUBLE(fDFMPY(fDOUBLE(RssV),fDOUBLE(RttV)));})
+
+Q6INSN(F2_dffma,"Rxx32+=dfmpy(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Floating-Point Fused Multiply Add",
+{ FLATENCY(5);RxxV=fUNDOUBLE(fFMA(fDOUBLE(RssV),fDOUBLE(RttV),fDOUBLE(RxxV)));})
+
+Q6INSN(F2_dffms,"Rxx32-=dfmpy(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Floating-Point Fused Multiply Add",
+{ FLATENCY(5);RxxV=fUNDOUBLE(fFMA(-fDOUBLE(RssV),fDOUBLE(RttV),fDOUBLE(RxxV)));})
+
+Q6INSN(F2_dffma_lib,"Rxx32+=dfmpy(Rss32,Rtt32):lib",ATTRIBS(A_FAKEINSN),
+"Floating-Point Fused Multiply Add for Library Routines",
+{ FLATENCY(5);fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf;)
+  infinp = (isinf(fDOUBLE(RxxV))) || (isinf(fDOUBLE(RttV))) || (isinf(fDOUBLE(RssV)));
+  infminusinf = ((isinf(fDOUBLE(RxxV))) &&
+		(fISINFPROD(fDOUBLE(RssV),fDOUBLE(RttV))) &&
+		(fGETBIT(63,RssV ^ RxxV ^ RttV) != 0));
+  fCHECKDFNAN3(RxxV,RxxV,RssV,RttV);
+  if ((fDOUBLE(RssV) != 0.0) && (fDOUBLE(RttV) != 0.0)) {
+    RxxV=fUNDOUBLE(fFMA(fDOUBLE(RssV),fDOUBLE(RttV),fDOUBLE(RxxV)));
+  } else {
+    if (isinf(fDOUBLE(RssV)) || isinf(fDOUBLE(RttV))) RxxV = fDFNANVAL();
+  }
+  fFPCANCELFLAGS();
+  if (isinf(fDOUBLE(RxxV)) && !infinp) RxxV = RxxV - 1;
+  if (infminusinf) RxxV = 0;
+})
+
+
+Q6INSN(F2_dffms_lib,"Rxx32-=dfmpy(Rss32,Rtt32):lib",ATTRIBS(A_FAKEINSN),
+"Floating-Point Fused Multiply Add for Library Routines",
+{ FLATENCY(5); fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf;)
+  infinp = (isinf(fDOUBLE(RxxV))) || (isinf(fDOUBLE(RttV))) || (isinf(fDOUBLE(RssV)));
+  infminusinf = ((isinf(fDOUBLE(RxxV))) &&
+		(fISINFPROD(fDOUBLE(RssV),fDOUBLE(RttV))) &&
+		(fGETBIT(63,RssV ^ RxxV ^ RttV) == 0));
+  fCHECKDFNAN3(RxxV,RxxV,RssV,RttV);
+  if ((fDOUBLE(RssV) != 0.0) && (fDOUBLE(RttV) != 0.0)) {
+    RxxV=fUNDOUBLE(fFMA(-fDOUBLE(RssV),fDOUBLE(RttV),fDOUBLE(RxxV)));
+  } else {
+    if (isinf(fDOUBLE(RssV)) || isinf(fDOUBLE(RttV))) RxxV = fDFNANVAL();
+  }
+  fFPCANCELFLAGS();
+  if (isinf(fDOUBLE(RxxV)) && !infinp) RxxV = RxxV - 1;
+  if (infminusinf) RxxV = 0;
+})
+
+
+Q6INSN(F2_dffma_sc,"Rxx32+=dfmpy(Rss32,Rtt32,Pu4):scale",ATTRIBS(A_FAKEINSN),
+"Floating-Point Fused Multiply Add w/ Additional Scaling (2**(4*Pu))",
+{ FLATENCY(5);
+  fHIDE(size8s_t tmp;)
+  fCHECKDFNAN3(RxxV,RxxV,RssV,RttV);
+  tmp=fUNDOUBLE(fFMAX(fDOUBLE(RssV),fDOUBLE(RttV),fDOUBLE(RxxV),PuV));
+  if ((fDOUBLE(tmp) != fDOUBLE(RxxV)) || ((fDOUBLE(RssV) != 0.0) && (fDOUBLE(RttV) != 0.0))) RxxV = tmp;
+})
+
+#endif
 
 Q6INSN(F2_dfcmpeq,"Pd4=dfcmp.eq(Rss32,Rtt32)",ATTRIBS(),
 "Floating Point Compare for Equal",
@@ -277,36 +349,114 @@ Q6INSN(F2_dfcmpuo,"Pd4=dfcmp.uo(Rss32,Rtt32)",ATTRIBS(),
 Q6INSN(F2_dfclass,"Pd4=dfclass(Rss32,#u5)",ATTRIBS(),
 "Classify Floating-Point Value",
 {
-    fHIDE(int class;)
-    PdV = 0;
-    class = fpclassify(fDOUBLE(RssV));
-    /* Is the value zero? */
-    if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
-    if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
-    if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
-    if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
-    if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
-    fFPCANCELFLAGS();
+	fHIDE(int class;)
+	PdV = 0;
+	class = fpclassify(fDOUBLE(RssV));
+	/* Is the value zero? */
+	if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
+	if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
+	if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
+	if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
+	if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
+	fFPCANCELFLAGS();
 })
 
 
 /* Range: +/- (1.0 .. 1+(63/64)) * 2**(-6 .. +9) */
 /* More immediate bits should probably be used for more precision? */
 
-Q6INSN(F2_dfimm_p,"Rdd32=dfmake(#u10):pos",ATTRIBS(),
+Q6INSN(F2_dfimm_p,"Rdd32=dfmake(#u10):pos",ATTRIBS(A_DFMAKE),
 "Make Floating Point Value",
 {
-    RddV = (1023ULL - 6) << 52;
-    RddV += (fHIDE((size8u_t))uiV) << 46;
+	RddV = (1023ULL - 6) << 52;
+	RddV += (fHIDE((size8u_t))uiV) << 46;
 })
 
-Q6INSN(F2_dfimm_n,"Rdd32=dfmake(#u10):neg",ATTRIBS(),
+Q6INSN(F2_dfimm_n,"Rdd32=dfmake(#u10):neg",ATTRIBS(A_DFMAKE),
 "Make Floating Point Value",
 {
-    RddV = (1023ULL - 6) << 52;
-    RddV += (fHIDE((size8u_t))uiV) << 46;
-    RddV |= ((1ULL) << 63);
+	RddV = (1023ULL - 6) << 52;
+	RddV += (fHIDE((size8u_t))uiV) << 46;
+	RddV |= ((1ULL) << 63);
 })
+
+
+#ifdef ADD_DP_OPS
+Q6INSN(F2_dfdivcheat,"Rdd32=dfdivcheat(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Cheating Instruction for Divide Testing",
+{
+	RddV = fUNDOUBLE(fDOUBLE(RssV) / fDOUBLE(RttV));
+})
+
+
+Q6INSN(F2_dfrecipa,"Rdd32,Pe4=dfrecipa(Rss32,Rtt32)",ATTRIBS(A_NOTE_COMPAT_ACCURACY,A_FAKEINSN),
+"Reciprocal Approximation for Division",
+{
+	fHIDE(int idx;)
+	fHIDE(int adjust;)
+	fHIDE(size8s_t mant;)
+	fHIDE(int exp;)
+	if (fDF_RECIP_COMMON(RssV,RttV,RddV,adjust)) {
+		PeV = adjust;
+		idx = (RttV >> 45) & 0x7f;
+		mant = (fDF_RECIP_LOOKUP(idx) << 44) | 1;
+		exp = fDF_BIAS() - (fDF_GETEXP(RttV) - fDF_BIAS()) - 1;
+		RddV = fMAKEDF(fGETBIT(63,RttV),exp,mant);
+	}
+})
+
+Q6INSN(F2_dffixupn,"Rdd32=dffixupn(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Fix Up Numerator",
+{
+	fHIDE(int adjust;)
+	fDF_RECIP_COMMON(RssV,RttV,RddV,adjust);
+	RddV = RssV;
+})
+
+Q6INSN(F2_dffixupd,"Rdd32=dffixupd(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
+"Fix Up Denominator",
+{
+	fHIDE(int adjust;)
+	fDF_RECIP_COMMON(RssV,RttV,RddV,adjust);
+	RddV = RttV;
+})
+
+
+
+
+Q6INSN(F2_dfinvsqrta,"Rdd32,Pe4=dfinvsqrta(Rss32)",ATTRIBS(A_NOTE_COMPAT_ACCURACY,A_FAKEINSN),
+"Reciprocal Approximation for Division",
+{
+	fHIDE(int idx;)
+	fHIDE(int adjust;)
+	fHIDE(size8u_t mant;)
+	fHIDE(int exp;)
+	if (fDF_INVSQRT_COMMON(RssV,RddV,adjust)) {
+		PeV = adjust;
+		idx = (RssV >> 46) & 0x7f;
+		mant = (fDF_INVSQRT_LOOKUP(idx) << 44);
+		exp = fDF_BIAS() - ((fDF_GETEXP(RssV) - fDF_BIAS()) >> 1) - 1;
+		RddV = fMAKEDF(fGETBIT(63,RssV),exp,mant);
+	}
+})
+
+Q6INSN(F2_dffixupr,"Rdd32=dffixupr(Rss32)",ATTRIBS(A_FAKEINSN),
+"Fix Up Radicand",
+{
+	fHIDE(int adjust;)
+	fDF_INVSQRT_COMMON(RssV,RddV,adjust);
+	RddV = RssV;
+})
+
+Q6INSN(F2_dfsqrtcheat,"Rdd32=dfsqrtcheat(Rss32)",ATTRIBS(A_FAKEINSN),
+"Cheating instruction for SQRT Testing",
+{
+	RddV = fUNDOUBLE(sqrt(fDOUBLE(RssV)));
+})
+#endif
+
+
+
 
 
 /* CONVERSION */
@@ -342,3 +492,4 @@ GEN(df##2,Rss32,RssV,fDOUBLE,df,MODETAG,MODESYN,MODEBEH)
 ALLINTSRC(ALLFPDST,,,)
 ALLFPSRC(ALLINTDST,,,)
 ALLFPSRC(ALLINTDST,_chop,:chop,fFPSETROUND_CHOP();)
+

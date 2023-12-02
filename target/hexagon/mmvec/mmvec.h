@@ -18,6 +18,21 @@
 #ifndef HEXAGON_MMVEC_H
 #define HEXAGON_MMVEC_H
 
+#include "qemu/bitmap.h"
+
+/* FIXME - Is this needed? */
+enum ext_mem_access_types {
+    access_type_vstore,
+    access_type_vload_nt,
+    access_type_vstore_nt,
+    access_type_vgather_load,
+    access_type_vscatter_store,
+    access_type_vscatter_release,
+    access_type_vgather_release,
+    access_type_vfetch,
+    NUM_EXT_ACCESS_TYPES
+};
+
 #define MAX_VEC_SIZE_LOGBYTES 7
 #define MAX_VEC_SIZE_BYTES  (1 << MAX_VEC_SIZE_LOGBYTES)
 
@@ -38,6 +53,11 @@ typedef union {
     int16_t   h[MAX_VEC_SIZE_BYTES / 2];
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
+    int32_t qf32[MAX_VEC_SIZE_BYTES / 4];
+    int16_t qf16[MAX_VEC_SIZE_BYTES / 2];
+    int32_t   sf[MAX_VEC_SIZE_BYTES / 4];
+    int16_t   hf[MAX_VEC_SIZE_BYTES / 2];
+    int16_t   bf[MAX_VEC_SIZE_BYTES / 2];
 } MMVector;
 
 typedef union {
@@ -69,6 +89,13 @@ typedef struct {
     target_ulong va[MAX_VEC_SIZE_BYTES];
     bool op;
     int op_size;
+#ifndef CONFIG_USER_ONLY
+    MMVectorPair offsets;
+    uint64_t pa[MAX_VEC_SIZE_BYTES];
+    uint64_t pa_base;
+    uint32_t va_base;
+    int oob_access;
+#endif
 } VTCMStoreLog;
 
 

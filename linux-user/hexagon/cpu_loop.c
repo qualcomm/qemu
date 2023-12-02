@@ -42,7 +42,7 @@ void cpu_loop(CPUHexagonState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
-        case HEX_EXCP_TRAP0:
+        case HEX_EVENT_TRAP0:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;
             ret = do_syscall(env,

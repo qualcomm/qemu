@@ -32,6 +32,9 @@ def_helper_types = {
     "M": "s32",
     "C": "s32",
     "R": "s32",
+    "S": "s32",
+    "G": "s32",
+    "Z": "s32",
     "V": "ptr",
     "Q": "ptr",
 }
@@ -182,37 +185,27 @@ def main():
     hex_common.read_attribs_file(sys.argv[2])
     hex_common.read_overrides_file(sys.argv[3])
     hex_common.read_overrides_file(sys.argv[4])
+    hex_common.read_overrides_file(sys.argv[5])
     ## Whether or not idef-parser is enabled is
     ## determined by the number of arguments to
     ## this script:
     ##
-    ##   5 args. -> not enabled,
-    ##   6 args. -> idef-parser enabled.
+    ##   6 args. -> not enabled,
+    ##   7 args. -> idef-parser enabled.
     ##
-    ## The 6:th arg. then holds a list of the successfully
+    ## The 7:th arg. then holds a list of the successfully
     ## parsed instructions.
-    is_idef_parser_enabled = len(sys.argv) > 6
+    is_idef_parser_enabled = len(sys.argv) > 7
     if is_idef_parser_enabled:
-        hex_common.read_idef_parser_enabled_file(sys.argv[5])
+        hex_common.read_idef_parser_enabled_file(sys.argv[6])
     hex_common.calculate_attribs()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
     output_file = sys.argv[-1]
     with open(output_file, "w") as f:
-        for tag in hex_common.tags:
-            ## Skip the priv instructions
-            if "A_PRIV" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the guest instructions
-            if "A_GUEST" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the diag instructions
-            if tag == "Y6_diag":
-                continue
-            if tag == "Y6_diag0":
-                continue
-            if tag == "Y6_diag1":
+        for tag in hex_common.get_user_tags():
+            if hex_common.tag_ignore(tag):
                 continue
 
             if hex_common.skip_qemu_helper(tag):
@@ -221,6 +214,18 @@ def main():
                 continue
 
             gen_helper_prototype(f, tag, tagregs, tagimms)
+
+        f.write("#if !defined(CONFIG_USER_ONLY)\n")
+        for tag in hex_common.get_sys_tags():
+            if hex_common.tag_ignore(tag):
+                continue
+            if hex_common.skip_qemu_helper(tag):
+                continue
+            if hex_common.is_idef_parser_enabled(tag):
+                continue
+
+            gen_helper_prototype(f, tag, tagregs, tagimms)
+        f.write("#endif\n")
 
 
 if __name__ == "__main__":

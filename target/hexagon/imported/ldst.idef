@@ -15,10 +15,25 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+
 /*
  * Load and Store instruction definitions
+ *
+ *
  */
 
+#define FRAME_EXPLICIT 1
+
+#define A_COFSTD A_RESTRICT_LOOP_LA,A_RESTRICT_COF_MAX1
+#define A_JDIR A_JUMP,A_DIRECT,A_COFSTD,A_BRANCHADDER
+#define A_CJNEWDIR A_JUMP,A_DIRECT,A_CJUMP,A_COFSTD,A_BRANCHADDER,A_DOTNEW,A_ROPS_2
+#define A_CJOLDDIR A_JUMP,A_DIRECT,A_CJUMP,A_COFSTD,A_BRANCHADDER,A_DOTOLD
+#define A_NEWVALUEJ A_JUMP,A_DIRECT,A_CJUMP,A_COFSTD,A_BRANCHADDER,A_RESTRICT_COF_MAX1,A_DOTNEWVALUE,A_MEMLIKE_PACKET_RULES,A_RESTRICT_SINGLE_MEM_FIRST,A_ROPS_2
+#define A_JINDIR A_JUMP,A_INDIRECT,A_COFSTD
+#define A_JINDIRNEW A_JUMP,A_INDIRECT,A_COFSTD,A_CJUMP,A_DOTNEW
+#define A_JINDIROLD A_JUMP,A_INDIRECT,A_COFSTD,A_CJUMP,A_DOTOLD
+#define A_RELAX_COND A_RESTRICT_COF_MAX1,A_RELAX_COF_2ND,A_RELAX_COF_1ST
+#define A_RELAX_UNC A_RESTRICT_COF_MAX1,A_RELAX_COF_2ND
 /* The set of addressing modes standard to all Load instructions */
 #define STD_LD_AMODES(TAG,OPER,DESCR,ATTRIB,SHFT,SEMANTICS,SCALE)\
 Q6INSN(L2_##TAG##_io,  OPER"(Rs32+#s11:"SHFT")",          ATTRIB,DESCR,{fIMMEXT(siV); fEA_RI(RsV,siV); SEMANTICS; })\
@@ -40,7 +55,7 @@ STD_LD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_REGWRSIZE_8B,
 
 /* These instructions do a load an unpack */
 STD_LD_AMODES(loadbzw2, "Rd32=memubh", "Load Bytes and Vector Zero-Extend (unpack)",
-ATTRIBS(A_LOAD),"1",
+ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_2B,A_LOAD),"1",
 {fHIDE(size2u_t tmpV; int i;)
  fLOAD(1,2,u,EA,tmpV);
  for (i=0;i<2;i++) {
@@ -49,7 +64,7 @@ ATTRIBS(A_LOAD),"1",
 },1)
 
 STD_LD_AMODES(loadbzw4, "Rdd32=memubh", "Load Bytes and Vector Zero-Extend (unpack)",
-ATTRIBS(A_LOAD),"2",
+ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_4B,A_LOAD),"2",
 {fHIDE(size4u_t tmpV; int i;)
  fLOAD(1,4,u,EA,tmpV);
  for (i=0;i<4;i++) {
@@ -61,7 +76,7 @@ ATTRIBS(A_LOAD),"2",
 
 /* These instructions do a load an unpack */
 STD_LD_AMODES(loadbsw2, "Rd32=membh", "Load Bytes and Vector Sign-Extend (unpack)",
-ATTRIBS(A_LOAD),"1",
+ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_2B,A_LOAD),"1",
 {fHIDE(size2u_t tmpV; int i;)
  fLOAD(1,2,u,EA,tmpV);
  for (i=0;i<2;i++) {
@@ -70,7 +85,7 @@ ATTRIBS(A_LOAD),"1",
 },1)
 
 STD_LD_AMODES(loadbsw4, "Rdd32=membh", "Load Bytes and Vector Sign-Extend (unpack)",
-ATTRIBS(A_LOAD),"2",
+ATTRIBS(A_MEMSIZE_4B,A_LOAD,A_REGWRSIZE_8B),"2",
 {fHIDE(size4u_t tmpV; int i;)
  fLOAD(1,4,u,EA,tmpV);
  for (i=0;i<4;i++) {
@@ -81,7 +96,7 @@ ATTRIBS(A_LOAD),"2",
 
 
 STD_LD_AMODES(loadalignh, "Ryy32=memh_fifo", "Load Half-word into shifted vector",
-ATTRIBS(A_LOAD),"1",
+ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_2B,A_LOAD),"1",
 {
  fHIDE(size8u_t tmpV;)
  fLOAD(1,2,u,EA,tmpV);
@@ -90,15 +105,26 @@ ATTRIBS(A_LOAD),"1",
 
 
 STD_LD_AMODES(loadalignb, "Ryy32=memb_fifo", "Load byte into shifted vector",
-ATTRIBS(A_LOAD),"0",
+ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_1B,A_LOAD),"0",
 {
  fHIDE(size8u_t tmpV;)
  fLOAD(1,1,u,EA,tmpV);
  RyyV = (((size8u_t)RyyV)>>8)|(tmpV<<56);
 },0)
 
+/* The set of addressing modes standard to all predicated store instructions */
+#define STD_PST_AMODES_NT(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
+Q6INSN(S2_##TAG##_pi_nt,  OPER"(Rx32++#s4:"SHFT"):nt="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); fPM_I(RxV,siV); SEMANTICS; })\
+Q6INSN(S2_p##TAG##f_pi_nt, "if (!Pv4) "OPER"(Rx32++#s4:"SHFT"):nt="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##t_pi_nt, "if (Pv4) "OPER"(Rx32++#s4:"SHFT"):nt="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})
 
+/* The set of 32-bit predicated store instructions */
+STD_PST_AMODES_NT(storerb,"Rt32","memb","Non Temporal Store Byte",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_STORE,A_NA_NT,A_NOTE_STNT),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)))
+STD_PST_AMODES_NT(storerh,"Rt32","memh","Non Temporal Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE,A_NA_NT,A_NOTE_STNT),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)))
+STD_PST_AMODES_NT(storeri,"Rt32","memw","Non Temporal Store Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE,A_NA_NT,A_NOTE_STNT),"2",fSTORE(1,4,EA,RtV))
+STD_PST_AMODES_NT(storerd,"Rtt32","memd","Non Temporal Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_NA_NT,A_STORE,A_NOTE_STNT),"3",fSTORE(1,8,EA,RttV))
 
+/* End of NT Mem Instructions */
 
 /* The set of addressing modes standard to all Store instructions */
 #define STD_ST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS,SCALE)\
@@ -123,71 +149,121 @@ STD_ST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_NOTE_NEWVAL_S
 STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))),1)
 
 
+#if FRAME_EXPLICIT
 Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
-{ fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
+{ fIMMEXT(uiV); fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
+
+DEF_MAPPING(S6_allocframe_to_raw,"allocframe(#u11:3)","allocframe(r29,#u11:3):raw")
+#else
+Q6INSN(S2_allocframe,"allocframe(#u11:3)", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
+{ fIMMEXT(uiV); fEA_RI(fREAD_SP(),-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); fWRITE_SP(EA-uiV); })
+#endif
 
 #define A_RETURN A_RESTRICT_COF_MAX1,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE,A_RET_TYPE,A_DEALLOCRET
 
-/**** Load Acquire Store Release Instructions****/
-
-
-
-Q6INSN(L2_loadw_aq,"Rd32=memw_aq(Rs32)",ATTRIBS(A_REGWRSIZE_4B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_4B,A_LOAD),"Load Acquire Word",
-{ fEA_REG(RsV); fLOAD(1,4,u,EA,RdV); })
-Q6INSN(L4_loadd_aq,"Rdd32=memd_aq(Rs32)",ATTRIBS(A_REGWRSIZE_8B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_8B,A_LOAD),"Load Acquire Double integer",
-{ fEA_REG(RsV); fLOAD(1,8,u,EA,RddV); })
-
-Q6INSN(R6_release_at_vi,"release(Rs32):at",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV); })
-Q6INSN(R6_release_st_vi,"release(Rs32):st",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV); })
-
-Q6INSN(S2_storew_rl_at_vi,"memw_rl(Rs32):at=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
-Q6INSN(S4_stored_rl_at_vi,"memd_rl(Rs32):at=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
-
-Q6INSN(S2_storew_rl_st_vi,"memw_rl(Rs32):st=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
-Q6INSN(S4_stored_rl_st_vi,"memd_rl(Rs32):st=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
-
+#if FRAME_EXPLICIT
 Q6INSN(L2_deallocframe,"Rdd32=deallocframe(Rs32):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAME), "Deallocate stack frame",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);
-  fLOAD(1,8,u,EA,tmp);
-  RddV = fFRAME_UNSCRAMBLE(tmp);
-  fWRITE_SP(EA+8); })
+	fLOAD(1,8,u,EA,tmp);
+	RddV = fFRAME_UNSCRAMBLE(tmp);
+	fWRITE_SP(EA+8); })
+
+DEF_MAPPING(L6_deallocframe_map_to_raw,"deallocframe","r31:30=deallocframe(r30):raw")
+#else
+Q6INSN(L2_deallocframe,"deallocframe", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAME), "Deallocate stack frame",
+{ fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
+	fLOAD(1,8,u,EA,tmp);
+	tmp = fFRAME_UNSCRAMBLE(tmp);
+	fWRITE_LR(fGETWORD(1,tmp));
+	fWRITE_FP(fGETWORD(0,tmp));
+	fWRITE_SP(EA+8); })
+#endif
+
+//#define A_JINDIR A_JUMP,A_INDIRECT,A_COFSTD
+
+#if FRAME_EXPLICIT
 
 Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIR,A_MEMSIZE_8B,A_LOAD,A_RETURN), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);
-  fLOAD(1,8,u,EA,tmp);
-  RddV = fFRAME_UNSCRAMBLE(tmp);
-  fWRITE_SP(EA+8);
-  fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR);})
+	fLOAD(1,8,u,EA,tmp);
+	RddV = fFRAME_UNSCRAMBLE(tmp);
+	fWRITE_SP(EA+8);
+    fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR);})
+
+DEF_MAPPING(L6_return_map_to_raw,"dealloc_return","r31:30=dealloc_return(r30):raw")
+#else
+Q6INSN(L4_return,"dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIR,A_MEMSIZE_8B,A_LOAD,A_RETURN), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
+	fLOAD(1,8,u,EA,tmp);
+	tmp = fFRAME_UNSCRAMBLE(tmp);
+	fWRITE_LR(fGETWORD(1,tmp));
+	fWRITE_FP(fGETWORD(0,tmp));
+	fWRITE_SP(EA+8);
+    fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);})
+#endif
+
+//#define A_JINDIROLD A_JUMP,A_INDIRECT,A_COFSTD,A_CJUMP,A_DOTOLD
 
 #define CONDSEM(SRCREG,STALLBITS0,STALLBITS1,PREDFUNC,PREDARG,STALLSPEC,PREDCOND) \
 { \
-    fHIDE(size8u_t tmp;) \
-    fBRANCH_SPECULATE_STALL(PREDFUNC##PREDCOND(PREDARG),,STALLSPEC,STALLBITS0,STALLBITS1); \
-    fEA_REG(SRCREG); \
-    if (PREDFUNC##PREDCOND(PREDARG)) { \
-        fLOAD(1,8,u,EA,tmp); \
-        RddV = fFRAME_UNSCRAMBLE(tmp); \
-        fWRITE_SP(EA+8); \
-        fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR); \
-    } else { \
-        LOAD_CANCEL(EA); \
-    } \
+	fHIDE(size8u_t tmp;) \
+	fBRANCH_SPECULATE_STALL(PREDFUNC##PREDCOND(PREDARG),,STALLSPEC,STALLBITS0,STALLBITS1); \
+	fEA_REG(SRCREG); \
+	if (PREDFUNC##PREDCOND(PREDARG)) { \
+		fLOAD(1,8,u,EA,tmp); \
+		RddV = fFRAME_UNSCRAMBLE(tmp); \
+		fWRITE_SP(EA+8); \
+		fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR); \
+	} else { \
+		LOAD_CANCEL(EA); \
+	} \
 }
 
+#if 1 && FRAME_EXPLICIT
 #define COND_RETURN_TF(TG,TG2,DOTNEW,STALLBITS0,STALLBITS1,STALLSPEC,ATTRIBS,PREDFUNC,PREDARG,T_NT) \
-    Q6INSN(TG##_t##TG2,"if (Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
-    CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC,PREDARG,STALLSPEC,)) \
-    Q6INSN(TG##_f##TG2,"if (!Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
-    CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC##NOT,PREDARG,STALLSPEC,))
+	Q6INSN(TG##_t##TG2,"if (Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
+		CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC,PREDARG,STALLSPEC,)) \
+	Q6INSN(TG##_f##TG2,"if (!Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
+		CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC##NOT,PREDARG,STALLSPEC,)) \
+	DEF_MAPPING(TG##_map_to_raw_t##TG2,"if (Pv4"DOTNEW") dealloc_return"T_NT,"if (Pv4"DOTNEW") r31:30=dealloc_return(r30)"T_NT":raw") \
+	DEF_MAPPING(TG##_map_to_raw_f##TG2,"if (!Pv4"DOTNEW") dealloc_return"T_NT,"if (!Pv4"DOTNEW") r31:30=dealloc_return(r30)"T_NT":raw")
 
 #define COND_RETURN_NEW(TG,STALLBITS0,STALLBITS1,ATTRIBS) \
-    COND_RETURN_TF(TG,new_pt,".new",12,0,SPECULATE_TAKEN,ATTRIBS,fLSBNEW,PvN,":t") \
-    COND_RETURN_TF(TG,new_pnt,".new",12,0,SPECULATE_NOT_TAKEN,ATTRIBS,fLSBNEW,PvN,":nt") \
+	COND_RETURN_TF(TG,new_pt,".new",12,0,SPECULATE_TAKEN,ATTRIBS,fLSBNEW,PvN,":t") \
+	COND_RETURN_TF(TG,new_pnt,".new",12,0,SPECULATE_NOT_TAKEN,ATTRIBS,fLSBNEW,PvN,":nt") \
 
 #define RETURN_ATTRIBS A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN
 
-COND_RETURN_TF(L4_return,,,7,0,SPECULATE_NOT_TAKEN,ATTRIBS(RETURN_ATTRIBS,A_JINDIROLD),fLSBOLD,PvV,)
-COND_RETURN_NEW(L4_return,12,0,ATTRIBS(RETURN_ATTRIBS,A_JINDIRNEW))
+/* EJP: FIXME: remove A_PRED_BIT_XXX when it's not needed in uarch any more */
+
+COND_RETURN_TF(L4_return,,,7,0,SPECULATE_NOT_TAKEN,ATTRIBS(RETURN_ATTRIBS,A_JINDIROLD,A_PRED_BIT_7),fLSBOLD,PvV,)
+COND_RETURN_NEW(L4_return,12,0,ATTRIBS(RETURN_ATTRIBS,A_JINDIRNEW,A_PRED_BIT_12))
+
+#else
+
+Q6INSN(L4_return_t,"if (Ps4) dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIROLD,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_7), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;);fBRANCH_SPECULATE_STALL(fLSBOLD(PsV),, SPECULATE_NOT_TAKEN,7,0); fEA_REG(fREAD_FP()); if (fLSBOLD(PsV)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+
+Q6INSN(L4_return_f,"if (!Ps4) dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIROLD,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_7), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) ;fBRANCH_SPECULATE_STALL(fLSBOLDNOT(PsV),, SPECULATE_NOT_TAKEN,7,0); fEA_REG(fREAD_FP()); if (fLSBOLDNOT(PsV)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+
+/* FIXME: The SPECULATE_NOT_TAKEN should be SPECULATE_TAKEN. The hint bit in L4_return_new is inverted, needs fixing */
+
+//#define A_JINDIRNEW A_JUMP,A_INDIRECT,A_COFSTD,A_CJUMP,A_DOTNEW
+
+
+Q6INSN(L4_return_tnew_pt,"if (Ps4.new) dealloc_return:t", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIRNEW,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_12), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEW(PsN),, SPECULATE_TAKEN , 12,0); fEA_REG(fREAD_FP()); if (fLSBNEW(PsN)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+
+Q6INSN(L4_return_fnew_pt,"if (!Ps4.new) dealloc_return:t", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIRNEW,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_12), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEWNOT(PsN),, SPECULATE_TAKEN , 12,0); fEA_REG(fREAD_FP()); if (fLSBNEWNOT(PsN)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+
+Q6INSN(L4_return_tnew_pnt,"if (Ps4.new) dealloc_return:nt", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIRNEW,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_12), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEW(PsN),, SPECULATE_NOT_TAKEN , 12,0); fEA_REG(fREAD_FP()); if (fLSBNEW(PsN)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+
+Q6INSN(L4_return_fnew_pnt,"if (!Ps4.new) dealloc_return:nt", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIRNEW,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_PRED_BIT_12), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEWNOT(PsN),, SPECULATE_NOT_TAKEN , 12,0); fEA_REG(fREAD_FP()); if (fLSBNEWNOT(PsN)) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8); fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);}})
+#endif
 
 
 
@@ -197,14 +273,19 @@ Q6INSN(L2_loadw_locked,"Rd32=memw_locked(Rs32)", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZ
 
 
 Q6INSN(S2_storew_locked,"memw_locked(Rs32,Pd4)=Rt32", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED), "Store word with lock",
-{ fEA_REG(RsV); fSTORE_LOCKED(1,4,EA,RtV,PdV) })
+{ fEA_REG(RsV); fSTORE_LOCKED(1,4,EA,RtV,PdV) fHIDE(MARK_LATE_PRED_WRITE(PdN)) })
 
 
 Q6INSN(L4_loadd_locked,"Rdd32=memd_locked(Rs32)", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK), "Load double with lock",
 { fEA_REG(RsV); fLOAD_LOCKED(1,8,u,EA,RddV) })
 
+Q6INSN(L4_loadw_phys,"Rd32=memw_phys(Rs32,Rt32)", ATTRIBS(A_REGWRSIZE_4B,A_PRIV,A_RESTRICT_SLOT0ONLY,A_NOTE_PRIV,A_MEMSIZE_4B,A_LOAD,A_NOTE_NOPACKET,A_RESTRICT_NOPACKET), "Load word from physical address",
+{ fLOAD_PHYS(1,4,u,RsV,RtV,RdV); })
+
+
 Q6INSN(S4_stored_locked,"memd_locked(Rs32,Pd4)=Rtt32", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED), "Store word with lock",
-{ fEA_REG(RsV); fSTORE_LOCKED(1,8,EA,RttV,PdV) })
+	{ fEA_REG(RsV); fSTORE_LOCKED(1,8,EA,RttV,PdV) fHIDE(MARK_LATE_PRED_WRITE(PdN)) })
+
 
 
 
@@ -233,7 +314,11 @@ Q6INSN(L2_p##TAG##fnew_pi, "if (!Pt4.new) "OPER"(Rx32++#s4:"SHFT")",          AT
 Q6INSN(L4_p##TAG##t_abs, "if (Pt4) "OPER"(#u6)",            ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if(fLSBOLD(PtV)){ SEMANTICS;} else {LOAD_CANCEL(EA);}})\
 Q6INSN(L4_p##TAG##f_abs, "if (!Pt4) "OPER"(#u6)",           ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if(fLSBOLDNOT(PtV)){ SEMANTICS; } else {LOAD_CANCEL(EA);}})\
 Q6INSN(L4_p##TAG##tnew_abs,"if (Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV);if (fLSBNEW(PtN))  { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
-Q6INSN(L4_p##TAG##fnew_abs,"if (!Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV);if (fLSBNEWNOT(PtN)) { SEMANTICS; } else {LOAD_CANCEL(EA);}})
+Q6INSN(L4_p##TAG##fnew_abs,"if (!Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV);if (fLSBNEWNOT(PtN)) { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+DEF_MAPPING(L2_p##TAG##t_zomap, "if (Pt4) "OPER"(Rs32)", "if (Pt4) "OPER"(Rs32+#0)") \
+DEF_MAPPING(L2_p##TAG##f_zomap, "if (!Pt4) "OPER"(Rs32)", "if (!Pt4) "OPER"(Rs32+#0)") \
+DEF_MAPPING(L2_p##TAG##tnew_zomap, "if (Pt4.new) "OPER"(Rs32)", "if (Pt4.new) "OPER"(Rs32+#0)") \
+DEF_MAPPING(L2_p##TAG##fnew_zomap, "if (!Pt4.new) "OPER"(Rs32)", "if (!Pt4.new) "OPER"(Rs32+#0)")
 
 
 
@@ -263,7 +348,11 @@ Q6INSN(S2_p##TAG##fnew_pi, "if (!Pv4.new) "OPER"(Rx32++#s4:"SHFT")="DEST,     AT
 Q6INSN(S4_p##TAG##t_abs, "if (Pv4) "OPER"(#u6)="DEST,     ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
 Q6INSN(S4_p##TAG##f_abs, "if (!Pv4) "OPER"(#u6)="DEST,     ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
 Q6INSN(S4_p##TAG##tnew_abs,"if (Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if ( fLSBNEW(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
-Q6INSN(S4_p##TAG##fnew_abs,"if (!Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})
+Q6INSN(S4_p##TAG##fnew_abs,"if (!Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+DEF_MAPPING(S2_p##TAG##t_zomap, "if (Pv4) "OPER"(Rs32)="DEST, "if (Pv4) "OPER"(Rs32+#0)="DEST) \
+DEF_MAPPING(S2_p##TAG##f_zomap, "if (!Pv4) "OPER"(Rs32)="DEST, "if (!Pv4) "OPER"(Rs32+#0)="DEST) \
+DEF_MAPPING(S4_p##TAG##tnew_zomap, "if (Pv4.new) "OPER"(Rs32)="DEST, "if (Pv4.new) "OPER"(Rs32+#0)="DEST) \
+DEF_MAPPING(S4_p##TAG##fnew_zomap, "if (!Pv4.new) "OPER"(Rs32)="DEST, "if (!Pv4.new) "OPER"(Rs32+#0)="DEST)
 
 
 
@@ -279,6 +368,44 @@ STD_PST_AMODES(storerbnew,"Nt8.new","memb","Store Byte",ATTRIBS(A_ARCHV2,A_NOTE_
 STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
 
 
+/**** Load Acquire Store Release Instructions****/
+
+
+
+Q6INSN(L2_loadw_aq,"Rd32=memw_aq(Rs32)",ATTRIBS(A_REGWRSIZE_4B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_4B,A_LOAD),"Load Acquire Word",
+{ fEA_REG(RsV); fLOAD(1,4,u,EA,RdV); })
+Q6INSN(L4_loadd_aq,"Rdd32=memd_aq(Rs32)",ATTRIBS(A_REGWRSIZE_8B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_8B,A_LOAD),"Load Acquire Double integer",
+{ fEA_REG(RsV); fLOAD(1,8,u,EA,RddV); })
+Q6INSN(L2_loadw_locked_aq,"Rd32=memw_locked_aq(Rs32)",ATTRIBS(A_REGWRSIZE_4B,A_FAKEINSN,A_ACQUIRE,A_MEMSIZE_4B,A_LOAD,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK), "Load acquire word with lock",
+{ fEA_REG(RsV); fLOAD_LOCKED(1,4,u,EA,RdV) })
+Q6INSN(L4_loadd_locked_aq,"Rdd32=memd_locked_aq(Rs32)",ATTRIBS(A_REGWRSIZE_8B,A_FAKEINSN,A_ACQUIRE,A_MEMSIZE_8B,A_LOAD,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK), "Load acquire double with lock",
+{ fEA_REG(RsV); fLOAD_LOCKED(1,8,u,EA,RddV) })
+
+Q6INSN(R6_release_at_vi,"release(Rs32):at",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV) })
+//Q6INSN(R6_release_at_vo,"release(Rs32):at:vo",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV) })
+Q6INSN(R6_release_st_vi,"release(Rs32):st",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV) })
+//Q6INSN(R6_release_st_vo,"release(Rs32):st:vo",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV) })
+
+
+Q6INSN(S2_storew_rl_at_vi,"memw_rl(Rs32):at=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
+Q6INSN(S4_stored_rl_at_vi,"memd_rl(Rs32):at=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
+
+//Q6INSN(S2_storew_rl_at_vo,"memw_rl(Rs32):at:vo=Rt32",ATTRIBS(A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV) })
+//Q6INSN(S4_stored_rl_at_vo,"memd_rl(Rs32):at:vo=Rtt32",ATTRIBS(A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV) })
+
+
+Q6INSN(S2_storew_rl_st_vi,"memw_rl(Rs32):st=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
+Q6INSN(S4_stored_rl_st_vi,"memd_rl(Rs32):st=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
+
+//Q6INSN(S2_storew_rl_st_vo,"memw_rl(Rs32):st:vo=Rt32",ATTRIBS(A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV) })
+//Q6INSN(S4_stored_rl_st_vo,"memd_rl(Rs32):st:vo=Rtt32",ATTRIBS(A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_OUTER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV) })
+
+
+Q6INSN(S2_storew_locked_rl,"memw_locked_rl(Rs32,Pd4)=Rt32", ATTRIBS(A_FAKEINSN,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOPACKET,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED,A_RESTRICT_SLOT0ONLY),"Store acquire word with lock",
+{ fEA_REG(RsV); fSTORE_LOCKED(1,4,EA,RtV,PdV) fHIDE(MARK_LATE_PRED_WRITE(PdN)) })
+Q6INSN(S4_stored_locked_rl,"memd_locked_rl(Rs32,Pd4)=Rtt32", ATTRIBS(A_FAKEINSN,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_MEMSIZE_8B,A_STORE,A_RESTRICT_NOPACKET,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED,A_RESTRICT_SLOT0ONLY), "Store acquire word with lock",
+{ fEA_REG(RsV); fSTORE_LOCKED(1,8,EA,RttV,PdV) fHIDE(MARK_LATE_PRED_WRITE(PdN)) })
+
 
 
 /*****************************************************************/
@@ -287,11 +414,16 @@ STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_REGWRS
 /*                                                               */
 /*****************************************************************/
 
+
+
 /* The set of 32-bit non-predicated mem-ops */
 #define STD_MEMOP_AMODES(TAG,OPER,DESCR,SEMANTICS)\
 Q6INSN(L4_##TAG##w_io,  "memw(Rs32+#u6:2)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_4B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,4,s,EA,tmp); SEMANTICS;  fSTORE(1,4,EA,tmp); })\
 Q6INSN(L4_##TAG##b_io,  "memb(Rs32+#u6:0)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_1B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,1,s,EA,tmp); SEMANTICS;  fSTORE(1,1,EA,tmp); })\
-Q6INSN(L4_##TAG##h_io,  "memh(Rs32+#u6:1)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_2B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,2,s,EA,tmp); SEMANTICS;  fSTORE(1,2,EA,tmp); })
+Q6INSN(L4_##TAG##h_io,  "memh(Rs32+#u6:1)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_2B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,2,s,EA,tmp); SEMANTICS;  fSTORE(1,2,EA,tmp); })\
+DEF_MAPPING(L4_##TAG##w_zomap, "memw(Rs32)"OPER, "memw(Rs32+#0)"OPER)\
+DEF_MAPPING(L4_##TAG##h_zomap, "memh(Rs32)"OPER, "memh(Rs32+#0)"OPER)\
+DEF_MAPPING(L4_##TAG##b_zomap, "memb(Rs32)"OPER, "memb(Rs32+#0)"OPER)
 
 
 
@@ -307,6 +439,12 @@ STD_MEMOP_AMODES(iand_memop, "=clrbit(#U5)", "Clear a bit in memory", tmp &= (~(
 STD_MEMOP_AMODES(ior_memop,  "=setbit(#U5)", "Set a bit in memory", tmp |= (1<<UiV))
 
 
+
+
+
+
+
+
 /*****************************************************************/
 /*                                                               */
 /*                  V4 store immediates                          */
@@ -317,7 +455,11 @@ STD_MEMOP_AMODES(ior_memop,  "=setbit(#U5)", "Set a bit in memory", tmp |= (1<<U
 Q6INSN(S4_##TAG##t_io,"if (Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
 Q6INSN(S4_##TAG##f_io,"if (!Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
 Q6INSN(S4_##TAG##tnew_io,"if (Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEW(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
-Q6INSN(S4_##TAG##fnew_io,"if (!Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEWNOT(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})
+Q6INSN(S4_##TAG##fnew_io,"if (!Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEWNOT(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+DEF_MAPPING(S4_##TAG##t_zomap,"if (Pv4) "OPER"(Rs32)="DEST,"if (Pv4) "OPER"(Rs32+#0)="DEST)\
+DEF_MAPPING(S4_##TAG##f_zomap,"if (!Pv4) "OPER"(Rs32)="DEST,"if (!Pv4) "OPER"(Rs32+#0)="DEST)\
+DEF_MAPPING(S4_##TAG##tnew_zomap,"if (Pv4.new) "OPER"(Rs32)="DEST,"if (Pv4.new) "OPER"(Rs32+#0)="DEST)\
+DEF_MAPPING(S4_##TAG##fnew_zomap,"if (!Pv4.new) "OPER"(Rs32)="DEST,"if (!Pv4.new) "OPER"(Rs32+#0)="DEST)\
 
 /* The set of 32-bit store immediate instructions */
 V4_PSTI_AMODES(storeirb,"#S6","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_ROPS_2,A_MEMSIZE_1B,A_STORE,A_STOREIMMED),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
@@ -327,7 +469,9 @@ V4_PSTI_AMODES(storeiri,"#S6","memw","Store Immediate Word",ATTRIBS(A_REGWRSIZE_
 
 /* Non-predicated store immediates */
 #define V4_STI_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
-Q6INSN(S4_##TAG##_io,  OPER"(Rs32+#u6:"SHFT")="DEST,  ATTRIB,DESCR,{fEA_RI(RsV,uiV); SEMANTICS; })
+Q6INSN(S4_##TAG##_io,  OPER"(Rs32+#u6:"SHFT")="DEST,  ATTRIB,DESCR,{fEA_RI(RsV,uiV); SEMANTICS; })\
+/*Q6INSN(S4_##TAG##_rr,  OPER"(Rs32+Rt32<<#u2)="DEST,   ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); SEMANTICS; })*/\
+DEF_MAPPING(S4_##TAG##_zomap,OPER"(Rs32)="DEST,OPER"(Rs32+#0)="DEST)
 
 /* The set of 32-bit store immediate instructions */
 V4_STI_AMODES(storeirb,"#S8","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_ROPS_2,A_MEMSIZE_1B,A_STORE,A_STOREIMMED),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
@@ -370,3 +514,35 @@ STD_GPST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSI
 STD_GPST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)))
 STD_GPST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
 STD_GPST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
+
+
+
+
+
+
+// DMA
+
+Q6INSN(L6_memcpy,"memcpy(Rs32,Rt32,Mu2)",   ATTRIBS(A_LOAD,A_STORE,A_MEMLIKE,A_RESTRICT_NOPACKET,A_NOTE_NOPACKET,A_MEMCPY,A_NOTE_HVX_ONLY,A_NO_XML,A_VTCM_ALLBANK_ACCESS),  "L2 Space to VTCM Memcopy",
+{
+	fVTCM_MEMCPY(RsV, RtV, MuV)
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#undef FRAME_EXPLICIT

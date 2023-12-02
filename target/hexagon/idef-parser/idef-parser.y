@@ -412,11 +412,10 @@ cancel_statement : LOAD_CANCEL
                    {
                        gen_load_cancel(c, &@1);
                    }
-                 | STORE_CANCEL
+                 | CANCEL
                    {
                        gen_cancel(c, &@1);
                    }
-                 | CANCEL
                  ;
 
 if_statement : if_stmt

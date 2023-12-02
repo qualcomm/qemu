@@ -37,7 +37,10 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         return gdb_get_regl(mem_buf, env->gpr[n]);
     }
 
+    n -= TOTAL_PER_THREAD_REGS;
+
     g_assert_not_reached();
+    return 0;
 }
 
 int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
@@ -57,9 +60,44 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->gpr[n] = ldtul_p(mem_buf);
         return sizeof(target_ulong);
     }
+    n -= TOTAL_PER_THREAD_REGS;
+
+    g_assert_not_reached();
+    return 0;
+}
+
+#ifndef CONFIG_USER_ONLY
+int hexagon_sys_gdb_read_register(CPUHexagonState *env, GByteArray *mem_buf, int n)
+{
+    if (n < NUM_SREGS) {
+        return gdb_get_regl(mem_buf, ARCH_GET_SYSTEM_REG(env, n));
+    }
+    n -= NUM_SREGS;
+
+    if (n < NUM_GREGS) {
+        return gdb_get_regl(mem_buf, hexagon_greg_read(env, n));
+    }
+    n -= NUM_GREGS;
 
     g_assert_not_reached();
 }
+
+int hexagon_sys_gdb_write_register(CPUHexagonState *env, uint8_t *mem_buf, int n)
+{
+    if (n < NUM_SREGS) {
+        ARCH_SET_SYSTEM_REG(env, n, ldtul_p(mem_buf));
+        return sizeof(target_ulong);
+    }
+    n -= NUM_SREGS;
+
+    if (n < NUM_GREGS) {
+        return env->greg[n] = ldtul_p(mem_buf);
+    }
+    n -= NUM_GREGS;
+
+    g_assert_not_reached();
+}
+#endif
 
 static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {

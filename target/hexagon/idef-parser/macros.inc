@@ -129,3 +129,10 @@
 
 /* Purge non-relavant parts */
 #define fBRANCH_SPECULATE_STALL(A, B, C, D, E)
+
+/* QUIC: Downstream-only macros */
+#define fWRITE_P3_LATE(VAL) P3 = VAL
+#define fPREDUSE_TIMING()
+#define fNOP_EXECUTED
+#define fACC()
+#define fEXTENSION_AUDIO(A) A

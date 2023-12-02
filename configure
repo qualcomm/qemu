@@ -1390,6 +1390,14 @@ probe_target_compiler() {
     : ${container_cross_strip:=${container_cross_prefix}strip}
   done
 
+  case $target in
+#   hexagon-linux-user)
+#     cross_cc_hexagon=hexagon-linux-clang ;;
+    hexagon-softmmu)
+      cross_cc_hexagon=hexagon-clang ;;
+  esac
+
+
   try=cross
   case "$target_arch:$cpu" in
     aarch64_be:aarch64 | \

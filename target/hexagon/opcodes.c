@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "attribs.h"
 #include "decode.h"
 
@@ -54,7 +55,6 @@ const char * const opcode_rregs[] = {
 #undef REGINFO
 #undef IMMINFO
 };
-
 
 const char * const opcode_wregs[] = {
 #define IMMINFO(TAG, SIGN, SIZE, SHAMT, SIGN2, SIZE2, SHAMT2)    /* nothing */
@@ -105,7 +105,6 @@ const OpcodeEncoding opcode_encodings[] = {
 void opcode_init(void)
 {
     init_attribs(0, 0);
-
 #define ATTRIBS(...) , ## __VA_ARGS__, 0
 #define OP_ATTRIB(TAG, ARGS) init_attribs(TAG ARGS);
 #include "op_attribs_generated.h.inc"
@@ -121,9 +120,12 @@ void opcode_init(void)
 int opcode_which_immediate_is_extended(Opcode opcode)
 {
     const char *p;
-
     g_assert(opcode < XX_LAST_OPCODE);
-    g_assert(GET_ATTRIB(opcode, A_EXTENDABLE));
+
+    if (!GET_ATTRIB(opcode, A_EXTENDABLE)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Instruction cannot have extender: opcode 0x%x\n", opcode);
+        return -1;
+    }
 
     p = opcode_short_semantics[opcode];
     p = strstr(p, NEEDLE);

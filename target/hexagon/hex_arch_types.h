@@ -19,7 +19,7 @@
 #define HEXAGON_HEX_ARCH_TYPES_H
 
 #include "mmvec/mmvec.h"
-#include "qemu/int128.h"
+/*#include "qemu/int128.h"*/
 
 /*
  * These types are used by the code imported from the Hexagon
@@ -31,9 +31,31 @@ typedef uint16_t    size2u_t;
 typedef int16_t     size2s_t;
 typedef uint32_t    size4u_t;
 typedef int32_t     size4s_t;
-typedef uint64_t    size8u_t;
-typedef int64_t     size8s_t;
-typedef Int128      size16s_t;
+
+typedef uint64_t size8u_t;
+typedef int64_t size8s_t;
+
+typedef uint64_t    paddr_t;
+typedef uint32_t    vaddr_t;
+
+/*#define HEX_CONFIG_INT128 1*/
+#ifdef HEX_CONFIG_INT128
+#define size16s_t Int128
+#else
+ typedef struct size16s {
+     union {
+         struct {
+            uint64_t lo;
+            int64_t hi;
+         };
+         uint32_t w[4];
+     };
+ } size16s_t;
+#endif
+
+typedef MMVector          mmvector_t;
+typedef MMVectorPair      mmvector_pair_t;
+typedef MMQReg            mmqreg_t;
 
 typedef MMVector          mmvector_t;
 typedef MMVectorPair      mmvector_pair_t;

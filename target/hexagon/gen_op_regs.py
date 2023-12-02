@@ -74,7 +74,7 @@ def main():
     tagimms = hex_common.get_tagimms()
 
     with open(sys.argv[3], "w") as f:
-        for tag in hex_common.tags:
+        for tag in hex_common.get_all_tags():
             regs = tagregs[tag]
             rregs = []
             wregs = []
@@ -99,7 +99,7 @@ def main():
                 f'\t/*WR:*/\t"{",".join(wregs)}")\n'
             )
 
-        for tag in hex_common.tags:
+        for tag in hex_common.get_all_tags():
             imms = tagimms[tag]
             f.write(f"IMMINFO({tag}")
             if not imms:
