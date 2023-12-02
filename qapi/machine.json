@@ -26,6 +26,8 @@
 #
 # @avr: since 5.1
 #
+# @hexagon: since 11.0
+#
 # @loongarch64: since 7.1
 #
 # @hexagon: since 11.0
