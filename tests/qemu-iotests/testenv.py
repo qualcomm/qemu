@@ -239,6 +239,7 @@ class TestEnv(ContextManager['TestEnv']):
             ('arm', 'virt'),
             ('aarch64', 'virt'),
             ('avr', 'mega2560'),
+            ('hexagon', 'virt'),
             ('m68k', 'virt'),
             ('or1k', 'virt'),
             ('riscv32', 'virt'),
