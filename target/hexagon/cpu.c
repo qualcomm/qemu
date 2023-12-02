@@ -69,6 +69,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
         0xffffffffULL),
+    DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
