@@ -1,0 +1,81 @@
+/*
+ * Hexagon Baseboard System emulation.
+ *
+ * Copyright (c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+static hexagon_machine_config v66g_1024 = {
+    .cfgbase =        0xd8180000,
+    .l2tcm_size =     0x00000000,
+    .l2vic_base =     0xfc910000,
+    .l2vic_size =     0x00001000,
+    .csr_base =       0xfc900000,
+    .qtmr_rg0 =       0xfc921000,
+    .qtmr_rg1 =       0xfc922000,
+    .cfgtable = {
+        .l2tcm_base =           0xd8000000,
+        .reserved0 =            0x0000d400,
+        .subsystem_base =       0x00002000,
+        .etm_base =             0xd8050000,
+        .l2cfg_base =           0xd81a0000,
+        .reserved1 =            0x00000000,
+        .l1s0_base =            0xd8200000,
+        .axi2_lowaddr =         0x00003000,
+        .streamer_base =        0x00000000,
+        .reserved2 =            0xd8190000,
+        .fastl2vic_base =       0xd81e0000,
+        .jtlb_size_entries =    0x00000080,
+        .coproc_present =       0x00000001,
+        .ext_contexts =         0x00000004,
+        .vtcm_base =            0xd8200000,
+        .vtcm_size_kb =         0x00000100,
+        .l2tag_size =           0x00000400,
+        .l2ecomem_size =        0x00000400,
+        .thread_enable_mask =   0x0000000f,
+        .eccreg_base =          0xd81f0000,
+        .l2line_size =          0x00000080,
+        .tiny_core =            0x00000000,
+        .l2itcm_size =          0x00000000,
+        .l2itcm_base =          0xd8200000,
+        .reserved3 =            0x00000000,
+        .dtm_present =          0x00000000,
+        .dma_version =          0x00000000,
+        .hvx_vec_log_length =   0x00000080,
+        .core_id =              0x00000000,
+        .core_count =           0x00000000,
+        .coproc2_reg0 =     0x00000000,
+        .coproc2_reg1 =       0x00000000,
+        .v2x_mode =             0x00000000,
+        .coproc2_reg2 =        0x00000000,
+        .coproc2_reg3 =     0x00000000,
+        .coproc2_reg4 =       0x00000000,
+        .coproc2_reg5 =        0x00000000,
+        .coproc2_reg6 =    0x00000000,
+        .coproc2_reg7 =     0x00000000,
+        .acd_preset =           0x00000000,
+        .mnd_preset =           0x00000000,
+        .l1d_size_kb =          0x00000000,
+        .l1i_size_kb =          0x00000000,
+        .l1d_write_policy =     0x00000000,
+        .vtcm_bank_width =      0x00000000,
+        .reserved4 =            0x00000000,
+        .reserved5 =            0x00000000,
+        .reserved6 =            0x00000000,
+        .coproc2_cvt_mpy_size =     0x00000000,
+        .axi3_lowaddr =         0x00000000,
+    },
+};
+
