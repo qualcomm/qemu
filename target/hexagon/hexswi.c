@@ -179,7 +179,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         } else {
             CPUState *cs = CPU(cpu);
             qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR, "resetting\n");
-            cpu_reset(cs);
+            CPU_FOREACH(cs) {
+                cpu_reset(cs);
+            }
         }
     }
     break;
