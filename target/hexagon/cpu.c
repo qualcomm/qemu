@@ -39,6 +39,7 @@
 #include "qemu/main-loop.h"
 #include "sysemu/cpus.h"
 #include "hex_interrupts.h"
+#include "qemu/cutils.h"
 #endif
 #include "opcodes.h"
 #include "coproc.h"
@@ -747,6 +748,29 @@ static const char *get_coproc_env_path(void)
     return g_strdup(path);
 }
 
+static const char *get_coproc_relative_install_path(void)
+
+{
+    char path[2048];
+    struct stat st;
+
+    /*
+     * By default, qemu is installed at:
+     * <install-dir>/Tools/QEMUHexagon/bin/qemu-system-hexagon
+     * And the coproc at:
+     * <install-dir>/Tools/QEMUCoprocPlugin/
+     */
+    unsigned len = snprintf(path, sizeof(path), "%s/../../QEMUCoprocPlugin/",
+                            qemu_get_exec_dir());
+    if (len >= sizeof(path)) {
+        return NULL;
+    }
+    if (stat(path, &st) || !S_ISDIR(st.st_mode)) {
+        return NULL;
+    }
+    return g_strdup(path);
+}
+
 static const char *get_coproc_path(CPUHexagonState *env)
 
 {
@@ -772,6 +796,12 @@ static const char *get_coproc_path(CPUHexagonState *env)
          *    env_coproc_path);
          */
         return env_coproc_path;
+    }
+
+    /* fallback to expected install path */
+    const char *coproc_install_path = get_coproc_relative_install_path();
+    if (coproc_install_path) {
+        return coproc_install_path;
     }
 
     qemu_log("Fatal error: Hexagon COPROC path not found:\n"
