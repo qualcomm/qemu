@@ -732,24 +732,7 @@ static struct ProcessorState ProcessorStateV68 = {
 };
 
 #if !defined(CONFIG_USER_ONLY) && !defined(_WIN32)
-#define COPROC_ENV_VAR "QEMU_HEXAGON_COPROC"
-static const char *get_coproc_env_path(void)
-
-{
-    char path[2048];
-
-    if (!getenv(COPROC_ENV_VAR)) {
-        return NULL;
-    }
-    unsigned len = snprintf(path, sizeof(path), "%s", getenv(COPROC_ENV_VAR));
-    if (len >= sizeof(path)) {
-        return NULL;
-    }
-    return g_strdup(path);
-}
-
 static const char *get_coproc_relative_install_path(void)
-
 {
     char path[2048];
     struct stat st;
@@ -786,18 +769,6 @@ static const char *get_coproc_path(CPUHexagonState *env)
         return g_strdup(cpu->coproc_path);
     }
 
-    /* try environment variable second */
-    const char *env_coproc_path = get_coproc_env_path();
-    if (env_coproc_path) {
-        /*
-         * qemu_log("Hexagon COPROC: %s environement variable found:\n"
-         *    "\tUsing (%s)\n",
-         *    COPROC_ENV_VAR,
-         *    env_coproc_path);
-         */
-        return env_coproc_path;
-    }
-
     /* fallback to expected install path */
     const char *coproc_install_path = get_coproc_relative_install_path();
     if (coproc_install_path) {
@@ -805,9 +776,8 @@ static const char *get_coproc_path(CPUHexagonState *env)
     }
 
     qemu_log("Fatal error: Hexagon COPROC path not found:\n"
-        "\tEither set environment variable (%s).\n"
-        "\tOr use -cpu coproc=<path> command line option.\n",
-        COPROC_ENV_VAR);
+        "\tEither choose a machine with no coproc or specify its\n"
+        "\tpath through the -cpu coproc=<path> command line option.\n");
     abort();
     return NULL;
 }
