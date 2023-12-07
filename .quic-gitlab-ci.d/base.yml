@@ -156,7 +156,7 @@ coproc_build:
 .base-check:
   extends: .after-build
   script:
-    - make -C $builddir -j check
+    - $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild
   artifacts:
     when: on_failure
     paths: [ "*_build" ]
