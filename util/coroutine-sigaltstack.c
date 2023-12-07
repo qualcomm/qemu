@@ -53,6 +53,7 @@ typedef struct {
     /** Information for the signal handler (trampoline) */
     sigjmp_buf tr_reenter;
     CoroutineSigAltStack *tr_handler;
+    pthread_mutex_t mutex;
 } CoroutineThreadState;
 
 static pthread_key_t thread_state_key;
@@ -122,6 +123,9 @@ static void QEMU_CONSTRUCTOR(coroutine_init)(void)
         perror("Unable to install SIGUSR2 handler");
         abort();
     }
+
+    CoroutineThreadState *coTS = coroutine_get_thread_state();
+    pthread_mutex_init(&coTS->mutex, NULL);
 }
 
 /* "boot" function
@@ -157,7 +161,7 @@ static void coroutine_trampoline(int signal)
     coTS = coroutine_get_thread_state();
     self = coTS->tr_handler;
 
-    if (!self) {
+    if (!coTS || !self) {
         /*
          * Never reached -- the top of coroutine_trampoline() can only be
          * entered from the sigsuspend() call in qemu_coroutine_new().
@@ -196,7 +200,7 @@ Coroutine *qemu_coroutine_new(void)
     CoroutineThreadState *coTS;
     stack_t ss;
     stack_t oss;
-    sigset_t sigs;
+    sigset_t sigs, osigs;
     sigjmp_buf old_env;
 
     /* The way to manipulate stack is with the sigaltstack function. We
@@ -214,14 +218,6 @@ Coroutine *qemu_coroutine_new(void)
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     /*
-     * sigaction() is a process-global operation.  We must not run
-     * this code in multiple threads at once.
-     */
-    if (sigaction(SIGUSR2, &sa, &osa) != 0) {
-        abort();
-    }
-
-    /*
      * Set the new stack.
      */
     ss.ss_sp = co->stack;
@@ -236,12 +232,38 @@ Coroutine *qemu_coroutine_new(void)
      * It will return immediately via "return" after the sigsetjmp()
      * was performed.
      */
+
+    sigfillset(&sigs);
+    pthread_sigmask(SIG_BLOCK, &sigs, &osigs);
+
     coTS = coroutine_get_thread_state();
+    pthread_mutex_lock(&coTS->mutex);
+    assert(!coTS->tr_handler);
     coTS->tr_handler = co;
+
     pthread_kill(pthread_self(), SIGUSR2);
+
     sigfillset(&sigs);
     sigdelset(&sigs, SIGUSR2);
-    sigsuspend(&sigs);
+
+
+    do {
+        sigsuspend(&sigs);
+        if (coTS->tr_handler) {
+            /*
+             * Sometimes sigsuspend could exit for other signals
+             * reset and try again
+             */
+            pthread_sigmask(SIG_BLOCK, &sigs, &osigs);
+            pthread_kill(pthread_self(), SIGUSR2);
+            sigfillset(&sigs);
+            sigdelset(&sigs, SIGUSR2);
+        }
+    } while (coTS->tr_handler);
+
+    assert(!coTS->tr_handler);
+
+    pthread_sigmask(SIG_SETMASK, &osigs, NULL);
 
     /*
      * Inform the system that we are back off the signal stack by
@@ -272,6 +294,8 @@ Coroutine *qemu_coroutine_new(void)
     /*
      * Ok, we returned again, so now we're finished
      */
+
+    pthread_mutex_unlock(&coTS->mutex);
 
     return &co->base;
 }
