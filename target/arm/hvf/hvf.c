@@ -1747,6 +1747,10 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
      */
     qatomic_set_mb(&cpu->thread_kicked, false);
     bql_unlock();
+
+    pthread_sigmask(SIG_BLOCK, NULL, &cpu->accel->unblock_ipi_mask);
+    sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
+
     pselect(0, 0, 0, 0, ts, &cpu->accel->unblock_ipi_mask);
     bql_lock();
 }
@@ -1879,6 +1883,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         return 0;
     case HV_EXIT_REASON_CANCELED:
         /* we got kicked, no exit to process */
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
         return 0;
     default:
         /* some unknown reason, treat as a kick dont g_assert_not_reached(); */
@@ -2007,6 +2014,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                              "at 0x%llx (instruction: 0x%x)",
                                env->pc,
                                hvf_exit->exception.physical_address, ins);
+                break;
             } else {
                 /* use global address space to cause mapping for everyone */
                 address_space_read(&address_space_memory,
