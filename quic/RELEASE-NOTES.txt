@@ -6,6 +6,10 @@
 
 QEMU-hexagon 10.0 Release Notes
 
+Supported platforms:
+- Ubuntu 20
+- Windows 11 (experimental)
+
 ----------------------------------------------------------------------
 
 The user guide for QEMU-hexagon is published in CreatePoint: Qualcomm®
