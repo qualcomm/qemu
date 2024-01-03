@@ -1,7 +1,7 @@
 /*
  * libqemu
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,22 @@
 
 #include "ui/sdl2.h"
 
+int libqemu_sdl2_init(void)
+{
+    int result = SDL_Init(SDL_INIT_VIDEO);
+    if (result < 0) {
+        return result;
+    }
+    /* Prefer loading ANGLE GLES driver */
+    SDL_SetHint(SDL_HINT_OPENGL_ES_DRIVER, "1");
+    return result;
+}
+
+const char *libqemu_sdl2_get_error(void)
+{
+    return SDL_GetError();
+}
+
 DisplayOptions *libqemu_display_options_new(void)
 {
     struct DisplayOptions *opts = g_new0(struct DisplayOptions, 1);
@@ -30,8 +46,7 @@ DisplayOptions *libqemu_display_options_new(void)
     return opts;
 }
 
-void libqemu_sdl2_console_init(struct sdl2_console *sdl2_con,
-                               QemuConsole *con,
+void libqemu_sdl2_console_init(struct sdl2_console *sdl2_con, QemuConsole *con,
                                void *user_data)
 {
     sdl2_con->dcl.con = con;
@@ -143,4 +158,14 @@ void libqemu_dcl_ops_set_refresh(DisplayChangeListenerOps *ops,
                                  LibQemuRefreshFn refresh_fn)
 {
     ops->dpy_refresh = refresh_fn;
+}
+
+void libqemu_sdl2_console_set_window_id(struct sdl2_console *sdl2_con,
+                                        QemuConsole *con)
+{
+#ifdef SDL_VIDEO_DRIVER_COCOA
+    SDL_SysWMinfo info;
+    SDL_GetWindowWMInfo(sdl2_con->real_window, &info);
+    qemu_console_set_window_id(con, (uintptr_t)info.info.cocoa.window);
+#endif
 }

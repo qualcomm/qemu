@@ -2,6 +2,7 @@
 # libqemu exported functions and types
 #
 # Copyright (c) 2019 Luc Michel <luc.michel@greensocs.com>
+# Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -229,6 +230,9 @@ ExportedFct('sdl2_console_set_dgc_ops', 'void', [ 'sdl2_console *', 'DisplayGLCt
 ExportedFct('sdl2_console_get_real_window', 'SDL_Window *', [ 'sdl2_console *' ], priv = 'libqemu_sdl2_console_get_real_window')
 ExportedFct('sdl2_console_get_dcl', 'DisplayChangeListener *', [ 'sdl2_console *' ], priv = 'libqemu_sdl2_console_get_dcl')
 ExportedFct('sdl2_console_get_dgc', 'DisplayGLCtx *', [ 'sdl2_console *' ], priv = 'libqemu_sdl2_console_get_dgc')
+ExportedFct('sdl2_console_set_window_id', 'void',
+            [ 'sdl2_console *', 'QemuConsole *' ],
+            priv = 'libqemu_sdl2_console_set_window_id')
 ExportedFct('dcl_get_ops', 'const DisplayChangeListenerOps *', [ 'DisplayChangeListener *' ], priv = 'libqemu_dcl_get_ops')
 ExportedFct('dcl_get_user_data', 'void *', [ 'DisplayChangeListener *' ], priv = 'libqemu_dcl_get_user_data')
 ExportedFct('dcl_ops_new', 'DisplayChangeListenerOps *', [], priv = 'libqemu_dcl_ops_new')
@@ -237,6 +241,10 @@ ExportedFct('dcl_ops_set_gfx_update', 'void', [ 'DisplayChangeListenerOps *', 'L
 ExportedFct('dcl_ops_set_gfx_switch', 'void', [ 'DisplayChangeListenerOps *', 'LibQemuGfxSwitchFn' ], priv = 'libqemu_dcl_ops_set_gfx_switch')
 ExportedFct('dcl_ops_set_refresh', 'void', [ 'DisplayChangeListenerOps *', 'LibQemuRefreshFn' ], priv = 'libqemu_dcl_ops_set_refresh')
 ExportedFct('dcl_register', 'void', [ 'DisplayChangeListener *' ], priv = 'register_displaychangelistener')
+
+ExportedFct('sdl2_init', 'int', [ 'void' ], priv = 'libqemu_sdl2_init')
+ExportedFct('sdl2_get_error', 'const char *', [ 'void' ],
+            priv = 'libqemu_sdl2_get_error')
 
 ExportedFct('sdl2_2d_update', 'void', [ 'DisplayChangeListener *', 'int', 'int', 'int' , 'int' ])
 ExportedFct('sdl2_2d_switch', 'void', [ 'DisplayChangeListener *', 'DisplaySurface *' ])
