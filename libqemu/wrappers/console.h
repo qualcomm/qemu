@@ -1,7 +1,7 @@
 /*
  * libqemu
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 struct sdl2_console;
 typedef struct SDL_Window SDL_Window;
 
+int libqemu_sdl2_init(void);
+const char *libqemu_sdl2_get_error(void);
+
 void libqemu_sdl2_console_init(struct sdl2_console *, QemuConsole *, void *);
 void libqemu_sdl2_console_set_hidden(struct sdl2_console *, bool);
 void libqemu_sdl2_console_set_idx(struct sdl2_console *, int);
@@ -37,5 +40,6 @@ void libqemu_sdl2_console_set_dgc_ops(struct sdl2_console *, DisplayGLCtxOps *);
 SDL_Window *libqemu_sdl2_console_get_real_window(struct sdl2_console *);
 DisplayChangeListener *libqemu_sdl2_console_get_dcl(struct sdl2_console *);
 DisplayGLCtx *libqemu_sdl2_console_get_dgc(struct sdl2_console *);
+void libqemu_sdl2_console_set_window_id(struct sdl2_console *, QemuConsole *);
 
 #endif
