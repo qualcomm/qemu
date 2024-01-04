@@ -834,7 +834,7 @@ static ssize_t rtl8139_receive(NetClientState *nc,
     if (!s->clock_enabled)
     {
         DPRINTF("stopped ==========================\n");
-        return -1;
+        return size;    /* if we're not 'running' drop packets silently. */
     }
 
     /* first check if receiver is enabled */
@@ -842,7 +842,7 @@ static ssize_t rtl8139_receive(NetClientState *nc,
     if (!rtl8139_receiver_enabled(s))
     {
         DPRINTF("receiver disabled ================\n");
-        return -1;
+        return size;    /* if we're not 'receiving' drop packets silently. */
     }
 
     /* XXX: check this */
