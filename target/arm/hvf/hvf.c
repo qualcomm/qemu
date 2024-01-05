@@ -1025,7 +1025,9 @@ void hvf_kick_vcpu_thread(CPUState *cpu)
 #else
     qemu_sem_post(&cpu->sem);
 #endif
-    hv_vcpus_exit(&cpu->accel->fd, 1);
+    if (cpu->accel) {
+        hv_vcpus_exit(&cpu->accel->fd, 1);
+    }
 }
 
 static void hvf_raise_exception(CPUState *cpu, uint32_t excp,
