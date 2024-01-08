@@ -57,6 +57,7 @@ typedef struct {
 } CoroutineThreadState;
 
 static pthread_key_t thread_state_key;
+static void (*next_sa_handler)(int);
 
 static void coroutine_trampoline(int signal);
 
@@ -83,7 +84,7 @@ static void QEMU_CONSTRUCTOR(coroutine_init)(void)
 {
     int ret;
     sigset_t sigs;
-    struct sigaction sa;
+    struct sigaction sa, oldsa;
 
     ret = pthread_key_create(&thread_state_key, qemu_coroutine_thread_cleanup);
     if (ret != 0) {
@@ -119,13 +120,17 @@ static void QEMU_CONSTRUCTOR(coroutine_init)(void)
     sa.sa_handler = coroutine_trampoline;
     sigfillset(&sa.sa_mask);
     sa.sa_flags = SA_ONSTACK;
-    if (sigaction(SIGUSR2, &sa, NULL) != 0) {
+    if (sigaction(SIGUSR2, &sa, &oldsa) != 0) {
         perror("Unable to install SIGUSR2 handler");
         abort();
     }
 
     CoroutineThreadState *coTS = coroutine_get_thread_state();
     pthread_mutex_init(&coTS->mutex, NULL);
+    /* Allow other libraries handlers */
+    if (!next_sa_handler && oldsa.sa_handler != coroutine_trampoline) {
+        next_sa_handler = oldsa.sa_handler;
+    }
 }
 
 /* "boot" function
@@ -166,6 +171,9 @@ static void coroutine_trampoline(int signal)
          * Never reached -- the top of coroutine_trampoline() can only be
          * entered from the sigsuspend() call in qemu_coroutine_new().
          */
+        if (coTS && next_sa_handler) {
+            return next_sa_handler(signal);
+        }
         abort();
     }
 
