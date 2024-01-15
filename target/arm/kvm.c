@@ -1212,6 +1212,12 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
+#ifdef CONFIG_LIBQEMU
+    uint32_t dummy;
+    (void)address_space_read(&address_space_memory, env->pc,
+                             MEMTXATTRS_UNSPECIFIED, &dummy, sizeof(dummy));
+#endif
+
     if (unlikely(env->ext_dabt_raised)) {
         /*
          * Verifying that the ext DABT has been properly injected,
@@ -1312,7 +1318,8 @@ static bool ins_is_store(uint32_t ins)
 
 static bool ins_is_load(uint32_t ins)
 {
-    return (ins & 0xbfe00c00) == 0xb8400400;
+    return ((ins & 0xbfe00c00) == 0xb8400400)
+        || ((ins & 0xffe00400) == 0x38400400);
 }
 
 static int kvm_handle_load_store(CPUState *cs, uint64_t fault_ipa,
