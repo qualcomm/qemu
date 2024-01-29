@@ -1734,10 +1734,10 @@ static void print_thread_states(const char *str)
 
 static void hex_k0_lock(CPUHexagonState *env)
 {
-    HEX_DEBUG_LOG("Before hex_k0_lock: %d\n", env->threadId);
-    print_thread_states("\tThread");
     const bool exception_context = qemu_mutex_iothread_locked();
     LOCK_IOTHREAD(exception_context);
+    HEX_DEBUG_LOG("Before hex_k0_lock: %d\n", env->threadId);
+    print_thread_states("\tThread");
 
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
@@ -1756,16 +1756,16 @@ static void hex_k0_lock(CPUHexagonState *env)
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
     }
 
-    UNLOCK_IOTHREAD(exception_context);
     HEX_DEBUG_LOG("After hex_k0_lock: %d\n", env->threadId);
     print_thread_states("\tThread");
+    UNLOCK_IOTHREAD(exception_context);
 }
 
 static void hex_k0_unlock(CPUHexagonState *env)
 {
+    qemu_mutex_lock_iothread();
     HEX_DEBUG_LOG("Before hex_k0_unlock: %d\n", env->threadId);
     print_thread_states("\tThread");
-    qemu_mutex_lock_iothread();
 
     /* Nothing to do if the k0 isn't locked by this thread */
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
@@ -1829,9 +1829,9 @@ static void hex_k0_unlock(CPUHexagonState *env)
         cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
     }
 
-    qemu_mutex_unlock_iothread();
     HEX_DEBUG_LOG("After hex_k0_unlock: %d\n", env->threadId);
     print_thread_states("\tThread");
+    qemu_mutex_unlock_iothread();
 }
 #endif
 

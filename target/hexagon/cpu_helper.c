@@ -361,8 +361,8 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
     set_wait_mode(env);
     env->wait_next_pc = PC + 4;
 
-    UNLOCK_IOTHREAD(exception_context);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+    UNLOCK_IOTHREAD(exception_context);
 }
 
 static void hexagon_resume_thread(CPUHexagonState *env)
