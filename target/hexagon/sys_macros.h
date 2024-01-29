@@ -157,7 +157,7 @@
 
 #define fSET_TLB_LOCK()                             \
     do {                                            \
-        hex_tlb_lock(env);                          \
+        hex_tlb_lock(env, 4);                    \
         switch (ATOMIC_LOAD(env->tlb_lock_state)) { \
         case HEX_LOCK_OWNER:                        \
             env->gpr[HEX_REG_PC] = PC + 4;          \

@@ -609,6 +609,7 @@ typedef struct CPUArchState {
     PMUState pmu;
     bool ss_pending;
 #endif
+    target_ulong next_PC;
 } CPUHexagonState;
 #define mmvecx_t CPUHexagonState
 

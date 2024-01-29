@@ -96,6 +96,7 @@ typedef struct DisasContext {
     bool paranoid_commit_state;
     bool ss_active;
     bool ss_pending;
+    bool need_next_pc;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
@@ -221,6 +222,7 @@ extern TCGv hex_vstore_pending[VSTORES_MAX];
 extern TCGv hex_slot;
 extern TCGv hex_imprecise_exception;
 #endif
+extern TCGv hex_next_PC;
 
 void gen_exception(int excp, target_ulong PC);
 void gen_exception_end_tb(DisasContext *ctx, int excp);

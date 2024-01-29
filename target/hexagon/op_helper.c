@@ -1742,6 +1742,7 @@ static void hex_k0_lock(CPUHexagonState *env)
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (ATOMIC_LOAD(env->k0_lock_state) == HEX_LOCK_OWNER) {
+            env->next_PC += 4;
             HEX_DEBUG_LOG("Already the owner\n");
             UNLOCK_IOTHREAD(exception_context);
             return;
@@ -1752,6 +1753,7 @@ static void hex_k0_lock(CPUHexagonState *env)
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {
         HEX_DEBUG_LOG("\tAcquired\n");
+        env->next_PC += 4;
         ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_OWNER);
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
     }

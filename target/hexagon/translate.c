@@ -37,6 +37,7 @@
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_this_PC;
+TCGv hex_next_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
@@ -78,6 +79,7 @@ TCGv_i64 hex_packet_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+static bool need_next_PC(DisasContext *ctx);
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -237,6 +239,9 @@ static void gen_end_tb(DisasContext *ctx)
 
     gen_exec_counters(ctx);
 
+    if (need_next_PC(ctx)) {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    }
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
@@ -351,23 +356,6 @@ static bool check_for_opcode(Packet *pkt, uint16_t opcode)
         }
     }
     return false;
-}
-static bool need_pc(Packet *pkt)
-{
-#ifdef CONFIG_USER_ONLY
-    return false;
-#else
-    /*
-     * When a load/store instruction raises an exception, we need a way
-     * to set the current PC in order to assign ELR.  See "set_addresses"
-     * in hexswi.c.
-     */
-    if (check_for_attrib(pkt, A_LOAD) ||
-        check_for_attrib(pkt, A_STORE)) {
-        return true;
-    }
-    return false;
-#endif
 }
 
 static bool need_slot_cancelled(Packet *pkt)
@@ -621,7 +609,14 @@ static bool need_next_PC(DisasContext *ctx)
 static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
+#ifndef CONFIG_USER_ONLY
+    target_ulong next_PC = (check_for_opcode(pkt, Y2_k0lock) ||
+                            check_for_opcode(pkt, Y2_tlblock)) ?
+                               ctx->base.pc_next :
+                               ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
+#else
     target_ulong next_PC = ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
+#endif
     int i;
 
     /* Clear out the disassembly context */
@@ -723,9 +718,6 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 
     /* Initialize the runtime state for packet semantics */
-    if (need_pc(pkt)) {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-    }
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
@@ -733,8 +725,9 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         tcg_gen_movi_tl(hex_branch_taken, 0);
     }
     ctx->pkt_ends_tb = pkt_ends_tb(pkt);
-    if (need_next_PC(ctx)) {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
+    ctx->need_next_pc = need_next_PC(ctx);
+    if (ctx->need_next_pc) {
+        tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
 #ifndef CONFIG_USER_ONLY
     if ((tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) && pkt_may_do_io(pkt)) {
@@ -1433,6 +1426,7 @@ static void gen_commit_packet(DisasContext *ctx)
 #if !defined(CONFIG_USER_ONLY)
     check_imprecise_exception(pkt);
 #endif
+    ctx->need_next_pc = false;
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
         gen_end_tb(ctx);
@@ -1777,8 +1771,10 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, threadId), "threadId");
     ss_pending = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, ss_pending), "ss_pending");
-
 #endif
+    hex_next_PC = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, next_PC), "next_PC");
+
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(cpu_env,

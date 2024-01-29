@@ -1107,7 +1107,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 env->threadId,
                 ARCH_GET_THREAD_REG(env, HEX_REG_PC),
                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
-            hex_tlb_lock(env);
+            hex_tlb_lock(env, 0);
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -1134,7 +1134,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 cs->exception_index, env->cause_code,
                 env->threadId, env->gpr[HEX_REG_PC],
                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
-            hex_tlb_lock(env);
+            hex_tlb_lock(env, 0);
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
