@@ -192,7 +192,7 @@ static void restore_state(CPUHexagonState *env, bool int_accepted)
     CPUState *cs = env_cpu(env);
     cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI);
     if (!int_accepted && should_not_exec(env)) {
-        cpu_stop_current();
+        cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     }
 }
 

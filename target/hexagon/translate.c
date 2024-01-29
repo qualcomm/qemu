@@ -565,6 +565,11 @@ static bool pkt_may_do_io(Packet *pkt)
            pkt->pkt_has_load_s0 ||
            pkt->pkt_has_load_s1 ||
            check_for_opcode(pkt, Y2_ciad) ||
+           check_for_opcode(pkt, Y2_wait) ||
+           check_for_opcode(pkt, J2_pause) ||
+           check_for_opcode(pkt, Y2_k0lock) ||
+           check_for_opcode(pkt, Y2_tlblock) ||
+           check_for_opcode(pkt, Y2_stop) ||
            check_for_opcode(pkt, Y2_tfrscrr) ||
            check_for_opcode(pkt, Y2_tfrsrcr) ||
            check_for_opcode(pkt, Y4_tfrscpp) ||

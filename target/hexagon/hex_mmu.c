@@ -546,7 +546,8 @@ void hex_tlb_lock(CPUHexagonState *env)
         }
         qemu_log_mask(CPU_LOG_MMU, "\tWaiting\n");
         ATOMIC_STORE(env->tlb_lock_state, HEX_LOCK_WAITING);
-        cpu_exit(env_cpu(env));
+        CPUState *cs = env_cpu(env);
+        cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {
         qemu_log_mask(CPU_LOG_MMU, "\tAcquired\n");
         ATOMIC_STORE(env->tlb_lock_state, HEX_LOCK_OWNER);
@@ -623,7 +624,7 @@ void hex_tlb_unlock(CPUHexagonState *env)
         print_thread("\tWaiting thread found", cs);
         ATOMIC_STORE(unlock_thread->tlb_lock_state, HEX_LOCK_OWNER);
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_TLBLOCK, 1);
-        cpu_resume(cs);
+        cs->halted = false;
     }
 
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {

@@ -359,11 +359,10 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
     env->wait_next_pc = PC + 4;
 
     UNLOCK_IOTHREAD(exception_context);
-    cpu_stop_current();
+    cpu_interrupt(cs, CPU_INTERRUPT_HALT);
 }
 
-static void hexagon_resume_thread(CPUHexagonState *env, uint32_t ei)
-
+static void hexagon_resume_thread(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
     clear_wait_mode(env);
@@ -376,8 +375,9 @@ static void hexagon_resume_thread(CPUHexagonState *env, uint32_t ei)
      */
     env->gpr[HEX_REG_PC] = env->wait_next_pc;
     cs = env_cpu(env);
-    cs->exception_index = ei;
-    cpu_resume(cs);
+    cs->halted = false;
+    cs->exception_index = HEX_EVENT_NONE;
+    qemu_cpu_kick(cs);
 }
 
 void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
@@ -411,7 +411,7 @@ void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
             /* this thread not currently in wait mode */
             continue;
         }
-        hexagon_resume_thread(env, HEX_EVENT_NONE);
+        hexagon_resume_thread(env);
     }
     UNLOCK_IOTHREAD(exception_context);
 }
@@ -473,7 +473,8 @@ void hexagon_stop_thread(CPUHexagonState *env)
 #endif
 
     uint32_t thread_enabled_mask = clear_enable_mask(env);
-    cpu_stop_current();
+    CPUState *cs = env_cpu(env);
+    cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     if (!thread_enabled_mask) {
         if (!cpu->vp_mode) {
             /* All threads are stopped, exit */

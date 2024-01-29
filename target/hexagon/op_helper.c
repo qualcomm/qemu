@@ -96,9 +96,9 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
 {
     CPUState *cs = env_cpu(env);
 #ifdef CONFIG_USER_ONLY
-    qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
+    qemu_log_mask(CPU_LOG_INT, "%s: 0x%08x\n", __func__, exception);
 #else
-    qemu_log_mask(CPU_LOG_INT, "%s: %d, @ %08" PRIx32 ", tbl = %d\n",
+    qemu_log_mask(CPU_LOG_INT, "%s: 0x%08x, @ %08" PRIx32 ", tbl = %d\n",
                   __func__, exception, PC,
                   env->gpr[HEX_REG_QEMU_CPU_TB_CNT]);
 #endif
@@ -106,6 +106,7 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     env->gpr[HEX_REG_PC] = PC;
     cs->exception_index = exception;
     cpu_loop_exit_restore(cs, retaddr);
+    cs->halted = false;
 }
 
 G_NORETURN void raise_exception(CPUHexagonState *env, uint32_t excp,
@@ -1747,7 +1748,8 @@ static void hex_k0_lock(CPUHexagonState *env)
         }
         HEX_DEBUG_LOG("\tWaiting\n");
         ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_WAITING);
-        cpu_exit(env_cpu(env));
+        CPUState *cs = env_cpu(env);
+        cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {
         HEX_DEBUG_LOG("\tAcquired\n");
         ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_OWNER);
@@ -1824,7 +1826,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
         print_thread("\tWaiting thread found", cs);
         ATOMIC_STORE(unlock_thread->k0_lock_state, HEX_LOCK_OWNER);
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
-        cpu_resume(cs);
+        cs->halted = false;
     }
 
     qemu_mutex_unlock_iothread();
