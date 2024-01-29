@@ -175,24 +175,7 @@
     } while (0)
 #define fCLEAR_TLB_LOCK()     hex_tlb_unlock(env);
 
-#define fSET_K0_LOCK()                             \
-    do {                                           \
-        hex_k0_lock(env);                          \
-        switch (ATOMIC_LOAD(env->k0_lock_state)) { \
-        case HEX_LOCK_OWNER:                       \
-            env->gpr[HEX_REG_PC] = PC + 4;         \
-            break;                                 \
-        case HEX_LOCK_WAITING:                     \
-            env->gpr[HEX_REG_PC] = PC;             \
-            break;                                 \
-        case HEX_LOCK_UNLOCKED:                    \
-            g_assert_not_reached();                \
-            break;                                 \
-        default:                                   \
-            g_assert_not_reached();                \
-            break;                                 \
-        }                                          \
-    } while (0)
+#define fSET_K0_LOCK()        hex_k0_lock(env);
 #define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
 
 #define fGET_TNUM()               thread->threadId

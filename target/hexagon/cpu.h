@@ -446,7 +446,8 @@ typedef struct {
 typedef enum {
     HEX_LOCK_UNLOCKED       = 0,
     HEX_LOCK_WAITING        = 1,
-    HEX_LOCK_OWNER          = 2
+    HEX_LOCK_OWNER          = 2,
+    HEX_LOCK_QUEUED        = 3
 } hex_lock_state_t;
 
 typedef struct PMUState {
@@ -600,7 +601,8 @@ typedef struct CPUArchState {
     CPUHexagonTLBContext *hex_tlb;
     target_ulong imprecise_exception;
     volatile hex_lock_state_t tlb_lock_state; /* different threads modify */
-    volatile hex_lock_state_t k0_lock_state; /* different threads modify */
+    hex_lock_state_t k0_lock_state; /* different threads modify */
+    int32_t k0_lock_count;
     uint16_t nmi_threads;
     uint32_t last_cpu;
     GList *dir_list;
