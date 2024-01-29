@@ -761,7 +761,8 @@ static bool hexagon_cpu_has_work(CPUState *cs)
     CPUHexagonState *env = &cpu->env;
 
     return hexagon_thread_is_enabled(env) &&
-        (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI));
+        (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
+            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
 }
 
 static void hexagon_cpu_set_irq(void *opaque, int irq, int level)
@@ -999,6 +1000,16 @@ static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
+    if (interrupt_request & CPU_INTERRUPT_TLB_UNLOCK) {
+        cs->halted = false;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
+        return true;
+    }
+    if (interrupt_request & CPU_INTERRUPT_K0_UNLOCK) {
+        cs->halted = false;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
+        return true;
+    }
     if (interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI)) {
         return hex_check_interrupts(env);
     }

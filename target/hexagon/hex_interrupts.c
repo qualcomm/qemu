@@ -215,6 +215,7 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
             __func__, env->threadId);
         set_elr(env, env->wait_next_pc);
         clear_wait_mode(env);
+        cs->halted = false;
     } else if (env->k0_lock_state == HEX_LOCK_WAITING) {
         g_assert_not_reached();
     } else {

@@ -624,7 +624,7 @@ void hex_tlb_unlock(CPUHexagonState *env)
         print_thread("\tWaiting thread found", cs);
         ATOMIC_STORE(unlock_thread->tlb_lock_state, HEX_LOCK_OWNER);
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_TLBLOCK, 1);
-        cs->halted = false;
+        cpu_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
     }
 
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {

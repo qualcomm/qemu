@@ -1826,7 +1826,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
         print_thread("\tWaiting thread found", cs);
         ATOMIC_STORE(unlock_thread->k0_lock_state, HEX_LOCK_OWNER);
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
-        cs->halted = false;
+        cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
     }
 
     qemu_mutex_unlock_iothread();
