@@ -469,8 +469,10 @@ static target_ulong get_thread0_r2(void)
 void hexagon_stop_thread(CPUHexagonState *env)
 
 {
+    const bool exception_context = qemu_mutex_iothread_locked();
+    LOCK_IOTHREAD(exception_context);
     HexagonCPU *cpu = env_archcpu(env);
-    #if HEX_DEBUG
+#if HEX_DEBUG
     HEX_DEBUG_LOG("%s: htid %d, cpu %p\n", __func__,
                   ARCH_GET_SYSTEM_REG(env, HEX_SREG_HTID), cpu);
 #endif
@@ -484,6 +486,7 @@ void hexagon_stop_thread(CPUHexagonState *env)
             exit(get_thread0_r2());
         }
     }
+    UNLOCK_IOTHREAD(exception_context);
 }
 
 static int sys_in_monitor_mode_ssr(uint32_t ssr)
