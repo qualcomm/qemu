@@ -600,9 +600,10 @@ typedef struct CPUArchState {
     const char *cmdline;
     CPUHexagonTLBContext *hex_tlb;
     target_ulong imprecise_exception;
-    volatile hex_lock_state_t tlb_lock_state; /* different threads modify */
+    hex_lock_state_t tlb_lock_state; /* different threads modify */
     hex_lock_state_t k0_lock_state; /* different threads modify */
     int32_t k0_lock_count;
+    int32_t tlb_lock_count;
     uint16_t nmi_threads;
     uint32_t last_cpu;
     GList *dir_list;
