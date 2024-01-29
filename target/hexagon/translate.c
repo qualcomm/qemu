@@ -1586,6 +1586,7 @@ static void gen_commit_packet(DisasContext *ctx)
 #if !defined(CONFIG_USER_ONLY)
     check_imprecise_exception(pkt);
 #endif
+    ctx->need_next_pc = false;
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
         gen_end_tb(ctx);
