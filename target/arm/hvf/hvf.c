@@ -2225,7 +2225,8 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 break;
             }
             /* write back loads */
-            if ((ins & 0xbfe00c00) == 0xb8400400) {
+            if (((ins & 0xbfe00c00) == 0xb8400400) ||
+                ((ins & 0xffe00400) == 0x38400400)) {
                 uint32_t Rt = ins & 0x1f;
                 uint32_t Rn = (ins >> 5) & 0x1f;
                 uint32_t imm = (ins >> 12) & 0x1ff;
