@@ -303,7 +303,8 @@ static void *probe_contiguous(CPUHexagonState *env, target_ulong addr, uint32_t 
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uintptr_t ra = GETPC();
+    CPU_MEMOP_PC_SET(env);
+    uintptr_t ra = CPU_MEMOP_PC(env);
     int i;
 
     /* Normal (possibly masked) vector store */
@@ -2694,6 +2695,7 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
 
 void HELPER(commit_hmx)(CPUHexagonState *env)
 {
+    CPU_MEMOP_PC_SET(env);
     hmx_ext_commit_regs(env, 0);
     hmx_ext_commit_mem(env, 0, 0);
 }

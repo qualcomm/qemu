@@ -499,6 +499,14 @@ typedef struct Einfo hex_exception_info;
 typedef struct Instruction Insn;
 typedef unsigned systemstate_t;
 
+typedef struct {
+    uintptr_t pc;
+    bool set;
+    /* Where was it set: */
+    const char *filename;
+    int line;
+} hex_memop_pc;
+
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
@@ -591,8 +599,7 @@ typedef struct CPUArchState {
     uint64_t t_packet_count;
     uint64_t *g_pcycle_base;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
-    uintptr_t cpu_memop_pc;
-    bool cpu_memop_pc_set;
+    hex_memop_pc memop_pc;
 #ifndef CONFIG_USER_ONLY
     int slot;                    /* Needed for exception generation */
     hex_exception_info einfo;
@@ -674,28 +681,7 @@ FIELD(TB_FLAGS, PMU_ENABLED, 7, 1)
 FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
 FIELD(TB_FLAGS, SS_PENDING, 9, 1)
 
-static inline uintptr_t CPU_MEMOP_PC(CPUHexagonState *env)
-{
-    g_assert(env->cpu_memop_pc_set);
-    return env->cpu_memop_pc;
-}
-
-/* MUST be called from top level helpers ONLY. */
-#define CPU_MEMOP_PC_SET(ENV) do { \
-    g_assert(!(ENV)->cpu_memop_pc_set); \
-    (ENV)->cpu_memop_pc = GETPC(); \
-    (ENV)->cpu_memop_pc_set = true; \
-} while (0)
-
-/*
- * To be called by exception handler ONLY. In this case we don't to unwind,
- * so we set te memop pc to 0. Also, it doesn't matter if it was already set
- * as the helper could reach an exception.
- */
-#define CPU_MEMOP_PC_SET_ON_EXCEPTION(ENV) do { \
-    (ENV)->cpu_memop_pc = 0; \
-    (ENV)->cpu_memop_pc_set = true; \
-} while (0)
+#include "cpu_memop_pc.h"
 
 static inline bool rev_implements_64b_hvx(CPUHexagonState *env)
 {

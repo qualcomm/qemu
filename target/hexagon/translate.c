@@ -56,7 +56,6 @@ TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
 TCGv hex_VRegs_updated;
 TCGv hex_QRegs_updated;
-TCGv hex_cpu_memop_pc_set;
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_greg_new_value[NUM_GREGS];
@@ -907,13 +906,6 @@ static void gen_insn(DisasContext *ctx)
 {
     if (ctx->insn->generate) {
         mark_implicit_reg_writes(ctx);
-        uint16_t opcode = ctx->insn->opcode;
-        if (GET_ATTRIB(opcode, A_LOAD) ||
-            GET_ATTRIB(opcode, A_STORE) ||
-            GET_ATTRIB(opcode, A_DMA)) {
-            /* Clean state from previous helpers to avoid use of a stale value */
-            tcg_gen_movi_tl(hex_cpu_memop_pc_set, 0);
-        }
         ctx->insn->generate(ctx);
         mark_implicit_pred_writes(ctx);
         mark_store_width(ctx);
@@ -1755,8 +1747,6 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, VRegs_updated), "VRegs_updated");
     hex_QRegs_updated = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, QRegs_updated), "QRegs_updated");
-    hex_cpu_memop_pc_set = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, cpu_memop_pc_set), "cpu_memop_pc_set");
 
 #ifndef CONFIG_USER_ONLY
     hex_slot = tcg_global_mem_new(cpu_env,

@@ -515,7 +515,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
     memset(env->QRegs, 0, sizeof(MMQReg) * NUM_QREGS);
     memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
     env->t_packet_count = 0;
-    env->cpu_memop_pc_set = false;
+    env->memop_pc.set = false;
     env->vtcm_pending = false;
 
 #ifndef CONFIG_USER_ONLY
