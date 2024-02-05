@@ -676,13 +676,13 @@ FIELD(TB_FLAGS, SS_PENDING, 9, 1)
 
 static inline uintptr_t CPU_MEMOP_PC(CPUHexagonState *env)
 {
-    assert(env->cpu_memop_pc_set);
+    g_assert(env->cpu_memop_pc_set);
     return env->cpu_memop_pc;
 }
 
 /* MUST be called from top level helpers ONLY. */
 #define CPU_MEMOP_PC_SET(ENV) do { \
-    assert(!(ENV)->cpu_memop_pc_set); \
+    g_assert(!(ENV)->cpu_memop_pc_set); \
     (ENV)->cpu_memop_pc = GETPC(); \
     (ENV)->cpu_memop_pc_set = true; \
 } while (0)
