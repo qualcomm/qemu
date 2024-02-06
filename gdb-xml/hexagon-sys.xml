@@ -16,101 +16,123 @@
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.hexagon.sys">
 
-  <reg name="sgp0"       bitsize="32" offset="4416" encoding="uint" format="hex" group="System Registers" dwarf_regnum="135" />
-  <reg name="sgp1"       bitsize="32" offset="4420" encoding="uint" format="hex" group="System Registers" dwarf_regnum="136" />
-  <reg name="stid"       bitsize="32" offset="4424" encoding="uint" format="hex" group="System Registers" dwarf_regnum="137" />
-  <reg name="elr"        bitsize="32" offset="4428" encoding="uint" format="hex" group="System Registers" dwarf_regnum="138" />
-  <reg name="badva0"     bitsize="32" offset="4432" encoding="uint" format="hex" group="System Registers" dwarf_regnum="139" />
-  <reg name="badva1"     bitsize="32" offset="4436" encoding="uint" format="hex" group="System Registers" dwarf_regnum="140" />
-  <reg name="ssr"        bitsize="32" offset="4440" encoding="uint" format="hex" group="System Registers" dwarf_regnum="141" />
-  <reg name="ccr"        bitsize="32" offset="4444" encoding="uint" format="hex" group="System Registers" dwarf_regnum="142" />
-  <reg name="htid"       bitsize="32" offset="4448" encoding="uint" format="hex" group="System Registers" dwarf_regnum="143" />
-  <reg name="badva"      bitsize="32" offset="4452" encoding="uint" format="hex" group="System Registers" dwarf_regnum="144" />
-  <reg name="imask"      bitsize="32" offset="4456" encoding="uint" format="hex" group="System Registers" dwarf_regnum="145" />
-  <reg name="gevb"       bitsize="32" offset="4460" encoding="uint" format="hex" group="System Registers" dwarf_regnum="146" />
-  <reg name="rsv12"      bitsize="32" offset="4464" encoding="uint" format="hex" group="System Registers" dwarf_regnum="147" />
-  <reg name="rsv13"      bitsize="32" offset="4468" encoding="uint" format="hex" group="System Registers" dwarf_regnum="148" />
-  <reg name="rsv14"      bitsize="32" offset="4472" encoding="uint" format="hex" group="System Registers" dwarf_regnum="149" />
-  <reg name="rsv15"      bitsize="32" offset="4476" encoding="uint" format="hex" group="System Registers" dwarf_regnum="150" />
-  <reg name="evb"        bitsize="32" offset="4480" encoding="uint" format="hex" group="System Registers" dwarf_regnum="151" />
-  <reg name="modectl"    bitsize="32" offset="4484" encoding="uint" format="hex" group="System Registers" dwarf_regnum="152" />
-  <reg name="syscfg"     bitsize="32" offset="4488" encoding="uint" format="hex" group="System Registers" dwarf_regnum="153" />
-  <reg name="free19"     bitsize="32" offset="4492" encoding="uint" format="hex" group="System Registers" dwarf_regnum="154" />
-  <reg name="ipendad"    bitsize="32" offset="4496" encoding="uint" format="hex" group="System Registers" dwarf_regnum="155" />
-  <reg name="vid"        bitsize="32" offset="4500" encoding="uint" format="hex" group="System Registers" dwarf_regnum="156" />
-  <reg name="vid1"       bitsize="32" offset="4504" encoding="uint" format="hex" group="System Registers" dwarf_regnum="157" />
-  <reg name="bestwait"   bitsize="32" offset="4508" encoding="uint" format="hex" group="System Registers" dwarf_regnum="158" />
-  <reg name="free24"     bitsize="32" offset="4512" encoding="uint" format="hex" group="System Registers" dwarf_regnum="159" />
-  <reg name="schedcfg"   bitsize="32" offset="4516" encoding="uint" format="hex" group="System Registers" dwarf_regnum="160" />
-  <reg name="free26"     bitsize="32" offset="4520" encoding="uint" format="hex" group="System Registers" dwarf_regnum="161" />
-  <reg name="cfgbase"    bitsize="32" offset="4524" encoding="uint" format="hex" group="System Registers" dwarf_regnum="162" />
-  <reg name="diag"       bitsize="32" offset="4528" encoding="uint" format="hex" group="System Registers" dwarf_regnum="163" />
-  <reg name="rev"        bitsize="32" offset="4532" encoding="uint" format="hex" group="System Registers" dwarf_regnum="164" />
-  <reg name="pcyclelo"   bitsize="32" offset="4536" encoding="uint" format="hex" group="System Registers" dwarf_regnum="165" />
-  <reg name="pcyclehi"   bitsize="32" offset="4540" encoding="uint" format="hex" group="System Registers" dwarf_regnum="166" />
-  <reg name="isdbst"     bitsize="32" offset="4544" encoding="uint" format="hex" group="System Registers" dwarf_regnum="167" />
-  <reg name="isdbcfg0"   bitsize="32" offset="4548" encoding="uint" format="hex" group="System Registers" dwarf_regnum="168" />
-  <reg name="isdbcfg1"   bitsize="32" offset="4552" encoding="uint" format="hex" group="System Registers" dwarf_regnum="169" />
-  <reg name="livelock"   bitsize="32" offset="4556" encoding="uint" format="hex" group="System Registers" dwarf_regnum="170" />
-  <reg name="brkptpc0"   bitsize="32" offset="4560" encoding="uint" format="hex" group="System Registers" dwarf_regnum="171" />
-  <reg name="brkptccfg0" bitsize="32" offset="4564" encoding="uint" format="hex" group="System Registers" dwarf_regnum="172" />
-  <reg name="brkptpc1"   bitsize="32" offset="4568" encoding="uint" format="hex" group="System Registers" dwarf_regnum="173" />
-  <reg name="brkptcfg1"  bitsize="32" offset="4572" encoding="uint" format="hex" group="System Registers" dwarf_regnum="174" />
-  <reg name="isdbmbxin"  bitsize="32" offset="4576" encoding="uint" format="hex" group="System Registers" dwarf_regnum="175" />
-  <reg name="isdbmbxout" bitsize="32" offset="4580" encoding="uint" format="hex" group="System Registers" dwarf_regnum="176" />
-  <reg name="isdben"     bitsize="32" offset="4584" encoding="uint" format="hex" group="System Registers" dwarf_regnum="177" />
-  <reg name="isdbgpr"    bitsize="32" offset="4588" encoding="uint" format="hex" group="System Registers" dwarf_regnum="178" />
-  <reg name="pmucnt4"    bitsize="32" offset="4592" encoding="uint" format="hex" group="System Registers" dwarf_regnum="179" />
-  <reg name="pmucnt5"    bitsize="32" offset="4596" encoding="uint" format="hex" group="System Registers" dwarf_regnum="180" />
-  <reg name="pmucnt6"    bitsize="32" offset="4600" encoding="uint" format="hex" group="System Registers" dwarf_regnum="181" />
-  <reg name="pmucnt7"    bitsize="32" offset="4604" encoding="uint" format="hex" group="System Registers" dwarf_regnum="182" />
-  <reg name="pmucnt0"    bitsize="32" offset="4608" encoding="uint" format="hex" group="System Registers" dwarf_regnum="183" />
-  <reg name="pmucnt1"    bitsize="32" offset="4612" encoding="uint" format="hex" group="System Registers" dwarf_regnum="184" />
-  <reg name="pmucnt2"    bitsize="32" offset="4616" encoding="uint" format="hex" group="System Registers" dwarf_regnum="185" />
-  <reg name="pmucnt3"    bitsize="32" offset="4620" encoding="uint" format="hex" group="System Registers" dwarf_regnum="186" />
-  <reg name="pmuevtcfg"  bitsize="32" offset="4624" encoding="uint" format="hex" group="System Registers" dwarf_regnum="187" />
-  <reg name="pmustid0"   bitsize="32" offset="4628" encoding="uint" format="hex" group="System Registers" dwarf_regnum="188" />
-  <reg name="pmuevtcfg1" bitsize="32" offset="4632" encoding="uint" format="hex" group="System Registers" dwarf_regnum="189" />
-  <reg name="pmustid1"   bitsize="32" offset="4636" encoding="uint" format="hex" group="System Registers" dwarf_regnum="190" />
-  <reg name="timerlo"    bitsize="32" offset="4640" encoding="uint" format="hex" group="System Registers" dwarf_regnum="191" />
-  <reg name="timerhi"    bitsize="32" offset="4644" encoding="uint" format="hex" group="System Registers" dwarf_regnum="192" />
-  <reg name="pmucfg"     bitsize="32" offset="4648" encoding="uint" format="hex" group="System Registers" dwarf_regnum="193" />
-  <reg name="rsv59"      bitsize="32" offset="4652" encoding="uint" format="hex" group="System Registers" dwarf_regnum="194" />
-  <reg name="rsv60"      bitsize="32" offset="4656" encoding="uint" format="hex" group="System Registers" dwarf_regnum="195" />
-  <reg name="rsv61"      bitsize="32" offset="4660" encoding="uint" format="hex" group="System Registers" dwarf_regnum="196" />
-  <reg name="rsv62"      bitsize="32" offset="4664" encoding="uint" format="hex" group="System Registers" dwarf_regnum="197" />
-  <reg name="rsv63"      bitsize="32" offset="4668" encoding="uint" format="hex" group="System Registers" dwarf_regnum="198" />
-  <reg name="g0"         bitsize="32" offset="4672" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="179" />
-  <reg name="g1"         bitsize="32" offset="4676" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="180" />
-  <reg name="g2"         bitsize="32" offset="4680" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="181" />
-  <reg name="g3"         bitsize="32" offset="4684" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="182" />
-  <reg name="rsv4"       bitsize="32" offset="4688" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="183" />
-  <reg name="rsv5"       bitsize="32" offset="4692" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="184" />
-  <reg name="rsv6"       bitsize="32" offset="4696" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="185" />
-  <reg name="rsv7"       bitsize="32" offset="4700" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="186" />
-  <reg name="rsv8"       bitsize="32" offset="4704" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="187" />
-  <reg name="rsv9"       bitsize="32" offset="4708" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="188" />
-  <reg name="rsv10"      bitsize="32" offset="4712" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="189" />
-  <reg name="rsv11"      bitsize="32" offset="4716" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="190" />
-  <reg name="rsv12"      bitsize="32" offset="4720" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="191" />
-  <reg name="rsv13"      bitsize="32" offset="4724" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="192" />
-  <reg name="rsv14"      bitsize="32" offset="4728" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="193" />
-  <reg name="rsv15,"     bitsize="32" offset="4732" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="194" />
-  <reg name="gpmucnt4"   bitsize="32" offset="4736" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="195" />
-  <reg name="gpmucnt5"   bitsize="32" offset="4740" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="196" />
-  <reg name="gpmucnt6"   bitsize="32" offset="4744" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="197" />
-  <reg name="gpmucnt7"   bitsize="32" offset="4748" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="198" />
-  <reg name="rsv20"      bitsize="32" offset="4752" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="199" />
-  <reg name="rsv21"      bitsize="32" offset="4756" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="200" />
-  <reg name="rsv22"      bitsize="32" offset="4760" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="201" />
-  <reg name="rsv23"      bitsize="32" offset="4764" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="202" />
-  <reg name="gpcyclelo"  bitsize="32" offset="4768" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="203" />
-  <reg name="gpcyclehi"  bitsize="32" offset="4772" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="204" />
-  <reg name="gpmucnt0"   bitsize="32" offset="4776" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="205" />
-  <reg name="gpmucnt1"   bitsize="32" offset="4780" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="206" />
-  <reg name="gpmucnt2"   bitsize="32" offset="4784" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="207" />
-  <reg name="gpmucnt3"   bitsize="32" offset="4788" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="208" />
-  <reg name="rsv30"      bitsize="32" offset="4792" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="209" />
-  <reg name="rsv31"      bitsize="32" offset="4796" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="210" />
+  <reg name="s0"   altname="sgp0"       bitsize="32" offset="4416" encoding="uint" format="hex" group="System Registers" dwarf_regnum="135" />
+  <reg name="s1"   altname="sgp1"       bitsize="32" offset="4420" encoding="uint" format="hex" group="System Registers" dwarf_regnum="136" />
+  <reg name="s2"   altname="stid"       bitsize="32" offset="4424" encoding="uint" format="hex" group="System Registers" dwarf_regnum="137" />
+  <reg name="s3"   altname="elr"        bitsize="32" offset="4428" encoding="uint" format="hex" group="System Registers" dwarf_regnum="138" />
+  <reg name="s4"   altname="badva0"     bitsize="32" offset="4432" encoding="uint" format="hex" group="System Registers" dwarf_regnum="139" />
+  <reg name="s5"   altname="badva1"     bitsize="32" offset="4436" encoding="uint" format="hex" group="System Registers" dwarf_regnum="140" />
+  <reg name="s6"   altname="ssr"        bitsize="32" offset="4440" encoding="uint" format="hex" group="System Registers" dwarf_regnum="141" />
+  <reg name="s7"   altname="ccr"        bitsize="32" offset="4444" encoding="uint" format="hex" group="System Registers" dwarf_regnum="142" />
+  <reg name="s8"   altname="htid"       bitsize="32" offset="4448" encoding="uint" format="hex" group="System Registers" dwarf_regnum="143" />
+  <reg name="s9"   altname="badva"      bitsize="32" offset="4452" encoding="uint" format="hex" group="System Registers" dwarf_regnum="144" />
+  <reg name="s10"  altname="imask"      bitsize="32" offset="4456" encoding="uint" format="hex" group="System Registers" dwarf_regnum="145" />
+  <reg name="s11"  altname="gevb"       bitsize="32" offset="4460" encoding="uint" format="hex" group="System Registers" dwarf_regnum="146" />
+  <reg name="s12"  altname="vwctrl"     bitsize="32" offset="4464" encoding="uint" format="hex" group="System Registers" dwarf_regnum="147" />
+  <reg name="s13"                       bitsize="32" offset="4468" encoding="uint" format="hex" group="System Registers" dwarf_regnum="148" />
+  <reg name="s14"                       bitsize="32" offset="4472" encoding="uint" format="hex" group="System Registers" dwarf_regnum="149" />
+  <reg name="s15"                       bitsize="32" offset="4476" encoding="uint" format="hex" group="System Registers" dwarf_regnum="150" />
+  <reg name="g0"   altname="gelr"       bitsize="32" offset="4480" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="151" />
+  <reg name="g1"   altname="gsr"        bitsize="32" offset="4484" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="152" />
+  <reg name="g2"   altname="gosp"       bitsize="32" offset="4488" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="153" />
+  <reg name="g3"   altname="gbadva"     bitsize="32" offset="4492" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="154" />
+  <reg name="g4"   altname="gcommit1t"  bitsize="32" offset="4496" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="155" />
+  <reg name="g5"   altname="gcommit2t"  bitsize="32" offset="4500" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="156" />
+  <reg name="g6"   altname="gcommit3t"  bitsize="32" offset="4504" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="157" />
+  <reg name="g7"   altname="gcommit4t"  bitsize="32" offset="4508" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="158" />
+  <reg name="g8"   altname="gcommit5t"  bitsize="32" offset="4512" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="159" />
+  <reg name="g9"   altname="gcommit6t"  bitsize="32" offset="4516" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="160" />
+  <reg name="g10"  altname="gpcycle1t"  bitsize="32" offset="4520" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="161" />
+  <reg name="g11"  altname="gpcycle2t"  bitsize="32" offset="4524" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="162" />
+  <reg name="g12"  altname="gpcycle3t"  bitsize="32" offset="4528" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="163" />
+  <reg name="g13"  altname="gpcycle4t"  bitsize="32" offset="4532" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="164" />
+  <reg name="g14"  altname="gpcycle5t"  bitsize="32" offset="4536" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="165" />
+  <reg name="g15"  altname="gpcycle6t"  bitsize="32" offset="4540" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="166" />
+  <reg name="g16"  altname="gpmucnt4"   bitsize="32" offset="4544" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="167" />
+  <reg name="g17"  altname="gpmucnt5"   bitsize="32" offset="4548" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="168" />
+  <reg name="g18"  altname="gpmucnt6"   bitsize="32" offset="4552" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="169" />
+  <reg name="g19"  altname="gpmucnt7"   bitsize="32" offset="4556" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="170" />
+  <reg name="g20"  altname="gcommit7t"  bitsize="32" offset="4560" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="171" />
+  <reg name="g21"  altname="gcommit8t"  bitsize="32" offset="4564" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="172" />
+  <reg name="g22"  altname="gpcycle7t"  bitsize="32" offset="4568" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="173" />
+  <reg name="g23"  altname="gpcycle8t"  bitsize="32" offset="4572" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="174" />
+  <reg name="g24"  altname="gpcyclelo"  bitsize="32" offset="4576" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="175" />
+  <reg name="g25"  altname="gpcyclehi"  bitsize="32" offset="4580" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="176" />
+  <reg name="g26"  altname="gpmucnt0"   bitsize="32" offset="4584" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="177" />
+  <reg name="g27"  altname="gpmucnt1"   bitsize="32" offset="4588" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="178" />
+  <reg name="g28"  altname="gpmucnt2"   bitsize="32" offset="4592" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="179" />
+  <reg name="g29"  altname="gpmucnt3"   bitsize="32" offset="4596" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="180" />
+  <reg name="g30"                       bitsize="32" offset="4600" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="181" />
+  <reg name="g31"                       bitsize="32" offset="4604" encoding="uint" format="hex" group="Guest Registers"  dwarf_regnum="182" />
+  <reg name="s16"  altname="evb"        bitsize="32" offset="4608" encoding="uint" format="hex" group="System Registers" dwarf_regnum="183" />
+  <reg name="s17"  altname="modectl"    bitsize="32" offset="4612" encoding="uint" format="hex" group="System Registers" dwarf_regnum="184" />
+  <reg name="s18"  altname="syscfg"     bitsize="32" offset="4616" encoding="uint" format="hex" group="System Registers" dwarf_regnum="185" />
+  <reg name="s19"  altname="segment"    bitsize="32" offset="4620" encoding="uint" format="hex" group="System Registers" dwarf_regnum="186" />
+  <reg name="s20"  altname="ipendad"    bitsize="32" offset="4624" encoding="uint" format="hex" group="System Registers" dwarf_regnum="187" />
+  <reg name="s21"  altname="vid"        bitsize="32" offset="4628" encoding="uint" format="hex" group="System Registers" dwarf_regnum="188" />
+  <reg name="s22"  altname="vid1"       bitsize="32" offset="4632" encoding="uint" format="hex" group="System Registers" dwarf_regnum="189" />
+  <reg name="s23"  altname="bestwait"   bitsize="32" offset="4636" encoding="uint" format="hex" group="System Registers" dwarf_regnum="190" />
+  <reg name="s24"                       bitsize="32" offset="4640" encoding="uint" format="hex" group="System Registers" dwarf_regnum="191" />
+  <reg name="s25"  altname="schedcfg"   bitsize="32" offset="4644" encoding="uint" format="hex" group="System Registers" dwarf_regnum="192" />
+  <reg name="s26"                       bitsize="32" offset="4648" encoding="uint" format="hex" group="System Registers" dwarf_regnum="193" />
+  <reg name="s27"  altname="cfgbase"    bitsize="32" offset="4652" encoding="uint" format="hex" group="System Registers" dwarf_regnum="194" />
+  <reg name="s28"  altname="diag"       bitsize="32" offset="4656" encoding="uint" format="hex" group="System Registers" dwarf_regnum="195" />
+  <reg name="s29"  altname="rev"        bitsize="32" offset="4660" encoding="uint" format="hex" group="System Registers" dwarf_regnum="196" />
+  <reg name="s30"  altname="pcyclelo"   bitsize="32" offset="4664" encoding="uint" format="hex" group="System Registers" dwarf_regnum="197" />
+  <reg name="s31"  altname="pcyclehi"   bitsize="32" offset="4668" encoding="uint" format="hex" group="System Registers" dwarf_regnum="198" />
+  <reg name="s32"  altname="isdbst"     bitsize="32" offset="4672" encoding="uint" format="hex" group="System Registers" dwarf_regnum="199" />
+  <reg name="s33"  altname="isdbcfg0"   bitsize="32" offset="4676" encoding="uint" format="hex" group="System Registers" dwarf_regnum="200" />
+  <reg name="s34"  altname="isdbcfg1"   bitsize="32" offset="4680" encoding="uint" format="hex" group="System Registers" dwarf_regnum="201" />
+  <reg name="s35"  altname="livelock"   bitsize="32" offset="4684" encoding="uint" format="hex" group="System Registers" dwarf_regnum="202" />
+  <reg name="s36"  altname="brkptpc0"   bitsize="32" offset="4688" encoding="uint" format="hex" group="System Registers" dwarf_regnum="203" />
+  <reg name="s37"  altname="brkptcfg0"  bitsize="32" offset="4692" encoding="uint" format="hex" group="System Registers" dwarf_regnum="204" />
+  <reg name="s38"  altname="brkptpc1"   bitsize="32" offset="4696" encoding="uint" format="hex" group="System Registers" dwarf_regnum="205" />
+  <reg name="s39"  altname="brkptcfg1"  bitsize="32" offset="4700" encoding="uint" format="hex" group="System Registers" dwarf_regnum="206" />
+  <reg name="s40"  altname="isdbmbxin"  bitsize="32" offset="4704" encoding="uint" format="hex" group="System Registers" dwarf_regnum="207" />
+  <reg name="s41"  altname="isdbmbxout" bitsize="32" offset="4708" encoding="uint" format="hex" group="System Registers" dwarf_regnum="208" />
+  <reg name="s42"  altname="isdben"     bitsize="32" offset="4712" encoding="uint" format="hex" group="System Registers" dwarf_regnum="209" />
+  <reg name="s43"  altname="isdbgpr"    bitsize="32" offset="4716" encoding="uint" format="hex" group="System Registers" dwarf_regnum="210" />
+  <reg name="s44"  altname="pmucnt4"    bitsize="32" offset="4720" encoding="uint" format="hex" group="System Registers" dwarf_regnum="211" />
+  <reg name="s45"  altname="pmucnt5"    bitsize="32" offset="4724" encoding="uint" format="hex" group="System Registers" dwarf_regnum="212" />
+  <reg name="s46"  altname="pmucnt6"    bitsize="32" offset="4728" encoding="uint" format="hex" group="System Registers" dwarf_regnum="213" />
+  <reg name="s47"  altname="pmucnt7"    bitsize="32" offset="4732" encoding="uint" format="hex" group="System Registers" dwarf_regnum="214" />
+  <reg name="s48"  altname="pmucnt0"    bitsize="32" offset="4736" encoding="uint" format="hex" group="System Registers" dwarf_regnum="215" />
+  <reg name="s49"  altname="pmucnt1"    bitsize="32" offset="4740" encoding="uint" format="hex" group="System Registers" dwarf_regnum="216" />
+  <reg name="s50"  altname="pmucnt2"    bitsize="32" offset="4744" encoding="uint" format="hex" group="System Registers" dwarf_regnum="217" />
+  <reg name="s51"  altname="pmucnt3"    bitsize="32" offset="4748" encoding="uint" format="hex" group="System Registers" dwarf_regnum="218" />
+  <reg name="s52"  altname="pmuevtcfg"  bitsize="32" offset="4752" encoding="uint" format="hex" group="System Registers" dwarf_regnum="219" />
+  <reg name="s53"  altname="pmustid0"   bitsize="32" offset="4756" encoding="uint" format="hex" group="System Registers" dwarf_regnum="220" />
+  <reg name="s54"  altname="pmuevtcfg1" bitsize="32" offset="4760" encoding="uint" format="hex" group="System Registers" dwarf_regnum="221" />
+  <reg name="s55"  altname="pmustid1"   bitsize="32" offset="4764" encoding="uint" format="hex" group="System Registers" dwarf_regnum="222" />
+  <reg name="s56"  altname="timerlo"    bitsize="32" offset="4768" encoding="uint" format="hex" group="System Registers" dwarf_regnum="223" />
+  <reg name="s57"  altname="timerhi"    bitsize="32" offset="4772" encoding="uint" format="hex" group="System Registers" dwarf_regnum="224" />
+  <reg name="s58"  altname="pmucfg"     bitsize="32" offset="4776" encoding="uint" format="hex" group="System Registers" dwarf_regnum="225" />
+  <reg name="s59"  altname="rgdr2"      bitsize="32" offset="4780" encoding="uint" format="hex" group="System Registers" dwarf_regnum="226" />
+  <reg name="s60"  altname="rgdr"       bitsize="32" offset="4784" encoding="uint" format="hex" group="System Registers" dwarf_regnum="227" />
+  <reg name="s61"  altname="turkey"     bitsize="32" offset="4788" encoding="uint" format="hex" group="System Registers" dwarf_regnum="228" />
+  <reg name="s62"  altname="duck"       bitsize="32" offset="4792" encoding="uint" format="hex" group="System Registers" dwarf_regnum="229" />
+  <reg name="s63"  altname="chicken"    bitsize="32" offset="4796" encoding="uint" format="hex" group="System Registers" dwarf_regnum="230" />
+  <reg name="s64"  altname="commit1t"   bitsize="32" offset="4800" encoding="uint" format="hex" group="System Registers" dwarf_regnum="231" />
+  <reg name="s65"  altname="commit2t"   bitsize="32" offset="4804" encoding="uint" format="hex" group="System Registers" dwarf_regnum="232" />
+  <reg name="s66"  altname="commit3t"   bitsize="32" offset="4808" encoding="uint" format="hex" group="System Registers" dwarf_regnum="233" />
+  <reg name="s67"  altname="commit4t"   bitsize="32" offset="4812" encoding="uint" format="hex" group="System Registers" dwarf_regnum="234" />
+  <reg name="s68"  altname="commit5t"   bitsize="32" offset="4816" encoding="uint" format="hex" group="System Registers" dwarf_regnum="235" />
+  <reg name="s69"  altname="commit6t"   bitsize="32" offset="4820" encoding="uint" format="hex" group="System Registers" dwarf_regnum="236" />
+  <reg name="s70"  altname="pcycle1t"   bitsize="32" offset="4824" encoding="uint" format="hex" group="System Registers" dwarf_regnum="237" />
+  <reg name="s71"  altname="pcycle2t"   bitsize="32" offset="4828" encoding="uint" format="hex" group="System Registers" dwarf_regnum="238" />
+  <reg name="s72"  altname="pcycle3t"   bitsize="32" offset="4832" encoding="uint" format="hex" group="System Registers" dwarf_regnum="239" />
+  <reg name="s73"  altname="pcycle4t"   bitsize="32" offset="4836" encoding="uint" format="hex" group="System Registers" dwarf_regnum="240" />
+  <reg name="s74"  altname="pcycle5t"   bitsize="32" offset="4840" encoding="uint" format="hex" group="System Registers" dwarf_regnum="241" />
+  <reg name="s75"  altname="pcycle6t"   bitsize="32" offset="4844" encoding="uint" format="hex" group="System Registers" dwarf_regnum="242" />
+  <reg name="s76"  altname="stfinst"    bitsize="32" offset="4848" encoding="uint" format="hex" group="System Registers" dwarf_regnum="243" />
+  <reg name="s77"  altname="isdbcmd"    bitsize="32" offset="4852" encoding="uint" format="hex" group="System Registers" dwarf_regnum="244" />
+  <reg name="s78"  altname="isdbver"    bitsize="32" offset="4856" encoding="uint" format="hex" group="System Registers" dwarf_regnum="245" />
+  <reg name="s79"  altname="brkptinfo"  bitsize="32" offset="4860" encoding="uint" format="hex" group="System Registers" dwarf_regnum="246" />
+  <reg name="s80"  altname="rgdr3"      bitsize="32" offset="4864" encoding="uint" format="hex" group="System Registers" dwarf_regnum="247" />
+  <reg name="s81"  altname="commit7t"   bitsize="32" offset="4868" encoding="uint" format="hex" group="System Registers" dwarf_regnum="248" />
+  <reg name="s82"  altname="commit8t"   bitsize="32" offset="4872" encoding="uint" format="hex" group="System Registers" dwarf_regnum="249" />
+  <reg name="s83"  altname="pcycle7t"   bitsize="32" offset="4876" encoding="uint" format="hex" group="System Registers" dwarf_regnum="250" />
+  <reg name="s84"  altname="pcycle8t"   bitsize="32" offset="4880" encoding="uint" format="hex" group="System Registers" dwarf_regnum="251" />
+  <reg name="s85"                       bitsize="32" offset="4884" encoding="uint" format="hex" group="System Registers" dwarf_regnum="252" />
 
 </feature>
