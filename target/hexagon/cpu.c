@@ -156,17 +156,17 @@ G_STATIC_ASSERT(TOTAL_PER_THREAD_REGS == ARRAY_SIZE(hexagon_regnames));
 const char * const hexagon_sregnames[] = {
     "sgp0",       "sgp1",       "stid",       "elr",        "badva0",
     "badva1",     "ssr",        "ccr",        "htid",       "badva",
-    "imask",      "gevb",       "s12",        "s13",        "s14",
-    "s15",        "evb",        "modectl",    "syscfg",     "free19",
-    "ipendad",    "vid",        "vid1",       "bestwait",   "free24",
-    "schedcfg",   "free26",     "cfgbase",    "diag",       "rev",
+    "imask",      "gevb",       "vwctrl",     "s13",        "s14",
+    "s15",        "evb",        "modectl",    "syscfg",     "segment",
+    "ipendad",    "vid",        "vid1",       "bestwait",   "s24",
+    "schedcfg",   "s26",        "cfgbase",    "diag",       "rev",
     "pcyclelo",   "pcyclehi",   "isdbst",     "isdbcfg0",   "isdbcfg1",
-    "livelock",   "brkptpc0",   "brkptccfg0", "brkptpc1",   "brkptcfg1",
+    "livelock",   "brkptpc0",   "brkptcfg0",  "brkptpc1",   "brkptcfg1",
     "isdbmbxin",  "isdbmbxout", "isdben",     "isdbgpr",    "pmucnt4",
     "pmucnt5",    "pmucnt6",    "pmucnt7",    "pmucnt0",    "pmucnt1",
     "pmucnt2",    "pmucnt3",    "pmuevtcfg",  "pmustid0",   "pmuevtcfg1",
-    "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "s59",
-    "s60",        "s61",        "s62",        "s63",        "commit1t",
+    "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "rgdr2",
+    "rgdr",       "turkey",     "duck",       "chicken",    "commit1t",
     "commit2t",   "commit3t",   "commit4t",   "commit5t",   "commit6t",
     "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
     "pcycle6t",   "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",
@@ -177,14 +177,13 @@ const char * const hexagon_sregnames[] = {
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
 
 const char * const hexagon_gregnames[] = {
-    "g0",         "g1",         "g2",       "g3",
-    "rsv4",       "rsv5",       "rsv6",     "rsv7",
-    "rsv8",       "rsv9",       "rsv10",    "rsv11",
-    "rsv12",      "rsv13",      "rsv14",    "rsv15,",
-    "gpmucnt4",   "gpmucnt5",   "gpmucnt6", "gpmucnt7",
-    "rsv20",      "rsv21",      "rsv22",    "rsv23",
-    "gpcyclelo",  "gpcyclehi",  "gpmucnt0", "gpmucnt1",
-    "gpmucnt2",   "gpmucnt3",   "rsv30",    "rsv31"
+    "gelr",       "gsr",       "gosp",      "gbadva",    "gcommit1t",
+    "gcommit2t",  "gcommit3t", "gcommit4t", "gcommit5t", "gcommit6t",
+    "gpcycle1t",  "gpcycle2t", "gpcycle3t", "gpcycle4t", "gpcycle5t",
+    "gpcycle6t",  "gpmucnt4",  "gpmucnt5",  "gpmucnt6",  "gpmucnt7",
+    "gcommit7t",  "gcommit8t", "gpcycle7t", "gpcycle8t", "gpcyclelo",
+    "gpcyclehi",  "gpmucnt0",  "gpmucnt1",  "gpmucnt2",  "gpmucnt3",
+    "g30",        "g31",
 };
 #endif
 
