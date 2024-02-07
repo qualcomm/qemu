@@ -389,6 +389,10 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
                         MMUAccessType access_type, hwaddr *PA, int *prot,
                         int *size, int32_t *excp, int mmu_idx)
 {
+    *PA = 0;
+    *prot = 0;
+    *size = 0;
+    *excp = 0;
     uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
     uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     int i;
