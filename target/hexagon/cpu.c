@@ -652,6 +652,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
      memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+     ARCH_SET_SYSTEM_REG(env, HEX_SREG_VWCTRL, DEFAULT_VWCTRL_VAL);
      memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
      env->pmu.num_packets = 0;
      env->pmu.hvx_packets = 0;

@@ -811,6 +811,11 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
                  "Unsuported Execution of Coprocessor Instruction with 64bits Mode On",
                  HEX_CAUSE_UNSUPORTED_HVX_64B);
           break;
+      case HEX_CAUSE_VWCTRL_WINDOW_MISS:
+          printf("0x%x, "
+                 "Thread accessing a region outside VWCTRL window",
+                 HEX_CAUSE_VWCTRL_WINDOW_MISS);
+          break;
       default:
           printf("Don't know");
           break;
@@ -1225,6 +1230,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_NO_COPROC2_ENABLE:
         case HEX_CAUSE_UNSUPORTED_HVX_64B:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
+        case HEX_CAUSE_VWCTRL_WINDOW_MISS:
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
             break;

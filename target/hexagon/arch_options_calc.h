@@ -30,6 +30,24 @@
 
 typedef CPUHexagonState thread_t;
 
+static inline paddr_t get_vtcm_base(thread_t *thread)
+{
+    static gsize init_needed;
+    static paddr_t vtcm_base;
+
+    if (g_once_init_enter(&init_needed)) {
+        init_needed = false;
+        hwaddr cfgbase = (hwaddr)ARCH_GET_SYSTEM_REG(thread, HEX_SREG_CFGBASE)
+            << 16;
+        cpu_physical_memory_read(cfgbase + VTCM_CFG_BASE_OFF, &vtcm_base,
+            sizeof(target_ulong));
+        vtcm_base <<= 16;
+        g_once_init_leave(&init_needed, 1);
+    }
+
+    return vtcm_base;
+}
+
 static inline bool in_vtcm_space_impl(thread_t *thread, paddr_t paddr)
 {
     static gsize init_needed;

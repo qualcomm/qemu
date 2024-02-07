@@ -137,6 +137,8 @@ static inline bool greg_implemented(enum hex_greg greg)
 
 #endif /* CONFIG_USER_ONLY */
 
+#define DEFAULT_VWCTRL_VAL 0x8fff0000
+
 enum {
     HEX_SREG_SGP0 = 0,
     HEX_SREG_SGP1 = 1,
@@ -150,6 +152,7 @@ enum {
     HEX_SREG_BADVA = 9,
     HEX_SREG_IMASK = 10,
     HEX_SREG_GEVB  = 11,
+    HEX_SREG_VWCTRL = 12,
     HEX_SREG_GLB_START = 16,
     HEX_SREG_EVB = 16,
     HEX_SREG_MODECTL = 17,

@@ -238,6 +238,7 @@ static const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_HTID] = IMMUTABLE,
     [HEX_SREG_IMASK] = 0xffff0000,
     [HEX_SREG_GEVB] = 0x000000ff,
+    [HEX_SREG_VWCTRL] = 0x7000f000,
     [HEX_SREG_EVB] = 0x000000ff,
     [HEX_SREG_MODECTL] = IMMUTABLE,
     [HEX_SREG_SYSCFG] = 0x80001c00,

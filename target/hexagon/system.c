@@ -103,6 +103,134 @@ int hex_get_page_size(thread_t *thread, size4u_t vaddr, int width)
     return size;
 }
 
+#define SYSVERWARN(...)
+#define warn(...)
+#define env thread
+#define Regs gpr
+#define REG_PC HEX_REG_PC
+#define REG_BADVA0 HEX_SREG_BADVA0
+#define REG_BADVA1 HEX_SREG_BADVA1
+#define EXCEPT_TYPE_PRECISE                 HEX_EVENT_PRECISE
+#define EXCEPT_TYPE_TLB_MISS_RW             HEX_EVENT_TLB_MISS_RW
+#define PRECISE_CAUSE_BIU_PRECISE           HEX_CAUSE_BIU_PRECISE
+#define PRECISE_CAUSE_REG_WRITE_CONFLICT    HEX_CAUSE_REG_WRITE_CONFLICT
+#define PRECISE_CAUSE_DOUBLE_EXCEPT         HEX_CAUSE_DOUBLE_EXCEPT
+
+void
+register_exception_info(thread_t * thread, size4u_t type, size4u_t cause,
+						size4u_t badva0, size4u_t badva1, size4u_t bvs,
+						size4u_t bv0, size4u_t bv1, size4u_t elr,
+						size4u_t diag, size4u_t de_slotmask);
+
+
+#ifndef CONFIG_USER_ONLY
+/* Function to check if a VTCM access is falling into  a VTCM window assigned. */
+static int is_vtcm_acc_window_violation(thread_t *thread, paddr_t pa)
+{
+  int violation = 0;
+  uint32_t vwctrl = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_VWCTRL);
+  int enabled = GET_FIELD(VWCTRL_VWENABLE, vwctrl) & 0x1;
+  paddr_t win_lo_addr = 0;
+  paddr_t win_hi_addr = 0;
+  if (enabled == 0) {
+    violation = 1;
+  } else {
+    win_lo_addr = get_vtcm_base(thread) + (GET_FIELD(VWCTRL_LOWOFFSET, vwctrl) << 12);
+    win_hi_addr = get_vtcm_base(thread) + ((GET_FIELD(VWCTRL_HIOFFSET, vwctrl) << 12) | 0xfff);
+    violation = (pa < win_lo_addr || pa > win_hi_addr);
+  }
+  if (violation){
+    SYSVERWARN("VTCM access window violation: violation=%d enabled=%d paddr=0x%lx vwctrl_low=0x%lx vwctrl_hi=0x%lx lower:%d higher:%d", violation, enabled, pa, win_lo_addr, win_hi_addr, (pa < win_lo_addr), (pa > win_hi_addr));
+  }
+  return violation;
+}
+
+static void register_einfo(thread_t *thread, hex_exception_info *einfo)
+{
+        target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
+        int register_double_exception = (GET_SSR_FIELD(SSR_EX, ssr)>0);
+        warn ("register_einfo \n");
+        // Imprecise can't cause double exception, but TB doesn't check anything on imprecise exception
+        // Precise, but higher priority than double, can't cause a double
+        if ((einfo->type == EXCEPT_TYPE_PRECISE) && (einfo->cause < PRECISE_CAUSE_DOUBLE_EXCEPT))
+                register_double_exception = 0;
+
+        if (register_double_exception) {
+                warn("Double Exception (from: type=%x cause=%x elr=%x)",einfo->type,einfo->cause,einfo->elr);
+                register_exception_info(thread,EXCEPT_TYPE_PRECISE,PRECISE_CAUSE_DOUBLE_EXCEPT,
+                        thread->Regs[REG_BADVA0],thread->Regs[REG_BADVA1],
+                        GET_SSR_FIELD(SSR_BVS, ssr), GET_SSR_FIELD(SSR_V0, ssr), GET_SSR_FIELD(SSR_V1, ssr),
+                        einfo->elr, einfo->cause, einfo->de_slotmask);
+        } else {
+                warn("Registering exception info: type=%x cause=%x elr=%x badva0=%x badva1=%x bvs=%d",
+                        einfo->type,einfo->cause,einfo->elr,einfo->badva0,einfo->badva1,einfo->bvs);
+                register_exception_info(thread,einfo->type,einfo->cause,einfo->badva0,
+                        einfo->badva1, einfo->bvs,einfo->bv0,einfo->bv1,einfo->elr,
+                        ARCH_GET_SYSTEM_REG(thread, HEX_SREG_DIAG),0);
+        }
+}
+
+static void fill_einfo_ldst(thread_t *thread, hex_exception_info *einfo, size4u_t type, size4u_t slot,
+                size4u_t cause, size4u_t va)
+{
+        target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
+        memset(einfo,0,sizeof(*einfo));
+        einfo->valid = 1;
+        einfo->type = type;
+        einfo->cause = cause;
+        //DAG: If cause is BIU PRECISE, then SSR bits don't need an update so set them to their existing values
+        if(cause == PRECISE_CAUSE_BIU_PRECISE) {
+                einfo->badva0 = thread->Regs[REG_BADVA0];
+                einfo->badva1 = thread->Regs[REG_BADVA1];
+                einfo->bv0 = GET_SSR_FIELD(SSR_V0, ssr);
+                einfo->bv1 = GET_SSR_FIELD(SSR_V1, ssr);
+                einfo->bvs = GET_SSR_FIELD(SSR_BVS, ssr);
+        }
+        else if (slot == 0) {
+                einfo->badva0 = va;
+                einfo->badva1 = thread->Regs[REG_BADVA1];
+                einfo->bv0 = 1;
+                einfo->bv1 = 0;
+                einfo->bvs = 0;
+        } else {
+                einfo->badva0 = thread->Regs[REG_BADVA0];
+                einfo->badva1 = va;
+                einfo->bv0 = 0;
+                einfo->bv1 = 1;
+                einfo->bvs = 1;
+        }
+        einfo->elr = thread->Regs[REG_PC];
+        einfo->de_slotmask = 1<<slot;
+}
+
+static inline void fill_einfo_ldsterror(thread_t *thread, hex_exception_info *einfo, size4u_t slot,
+                size4u_t cause, size4u_t va) {
+        fill_einfo_ldst(thread,einfo,EXCEPT_TYPE_PRECISE,slot,cause,va);
+}
+
+static void sys_check_vwctrl(thread_t *thread, int slot, vaddr_t va, paddr_t pa)
+{
+  /* Here we will be checking for if the given pa lies in the vtcm window */
+  if(!in_vtcm_space(thread,pa,HIDE_WARNING)) {
+    SYSVERWARN("VTCM access window not in vtcm");
+    return;
+  }
+  /*0x8fff0000 is low=0 hi=0xfff en=1, which means the full VTCM range is accessible*/
+  if(ARCH_GET_SYSTEM_REG(thread, HEX_SREG_VWCTRL) == 0x8fff0000) {
+    SYSVERWARN("VTCM access window default value set");
+    return;
+  }
+  if(is_vtcm_acc_window_violation(thread,pa)) {
+    /* QDSP-73523: Do not throw any exception in monitor mode */
+    if (!(sys_in_monitor_mode(thread))) {
+      hex_exception_info einfo;
+      fill_einfo_ldsterror(thread,&einfo,slot,HEX_CAUSE_VWCTRL_WINDOW_MISS,va);
+      register_einfo(thread,&einfo);
+    }
+  }
+}
+#endif
+
 paddr_t
 mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
                                enum mem_access_types mtype, int type_for_xlate)
@@ -144,6 +272,11 @@ mem_init_access(thread_t * thread, int slot, size4u_t vaddr, int width,
     memset(xinfo,0,sizeof(*xinfo));
     xinfo->size = maptr->size;
 
+    /* This fn is called for different mem type insrns
+        We need to make sure that the start address lies in vtcm range */
+#ifndef CONFIG_USER_ONLY
+    sys_check_vwctrl(thread, slot, maptr->vaddr, maptr->paddr);
+#endif
        return (maptr->paddr);
 }
 
@@ -157,6 +290,29 @@ mem_init_access_unaligned(thread_t *thread, int slot, size4u_t vaddr, size4u_t r
        maptr->vaddr = realvaddr;
        maptr->paddr -= (vaddr-realvaddr);
        maptr->width = size;
+
+#ifndef CONFIG_USER_ONLY
+        paddr_t base = (paddr_t)maptr->paddr;
+        if (maptr->use_aligned_address) {
+          paddr_t mask = 0x7F;
+          base = base & mask;
+        }
+        /* Below calculation makes sure we have the right value when
+           we have negative size */
+        paddr_t end;
+        if (size > 0) {
+          if (maptr->is_coproc_range) {
+            end = (paddr_t)(((int64_t)base + size));
+          }
+          else {
+            end = (paddr_t)(((int64_t)base + size - 1));
+          }
+        }
+        else {
+          end = (paddr_t)(((int64_t)base + size ));
+        }
+       sys_check_vwctrl(thread, slot, maptr->vaddr, end);
+#endif
        return ret;
 }
 
@@ -236,18 +392,6 @@ mem_dmalink_store(thread_t * thread, size4u_t vaddr, int width, size8u_t data, i
 
 }
 
-
-#define warn(...)
-#define env thread
-#define Regs gpr
-#define REG_PC HEX_REG_PC
-#define EXCEPT_TYPE_PRECISE                 HEX_EVENT_PRECISE
-#define EXCEPT_TYPE_TLB_MISS_RW             HEX_EVENT_TLB_MISS_RW
-#define PRECISE_CAUSE_BIU_PRECISE           HEX_CAUSE_BIU_PRECISE
-#define PRECISE_CAUSE_REG_WRITE_CONFLICT    HEX_CAUSE_REG_WRITE_CONFLICT
-#define PRECISE_CAUSE_DOUBLE_EXCEPT         HEX_CAUSE_DOUBLE_EXCEPT
-
-
 #ifndef CONFIG_USER_ONLY
 static
 int is_du_badva_affecting_exception(int type, int cause)
@@ -256,7 +400,7 @@ int is_du_badva_affecting_exception(int type, int cause)
 		return 1;
 	}
 	if ((type == EXCEPT_TYPE_PRECISE) && (cause >= 0x20)
-		&& (cause <= 0x28)) {
+		&& (cause <= HEX_CAUSE_VWCTRL_WINDOW_MISS)) {
 		return 1;
 	}
 	return (0);
@@ -275,11 +419,6 @@ raise_coproc_ldst_exception(thread_t *env, size4u_t de_slotmask,
     do_raise_exception(env, cs->exception_index, PC, 0);
 }
 
-void
-register_exception_info(thread_t * thread, size4u_t type, size4u_t cause,
-						size4u_t badva0, size4u_t badva1, size4u_t bvs,
-						size4u_t bv0, size4u_t bv1, size4u_t elr,
-						size4u_t diag, size4u_t de_slotmask);
 void
 register_exception_info(thread_t * thread, size4u_t type, size4u_t cause,
 						size4u_t badva0, size4u_t badva1, size4u_t bvs,
