@@ -33,6 +33,7 @@ set(QEMU_CONF_ARGS
     --disable-nettle
     --enable-virglrenderer
     --enable-opengl
+    --enable-slirp
     --disable-vde
     --disable-vte
     --disable-rbd
