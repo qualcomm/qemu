@@ -169,10 +169,21 @@ void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr,
 {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
     target_ulong paddr = vaddr;
+    bool was_locked = bql_locked();
 
+    if (was_locked) {
+        bql_unlock();
+    }
     if (hexagon_read_memory_small(env,
-        paddr, size, retptr, mmu_idx) == true)
+        paddr, size, retptr, mmu_idx) == true) {
+        if (was_locked) {
+            bql_lock();
+        }
         return;
+    }
+    if (was_locked) {
+        bql_lock();
+    }
 
     CPUState *cs = env_cpu(env);
     cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
