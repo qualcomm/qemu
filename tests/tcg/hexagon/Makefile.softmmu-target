@@ -105,6 +105,7 @@ TESTS += \
 	semihost \
 	double_ex \
 	qfloat_test \
+	vwctrl \
 	$()
 
 TESTS = k0lock
@@ -243,6 +244,8 @@ double_ex.o: double_ex.c filename.h
 double_ex: double_ex.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
+vwctrl: vwctrl.o
+vwctrl.o: vwctrl.c filename.h cfgtable.h mmu.h vtcm_common.h
 
 $(TESTS) inf-loop k0locklock tlblocklock:
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $^ -o $@ $(LDFLAGS)
@@ -295,6 +298,7 @@ QEMU_EXTRA_OPTS=
 OVERRIDE_OPTS?=
 QEMU_OPTS+=$(QEMU_BASE_MACHINE) $(QEMU_EXTRA_OPTS) $(OVERRIDE_OPTS) -kernel
 
+vwctrl: EXTRA_CFLAGS+=-mv79 -mhvx -mhmx
 
 run-neg-framelimit: neg-framelimit
 run-neg-float_excp: neg-float_excp
@@ -456,6 +460,8 @@ run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68: invalid_insn_for_rev
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
+
+run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
 
 ifeq ($(WIN),no)
 run-reset-test: inf-loop
