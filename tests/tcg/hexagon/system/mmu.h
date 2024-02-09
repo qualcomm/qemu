@@ -307,6 +307,15 @@ static inline void enter_user_mode(void)
                   "ssr = r0\n\t" : : : "r0");
 }
 
+static inline void enter_kernel_mode(void)
+{
+    asm volatile ("r0 = ssr\n\t"
+                  "r0 = setbit(r0, #17) // EX\n\t"
+                  "r0 = clrbit(r0, #16) // UM\n\t"
+                  "r0 = setbit(r0, #19) // GM\n\t"
+                  "ssr = r0\n\t" : : : "r0");
+}
+
 static inline uint32_t *getevb()
 {
     uint32_t reg;

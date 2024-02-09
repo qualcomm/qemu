@@ -34,4 +34,30 @@ static uint32_t read_cfgtable_field(uint32_t offset)
 #define GET_SUBSYSTEM_BASE() (read_cfgtable_field(0x8) << 16)
 #define GET_FASTL2VIC_BASE() (read_cfgtable_field(0x28) << 16)
 
+static uintptr_t get_vtcm_base(void)
+{
+#ifdef __hexagon__
+    int vtcm_offset = 0x038;
+
+#ifdef __linux__
+    return (uintptr_t)vtcm_buffer;
+#else
+#if __HEXAGON_ARCH__ == 65
+    return 0xD8200000L;
+#elif __HEXAGON_ARCH__ >= 66
+    return read_cfgtable_field(vtcm_offset) << 16;
+#endif /* __HEXAGON_ARCH__ */
+#endif /* __linux __ */
+#else
+    void *vtcm =
+        calloc(1024 * 1024 * 8, sizeof(char)); /* 8mb largest vtcm for now */
+    if (!vtcm) {
+        printf("%s : %s\n", "FAIL", __FILENAME__);
+        printf("%s: out of memory allocating vtcm\n", __func__);
+        exit(-1);
+    }
+    return (uintptr_t)vtcm;
+#endif
+}
+
 #endif /* CFGTABLE_H */

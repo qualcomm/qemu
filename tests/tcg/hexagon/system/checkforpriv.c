@@ -39,15 +39,6 @@ static inline void increment_elr(int x)
                  : : "r"(x) : "r7");
 }
 
-static inline void enter_kernel_mode(void)
-{
-    asm volatile ("r0 = ssr\n\t"
-                  "r0 = setbit(r0, #17) // EX\n\t"
-                  "r0 = clrbit(r0, #16) // UM\n\t"
-                  "r0 = setbit(r0, #19) // GM\n\t"
-                  "ssr = r0\n\t" : : : "r0");
-}
-
 void checkforpriv_event_handle_error_helper(uint32_t ssr)
 {
     uint32_t cause = GET_FIELD(ssr, SSR_CAUSE);
