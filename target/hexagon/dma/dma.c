@@ -716,8 +716,8 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
 
     }
 
-    uint32_t src_alignment = (desc->type0.srcAddress & 0x255);
-    uint32_t dst_alignment = (desc->type0.dstAddress & 0x255);
+    uint32_t src_alignment = (desc->type0.srcAddress & 0xFF);
+    uint32_t dst_alignment = (desc->type0.dstAddress & 0xFF);
     uint32_t unaligned_desc = src_alignment != dst_alignment;
     dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_DESCRIPTOR, unaligned_desc);
     if (unaligned_desc) {
