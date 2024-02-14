@@ -546,6 +546,7 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
                                          const uint64_t *data)
 {
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
+    cpu_env(cs)->memop_pc.set = false;
 }
 
 #if !defined(CONFIG_USER_ONLY)
