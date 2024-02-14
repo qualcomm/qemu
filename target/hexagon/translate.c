@@ -443,6 +443,7 @@ static bool pkt_may_do_io(Packet *pkt)
            check_for_opcode(pkt, A2_tfrcrr) ||
            check_for_opcode(pkt, A2_tfrrcr) ||
            check_for_opcode(pkt, A4_tfrcpp) ||
+           check_for_opcode(pkt, Y6_dmlink) ||
            check_for_opcode(pkt, A4_tfrpcp);
 }
 
@@ -517,7 +518,6 @@ static bool pkt_ends_tb(Packet *pkt)
 #endif
     return false;
 }
-
 
 #ifndef CONFIG_USER_ONLY
 
