@@ -686,8 +686,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
     IOMMUTLBEntry iotlb;
     int iommu_idx;
     hwaddr addr = orig_addr;
-    AddressSpaceDispatch *d =
-        qatomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
+    AddressSpaceDispatch *d = cpu->cpu_ases[asidx].memory_dispatch;
 
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
@@ -2534,7 +2533,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
-    AddressSpaceDispatch *d = qatomic_rcu_read(&cpuas->memory_dispatch);
+    AddressSpaceDispatch *d = cpuas->memory_dispatch;
     int section_index = index & ~TARGET_PAGE_MASK;
     MemoryRegionSection *ret;
 
@@ -2609,52 +2608,42 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
     }
 }
 
-bool qemu_in_vcpu_thread(void);
-static void cpu_reloading_memory_map(void)
+static void tcg_commit_cpu(CPUState *cpu, run_on_cpu_data data)
 {
-    if (qemu_in_vcpu_thread() && current_cpu->running) {
-        /* The guest can in theory prolong the RCU critical section as long
-         * as it feels like. The major problem with this is that because it
-         * can do multiple reconfigurations of the memory map within the
-         * critical section, we could potentially accumulate an unbounded
-         * collection of memory data structures awaiting reclamation.
-         *
-         * Because the only thing we're currently protecting with RCU is the
-         * memory data structures, it's sufficient to break the critical section
-         * in this callback, which we know will get called every time the
-         * memory map is rearranged.
-         *
-         * (If we add anything else in the system that uses RCU to protect
-         * its data structures, we will need to implement some other mechanism
-         * to force TCG CPUs to exit the critical section, at which point this
-         * part of this callback might become unnecessary.)
-         *
-         * This pair matches cpu_exec's rcu_read_lock()/rcu_read_unlock(), which
-         * only protects cpu->as->dispatch. Since we know our caller is about
-         * to reload it, it's safe to split the critical section.
-         */
-        rcu_read_unlock();
-        rcu_read_lock();
-    }
+    CPUAddressSpace *cpuas = data.host_ptr;
+
+    cpuas->memory_dispatch = address_space_to_dispatch(cpuas->as);
+    tlb_flush(cpu);
 }
 
 static void tcg_commit(MemoryListener *listener)
 {
     CPUAddressSpace *cpuas;
-    AddressSpaceDispatch *d;
+    CPUState *cpu;
 
     assert(tcg_enabled());
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
-    cpu_reloading_memory_map();
-    /* The CPU and TLB are protected by the iothread lock.
-     * We reload the dispatch pointer now because cpu_reloading_memory_map()
-     * may have split the RCU critical section.
+    cpu = cpuas->cpu;
+
+    /*
+     * Defer changes to as->memory_dispatch until the cpu is quiescent.
+     * Otherwise we race between (1) other cpu threads and (2) ongoing
+     * i/o for the current cpu thread, with data cached by mmu_lookup().
+     *
+     * In addition, queueing the work function will kick the cpu back to
+     * the main loop, which will end the RCU critical section and reclaim
+     * the memory data structures.
+     *
+     * That said, the listener is also called during realize, before
+     * all of the tcg machinery for run-on is initialized: thus halt_cond.
      */
-    d = address_space_to_dispatch(cpuas->as);
-    qatomic_rcu_set(&cpuas->memory_dispatch, d);
-    tlb_flush(cpuas->cpu);
+    if (cpu->halt_cond) {
+        async_run_on_cpu(cpu, tcg_commit_cpu, RUN_ON_CPU_HOST_PTR(cpuas));
+    } else {
+        tcg_commit_cpu(cpu, RUN_ON_CPU_HOST_PTR(cpuas));
+    }
 }
 
 static void memory_map_init(void)
