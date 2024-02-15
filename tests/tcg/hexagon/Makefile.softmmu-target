@@ -164,6 +164,7 @@ swi2: swi2.o thread_common.o
 swi_wait.o: swi_wait.c util.h thread_common.h
 swi_wait: swi_wait.o util.o thread_common.o
 udma: udma.o
+udma.o: udma.c filename.h dma.h
 qfloat_test: qfloat_test.o
 
 ifeq ($(WIN),no)
@@ -245,7 +246,7 @@ double_ex: double_ex.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
-vwctrl.o: vwctrl.c filename.h cfgtable.h mmu.h vtcm_common.h
+vwctrl.o: vwctrl.c filename.h cfgtable.h mmu.h vtcm_common.h dma.h
 
 $(TESTS) inf-loop k0locklock tlblocklock:
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $^ -o $@ $(LDFLAGS)

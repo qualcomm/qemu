@@ -26,9 +26,11 @@
 #include "cfgtable.h"
 #include "vtcm_common.h"
 #include "mmu.h"
+#include "dma.h"
 
 int err;
 bool window_miss_seen;
+uint32_t err_badva;
 #define HEX_CAUSE_VWCTRL_WINDOW_MISS 0x29
 #define HEX_CAUSE_PRIV_USER_NO_SINS 0x1b
 #define HEX_CAUSE_PRIV_USER_NO_GINS 0x1a
@@ -39,6 +41,7 @@ void my_err_handler_helper(uint32_t ssr)
     switch (cause) {
     case HEX_CAUSE_VWCTRL_WINDOW_MISS:
         window_miss_seen = true;
+        asm volatile("%0 = badva\n" : "=r"(err_badva));
         inc_elr(4);
         break;
     case HEX_CAUSE_PRIV_USER_NO_SINS:
@@ -135,6 +138,39 @@ void calc_win_boundaries(uint32_t vtcm_base_addr, uint32_t vwctrl_lo,
     *wmax = vtcm_base_addr + ((vwctrl_hi + 1) * 4 * 1024) - 1;
 }
 
+void test_vtcm_dma(uint32_t access_addr, uint32_t wmin, uint32_t wmax,
+                   bool expect_failure)
+{
+    printf("Trying to copy vtcm via dma at 0x%08"PRIx32"; vwctrl is %s; "
+           "VTCM window is [0x%08"PRIx32", 0x%08"PRIx32"]\n",
+           access_addr, is_vwctrl_enabled() ? "enabled" : "DISABLED", wmin, wmax);
+
+    const int alloc_size = 1024;
+    unsigned char *memory = (unsigned char *)(access_addr + ALIGN);
+    memory = (unsigned char *)((uintptr_t)memory & (~(ALIGN - 1)));
+
+    unsigned char *src = memory;
+    unsigned char *dst = memory + (alloc_size / 2);
+
+    /* now allocate and init descriptor */
+    hexagon_udma_descriptor_type0_t *desc = alloc_descriptor();
+    if (!desc) {
+        printf("FAIL : %s\n", __FILENAME__);
+        printf("out of memory: descriptors\n");
+        exit(-2);
+    }
+    *desc = fill_descriptor0(src, dst, DMA_XFER_SIZE(alloc_size), NULL);
+
+    printf("    expect %s: ", expect_failure ? "failure" : "success");
+    enter_user_mode();
+    /* kick off dma */
+    do_dmastart(desc);
+    check32(window_miss_seen, expect_failure);
+    printf("ok\n");
+
+    free(desc);
+}
+
 int main()
 {
     uint32_t vwctrl_lo, vwctrl_hi, wmin, wmax, vtcm_base_addr;
@@ -162,17 +198,20 @@ int main()
     /* normal access */
     test_vtcm_access(wmin, wmin, wmax, false);
     test_coproc_vtcm_access(wmin, wmin, wmax, false);
+    test_vtcm_dma(wmin, wmin, wmax, false);
 
     /* vwctrl disabled */
     set_vwctrl(false, vwctrl_lo, vwctrl_hi);
     test_vtcm_access(wmin, wmin, wmax, true);
     test_coproc_vtcm_access(wmin, wmin, wmax, true);
+    test_vtcm_dma(wmin, wmin, wmax, true);
 
     /* out of bounds access */
     calc_win_boundaries(vtcm_base_addr, vwctrl_lo + 1, vwctrl_hi, &wmin, &wmax);
     set_vwctrl(true, vwctrl_lo + 1, vwctrl_hi);
     test_vtcm_access(wmin, wmin, wmax, true);
     test_coproc_vtcm_access(wmin, wmin, wmax, true);
+    test_vtcm_dma(wmin, wmin, wmax, true);
 
     printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
     return err;
