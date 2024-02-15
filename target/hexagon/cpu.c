@@ -112,6 +112,8 @@ static Property hexagon_cpu_properties[] = {
         THREADS_MAX),
     DEFINE_PROP_LINK("vtcm", HexagonCPU, vtcm, TYPE_MEMORY_REGION,
                      MemoryRegion *),
+    DEFINE_PROP_UINT64("vtcm-base-addr", HexagonCPU, vtcm_base_addr, 0x0),
+    DEFINE_PROP_UINT32("vtcm-size-kb", HexagonCPU, vtcm_size_kb, 0),
 
     DEFINE_PROP_BOOL("isdben-etm-enable", HexagonCPU, isdben_etm_enable, false),
     DEFINE_PROP_BOOL("isdben-dfd-enable", HexagonCPU, isdben_dfd_enable, false),
@@ -770,10 +772,9 @@ static const char *get_coproc_path(CPUHexagonState *env)
         return coproc_install_path;
     }
 
-    qemu_log("Fatal error: Hexagon COPROC path not found:\n"
-        "\tEither choose a machine with no coproc or specify its\n"
-        "\tpath through the -cpu coproc=<path> command line option.\n");
-    abort();
+    error_report("WARNING: Hexagon COPROC path not found:"
+        " Either choose a machine with no coproc or specify its"
+        " path through the -cpu coproc=<path> command line option.");
     return NULL;
 }
 #endif
@@ -846,8 +847,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #endif
             CoprocArgs args = {0};
             args.opcode = COPROC_INIT;
-            args.vtcm_base = env->vtcm_base;
-            args.vtcm_size = env->vtcm_size;
+            args.vtcm_base = cpu->vtcm_base_addr;
+            args.vtcm_size = cpu->vtcm_size_kb * 1024;
             args.minver = 0;
             args.reg_usr = GET_FIELD(USR_FPCOPROC, env->gpr[HEX_REG_USR]);
             args.fd = env->memfd_fd;

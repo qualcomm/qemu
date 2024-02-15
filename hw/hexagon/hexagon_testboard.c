@@ -290,6 +290,10 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             cfgExtensions->qtmr_rg0);
         object_property_set_link(OBJECT(cpu), "vtcm", OBJECT(vtcm),
                 &error_fatal);
+        qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
+            cfgTable->vtcm_base);
+        qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
+            cfgTable->vtcm_size_kb);
         qdev_prop_set_uint32(DEVICE(cpu), "l2line-size", cfgTable->l2line_size);
 
         /*
@@ -303,8 +307,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);
 
-        env->vtcm_base = cfgTable->vtcm_base;
-        env->vtcm_size = vtcm_size;
         env->memfd_fd = memfd_fd;
         if (i == 0) {
             if (cpu->rev_reg) {

@@ -429,8 +429,6 @@ typedef struct CPUArchState {
     uint64_t *g_pcycle_base;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
     hex_memop_pc memop_pc;
-    hwaddr vtcm_base;
-    uint32_t vtcm_size;
     int32_t memfd_fd;
 #ifndef CONFIG_USER_ONLY
     int32_t slot;                    /* Needed for exception generation */
@@ -482,6 +480,8 @@ struct ArchCPU {
     uint32_t l2vic_base_addr;
     uint32_t qtimer_base_addr;
     MemoryRegion *vtcm;
+    hwaddr vtcm_base_addr;
+    uint32_t vtcm_size_kb;
     bool isdben_etm_enable;
     bool isdben_dfd_enable;
     bool isdben_trusted;
