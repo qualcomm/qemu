@@ -3,7 +3,9 @@
                                              '--check',
                                              'ref_{test_name}.sha256'],
                                    'prog-args': [],
-                                   'qemu-args': ['-append',
+                                   'qemu-args': ['-M', 'virt_coproc',
+                                                 '-cpu', 'v75',
+                                                 '-append',
                                                  'pickle_driver.elf '
                                                  '--pickle_in '
                                                  '{test_name}.pickle --in_bhwd '
@@ -22,7 +24,9 @@
                                           '--check',
                                           'ref_{test_name}.sha256'],
                                 'prog-args': [],
-                                'qemu-args': ['-append',
+                                'qemu-args': ['-M', 'virt_coproc',
+                                              '-cpu', 'v75',
+                                              '-append',
                                               'pickle_driver.elf --pickle_in '
                                               '{test_name}.pickle --in_bhwd '
                                               '1,224,224,3 --in_elsizes 1 '
@@ -40,7 +44,9 @@
                                   '--check',
                                   'ref_{test_name}.sha256'],
                         'prog-args': [],
-                        'qemu-args': ['-append',
+                        'qemu-args': ['-M', 'virt_coproc',
+                                      '-cpu', 'v75',
+                                      '-append',
                                       'pickle_driver.elf --pickle_in '
                                       '{test_name}.pickle --in_bhwd '
                                       '1,224,224,3 --out_elsizes 1 --out_bhwd '
@@ -55,7 +61,9 @@
                                             '--check',
                                             'ref_{test_name}.sha256'],
                                   'prog-args': [],
-                                  'qemu-args': ['-append',
+                                  'qemu-args': ['-M', 'virt_coproc',
+                                                '-cpu', 'v75',
+                                                '-append',
                                                 'pickle_driver.elf --pickle_in '
                                                 '{test_name}.pickle --in_bhwd '
                                                 '1,64,200,3 --in_elsizes 4 '
@@ -73,7 +81,9 @@
                                                        '--check',
                                                        'ref_{test_name}.sha256'],
                                              'prog-args': [],
-                                             'qemu-args': ['-append',
+                                             'qemu-args': ['-M', 'virt_coproc',
+                                                           '-cpu', 'v75',
+                                                           '-append',
                                                            'pickle_driver.elf '
                                                            '--pickle_in '
                                                            '{test_name}.pickle '
@@ -105,7 +115,9 @@
                                                            '--check',
                                                            'ref_{test_name}.sha256'],
                                                  'prog-args': [],
-                                                 'qemu-args': ['-append',
+                                                 'qemu-args': ['-M', 'virt_coproc',
+                                                               '-cpu', 'v75',
+                                                               '-append',
                                                                'pickle_driver.elf '
                                                                '--pickle_in '
                                                                '{test_name}.pickle '
@@ -136,7 +148,9 @@
                                                         '--check',
                                                         'ref_{test_name}.sha256'],
                                               'prog-args': [],
-                                              'qemu-args': ['-append',
+                                              'qemu-args': ['-M', 'virt_coproc',
+                                                            '-cpu', 'v75',
+                                                            '-append',
                                                             'pickle_driver.elf '
                                                             '--pickle_in '
                                                             '{test_name}.pickle '
@@ -166,7 +180,9 @@
                                                           '--check',
                                                           'ref_{test_name}.sha256'],
                                                 'prog-args': [],
-                                                'qemu-args': ['-append',
+                                                'qemu-args': ['-M', 'virt_coproc',
+                                                              '-cpu', 'v75',
+                                                              '-append',
                                                               'pickle_driver.elf '
                                                               '--pickle_in '
                                                               '{test_name}.pickle '
@@ -194,7 +210,9 @@
                                               '--check',
                                               'ref_{test_name}.sha256'],
                                     'prog-args': [],
-                                    'qemu-args': ['-append',
+                                    'qemu-args': ['-M', 'virt_coproc',
+                                                  '-cpu', 'v75',
+                                                  '-append',
                                                   'pickle_driver.elf '
                                                   '--pickle_in '
                                                   '{test_name}.pickle '
