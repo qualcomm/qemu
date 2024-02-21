@@ -38,6 +38,7 @@ int32_t bias[64] __attribute__((aligned(256)));
 int8_t weights[128] __attribute__((aligned(128)));
 
 uint8_t *vtcm;
+uint8_t *va_vtcm = (uint8_t *)0xf0000000;
 
 uint8_t *get_vtcm_base()
 
@@ -137,9 +138,9 @@ int main()
 
     vtcm = get_vtcm_base();
 #if !defined(__linux__)
-    add_translation_extended(1, vtcm, (uint64_t)vtcm, pageSizeEnum, perms,
+    add_translation_extended(1, va_vtcm, (uint64_t)vtcm, pageSizeEnum, perms,
                              cachability, asid, aa, vg);
-    add_translation_extended(2, vtcm + vtcmPageSize,
+    add_translation_extended(2, va_vtcm + vtcmPageSize,
                              (uint64_t)(vtcm + vtcmPageSize), pageSizeEnum,
                              perms, cachability, asid, aa, vg);
 #endif
@@ -156,10 +157,10 @@ int main()
                  :
                  : "r6");
 
-    uint8_t *activations_vtcm = vtcm;
-    uint8_t *output_vtcm = vtcm + sizeof(activations);
-    uint8_t *bias_vtcm = vtcm + sizeof(output);
-    uint8_t *weights_vtcm = vtcm + sizeof(bias);
+    uint8_t *activations_vtcm = va_vtcm;
+    uint8_t *output_vtcm = va_vtcm + sizeof(activations);
+    uint8_t *bias_vtcm = va_vtcm + sizeof(output);
+    uint8_t *weights_vtcm = va_vtcm + sizeof(bias);
 
     assert((uintptr_t)activations_vtcm % 2048 == 0);
     assert((uintptr_t)output_vtcm % 2048 == 0);

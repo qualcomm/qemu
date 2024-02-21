@@ -2722,6 +2722,17 @@ void HELPER(check_vtcm_memcpy)(CPUHexagonState *env, uint32_t dst, uint32_t src,
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")
 
+#ifdef CONFIG_USER_ONLY
+/*
+ * The external coproc in user mode has no page table
+ */
+static bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
+                               MMUAccessType access_type,
+                               hwaddr *PA, int *prot, int *size,
+                               int32_t *excp, int mmu_idx) {
+    return true;
+}
+#endif
 #include "mmvec/kvx_ieee.h"
 #include "mmvec/kvx_fp8.h"
 #include "helper_funcs_generated.c.inc"

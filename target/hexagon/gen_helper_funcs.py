@@ -101,15 +101,23 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         """))
 
     if "A_COPROC" in hex_common.attribdict[tag]:
+        f.write("    paddr_t __attribute__((unused)) phys = 0;\n")
+        f.write("    int __attribute__((unused)) prot;\n")
+        f.write("    int32_t __attribute__((unused)) excp;\n")
         f.write("    CoprocArgs args = {0};\n")
         f.write(f"    args.opcode = {tag};\n")
         f.write(f"    args.unit = env->threadId;\n")
         arg = 1
         for regtype, regid in regs:
-            f.write(f"    args.arg{arg} = {regtype}{regid}V;\n")
+            if (regtype == 'R' and regid == 's'):
+                f.write(f"    hex_tlb_find_match(env, {regtype}{regid}V,"
+                        + " MMU_DATA_LOAD, &phys, &prot, &args.page_size,"
+                        + " &excp, cpu_mmu_index(env_cpu(thread), false));\n")
+                f.write(f"    args.arg{arg} = phys + ({regtype}{regid}V"
+                        + " & (args.page_size - 1));\n")
+            else:
+                f.write(f"    args.arg{arg} = {regtype}{regid}V;\n")
             arg += 1;
-        if needs_page_size(tag):
-            f.write("    args.page_size = hex_get_page_size(env, RsV, 1);\n")
         f.write("    coproc(&args);\n")
         f.write("}\n\n")
         ## End of the helper definition
