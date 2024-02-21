@@ -48,6 +48,7 @@ TESTS += \
 	neg-hvx_nocoproc \
 	neg-no-coproc \
 	swi_fs \
+	semihost \
 	$()
 endif
 
@@ -102,7 +103,6 @@ TESTS += \
 	sys_reg_mut \
 	hvx-multi \
 	memcpy \
-	semihost \
 	double_ex \
 	qfloat_test \
 	vwctrl \
@@ -185,6 +185,8 @@ neg-hvx_nocoproc: hvx_nocoproc.o
 neg-no-coproc: coproc.o
 swi_fs: swi_fs.o
 test-thread: test-thread.o
+semihost.o: semihost.c strutils.h
+semihost: semihost.o
 endif
 
 wait: wait.o
@@ -236,8 +238,6 @@ sys_reg_mut: sys_reg_mut.o
 memcpy.o: memcpy.c vtcm_common.h mmu.h
 memcpy: memcpy.o
 inf-loop: inf-loop.o
-semihost.o: semihost.c strutils.h
-semihost: semihost.o
 double_ex.o: double_ex.c filename.h
 double_ex: double_ex.o
 k0locklock: k0locklock.o
@@ -312,6 +312,14 @@ run-neg-vtcm_error: neg-vtcm_error
 		"GREP", "exception 0x26");
 
 ifeq ($(WIN),no)
+
+run-semihost: semihost
+	mkdir -p _semihost_dir
+	touch _semihost_dir/fileA _semihost_dir/fileB
+	$(call run-test, $<, $(QEMU) --append "arg1 arg2" $(QEMU_OPTS) $< \
+		             > $<.stdout)
+	$(call quiet-command, grep -q "PASS" $<.stdout, "GREP", "PASS")
+
 run-neg-hvx_nocoproc: neg-hvx_nocoproc
 
 run-neg-no-coproc:neg-no-coproc
@@ -444,13 +452,6 @@ run-start: start
 	$(call quiet-command, \
 		grep -q "PASS" $<.stdout, \
 		"GREP", "PASS");
-
-run-semihost: semihost
-	mkdir -p _semihost_dir
-	touch _semihost_dir/fileA _semihost_dir/fileB
-	$(call run-test, $<, $(QEMU) --append "arg1 arg2" $(QEMU_OPTS) $< \
-		             > $<.stdout)
-	$(call quiet-command, grep -q "PASS" $<.stdout, "GREP", "PASS")
 
 run-invalid_insn_for_rev: run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68
 	@: # do nothing
