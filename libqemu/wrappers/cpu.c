@@ -110,7 +110,7 @@ void libqemu_cpu_reset(Object *obj)
     if (cpu_is_stopped(cpu)) {
         cpu_reset(cpu);
     } else {
-        cpu_interrupt(cpu, CPU_INTERRUPT_RESET);
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     }
 }
 
