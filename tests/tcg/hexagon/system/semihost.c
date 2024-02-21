@@ -218,7 +218,7 @@ int main(int argc, char **argv)
     assert((st.mode & S_IFMT) == S_IFREG);
 
     /* FTRUNC */
-    SWI(HEX_SYS_FTRUNC, fd, 1);
+    SWI(HEX_SYS_FTRUNC, fd, 1, 0);
     assert(!ret);
 
     /* FLEN */
