@@ -4,15 +4,41 @@
 [*                                                               *]
 [*===============================================================*]
 
-QEMU-hexagon 8.0.50.0 Release Notes
+QEMU-hexagon 10.1.0 Release Notes
 
 ----------------------------------------------------------------------
 
 The user guide for QEMU-hexagon is published in CreatePoint: Qualcomm®
 Hexagon QEMU (80-N2040-52).
 
-In this release: support for Hexagon arch v75, HVX, DMA, COPROC.
+In this release: support for Hexagon arch v79, HVX, DMA.
 
-MTTCG mode enables concurrent usage of host cores for each guest Hexagon
-vCPU thread.  Turn this mode on using `-accel tcg,thread=multi`.
+Main changes in this release:
 
+- Updated upstream base to 8.2.50.
+- Added support for v79 (Scalar, HVX, DMA, and coproc).
+- Added -cpu support for missing Hexagon revisions.
+- Infer cpu revision from ELF file for system emulation.
+- Use the running cpu revision to differentiate HVX semantics and
+  error out when trying to execute an instruction that is not available
+  in that revision.
+- Added missing double exception handling code.
+- Added QEMU migration support for Hexagon.
+- Allowed QEMU to be reset through the monitor.
+- Implemented COMMITTED_PKT_ANY PMU event.
+- Dropped support for internal QEMU execution counter registers such as
+  HEX_REG_QEMU_PKT_CNT, and HEX_REG_QEMU_INSN_CNT. Those were overloading
+  reserved control registers which are now defined for v79. Applications
+  that want to gather these statistics can still do so through PMU.
+- A few semihost fixes, including full semihost support on Windows too.
+  There is only one known issue with Hexagon libc readdir, which is that
+  it modifies errno at the end of directory.
+
+Main bug fixes:
+
+- Fixed system register names in the XML file sent to LLDB.
+- Fixed handling of syscfg.tl to align with HW and archsim.
+- Fixed time scale for I/O events.
+- Added missing L6_memcpy instruction implementation for v73.
+- Fixed bug where a packet with a load/store and a conditional change
+  of flow could end up producing the wrong PC.
