@@ -45,40 +45,40 @@
   <reg name="r26"                         bitsize="32" offset="104" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="26"/>
   <reg name="r27"                         bitsize="32" offset="108" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="27"/>
   <reg name="r28"                         bitsize="32" offset="112" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="28"/>
-  <reg name="r29"  altname="sp"           bitsize="32" offset="116" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="29" generic="sp"/>
-  <reg name="r30"  altname="fp"           bitsize="32" offset="120" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="30" generic="fp"/>
-  <reg name="r31"  altname="ra"           bitsize="32" offset="124" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="31" generic="ra"/>
-  <reg name="c0"   altname="sa0"          bitsize="32" offset="128" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="32"/>
-  <reg name="c1"   altname="lc0"          bitsize="32" offset="132" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="33"/>
-  <reg name="c2"   altnane="sa1"          bitsize="32" offset="136" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="34"/>
-  <reg name="c3"   altname="lc1"          bitsize="32" offset="140" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="35"/>
-  <reg name="c4"   altname="p3_0"         bitsize="32" offset="144" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="36"/>
-  <reg name="c5"   altname="c5"           bitsize="32" offset="148" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="37"/>
-  <reg name="c6"   altname="m0"           bitsize="32" offset="152" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="38"/>
-  <reg name="c7"   altname="m1"           bitsize="32" offset="156" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="39"/>
-  <reg name="c8"   altname="usr"          bitsize="32" offset="160" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="40"/>
-  <reg name="c9"   altname="pc"           bitsize="32" offset="164" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="41" generic="pc"/>
-  <reg name="c10"  altname="ugp"          bitsize="32" offset="168" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="42"/>
-  <reg name="c11"  altname="gp"           bitsize="32" offset="172" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="43"/>
-  <reg name="c12"  altname="cs0"          bitsize="32" offset="176" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="44"/>
-  <reg name="c13"  altname="cs1"          bitsize="32" offset="180" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="45"/>
-  <reg name="c14"  altname="upcyclelo"    bitsize="32" offset="184" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="46"/>
-  <reg name="c15"  altname="upcyclehi"    bitsize="32" offset="188" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="47"/>
-  <reg name="c16"  altname="framelimit"   bitsize="32" offset="192" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="48"/>
-  <reg name="c17"  altname="framekey"     bitsize="32" offset="196" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="49"/>
-  <reg name="c18"  altname="pktcountlo"   bitsize="32" offset="200" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="50"/>
-  <reg name="c19"  altname="pktcounthi"   bitsize="32" offset="204" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="51"/>
-  <reg name="c20"  altname="upmucnt0"     bitsize="32" offset="208" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="52"/>
-  <reg name="c21"  altname="upmucnt1"     bitsize="32" offset="212" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="53"/>
-  <reg name="c22"  altname="upmucnt2"     bitsize="32" offset="216" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="54"/>
-  <reg name="c23"  altname="upmucnt3"     bitsize="32" offset="220" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="55"/>
-  <reg name="c24"  altname="upmucnt4"     bitsize="32" offset="224" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="56"/>
-  <reg name="c25"  altname="upmucnt5"     bitsize="32" offset="228" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="57"/>
-  <reg name="c26"  altname="upmucnt6"     bitsize="32" offset="232" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="58"/>
-  <reg name="c27"  altname="upmucnt7"     bitsize="32" offset="236" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="59"/>
+  <reg name="sp"          altname="r29"   bitsize="32" offset="116" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="29" generic="sp"/>
+  <reg name="fp"          altname="r30"   bitsize="32" offset="120" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="30" generic="fp"/>
+  <reg name="ra"          altname="r31"   bitsize="32" offset="124" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="31" generic="ra"/>
+  <reg name="sa0"         altname="c0"    bitsize="32" offset="128" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="32"/>
+  <reg name="lc0"         altname="c1"    bitsize="32" offset="132" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="33"/>
+  <reg name="sa1"         altname="c2"    bitsize="32" offset="136" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="34"/>
+  <reg name="lc1"         altname="c3"    bitsize="32" offset="140" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="35"/>
+  <reg name="p3_0"        altname="c4"    bitsize="32" offset="144" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="36"/>
+  <reg name="c5"                          bitsize="32" offset="148" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="37"/>
+  <reg name="m0"          altname="c6"    bitsize="32" offset="152" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="38"/>
+  <reg name="m1"          altname="c7"    bitsize="32" offset="156" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="39"/>
+  <reg name="usr"         altname="c8"    bitsize="32" offset="160" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="40"/>
+  <reg name="pc"          altname="c9"    bitsize="32" offset="164" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="41" generic="pc"/>
+  <reg name="ugp"         altname="c10"   bitsize="32" offset="168" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="42"/>
+  <reg name="gp"          altname="c11"   bitsize="32" offset="172" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="43"/>
+  <reg name="cs0"         altname="c12"   bitsize="32" offset="176" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="44"/>
+  <reg name="cs1"         altname="c13"   bitsize="32" offset="180" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="45"/>
+  <reg name="upcyclelo"   altname="c14"   bitsize="32" offset="184" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="46"/>
+  <reg name="upcyclehi"   altname="c15"   bitsize="32" offset="188" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="47"/>
+  <reg name="framelimit"  altname="c16"   bitsize="32" offset="192" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="48"/>
+  <reg name="framekey"    altname="c17"   bitsize="32" offset="196" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="49"/>
+  <reg name="pktcountlo"  altname="c18"   bitsize="32" offset="200" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="50"/>
+  <reg name="pktcounthi"  altname="c19"   bitsize="32" offset="204" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="51"/>
+  <reg name="upmucnt0"    altname="c20"   bitsize="32" offset="208" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="52"/>
+  <reg name="upmucnt1"    altname="c21"   bitsize="32" offset="212" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="53"/>
+  <reg name="upmucnt2"    altname="c22"   bitsize="32" offset="216" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="54"/>
+  <reg name="upmucnt3"    altname="c23"   bitsize="32" offset="220" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="55"/>
+  <reg name="upmucnt4"    altname="c24"   bitsize="32" offset="224" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="56"/>
+  <reg name="upmucnt5"    altname="c25"   bitsize="32" offset="228" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="57"/>
+  <reg name="upmucnt6"    altname="c26"   bitsize="32" offset="232" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="58"/>
+  <reg name="upmucnt7"    altname="c27"   bitsize="32" offset="236" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="59"/>
   <reg name="c28"                         bitsize="32" offset="240" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="60"/>
   <reg name="c29"                         bitsize="32" offset="244" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="61"/>
-  <reg name="c30"  altname="utimerlo"     bitsize="32" offset="248" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="62"/>
-  <reg name="c31"  altname="utimerhi"     bitsize="32" offset="252" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="63"/>
+  <reg name="utimerlo"    altname="c30"   bitsize="32" offset="248" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="62"/>
+  <reg name="utimerhi"    altname="c31"   bitsize="32" offset="252" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="63"/>
 
 </feature>
