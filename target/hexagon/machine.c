@@ -227,6 +227,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT64(env.t_cycle_count, HexagonCPU),
         VMSTATE_UINT64(env.pktid, HexagonCPU),
 
+        VMSTATE_BOOL(env.vtcm_pending, HexagonCPU),
         VMSTATE_BOOL(env.ss_pending, HexagonCPU),
         VMSTATE_UINTTL(env.next_PC, HexagonCPU),
 
