@@ -1,6 +1,6 @@
 libqemu_ss.add(files('memory.c', 'cpu.c', 'iothread.c', 'gpio.c', 'timer.c',
                      'chardev.c', 'console.c', 'rcu.c', 'error.c', 'virgl.c',
-		     'qdev.c'))
+		     'qdev.c', 'gdbserver.c'))
 libqemu_ss.add(sdl)
 libqemu_ss.add(when: 'CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', if_true: files('gpex.c'))
 libqemu_ss.add(when: 'CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', if_false: files('stubs/gpex.c'))
@@ -8,5 +8,5 @@ libqemu_ss.add(when: 'CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', if_false: files('stubs
 subdir('target')
 
 install_headers('gpio.h', 'timer.h', 'memory.h', 'cpu.h', 'display.h',
-                'console.h', 'libqemu.h', 'error.h', 'virgl.h',
+                'console.h', 'libqemu.h', 'error.h', 'virgl.h', 'gdbserver.h',
                 subdir : 'libqemu/libqemu/wrappers')
