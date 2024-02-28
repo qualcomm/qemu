@@ -74,7 +74,7 @@ int hexagon_coproc_rpclib_call(const void *args)
         const CoprocArgs *coproc_args = (const CoprocArgs *)args;
         static_cast<RemoteRPC * >(local_rpc)->call_coproc(coproc_args->opcode,
             coproc_args->vtcm_base, coproc_args->vtcm_size,
-            coproc_args->reg_usr, coproc_args->fd, coproc_args->page_size,
+            coproc_args->reg_usr, coproc_args->subsystem_id, coproc_args->page_size,
             coproc_args->arg1, coproc_args->arg2);
     }
     return 0;

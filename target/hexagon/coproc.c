@@ -29,9 +29,7 @@
 void coproc(const CoprocArgs *args)
 {
 #if !defined(CONFIG_USER_ONLY) && !defined(_WIN32)
-    if (ATOMIC_LOAD(hexagon_coproc_available) == true) {
-        hexagon_coproc_rpclib_call((const void *)args);
-    }
+    hexagon_coproc_rpclib_call((const void *)args);
 #endif
 }
 

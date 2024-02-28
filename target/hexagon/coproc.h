@@ -17,6 +17,9 @@
 
 #ifndef HEX_COPROC_H
 #define HEX_COPROC_H
+#include <sys/types.h>
+#include <stdio.h>
+#include <unistd.h>
 
 typedef struct {
     int32_t opcode;
@@ -26,7 +29,7 @@ typedef struct {
     uint8_t unit;
     uint16_t spare;
     uint32_t reg_usr;
-    int32_t fd;
+    uint32_t subsystem_id;
     int32_t page_size;
     int32_t arg1;
     int32_t arg2;
@@ -34,5 +37,4 @@ typedef struct {
 
 void coproc(const CoprocArgs *args);
 
-extern int hexagon_coproc_available;
 #endif

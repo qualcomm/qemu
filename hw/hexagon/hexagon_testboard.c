@@ -42,6 +42,9 @@
 #include "sysemu/qtest.h"
 
 #include "machine_configs.h.inc"
+#include "qemu/osdep.h"
+#include "qemu/qemu-print.h"
+#include "coproc.h"
 
 static bool syscfg_is_linux;
 
@@ -138,86 +141,98 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
     }
 }
 
-#define SHMEM_VTCM "hexagon_vtcm"
-
+#define VTCM_NAME "/vtcm_"
 static void *vtcm_addr;
-static uint64_t vtcm_size;
-static int memfd_fd = -1;
-volatile int hexagon_coproc_available; /* set/used by multipole threads */
+static int shm_fd;
 
-static void vtcm_exit_handler(void)
-
-{
-    if (vtcm_addr) {
-        #if defined(__APPLE__) || defined(_WIN32)
-        g_free(vtcm_addr);
-        #else
-        if (memfd_fd == -1) {
-            /* num_coproc_instance must have been 0 */
-            g_free(vtcm_addr);
-        } else {
-             munmap(vtcm_addr, vtcm_size);
-        }
-        #endif
-    }
-}
-
-#if !defined(__APPLE__) && !defined(_WIN32)
-static void *setup_shared_vtcm(uint64_t vtcm_size)
-
-{
-    GString *s = g_string_new(NULL);
-
-    g_string_printf(s, "%s_%u", SHMEM_VTCM, getpid());
-    gchar *shm_name = g_string_free(s, false);
-    int fd = memfd_create(shm_name, 0);
-    if (fd == -1) {
-        hw_error("qemu: shm_open failed:%s:%s\n", strerror(errno), shm_name);
-        g_free(shm_name);
-        exit(1);
-    }
-    memfd_fd = fd;
-
-    if (ftruncate(fd, vtcm_size) == -1) {
-        hw_error("qemu: ftruncate failed:%s:%s\n", strerror(errno), shm_name);
-        g_free(shm_name);
-        exit(1);
-    }
-
-    void *addr = (void *)mmap(0, vtcm_size, PROT_READ | PROT_WRITE,
-             MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED) {
-        hw_error("qemu: mmap failed : %s:%s\n", strerror(errno), shm_name);
-        g_free(shm_name);
-        exit(1);
-    }
-    g_free(shm_name);
-    atexit(vtcm_exit_handler);
-
-    return addr;
-}
+/*
+ * In QQVP mode num is the subsystem id (currently either 0 or 1)
+ *   NSP0's vtcm would be /vtcm_0-###
+ *   NSP1's vtcm would be /vtcm_1-###
+ *
+ * In standalone QEMU mode it is always 0.
+ */
+#if !defined(_WIN32)
+static GString *shm_name;
 #endif
 
-static void *setup_vtcm(uint64_t vtcm_size,
-    unsigned num_coproc_instance)
+static void vtcm_exit_handler(void)
+{
+    if (vtcm_addr) {
+        if (shm_fd == -1) {
+            /* num_coproc_instance must have been 0 */
+            g_free(vtcm_addr);
+            return;
+        }
+#if !defined(_WIN32)
+        if (shm_name) {
+            shm_unlink(shm_name->str);
+            close(shm_fd);
+            g_string_free(shm_name, TRUE);
+        }
+#endif
+    }
+}
 
+#if !defined(_WIN32)
+static void *setup_shared_vtcm(uint32_t vtcm_size_bytes, uint32_t subsystem_id)
+{
+    shm_name = g_string_new(NULL);
+    g_string_printf(shm_name, "%s%d-%x", VTCM_NAME,
+               subsystem_id, getpid());
+    shm_fd = shm_open(shm_name->str, O_CREAT | O_EXCL | O_RDWR,
+                      S_IRUSR | S_IWUSR);
+    if (shm_fd == -1) {
+        hw_error("qemu: shm_open failed:%s:%s\n",
+                 strerror(errno), shm_name->str);
+        g_string_free(shm_name, TRUE);
+        exit(1);
+    }
+
+    if (ftruncate(shm_fd, vtcm_size_bytes) == -1) {
+        hw_error("qemu: ftruncate failed:%s:%s\n",
+                 strerror(errno), shm_name->str);
+        shm_unlink(shm_name->str);
+        close(shm_fd);
+        g_string_free(shm_name, TRUE);
+        exit(1);
+    }
+
+    void *addr = (void *)mmap(0, vtcm_size_bytes, PROT_READ | PROT_WRITE,
+             MAP_SHARED, shm_fd, 0);
+    if (addr == MAP_FAILED) {
+        hw_error("qemu: mmap failed : %s:%s\n",
+                 strerror(errno), shm_name->str);
+        shm_unlink(shm_name->str);
+        close(shm_fd);
+        g_string_free(shm_name, TRUE);
+        exit(1);
+    }
+    return addr;
+}
+#endif /* !WIN32 */
+
+static void *setup_vtcm(uint32_t vtcm_size_bytes,
+    unsigned num_coproc_instance, uint32_t subsystem_id)
 {
     void *addr;
 
-    #if defined(__APPLE__) || defined(_WIN32)
-    addr = g_malloc0(vtcm_size);
-    ATOMIC_STORE(hexagon_coproc_available, false);
-    #else
     if (!num_coproc_instance) {
-        addr = g_malloc0(vtcm_size);
-        ATOMIC_STORE(hexagon_coproc_available, false);
+        addr = g_malloc0(vtcm_size_bytes);
+        shm_fd = -1;
     } else {
-        addr = setup_shared_vtcm(vtcm_size);
-        ATOMIC_STORE(hexagon_coproc_available, true);
+#if !defined(_WIN32)
+        addr = setup_shared_vtcm(vtcm_size_bytes, subsystem_id);
+#else
+/*
+ * Currently the coprocessor does not support windows.
+ */
+        qemu_printf("WARNING: VTCM detected without coprocessor support\n");
+        addr = g_malloc0(vtcm_size_bytes);
+        shm_fd = -1;
+#endif
     }
-    #endif
     atexit(vtcm_exit_handler);
-
     return addr;
 }
 
@@ -253,10 +268,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     memory_region_add_subregion(address_space, 0x0, sram);
 
     MemoryRegion *vtcm = g_new(MemoryRegion, 1);
-    vtcm_size = cfgTable->vtcm_size_kb * 1024;
-    vtcm_addr = setup_vtcm(vtcm_size, (cfgTable->coproc2_reg0) ? 1 : 0);
+    uint32_t vtcm_size_bytes = cfgTable->vtcm_size_kb * 1024;
 
-    memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size, vtcm_addr);
+    vtcm_addr = setup_vtcm(vtcm_size_bytes, (cfgTable->coproc2_reg0) ? 1 : 0,
+                           0);
+    memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
+                               vtcm_addr);
     memory_region_add_subregion(address_space, cfgTable->vtcm_base, vtcm);
 
     /* Test region for cpz addresses above 32-bits */
@@ -307,7 +324,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);
 
-        env->memfd_fd = memfd_fd;
+        env->shm_fd = shm_fd;
         if (i == 0) {
             if (cpu->rev_reg) {
                 rev = cpu->rev_reg;

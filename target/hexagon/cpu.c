@@ -121,6 +121,7 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
     DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance, 1),
+    DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -835,10 +836,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
             const char *coproc_path = get_coproc_path(env);
             if (coproc_path) {
                 int hex_rev = cpu->rev_reg;
-                if (ATOMIC_LOAD(hexagon_coproc_available)) {
-                    if (hexagon_coproc_rpclib_init(coproc_path, hex_rev) == 1) {
-                        g_assert_not_reached();
-                    }
+                if (hexagon_coproc_rpclib_init(coproc_path, hex_rev) == 1) {
+                    g_assert_not_reached();
                 }
                 g_free((void *)coproc_path);
             }
@@ -849,7 +848,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
             args.vtcm_size = cpu->vtcm_size_kb * 1024;
             args.minver = 0;
             args.reg_usr = GET_FIELD(USR_FPCOPROC, env->gpr[HEX_REG_USR]);
-            args.fd = env->memfd_fd;
+            args.subsystem_id = cpu->subsystem_id;
             coproc(&args);
         }
     } else {

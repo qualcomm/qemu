@@ -429,7 +429,7 @@ typedef struct CPUArchState {
     uint64_t *g_pcycle_base;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
     hex_memop_pc memop_pc;
-    int32_t memfd_fd;
+    int32_t shm_fd;
 #ifndef CONFIG_USER_ONLY
     int32_t slot;                    /* Needed for exception generation */
     hex_exception_info einfo;
@@ -487,6 +487,7 @@ struct ArchCPU {
     bool isdben_trusted;
     bool isdben_secure;
     uint32_t num_coproc_instance;
+    uint32_t subsystem_id;
 #endif
     uint32_t rev_reg;
     bool lldb_compat;

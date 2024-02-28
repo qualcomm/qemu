@@ -40,6 +40,12 @@ variables:
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # Hexagon
   HEX_CONFIG_OPTS: >-
+    --extra-ldflags=-lrt
+
+  HEX_CONFIG_OPTS_MAC: >-
+
+  HEX_CONFIG_OPTS_WIN: >-
+    --qemu-testing-path="wine $$installdir/qemu-system-hexagon.exe"
 
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # AArch64
@@ -51,14 +57,14 @@ variables:
   GENERIC_CONFIG_CMD: ../configure --prefix="$$installdir" --disable-install-blobs
   HEX_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $HEX_CONFIG_OPTS --target-list=hexagon-softmmu,hexagon-linux-user
   AARCH64_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $AARCH64_CONFIG_OPTS --target-list=aarch64-softmmu,aarch64-linux-user
-  HEX_MAC_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --disable-strip --disable-pie --disable-virglrenderer --disable-opengl --target-list=hexagon-softmmu
-  HEX_WIN_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS --without-default-features --assert-target-compiler --cross-prefix=x86_64-w64-mingw32- --target-list=hexagon-softmmu --qemu-testing-path="wine $$installdir/qemu-system-hexagon.exe"
+  HEX_MAC_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS_MAC --disable-strip --disable-pie --disable-virglrenderer --disable-opengl --target-list=hexagon-softmmu
+  HEX_WIN_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS_WIN --without-default-features --assert-target-compiler --cross-prefix=x86_64-w64-mingw32- --target-list=hexagon-softmmu
 
   GITLAB_URL: echo "$CI_SERVER_URL" | sed -e 's/^.*:\/\///g' -e 's/:[0-9]*$//g'
 
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
-  HEX_COPROC_SHA: d5f9bd0441025f3ee8f1144173c9211980537eaa
+  HEX_COPROC_SHA: d7b56bcc9faff03bef8971168c7222c207dc9228
 
   TARBALLS_PATH: tarball-artifacts
 

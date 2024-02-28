@@ -39,7 +39,7 @@
 #include <unistd.h>
 #include <utility>
 
-#define RPC_VERSION 3
+#define RPC_VERSION 4
 #define GS_Process_Server_Port "GS_Process_Server_Port"
 #define GS_Process_Server_Port_Len 22
 #define DECIMAL_PORT_NUM_STR_LEN 20
@@ -331,7 +331,6 @@ class RemoteRPC {
     ~RemoteRPC()
     {
         cancel_waiting = true;
-        __atomic_store_n(&hexagon_coproc_available, false, __ATOMIC_SEQ_CST);
         if (server) {
             server->close_sessions();
             server->stop();

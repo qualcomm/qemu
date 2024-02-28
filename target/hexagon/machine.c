@@ -220,7 +220,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.VRegs_updated_tmp, HexagonCPU),
 
         VMSTATE_INT32(env.status, HexagonCPU),
-        VMSTATE_INT32(env.memfd_fd, HexagonCPU),
+        VMSTATE_INT32(env.shm_fd, HexagonCPU),
         VMSTATE_INT32(env.slot, HexagonCPU),
 
         VMSTATE_UINT64(env.llsc_val_i64, HexagonCPU),
