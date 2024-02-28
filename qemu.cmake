@@ -58,6 +58,8 @@ if (APPLE)
         --disable-sdl-image
         --disable-kvm
     )
+else()
+set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --extra-ldflags=-lrt)
 endif()
 
 if (GS_ENABLE_CAPSTONE)
