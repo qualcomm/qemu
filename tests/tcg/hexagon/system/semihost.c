@@ -201,9 +201,10 @@ int main(int argc, char **argv)
     assert(!ret);
 
     /* READ */
-    SWI(HEX_SYS_READ, fd, buf, strlen(str));
     int n = strlen(str);
-    assert(!ret && !strncmp(str, buf, strlen(str)));
+    SWI(HEX_SYS_READ, fd, buf, n);
+    buf[n] = '\0';
+    assert(!ret && !strcmp(str, buf));
 
     /* FTELL */
     SWI(HEX_SYS_FTELL, fd);
@@ -237,13 +238,12 @@ int main(int argc, char **argv)
     assert(ret == EBADF);
 
     /* RENAME */
-    char *ogfname = strdup(fname);
+    char ogfname[4096];
     int len = strlen(fname);
-    assert(ogfname);
+    strcpy(ogfname, fname);
     fname[len - 1] = (fname[len - 1] == 'a' ? 'b' : 'a');
     SWI(HEX_SYS_RENAME, ogfname, len, fname, len);
     assert(!ret);
-    free(ogfname);
 
     /* STAT */
     SWI(HEX_SYS_STAT, fname, &st);
@@ -275,25 +275,20 @@ int main(int argc, char **argv)
 
     /* READDIR */
     char *expected_files[4] = { ".", "..", "fileA", "fileB" };
-    char *found_files[4];
-    const int ERRNO_SENTINEL = 10000; /* invalid errno number */
-    errno = ERRNO_SENTINEL;
+    char found_files[4][256];
     for (int i = 0; 1; i++) {
-        struct dirent dirent;
+        struct __attribute__((__packed__)) { int32_t _; char d_name[256]; } dirent;
         DIRECT_SWI(HEX_SYS_READDIR, dir_index, &dirent);
         if (!ret) {
             break;
         }
         assert(i < 4);
-        found_files[i] = strdup(dirent.d_name);
-        assert(found_files[i]);
+        strcpy(found_files[i], dirent.d_name);
     }
-    assert(errno == ERRNO_SENTINEL);
 
-    sort_str_arr(found_files, 4);
+    sort_str_arr((char **)found_files, 4);
     for (int i = 0; i < 4; i++) {
         assert(!strcmp(found_files[i], expected_files[i]));
-        free(found_files[i]);
     }
 
     /* CLOSEDIR */

@@ -39,15 +39,11 @@ static uintptr_t get_vtcm_base(void)
 #ifdef __hexagon__
     int vtcm_offset = 0x038;
 
-#ifdef __linux__
-    return (uintptr_t)vtcm_buffer;
-#else
 #if __HEXAGON_ARCH__ == 65
     return 0xD8200000L;
 #elif __HEXAGON_ARCH__ >= 66
     return read_cfgtable_field(vtcm_offset) << 16;
 #endif /* __HEXAGON_ARCH__ */
-#endif /* __linux __ */
 #else
     void *vtcm =
         calloc(1024 * 1024 * 8, sizeof(char)); /* 8mb largest vtcm for now */
