@@ -31,7 +31,7 @@ typedef struct PCMachineState {
     Notifier machine_done;
 
     /* Pointers to devices and objects: */
-    PCIBus *bus;
+    PCIBus *pcibus;
     I2CBus *smbus;
     PFlashCFI01 *flash[2];
     ISADevice *pcspk;
@@ -50,6 +50,7 @@ typedef struct PCMachineState {
     bool hpet_enabled;
     bool i8042_enabled;
     bool default_bus_bypass_iommu;
+    bool fd_bootchk;
     uint64_t max_fw_size;
 
     /* ACPI Memory hotplug IO base address */
@@ -92,7 +93,6 @@ struct PCMachineClass {
 
     /* Device configuration: */
     bool pci_enabled;
-    bool kvmclock_enabled;
     const char *default_south_bridge;
 
     /* Compat options: */
@@ -147,7 +147,6 @@ OBJECT_DECLARE_TYPE(PCMachineState, PCMachineClass, PC_MACHINE)
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
 
 /* pc.c */
-extern int fd_bootchk;
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 

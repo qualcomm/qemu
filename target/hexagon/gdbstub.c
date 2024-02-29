@@ -67,8 +67,11 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 }
 
 #ifndef CONFIG_USER_ONLY
-int hexagon_sys_gdb_read_register(CPUHexagonState *env, GByteArray *mem_buf, int n)
+int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
     if (n < NUM_SREGS) {
         return gdb_get_regl(mem_buf, ARCH_GET_SYSTEM_REG(env, n));
     }
@@ -82,8 +85,11 @@ int hexagon_sys_gdb_read_register(CPUHexagonState *env, GByteArray *mem_buf, int
     g_assert_not_reached();
 }
 
-int hexagon_sys_gdb_write_register(CPUHexagonState *env, uint8_t *mem_buf, int n)
+int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
     if (n < NUM_SREGS) {
         ARCH_SET_SYSTEM_REG(env, n, ldtul_p(mem_buf));
         return sizeof(target_ulong);
@@ -119,8 +125,11 @@ static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
     return total;
 }
 
-int hexagon_hvx_gdb_read_register(CPUHexagonState *env, GByteArray *mem_buf, int n)
+int hexagon_hvx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
     if (n < NUM_VREGS) {
         return gdb_get_vreg(env, mem_buf, n);
     }
@@ -153,8 +162,11 @@ static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
     return MAX_VEC_SIZE_BYTES / 8;
 }
 
-int hexagon_hvx_gdb_write_register(CPUHexagonState *env, uint8_t *mem_buf, int n)
+int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
    if (n < NUM_VREGS) {
         return gdb_put_vreg(env, mem_buf, n);
     }
