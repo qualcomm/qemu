@@ -1384,6 +1384,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         cpu->hvf->vtimer_masked = true;
         return 0;
     case HV_EXIT_REASON_CANCELED:
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
         /* we got kicked, no exit to process */
         return 0;
     default:
