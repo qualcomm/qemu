@@ -27,6 +27,10 @@
 #include <linux/kvm.h>
 #include "kvm-cpus.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 static void *kvm_vcpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
@@ -55,6 +59,9 @@ static void *kvm_vcpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(cpu);
             }
         }
+#ifdef CONFIG_LIBQEMU
+    libqemu_cpu_end_of_loop_cb(cpu);
+#endif
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     kvm_destroy_vcpu(cpu);
