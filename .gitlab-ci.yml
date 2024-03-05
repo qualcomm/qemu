@@ -4,4 +4,4 @@
 #
 
 include:
-  - local: '/.quic-gitlab-ci.d/base.yml'
+  - local: '/quic-gitlab-ci.d/base.yml'

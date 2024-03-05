@@ -213,7 +213,7 @@ coproc_build:
 checkpatch:
   extends: .mr-job
   stage: test
-  script: .quic-gitlab-ci.d/checkpatch.sh $TARGET_REF $SOURCE_REF
+  script: quic-gitlab-ci.d/checkpatch.sh $TARGET_REF $SOURCE_REF
   allow_failure: true
 
 hexagon_build_ug:
@@ -411,12 +411,12 @@ test_hexagon_perf:
   # We'll execute a smaller subset of tests, fewer iters for routine
   # commits/MRs.  In a nightly build we can run a comprehensive test.
   before_script:
-    -   PERF_TEST_CFG="${PWD}/.quic-gitlab-ci.d/minimal_test_config.py" ;
-        PERF_TEST_CFG_MTTCG="${PWD}/.quic-gitlab-ci.d/mttcg_min_test_config.py" ;
+    -   PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/minimal_test_config.py" ;
+        PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_min_test_config.py" ;
         PERF_TEST_ITERS="3" ;
         if [[ "${CI_PIPELINE_SOURCE}" == "schedule" ]] || [[ "${CI_PIPELINE_SOURCE}" == "web" ]]; then
-            PERF_TEST_CFG="${PWD}/.quic-gitlab-ci.d/default_test_config.py" ;
-            PERF_TEST_CFG_MTTCG="${PWD}/.quic-gitlab-ci.d/mttcg_full_test_config.py" ;
+            PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/default_test_config.py" ;
+            PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_full_test_config.py" ;
             PERF_TEST_ITERS="6";
         fi
   script:
@@ -457,7 +457,7 @@ test_hexagon_perf_ml:
   # We'll execute a smaller subset of tests, fewer iters for routine
   # commits/MRs.  In a nightly build we can run a comprehensive test.
   before_script:
-    -   PERF_TEST_CFG="${PWD}/.quic-gitlab-ci.d/hex_nn_v3.py" ;
+    -   PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/hex_nn_v3.py" ;
         PERF_TEST_ITERS="1" ;
         if [[ "${CI_PIPELINE_SOURCE}" == "schedule" ]] || [[ "${CI_PIPELINE_SOURCE}" == "web" ]]; then
             PERF_TEST_ITERS="3";
