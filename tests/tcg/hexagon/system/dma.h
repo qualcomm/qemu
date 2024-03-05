@@ -68,7 +68,7 @@ fill_descriptor0(void *src, void *dst, int length,
     desc0.length = length;
     desc0.src = src;
     desc0.dst = dst;
-    printf("fill desc: src %p, dst %p, len %u, next %p\n", src, dst, length,
+    printf("fill desc: src %p, dst %p, len %d, next %p\n", src, dst, length,
            next);
 
     return desc0;
@@ -98,7 +98,7 @@ fill_descriptor1(void *src, void *dst, int length, int roiheight, int roiwidth,
     desc1.srcwidthoffset = src_wo;
     desc1.src = src;
     desc1.dst = dst;
-    printf("fill desc: src %p, dst %p, len %u, next %p\n", src, dst, length,
+    printf("fill desc: src %p, dst %p, len %d, next %p\n", src, dst, length,
            next);
 
     return desc1;
@@ -106,12 +106,5 @@ fill_descriptor1(void *src, void *dst, int length, int roiheight, int roiwidth,
 
 #define ALIGN (1024 * 32)
 #define DESC_ALIGN (1024 * 8)
-
-hexagon_udma_descriptor_type0_t *alloc_descriptor()
-{
-    uint8_t *ptr = aligned_alloc(DESC_ALIGN, DESC_ALIGN * 2);
-    printf("desc0_1 at 0x%p\n", ptr);
-    return (hexagon_udma_descriptor_type0_t *)ptr;
-}
 
 #endif

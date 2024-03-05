@@ -55,6 +55,16 @@ void *memset(void *b, int c, size_t len)
     return b;
 }
 
+int memcmp(const void *p1, const void *p2, size_t n)
+{
+    const char *s1 = p1;
+    const char *s2 = p2;
+    for ( ; n && (*s1 == *s2); s1++, s2++, n--) {
+        /* empty */
+    }
+    return n ? *(unsigned char *)s1 - *(unsigned char *)s2 : 0;
+}
+
 int bcmp(const void *s1, const void *s2, size_t n)
 {
     return __builtin_bcmp(s1, s2, n);
@@ -207,6 +217,7 @@ int printf(const char *format, ...)
             switch (*ptr) {
             case 'd':
             case 'x':
+            case 'p':
             {
                 int num = __builtin_va_arg(ap, int);
                 fputs(num_to_s(num, *ptr == 'd' ? 10 : 16), stdout);

@@ -3,7 +3,8 @@
  */
 
 #include <assert.h>
-#include <hexagon_standalone.h>
+#include <stdint.h>
+#include <stdio.h>
 
 static inline uint32_t getvid()
 {
@@ -21,14 +22,14 @@ int main()
     uint32_t testval = 0x3ff03ff;
     setvid(testval);
     if (testval != getvid()) {
-        printf("ERROR: vid read returned: 0x%08lx\n", getvid());
+        printf("ERROR: vid read returned: 0x%x\n", getvid());
     }
     assert(testval == getvid());
 
     /* L2VIC_NO_PENDING (0xffffffff) should not update the vid */
     setvid(0xffffffff);
     if (testval != getvid()) {
-        printf("ERROR: vid read returned: 0x%08lx\n", getvid());
+        printf("ERROR: vid read returned: 0x%x\n", getvid());
     }
 
     assert(testval == getvid());

@@ -18,8 +18,8 @@
 
 #include "hvx-multi.h"
 #include <stdio.h>
-#include <hexagon_standalone.h>
 #include "filename.h"
+#include <stdint.h>
 
 enum {
   resource_unmapped = -1,

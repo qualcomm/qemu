@@ -45,10 +45,7 @@ endif
 
 DOWNSTREAM_TESTS += \
 	mmu_multi_tlb \
-	mmu_page_size \
 	mmu_permissions \
-	mmu_overlap \
-	mmu_asids \
 	mmu_cacheops \
 	badva \
 	tlblock \
@@ -57,13 +54,11 @@ DOWNSTREAM_TESTS += \
 	invalid_insn_for_rev \
 	sys_atomics \
 	bestwait \
-	ciad-siad \
 	fastl2vic \
 	fastint \
 	swi \
 	swi2 \
 	swi_wait \
-	udma \
 	hvx_64b \
 	hvx_ext-0x75 \
 	hvx_ext-0x79 \
@@ -72,8 +67,6 @@ DOWNSTREAM_TESTS += \
 	pendalot \
 	vid-group \
 	levelint \
-	vid_reg \
-	int_range \
 	fopen \
 	ftrunc \
 	dirent \
@@ -89,7 +82,6 @@ DOWNSTREAM_TESTS += \
 	start \
 	single_step \
 	sys_reg_mut \
-	hvx-multi \
 	memcpy \
 	double_ex \
 	qfloat_test \
@@ -124,27 +116,6 @@ hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
 
 mmu.h: ../hex_test.h
 invalid_opcode.h: mmu.h
-
-mmu_page_size.o: mmu_page_size.c mmu.h
-mmu_page_size: mmu_page_size.o dummy_mutex.o
-standalone_hw: standalone_hw.o monitor_insts.o
-standalone_vec.o: standalone_vec.c filename.h cfgtable.h
-standalone_vec: standalone_vec.o
-mmu_overlap.o: mmu_overlap.c mmu.h
-mmu_overlap: mmu_overlap.o dummy_mutex.o
-mmu_asids.o: mmu_asids.c mmu.h
-mmu_asids: mmu_asids.o dummy_mutex.o
-mmu_cacheops.o: mmu_cacheops.c mmu.h
-ciad-siad: ciad-siad.o
-udma: udma.o
-udma.o: udma.c filename.h dma.h
-vid_reg: vid_reg.o
-int_range.o: int_range.c filename.h cfgtable.h
-int_range: int_range.o
-semihost.o: semihost.c strutils.h
-semihost: semihost.o
-hvx-multi.o: hvx-multi.c
-hvx-multi: hvx-multi.o hvx-multi-asm.o
 
 mmu_multi_tlb.o: mmu_multi_tlb.c mmu.h
 mmu_multi_tlb: mmu_multi_tlb.o dummy_mutex.o
@@ -243,10 +214,6 @@ k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c filename.h cfgtable.h mmu.h vtcm_common.h dma.h
-
-standalone_vec.o: CFLAGS+= -mv69 -O2 -mhvx  -fvectorize
-hvx-multi.o: CFLAGS+= -O2 -mhvx
-hvx-multi-asm.o: CFLAGS+= -mhvx
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024

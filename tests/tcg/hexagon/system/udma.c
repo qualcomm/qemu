@@ -25,31 +25,28 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include "dma.h"
 
 #define SMALL_SIZE (1024 * 1024 * 1)
 #define LARGE_SIZE (1024 * 1024 * 4)
 
+unsigned char small_memory[SMALL_SIZE + ALIGN];
+unsigned char large_memory[LARGE_SIZE + ALIGN];
+
+unsigned char __attribute__((__aligned__(DESC_ALIGN))) desc_buf1[DESC_ALIGN * 2];
+unsigned char __attribute__((__aligned__(DESC_ALIGN))) desc_buf2[DESC_ALIGN * 2];
+
 #define HALF_SIZE(X) ((X) / 2)
 #define QUARTER_SIZE(X) ((X) / 4)
 
-void test(int do_file_op, const int alloc_size, const char *err_msg)
-
+void test(bool use_small, const char *err_msg)
 {
     const char *ofname = "memory.dat";
-    unsigned char *memory;
+    unsigned char *memory = use_small ? small_memory : large_memory;
+    size_t alloc_size = use_small ? SMALL_SIZE : LARGE_SIZE;
 
-    if (do_file_op) {
-        (void)remove(ofname);
-    }
-
-    /* allocate, align and init data area */
-    memory = malloc(alloc_size + ALIGN);
-    if (!memory) {
-        printf("FAIL : %s\n", __FILENAME__);
-        printf("out of memory: data area\n");
-        exit(-2);
-    }
+    /* init data area */
     memory += ALIGN;
     memory = (unsigned char *)((uintptr_t)memory & (~(ALIGN - 1)));
     unsigned char *src1 = memory;
@@ -59,18 +56,14 @@ void test(int do_file_op, const int alloc_size, const char *err_msg)
     memset(src2, 0xBB,
            DMA_XFER_SIZE(
                alloc_size)); /* fill source memory area 2 : different value */
-    printf("malloc memory at %p: src1 %p: src2 %p\n", memory, src1, src2);
+    printf("memory at %p: src1 %p: src2 %p\n", memory, src1, src2);
 
-    /* now allocate and init descriptors */
+    /* now init descriptors */
     hexagon_udma_descriptor_type0_t *desc0_1, *desc0_2;
-    desc0_1 = alloc_descriptor();
-    desc0_2 = alloc_descriptor();
-    if (!desc0_1 || !desc0_2) {
-        printf("FAIL : %s\n", __FILENAME__);
-        printf("out of memory: descriptors\n");
-        exit(-2);
-    }
+    desc0_1 = (hexagon_udma_descriptor_type0_t *)desc_buf1;
+    desc0_2 = (hexagon_udma_descriptor_type0_t *)desc_buf2;
     printf("aligned: desc0_1 at %p, desc0_2 at %p\n", desc0_1, desc0_2);
+
     unsigned char *dst1 = memory + HALF_SIZE(alloc_size);
     unsigned char *dst2 =
         memory + HALF_SIZE(alloc_size) + QUARTER_SIZE(alloc_size);
@@ -98,46 +91,13 @@ void test(int do_file_op, const int alloc_size, const char *err_msg)
         printf("NOTE: %s\n", err_msg);
         exit(-3);
     }
-
-    /* write memory to output file */
-    if (do_file_op) {
-        int ofno;
-
-        printf("writing to: %s\n", ofname);
-        ofno = open(ofname, O_CREAT | O_TRUNC | O_WRONLY,
-                    S_IRWXU | S_IRWXG | S_IRWXO);
-        if (!ofno) {
-            printf("FAIL : %s\n", __FILENAME__);
-            printf("can't open file: %s\n", ofname);
-            exit(-4);
-        }
-
-        if (write(ofno, memory, alloc_size) != alloc_size) {
-            printf("FAIL : %s\n", __FILENAME__);
-            printf("can't write file: %s\n", ofname);
-            exit(-4);
-        }
-        close(ofno);
-        printf("%s created successfully!\n", ofname);
-    }
-
-    free(memory);
-    free(desc0_1);
-    free(desc0_2);
 }
 
 int main(int argc, char **argv)
 
 {
-    int do_file_op = 0;
-
-    puts("");
-    if (argc == 2 && strcasecmp(argv[1], "-file") == 0) {
-        do_file_op = 1;
-    }
-
-    test(do_file_op, SMALL_SIZE, "General DMA failure");
-    test(do_file_op, LARGE_SIZE, "Preload of dst buffers probably missing");
+    test(true, "General DMA failure");
+    test(false, "Preload of dst buffers probably missing");
     printf("PASS : %s\n", __FILENAME__);
 
     exit(0);

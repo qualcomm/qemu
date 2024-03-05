@@ -35,7 +35,7 @@ static inline void ciad(uint32_t val)
 static inline uint32_t getipendad()
 {
     uint32_t reg;
-    asm volatile ("%0=ipendad;"
+    asm volatile ("%0=s20;"
                   : "=r"(reg));
     return reg;
 }

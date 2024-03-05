@@ -21,7 +21,8 @@
 
 #include "filename.h"
 #include <assert.h>
-#include <hexagon_standalone.h>
+#include <stdint.h>
+#include <stdio.h>
 #include "cfgtable.h"
 
 #define L2VIC_INT_ENABLE(b, n)                                               \

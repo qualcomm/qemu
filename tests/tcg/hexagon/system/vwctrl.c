@@ -138,6 +138,13 @@ void calc_win_boundaries(uint32_t vtcm_base_addr, uint32_t vwctrl_lo,
     *wmax = vtcm_base_addr + ((vwctrl_hi + 1) * 4 * 1024) - 1;
 }
 
+hexagon_udma_descriptor_type0_t *alloc_descriptor()
+{
+    uint8_t *ptr = aligned_alloc(DESC_ALIGN, DESC_ALIGN * 2);
+    printf("desc0_1 at 0x%p\n", ptr);
+    return (hexagon_udma_descriptor_type0_t *)ptr;
+}
+
 void test_vtcm_dma(uint32_t access_addr, uint32_t wmin, uint32_t wmax,
                    bool expect_failure)
 {
