@@ -531,6 +531,10 @@
 #     and can result in more stable read performance.  Requires KVM
 #     with accelerator property "dirty-ring-size" set.  (Since 8.1)
 #
+# @mapped-ram: Migrate using fixed offsets in the migration file for
+#     each RAM page.  Requires a migration URI that supports seeking,
+#     such as a file.  (since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block is deprecated.  Use blockdev-mirror with
@@ -555,7 +559,7 @@
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
-           'dirty-limit'] }
+           'dirty-limit', 'mapped-ram'] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -636,28 +640,30 @@
 #
 # @normal: the original form of migration. (since 8.2)
 #
-# @cpr-reboot: The migrate command stops the VM and saves state to the URI.
-#     After quitting qemu, the user resumes by running qemu -incoming.
+# @cpr-reboot: The migrate command stops the VM and saves state to
+#     the URI.  After quitting QEMU, the user resumes by running
+#     QEMU -incoming.
 #
-#     This mode allows the user to quit qemu, and restart an updated version
-#     of qemu.  The user may even update and reboot the OS before restarting,
-#     as long as the URI persists across a reboot.
+#     This mode allows the user to quit QEMU, optionally update and
+#     reboot the OS, and restart QEMU.  If the user reboots, the URI
+#     must persist across the reboot, such as by using a file.
 #
-#     Unlike normal mode, the use of certain local storage options does not
-#     block the migration, but the user must not modify guest block devices
-#     between the quit and restart.
+#     Unlike normal mode, the use of certain local storage options
+#     does not block the migration, but the user must not modify the
+#     contents of guest block devices between the quit and restart.
 #
-#     This mode supports vfio devices provided the user first puts the guest
-#     in the suspended runstate, such as by issuing guest-suspend-ram to the
-#     qemu guest agent.
+#     This mode supports VFIO devices provided the user first puts
+#     the guest in the suspended runstate, such as by issuing
+#     guest-suspend-ram to the QEMU guest agent.
 #
-#     Best performance is achieved when the memory backend is shared and the
-#     @x-ignore-shared migration capability is set, but this is not required.
-#     Further, if the user reboots before restarting such a configuration, the
-#     shared backend must be be non-volatile across reboot, such as by backing
-#     it with a dax device.
+#     Best performance is achieved when the memory backend is shared
+#     and the @x-ignore-shared migration capability is set, but this
+#     is not required.  Further, if the user reboots before restarting
+#     such a configuration, the shared memory must persist across the
+#     reboot, such as by backing it with a dax device.
 #
-#     cpr-reboot may not be used with postcopy, colo, or background-snapshot.
+#     @cpr-reboot may not be used with postcopy, background-snapshot,
+#     or COLO.
 #
 #     (since 8.2)
 ##
@@ -1566,8 +1572,6 @@
 #
 # Cancel the current executing migration process.
 #
-# Returns: nothing on success
-#
 # Notes: This command succeeds even if there is no migration process
 #     running.
 #
@@ -1586,8 +1590,6 @@
 # Continue migration when it's in a paused state.
 #
 # @state: The state the migration is currently expected to be in
-#
-# Returns: nothing on success
 #
 # Since: 2.11
 #
@@ -1710,8 +1712,6 @@
 # @deprecated: Members @inc and @blk are deprecated.  Use
 #     blockdev-mirror with NBD instead.
 #
-# Returns: nothing on success
-#
 # Since: 0.14
 #
 # Notes:
@@ -1793,8 +1793,6 @@
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
 #
-# Returns: nothing on success
-#
 # Since: 2.3
 #
 # Notes:
@@ -1862,8 +1860,6 @@
 # @live: Optional argument to ask QEMU to treat this command as part
 #     of a live migration.  Default to true.  (since 2.11)
 #
-# Returns: Nothing on success
-#
 # Since: 1.1
 #
 # Example:
@@ -1881,8 +1877,6 @@
 # Enable or disable the global dirty log mode.
 #
 # @enable: true to enable, false to disable.
-#
-# Returns: nothing
 #
 # Since: 1.3
 #
@@ -1925,8 +1919,6 @@
 #
 # @failover: true to do failover, false to stop.  but cannot be
 #     specified if 'enable' is true.  default value is false.
-#
-# Returns: nothing.
 #
 # Example:
 #
@@ -1978,8 +1970,6 @@
 # @xen-colo-do-checkpoint:
 #
 # Xen uses this command to notify replication to trigger a checkpoint.
-#
-# Returns: nothing.
 #
 # Example:
 #
@@ -2037,8 +2027,6 @@
 #
 # @uri: the URI to be used for the recovery of migration stream.
 #
-# Returns: nothing.
-#
 # Example:
 #
 #     -> { "execute": "migrate-recover",
@@ -2055,8 +2043,6 @@
 # @migrate-pause:
 #
 # Pause a migration.  Currently it only supports postcopy.
-#
-# Returns: nothing.
 #
 # Example:
 #
@@ -2426,8 +2412,6 @@
 #
 # If @tag already exists, an error will be reported
 #
-# Returns: nothing
-#
 # Example:
 #
 #     -> { "execute": "snapshot-save",
@@ -2498,8 +2482,6 @@
 # device nodes that can have changed since the original @snapshot-save
 # command execution.
 #
-# Returns: nothing
-#
 # Example:
 #
 #     -> { "execute": "snapshot-load",
@@ -2560,8 +2542,6 @@
 # when this command returns.  The job commands / events must be used
 # to determine completion and to fetch details of any errors that
 # arise.
-#
-# Returns: nothing
 #
 # Example:
 #
