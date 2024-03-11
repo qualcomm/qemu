@@ -39,10 +39,6 @@
 #include "migration/vmstate.h"
 #include "accel/tcg/cpu-ldst.h"
 
-#ifdef CONFIG_LIBQEMU
-#include "libqemu/callbacks.h"
-#endif
-
 #include "gdbstub/enums.h"
 
 #define MDSCR_EL1_SS_SHIFT  0
