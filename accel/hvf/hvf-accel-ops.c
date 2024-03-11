@@ -59,6 +59,10 @@
 #include "sysemu/runstate.h"
 #include "qemu/guest-random.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 HVFState *hvf_state;
 
 #ifdef __aarch64__
@@ -443,6 +447,9 @@ static void *hvf_cpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(cpu);
             }
         }
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 

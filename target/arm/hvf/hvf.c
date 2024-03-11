@@ -34,10 +34,6 @@
 #include "migration/vmstate.h"
 #include "exec/cpu_ldst.h"
 
-#ifdef CONFIG_LIBQEMU
-#include "libqemu/callbacks.h"
-#endif
-
 #include "gdbstub/enums.h"
 
 #define MDSCR_EL1_SS_SHIFT  0
@@ -1779,9 +1775,6 @@ static void hvf_wfi(CPUState *cpu)
 
     if (!(ctl & 1) || (ctl & 2)) {
         /* Timer disabled or masked, just wait for an IPI. */
-#ifdef CONFIG_LIBQEMU
-        libqemu_cpu_end_of_loop_cb(cpu);
-#endif
         hvf_wait_for_ipi(cpu, NULL);
         return;
     }
@@ -1884,13 +1877,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         cpu->accel->vtimer_masked = true;
         return 0;
     case HV_EXIT_REASON_CANCELED:
-#ifdef CONFIG_LIBQEMU
-        libqemu_cpu_end_of_loop_cb(cpu);
-#endif
         /* we got kicked, no exit to process */
-#ifdef CONFIG_LIBQEMU
-        libqemu_cpu_end_of_loop_cb(cpu);
-#endif
         return 0;
     default:
         /* some unknown reason, treat as a kick dont g_assert_not_reached(); */

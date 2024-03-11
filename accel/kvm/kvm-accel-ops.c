@@ -57,7 +57,7 @@ static void *kvm_vcpu_thread_fn(void *arg)
             }
         }
 #ifdef CONFIG_LIBQEMU
-    libqemu_cpu_end_of_loop_cb(cpu);
+        libqemu_cpu_end_of_loop_cb(cpu);
 #endif
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
