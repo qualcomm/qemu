@@ -32,10 +32,6 @@
 #include "migration/vmstate.h"
 #include "exec/cpu_ldst.h"
 
-#ifdef CONFIG_LIBQEMU
-#include "libqemu/callbacks.h"
-#endif
-
 #define HVF_SYSREG(crn, crm, op0, op1, op2) \
         ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2)
 #define PL1_WRITE_MASK 0x4
@@ -1282,9 +1278,6 @@ static void hvf_wfi(CPUState *cpu)
 
     if (!(ctl & 1) || (ctl & 2)) {
         /* Timer disabled or masked, just wait for an IPI. */
-#ifdef CONFIG_LIBQEMU
-        libqemu_cpu_end_of_loop_cb(cpu);
-#endif
         hvf_wait_for_ipi(cpu, NULL);
         return;
     }
@@ -1384,9 +1377,6 @@ int hvf_vcpu_exec(CPUState *cpu)
         cpu->hvf->vtimer_masked = true;
         return 0;
     case HV_EXIT_REASON_CANCELED:
-#ifdef CONFIG_LIBQEMU
-        libqemu_cpu_end_of_loop_cb(cpu);
-#endif
         /* we got kicked, no exit to process */
         return 0;
     default:
