@@ -60,6 +60,10 @@
 #include "system/hvf_int.h"
 #include <mach/mach_time.h>
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 HVFState *hvf_state;
 
 /* Memory slots */
@@ -199,6 +203,9 @@ static void *hvf_cpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(cpu);
             }
         }
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     hvf_vcpu_destroy(cpu);
