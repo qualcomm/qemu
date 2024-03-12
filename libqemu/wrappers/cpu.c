@@ -111,6 +111,12 @@ void libqemu_cpu_reset(Object *obj)
         cpu_reset(cpu);
     } else {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+  /*
+   * Seems some tcg's (hexagon) need a harder reset?
+   */
+        if (!cpu->kvm_fd) {
+            cpu_reset(cpu);
+        }
     }
 }
 
