@@ -179,7 +179,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-
+        VMSTATE_CPU(),
         VMSTATE_UINTTL_ARRAY(env.gpr, HexagonCPU, TOTAL_PER_THREAD_REGS),
         VMSTATE_UINTTL_ARRAY(env.pred, HexagonCPU, NUM_PREGS),
         VMSTATE_UINTTL_ARRAY(env.vstore_pending, HexagonCPU, VSTORES_MAX),
