@@ -66,7 +66,7 @@ if host_os == 'windows' and add_languages('cpp', required: false, native: false)
   cxx = meson.get_compiler('cpp')
 endif
 if host_os == 'darwin' and \
-   add_languages('objc', required: get_option('cocoa'), native: false)
+   add_languages('objc', required: true, native: false)
   all_languages += ['objc']
   objc = meson.get_compiler('objc')
 endif
@@ -480,11 +480,6 @@ qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
 if host_os == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--no-seh', '-Wl,--nxcompat')
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase', '-Wl,--high-entropy-va')
-endif
-
-# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if host_os != 'sunos' and not get_option('tsan')
-  qemu_ldflags += cc.get_supported_link_arguments('-Wl,--warn-common')
 endif
 
 if get_option('fuzzing')
@@ -2017,19 +2012,23 @@ elif get_option('vduse_blk_export').disabled()
 endif
 
 # libbpf
-libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
+bpf_version = '1.1.0'
+libbpf = dependency('libbpf', version: '>=' + bpf_version, required: get_option('bpf'), method: 'pkg-config')
 if libbpf.found() and not cc.links('''
    #include <bpf/libbpf.h>
+   #include <linux/bpf.h>
    int main(void)
    {
+     // check flag availability
+     int flag = BPF_F_MMAPABLE;
      bpf_object__destroy_skeleton(NULL);
      return 0;
    }''', dependencies: libbpf)
   libbpf = not_found
   if get_option('bpf').enabled()
-    error('libbpf skeleton test failed')
+    error('libbpf skeleton/mmaping test failed')
   else
-    warning('libbpf skeleton test failed, disabling')
+    warning('libbpf skeleton/mmaping test failed, disabling')
   endif
 endif
 
@@ -3820,6 +3819,7 @@ if host_os == 'darwin'
   entitlement = find_program('scripts/entitlement.sh')
 endif
 
+traceable = []
 emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
@@ -3964,7 +3964,7 @@ foreach target : target_dirs
                dependencies: arch_deps + deps + exe['dependencies'],
                link_with : libs_to_link,
                objects: lib.extract_all_objects(recursive: true),
-               link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
+               link_depends: [block_syms, qemu_syms],
                link_args: link_args,
                win_subsystem: exe['win_subsystem'])
 
@@ -3994,29 +3994,11 @@ foreach target : target_dirs
       emulators += {exe['name']: emulator}
     endif
 
-    if stap.found()
-      foreach stp: [
-        {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / exe['name'], 'install': false},
-        {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / exe['name'], 'install': true},
-        {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
-        {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
-      ]
-        custom_target(exe['name'] + stp['ext'],
-                      input: trace_events_all,
-                      output: exe['name'] + stp['ext'],
-                      install: stp['install'],
-                      install_dir: get_option('datadir') / 'systemtap/tapset',
-                      command: [
-                        tracetool, '--group=all', '--format=' + stp['fmt'],
-                        '--binary=' + stp['bin'],
-                        '--target-name=' + target_name,
-                        '--target-type=' + target_type,
-                        '--probe-prefix=qemu.' + target_type + '.' + target_name,
-                        '@INPUT@', '@OUTPUT@'
-                      ],
-                      depend_files: tracetool_depends)
-      endforeach
-    endif
+    traceable += [{
+      'exe': exe['name'],
+      'probe-prefix': 'qemu.' + target_type + '.' + target_name,
+    }]
+
   endforeach
 endforeach
 
@@ -4051,6 +4033,14 @@ if have_tools
                install: true)
 
   subdir('storage-daemon')
+
+  foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
+    traceable += [{
+      'exe': exe,
+      'probe-prefix': 'qemu.' + exe.substring(5).replace('-', '_')
+    }]
+  endforeach
+
   subdir('contrib/rdmacm-mux')
   subdir('contrib/elf2dmp')
 
@@ -4081,6 +4071,32 @@ if have_tools
     subdir('contrib/ivshmem-client')
     subdir('contrib/ivshmem-server')
   endif
+endif
+
+if stap.found()
+  foreach t: traceable
+    foreach stp: [
+      {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / t['exe'], 'install': false},
+      {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / t['exe'], 'install': true},
+      {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
+      {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
+    ]
+      cmd = [
+        tracetool, '--group=all', '--format=' + stp['fmt'],
+        '--binary=' + stp['bin'],
+        '--probe-prefix=' + t['probe-prefix'],
+        '@INPUT@', '@OUTPUT@'
+      ]
+
+      custom_target(t['exe'] + stp['ext'],
+                    input: trace_events_all,
+                    output: t['exe'] + stp['ext'],
+                    install: stp['install'],
+                    install_dir: get_option('datadir') / 'systemtap/tapset',
+                    command: cmd,
+                    depend_files: tracetool_depends)
+    endforeach
+  endforeach
 endif
 
 subdir('scripts')

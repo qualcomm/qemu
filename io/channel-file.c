@@ -45,6 +45,18 @@ qio_channel_file_new_fd(int fd)
     return ioc;
 }
 
+QIOChannelFile *
+qio_channel_file_new_dupfd(int fd, Error **errp)
+{
+    int newfd = dup(fd);
+
+    if (newfd < 0) {
+        error_setg_errno(errp, errno, "Could not dup FD %d", fd);
+        return NULL;
+    }
+
+    return qio_channel_file_new_fd(newfd);
+}
 
 QIOChannelFile *
 qio_channel_file_new_path(const char *path,
@@ -242,11 +254,6 @@ static int qio_channel_file_close(QIOChannel *ioc,
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
 
-    if (qemu_fdatasync(fioc->fd) < 0) {
-        error_setg_errno(errp, errno,
-                         "Unable to synchronize file data with storage device");
-        return -1;
-    }
     if (qemu_close(fioc->fd) < 0) {
         error_setg_errno(errp, errno,
                          "Unable to close file");

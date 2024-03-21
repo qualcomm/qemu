@@ -316,7 +316,6 @@ F: tests/tcg/openrisc/
 PowerPC TCG CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
 M: Daniel Henrique Barboza <danielhb413@gmail.com>
-R: Cédric Le Goater <clg@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: target/ppc/
@@ -468,7 +467,6 @@ F: target/mips/sysemu/
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Daniel Henrique Barboza <danielhb413@gmail.com>
-R: Cédric Le Goater <clg@kaod.org>
 S: Odd Fixes
 F: target/ppc/kvm.c
 
@@ -1133,6 +1131,7 @@ F: hw/arm/stm32l4x5_soc.c
 F: hw/misc/stm32l4x5_exti.c
 F: hw/misc/stm32l4x5_syscfg.c
 F: hw/misc/stm32l4x5_rcc.c
+F: hw/gpio/stm32l4x5_gpio.c
 F: include/hw/*/stm32l4x5_*.h
 
 B-L475E-IOT01A IoT Node
@@ -1507,7 +1506,6 @@ F: tests/avocado/ppc_prep_40p.py
 sPAPR (pseries)
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Daniel Henrique Barboza <danielhb413@gmail.com>
-R: Cédric Le Goater <clg@kaod.org>
 R: David Gibson <david@gibson.dropbear.id.au>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
@@ -1574,6 +1572,7 @@ F: hw/rtc/m41t80.c
 F: pc-bios/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
+F: docs/system/ppc/amigang.rst
 
 pegasos2
 M: BALATON Zoltan <balaton@eik.bme.hu>
@@ -2371,6 +2370,11 @@ F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
 F: tests/qtest/libqos/virtio-scmi.*
 
+vdpa-net
+M: Hao Chen <chenh@yusur.tech>
+S: Maintained
+F: docs/system/devices/vdpa-net.rst
+
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
 S: Supported
@@ -2406,6 +2410,7 @@ F: docs/system/devices/virtio-snd.rst
 nvme
 M: Keith Busch <kbusch@kernel.org>
 M: Klaus Jensen <its@irrelevant.dk>
+R: Jesper Devantier <foss@defmacro.it>
 L: qemu-block@nongnu.org
 S: Supported
 F: hw/nvme/*
@@ -2501,6 +2506,12 @@ M: Patrick Venture <venture@google.com>
 S: Maintained
 F: hw/i2c/i2c_mux_pca954x.c
 F: include/hw/i2c/i2c_mux_pca954x.h
+
+pcf8574
+M: Dmitrii Sharikhin <d.sharikhin@yadro.com>
+S: Maintained
+F: hw/gpio/pcf8574.c
+F: include/gpio/pcf8574.h
 
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
@@ -3586,6 +3597,7 @@ F: util/iova-tree.c
 
 elf2dmp
 M: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
+R: Akihiko Odaki <akihiko.odaki@daynix.com>
 S: Maintained
 F: contrib/elf2dmp/
 
