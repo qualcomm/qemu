@@ -82,13 +82,11 @@ static uint16_t roundPackToF8( bool sign, int_fast8_t exp, uint_fast8_t sig )
 
 uint_fast8_t countLeadingZeros8( uint8_t a )
 {
-    uint_fast8_t count;
     const uint_least8_t countLeadingZeros8[8] = {
         4, 3, 2, 2, 1, 1, 1, 1
     };
 
-    count = countLeadingZeros8[a];
-    return count;
+    return countLeadingZeros8[a];
 
 }
 
@@ -427,7 +425,6 @@ uint8_t fp_neg_8f(uint8_t op1)
 
     float result_f;
     //uint32_t result_f32;
-    uint8_t result;
 
     if (op1 == 0x80) return 0x80; // NaN/INF case 
     else if (op1 == 0x00) return 0x00; //pure zero
@@ -437,8 +434,7 @@ uint8_t fp_neg_8f(uint8_t op1)
     result_f = u_op1.f;
     u_op1.f = result_f;
     
-    result = u_op1.ui;
-    return result;
+    return u_op1.ui;
 }
 
 uint8_t fp_abs_8f(uint8_t op1)
@@ -447,7 +443,6 @@ uint8_t fp_abs_8f(uint8_t op1)
 
     float result_f;
     //uint32_t result_f32;
-    uint8_t result;
 
     if (op1 == 0x80) return 0x80;
     //else if (op1 == 0x00) return 0x00; 
@@ -456,15 +451,12 @@ uint8_t fp_abs_8f(uint8_t op1)
 
     result_f = u_op1.f;
     u_op1.f = result_f;
-    result = u_op1.ui;
-    return result;
+    return u_op1.ui;
 }
 
 uint8_t fp_max_8f(uint8_t op1,uint8_t op2)
 {
     union ui8_f8 u_rslt;
-
-    uint8_t result;
 
     if ((op1 == 0x80) | (op2 == 0x80)) return 0x80;
 
@@ -485,17 +477,13 @@ uint8_t fp_max_8f(uint8_t op1,uint8_t op2)
     }
 
     
-    result = u_rslt.ui;
-
-    return result;
+    return u_rslt.ui;
 
 }
 
 uint8_t fp_min_8f(uint8_t op1,uint8_t op2)
 {
     union ui8_f8 u_rslt;
-
-    uint8_t result;
 
     if ((op1 == 0x80) | (op2 == 0x80)) return 0x80;
 
@@ -514,9 +502,7 @@ uint8_t fp_min_8f(uint8_t op1,uint8_t op2)
         else u_rslt.ui = op1;
     }
 
-    result = u_rslt.ui;
-
-    return result;
+    return u_rslt.ui;
 
 }
 

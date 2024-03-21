@@ -447,11 +447,11 @@ static void ARCH_FUNCTION(update_descriptor)(dma_t *dma, dma_decoded_descriptor_
     }
     if (partial_desc && type1 && entry->extended_va) {
         uint8_t byte = desc->type1.srcUpperAddr;
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 17, 1, (uint8_t *)&byte); 
+        ARCH_FUNCTION(dma_data_write)(dma, pa + 17, 1, &byte);
     }
     if (partial_desc && type1 && entry->extended_va) {
         uint8_t byte = desc->type1.dstUpperAddr;
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 18, 1, (uint8_t *)&byte); 
+        ARCH_FUNCTION(dma_data_write)(dma, pa + 18, 1, &byte);
     }
     if (!partial_desc && type1) {
 			if (entry->wide) {
@@ -483,7 +483,7 @@ static void ARCH_FUNCTION(update_descriptor)(dma_t *dma, dma_decoded_descriptor_
 static uint64_t ARCH_FUNCTION(retrieve_descriptor)(dma_t *dma, uint32_t desc_va, uint8_t *pdesc, uint32_t peek)
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t *desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
+    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
     uint32_t transfer_size = sizeof(dma_descriptor_type0_t);
     const uint32_t xlate_va = desc_va & 0xFFFFFFF0; // Force alignment to 16B for translation
     dma_memaccess_info_t dma_mem_access;
@@ -614,7 +614,7 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
        Two paths: 1) from the user side via dmstart, dmlink and dmresume, or
        2) from DMA chaining via \transfer_done(). */
     DMA_DEBUG_ONLY(ARCH_FUNCTION(dump_dma_status)(dma, "->start_dma new", new_dma););
-    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
+    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
     desc_state->pa = ARCH_FUNCTION(retrieve_descriptor)(dma, new_dma, (uint8_t*)&desc_state->desc, 0);
     udma_ctx->exception_va = 0;
 
@@ -950,7 +950,7 @@ uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma)
     uint32_t desc_transfer_done = 0;
     while(!desc_transfer_done) 
     {   
-        dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;   
+        dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
         HEXAGON_DmaDescriptorLinear_t * desc = (HEXAGON_DmaDescriptorLinear_t*) &desc_state->desc;
         if(ARCH_FUNCTION(dma_check_verif_pause)(dma)) {
             desc_state->pause = 1;
@@ -1017,7 +1017,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma);
 uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma) 
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
+    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
     //DMA_DEBUG(dma, "DMA %d: Tick %8d: step_2d_descriptor for %x udma_ctx->exception_status=%d\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, udma_ctx->exception_status);
     const uint32_t extended_va = desc_state->extended_va;
     const uint32_t gather = desc_state->gather;
@@ -1251,7 +1251,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
 static uint32_t ARCH_FUNCTION(dma_step_descriptor_chain)(dma_t *dma)
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
+    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
     HEXAGON_DmaDescriptor_t *desc = (HEXAGON_DmaDescriptor_t*) &desc_state->desc;
 
     DMA_STATUS_INT_SET(udma_ctx, DMA_STATUS_INT_RUNNING);

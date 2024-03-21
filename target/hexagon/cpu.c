@@ -768,13 +768,12 @@ static const char *get_coproc_path(CPUHexagonState *env)
 
 static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     CPUState *cs = CPU(dev);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
     if (cs->cpu_index >= THREADS_MAX) {
@@ -811,8 +810,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     hex_mmu_realize(env);
     if (cs->cpu_index == 0) {
-        env->g_sreg = g_malloc0(sizeof(target_ulong) * NUM_SREGS);
-        env->g_gcycle = g_malloc0(sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
+        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
+        env->g_gcycle = g_new0(target_ulong, NUM_GLOBAL_GCYCLE);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));

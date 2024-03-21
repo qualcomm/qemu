@@ -1367,15 +1367,13 @@ uint16_t fp_min_bf(uint16_t op1,uint16_t op2)
     uint32_t op2_f32;
 
     uint32_t result_f32;
-    uint16_t result;
 
     op1_f32 = ((uint32_t)op1) << 16;
     op2_f32 = ((uint32_t)op2) << 16;
 
     result_f32 = fp_min_sf(op1_f32, op2_f32);
     result_f32 = result_f32 >> 16;
-    result = result_f32 & 0xFFFF;
-    return result;
+    return result_f32 & 0xFFFF;
 }
 
 
@@ -1484,15 +1482,13 @@ uint16_t fp_max_bf(uint16_t op1,uint16_t op2)
     uint32_t op2_f32;
 
     uint32_t result_f32;
-    uint16_t result;
 
     op1_f32 = ((uint32_t)op1) << 16;
     op2_f32 = ((uint32_t)op2) << 16;
 
     result_f32 = fp_max_sf(op1_f32, op2_f32);
     result_f32 = result_f32 >> 16;
-    result = result_f32 & 0xFFFF;
-    return result;
+    return result_f32 & 0xFFFF;
 }
 
 uint16_t fp_abs_bf(uint16_t op1)
@@ -1501,15 +1497,13 @@ uint16_t fp_abs_bf(uint16_t op1)
 
     float result_f;
     uint32_t result_f32;
-    uint16_t result;
 
     u_op1.ui = ((uint32_t)op1) << 16;
 
     result_f = fabs(u_op1.f);
     u_op1.f = result_f;
     result_f32 = u_op1.ui >> 16;
-    result = result_f32 & 0xFFFF;
-    return result;
+    return result_f32 & 0xFFFF;
 }
 
 uint16_t fp_neg_bf(uint16_t op1)
@@ -1518,15 +1512,13 @@ uint16_t fp_neg_bf(uint16_t op1)
 
     float result_f;
     uint32_t result_f32;
-    uint16_t result;
 
     u_op1.ui = ((uint32_t)op1) << 16;
 
     result_f = -(u_op1.f);
     u_op1.f = result_f;
     result_f32 = u_op1.ui >> 16;
-    result = result_f32 & 0xFFFF;
-    return result;
+    return result_f32 & 0xFFFF;
 }
 
 //float fmaf( float x, float y, float z );
