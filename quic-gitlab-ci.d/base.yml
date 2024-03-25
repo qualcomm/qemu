@@ -71,7 +71,7 @@ variables:
 ###################################################################
 #    Base templates
 ###################################################################
-coproc_build:
+.coproc_build:
   script:
     - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/${HEX_COPROC_PROJ}.git
@@ -210,11 +210,66 @@ coproc_build:
       mkdir -p ${BUILDDIR}/Tools/QEMUCoprocPlugin
       mv $HEX_COPROC_BIN ${BUILDDIR}/Tools/QEMUCoprocPlugin/
       mv ${BUILDDIR}/qemu-system-hexagon ${BUILDDIR}/Tools/QEMUHexagon/bin
-      ln -s $(realpath ${BUILDDIR}/Tools/QEMUHexagon/bin/qemu-system-hexagon) ${BUILDDIR}/
+      ln -s Tools/QEMUHexagon/bin/qemu-system-hexagon ${BUILDDIR}/
+
+.test_hexagon_perf:
+  extends: .after-build
+  # We'll execute a smaller subset of tests, fewer iters for routine
+  # commits/MRs.  In a nightly build we can run a comprehensive test.
+  before_script:
+    -   PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/minimal_test_config.py" ;
+        PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_min_test_config.py" ;
+        PERF_TEST_ITERS="3" ;
+        if [[ "${CI_PIPELINE_SOURCE}" == "schedule" ]] || [[ "${CI_PIPELINE_SOURCE}" == "web" ]]; then
+            PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/default_test_config.py" ;
+            PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_full_test_config.py" ;
+            PERF_TEST_ITERS="6";
+        fi
+  script:
+    - |
+      if test "$INSPECTOR" == perf-stat
+      then
+        echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl
+        perf stat /bin/true
+      fi
+    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
+    - res=0 ;
+      for mode in default mttcg; do
+          cfg=${PERF_TEST_CFG} ;
+          if test $mode = mttcg; then
+              sys_args='-accel tcg,thread=multi' ;
+              cfg=${PERF_TEST_CFG_MTTCG} ;
+          fi ;
+          ./qemu-hexagon-perf/customer_test_suite.py
+              --bench-dir ./qemu-hexagon-benchmarks/
+              --qemu-user-bin-dir $QEMU_USER_BIN_DIR
+              --qemu-bin-dir $QEMU_BIN_DIR
+              --output-file ./perf-results-$mode.json
+              --test-cfg ${cfg}
+              --iters ${PERF_TEST_ITERS}
+              --inspector $INSPECTOR
+              --sys-args="$sys_args" ;
+          res=$(( ${res} + ${?})) ;
+      done ;
+      exit ${res}
+  artifacts:
+    when: always
+    paths: [ "perf-results-default.json", "perf-results-mttcg.json" ]
+    expire_in: 4 days
 
 ##################################################################
 #    Jobs
 ###################################################################
+
+coproc_build:
+  extends: .coproc_build
+
+mac_coproc_build:
+  extends: .coproc_build
+  tags:
+    - mac
 
 checkpatch:
   extends: .mr-job
@@ -334,6 +389,13 @@ hexagon-mac_build:
     - mac
   extends: .base-build
   variables: { CONFIG_CMD: $HEX_MAC_CONFIG_CMD }
+mac_hexagon_and_coproc_build:
+  needs: [hexagon-mac_build, mac_coproc_build]
+  variables: { BUILDDIR: hexagon-mac_build }
+  script: !reference [.hex-and-coproc, script]
+  artifacts:
+    paths: [ $BUILDDIR ]
+    expire_in: 1 day
 
 san-hexagon_build:
   extends: .base-build
@@ -410,50 +472,24 @@ aarch64_check:
   extends: .base-check
 
 test_hexagon_perf:
-  extends: .after-build
+  extends: .test_hexagon_perf
   needs: [hexagon_and_coproc_build]
   tags:
-     - performance-hardware
-  # We'll execute a smaller subset of tests, fewer iters for routine
-  # commits/MRs.  In a nightly build we can run a comprehensive test.
-  before_script:
-    -   PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/minimal_test_config.py" ;
-        PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_min_test_config.py" ;
-        PERF_TEST_ITERS="3" ;
-        if [[ "${CI_PIPELINE_SOURCE}" == "schedule" ]] || [[ "${CI_PIPELINE_SOURCE}" == "web" ]]; then
-            PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/default_test_config.py" ;
-            PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_full_test_config.py" ;
-            PERF_TEST_ITERS="6";
-        fi
-  script:
-    - echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl ;
-      perf stat /bin/true
-    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
-    - res=0 ;
-      for mode in default mttcg; do
-          cfg=${PERF_TEST_CFG} ;
-          if test $mode = mttcg; then
-              sys_args='-accel tcg,thread=multi' ;
-              cfg=${PERF_TEST_CFG_MTTCG} ;
-          fi ;
-          ./qemu-hexagon-perf/customer_test_suite.py
-              --bench-dir ./qemu-hexagon-benchmarks/
-              --qemu-user-bin-dir ${PWD}/hexagon_build/
-              --qemu-bin-dir ${PWD}/hexagon_build/
-              --output-file ./perf-results-$mode.json
-              --test-cfg ${cfg}
-              --iters ${PERF_TEST_ITERS}
-              --inspector perf-stat
-              --sys-args="$sys_args" ;
-          res=$(( ${res} + ${?})) ;
-      done ;
-      exit ${res}
-  artifacts:
-    when: always
-    paths: [ "perf-results-default.json", "perf-results-mttcg.json" ]
-    expire_in: 4 days
+    - performance-hardware
+  variables:
+    INSPECTOR: perf-stat
+    QEMU_USER_BIN_DIR: hexagon_build
+    QEMU_BIN_DIR: hexagon_build
+
+mac_test_hexagon_perf:
+  extends: .test_hexagon_perf
+  needs: [mac_hexagon_and_coproc_build]
+  tags:
+    - mac
+  variables:
+    INSPECTOR: none
+    QEMU_USER_BIN_DIR: none
+    QEMU_BIN_DIR: hexagon-mac_build
 
 test_hexagon_perf_ml:
   extends: .after-build
