@@ -25,7 +25,8 @@
 
 #include <virglrenderer.h>
 
-#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+#if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
+    VIRGL_RENDERER_CALLBACKS_VERSION >= 4
 static void *
 virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
 {
@@ -831,7 +832,8 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     int ret;
     uint32_t flags = 0;
 
-#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+#if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
+    VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     if (qemu_egl_display) {
         virtio_gpu_3d_cbs.version = 4;
         virtio_gpu_3d_cbs.get_egl_display = virgl_get_egl_display;
