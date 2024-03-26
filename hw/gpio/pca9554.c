@@ -11,8 +11,8 @@
 #include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "hw/qdev-properties.h"
-#include "hw/misc/pca9554.h"
-#include "hw/misc/pca9554_regs.h"
+#include "hw/gpio/pca9554.h"
+#include "hw/gpio/pca9554_regs.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -160,7 +160,7 @@ static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin > PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
@@ -187,7 +187,7 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin > PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
