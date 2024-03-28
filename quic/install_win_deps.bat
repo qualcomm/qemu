@@ -1,6 +1,6 @@
 @echo off
 
-set wiki=https://github.com/quic/toolchain_for_hexagon/wiki/QEMU-Hexagon-on-Windows-x86-64
+set wiki=https://github.com/quic/toolchain_for_hexagon/wiki/QEMU-Hexagon-on-Windows-x86%%%%E2%%%%80%%%%9064#troubleshooting
 set green=[32m
 set red=[31m
 set creset=[0m
