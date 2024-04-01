@@ -66,21 +66,40 @@ variables:
   HEX_COPROC_BIN: coproc_rpc_remote
   HEX_COPROC_SHA: e7e7ace69fdd4213293c47212ed4507027f761db
 
+  HEX_INSTALL_PREFIX: "Tools"
+  HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
+  HEX_QEMU_DIR: "$HEX_INSTALL_PREFIX/QEMUHexagon"
   TARBALLS_PATH: tarball-artifacts
 
 ###################################################################
 #    Base templates
 ###################################################################
 .coproc_build:
+  variables:
+  # If we are building a tag, we want the coproc to have the same tag or fail
+  # otherwise.
+  before_script:
+    - |
+      tag="$(git describe --tags --exact-match --match qemu-hexagon-* 2>/dev/null || echo no)"
+      if test "$tag" != no
+      then
+        OVERRIDE_REF="$(echo "qemu-coproc-plugin-$tag" | sed -e 's/qemu-hexagon-//')"
+      fi
   script:
-    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/${HEX_COPROC_PROJ}.git
-    - repo=$(basename $HEX_COPROC_PROJ)
-    - git -C $repo checkout $HEX_COPROC_SHA
-    - make -C $repo/hexagon/coprocs -j
-    - mv $repo/hexagon/coprocs/$HEX_COPROC_BIN ./
+    - |
+      QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
+      git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/${HEX_COPROC_PROJ}.git
+      repo=$(basename $HEX_COPROC_PROJ)
+      git -C $repo checkout ${OVERRIDE_REF:-$HEX_COPROC_SHA}
+      make -C $repo/hexagon/coprocs -j
+      mkdir -p $HEX_COPROC_DIR
+      mv $repo/hexagon/coprocs/$HEX_COPROC_BIN $HEX_COPROC_DIR/
+      if test -f $repo/docs/RELEASE-NOTES.txt
+      then
+        cp $repo/docs/RELEASE-NOTES.txt $HEX_COPROC_DIR/
+      fi
   artifacts:
-    paths: [ $HEX_COPROC_BIN ]
+    paths: [ $HEX_COPROC_DIR ]
 
 .base-build:
   variables: {BUILDDIR: $CI_JOB_NAME}
@@ -116,16 +135,12 @@ variables:
     expire_in: 1 day
 
 .base-tarball:
-  # We need GNU tar for --transform
-  tags:
-    - linux
   variables:
     GIT_STRATEGY: clone
     GIT_DEPTH: 1
   variables:
     TARBALL_PREFIX: ""
     CUSTOM_INSTALL_SCRIPT: ""
-    TARBALL_DIR_PREFIX: "Tools/QEMUHexagon/"
   script:
     - |
       tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
@@ -145,9 +160,12 @@ variables:
       fi
 
       mv quic/RELEASE-NOTES.txt $installdir
+
+      mkdir -p $(dirname $HEX_QEMU_DIR)
+      mv $installdir $HEX_QEMU_DIR
+
       tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name \
-          --exclude="$installdir/bin/qemu-hexagon" $installdir \
-          --transform "s,^$installdir,$TARBALL_DIR_PREFIX,"
+          --exclude="$HEX_QEMU_DIR/bin/qemu-hexagon" $HEX_INSTALL_PREFIX
   artifacts:
     paths: [ $TARBALLS_PATH ]
     expire_in: 1 month
@@ -213,9 +231,8 @@ variables:
         exit 1
       fi
       mkdir -p ${BUILDDIR}/Tools/QEMUHexagon/bin
-      mkdir -p ${BUILDDIR}/Tools/QEMUCoprocPlugin
-      mv $HEX_COPROC_BIN ${BUILDDIR}/Tools/QEMUCoprocPlugin/
       mv ${BUILDDIR}/qemu-system-hexagon ${BUILDDIR}/Tools/QEMUHexagon/bin
+      mv $HEX_COPROC_DIR $BUILDDIR/$HEX_COPROC_DIR
       ln -s Tools/QEMUHexagon/bin/qemu-system-hexagon ${BUILDDIR}/
 
 .test_hexagon_perf:
@@ -304,7 +321,7 @@ hexagon_install:
   needs: [hexagon_build]
   extends: .base-install
 hexagon_tarball:
-  needs: [hexagon_install]
+  needs: [hexagon_install, coproc_build]
   extends: .base-tarball
 hexagon_tarball_tag:
   needs: [hexagon_tarball]
@@ -330,24 +347,24 @@ hexagon_publish:
   variables:
     PUBLISH_PATH: /prj/qct/llvm/target/vp_qemu_llvm/qemu_builds/
     QEMU_RELPATH: Tools/QEMUHexagon
-    COPROC_RELPATH: Tools/QEMUCoprocPlugin
     MAX_PUBLISH_NR: 90 # 3 months
-  needs: [hexagon_install, coproc_build, hexagon_build_ug]
+  needs: [hexagon_tarball, hexagon_build_ug]
   script:
     - |
-      installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
-      cp quic/RELEASE-NOTES.txt $installdir
       rel_publishdir="build-$(date +%Y%m%d)"
       publishdir="$PUBLISH_PATH/$rel_publishdir"
       rm -rf "$PUBLISH_PATH/build-latest" "$publishdir"
-      mkdir -p "$publishdir/${QEMU_RELPATH}" "$publishdir/${COPROC_RELPATH}"
-      mv $installdir/* "$publishdir/${QEMU_RELPATH}/"
+
+      mkdir "$publishdir"
+      tar -xf $TARBALLS_PATH/*.tgz -C "$publishdir"
+
       ug_dir="$publishdir/${QEMU_RELPATH}/user_guide"
       mkdir -p "$ug_dir/pdf"
       mv quic/user_guide/_build/html "$ug_dir/"
       mv quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "$ug_dir/pdf/"
-      cp $HEX_COPROC_BIN "$publishdir/${COPROC_RELPATH}/"
+
       ln -s $rel_publishdir "$PUBLISH_PATH/build-latest"
+
       nr="$(ls "$PUBLISH_PATH" | wc -l)"
       if test $nr -gt $(($MAX_PUBLISH_NR + 1))
       then
