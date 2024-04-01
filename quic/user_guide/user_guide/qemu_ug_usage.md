@@ -8,7 +8,7 @@ customize how the emulator is to run.
 ## Command
 
 The QEMU binary is called qemu-system-hexagon. To start the emulator
-from the command line: 
+from the command line:
 
 :::{code-block}
 qemu-system-hexagon [option]
@@ -19,19 +19,19 @@ Hexagon processor.
 
 ## Options
 
-- [**Get help**](#get-help) 
-  
+- [**Get help**](#get-help)
+
   :::{code-block}
   --help
   :::
 
-- [**System configuration**](#system-configuration) 
-  
+- [**System configuration**](#system-configuration)
+
   :::{code-block}
   -cpu any
-    
+
   -cpu any,count-gcycle-xt=on,usefs=<dir>
-    
+
   -m 6G
   :::
 
@@ -45,27 +45,27 @@ Hexagon processor.
 
   :::{code-block}
   -append 'x y z 1 2 3'
-  
+
   -gdb tcp::1234 | -s
-  
+
   -kernel <file>
-  
+
   --machine V68N_1024 | -M V68N_1024
-  
+
   -monitor [none|stdio]
-  
+
   -S
-  
+
   -accel tcg,thread=multi
 :::
 
 (get-help)=
 ### Get help
 
-- `-help` 
-   
-   Display command usage information and then exit. For example, to show help on how to specify the system memory: 
-   
+- `-help`
+
+   Display command usage information and then exit. For example, to show help on how to specify the system memory:
+
    :::{code-block}
    qemu-system-hexagon -m help
    :::
@@ -119,7 +119,7 @@ might show more consistency.
   deterministic.
 
   - *shift=N*
-    
+
     Virtual CPU will execute one instruction every 2N ns of virtual time.
 
   - *auto*
@@ -128,7 +128,7 @@ might show more consistency.
     within a few seconds of real time.
 
   :::{NOTE}
-  The -icount mode typically makes execution significantly slower, so use 
+  The -icount mode typically makes execution significantly slower, so use
   it with caution.
   :::
 
@@ -155,7 +155,7 @@ might show more consistency.
 
   Run a specified Hexagon program (for more information, see [](#run-programs)).
 
-- `--machine V68N_1024` 
+- `--machine V68N_1024`
   </br>
   `-M V68N_1024`
 
@@ -168,63 +168,63 @@ might show more consistency.
 
    .. flat-table::
       :header-rows: 1
-   
+
       * - Machine
         - CPUs
         - Coprocessor plugin required
-   
+
       * - virt (default machine)
         - 6
         - No
-   
-      * - virt_coproc     
-        - 6
-        - Yes
-   
-      * - SA8540P_CDSP0 
-        - 6
-        - Yes  
 
-      * - SA8775P_CDSP0 
-        - 6 
-        - Yes
-   
-      * - V66G_1024 
-        - 4 
-        - Yes
-   
-      * - V66_Linux
-        - 4    
-        - No 
-   
-      * - V68N_1024  
-        - 6 
-        - Yes
-   
-      * - V68_H2      
-        - 4           
-        - Yes
-   
-      * - V69NA_1024   
-        - 6           
-        - Yes
-   
-      * - V73NA_1024  
-        - 6          
-        - Yes
-   
-      * - V73_Linux   
-        - 6         
-        - No 
-   
-      * - V75NA_1024   
+      * - virt_coproc
         - 6
         - Yes
-   
-      * - V75_Linux   
-        - 6          
-        - No 
-   
+
+      * - SA8540P_CDSP0
+        - 6
+        - Yes
+
+      * - SA8775P_CDSP0
+        - 6
+        - Yes
+
+      * - V66G_1024
+        - 4
+        - Yes
+
+      * - V66_Linux
+        - 4
+        - No
+
+      * - V68N_1024
+        - 6
+        - Yes
+
+      * - V68_H2
+        - 4
+        - Yes
+
+      * - V69NA_1024
+        - 6
+        - Yes
+
+      * - V73NA_1024
+        - 6
+        - Yes
+
+      * - V73_Linux
+        - 6
+        - No
+
+      * - V75NA_1024
+        - 6
+        - Yes
+
+      * - V75_Linux
+        - 6
+        - No
+
    ```
 
 - `-monitor [none|stdio]`
@@ -297,7 +297,7 @@ connect to the session as follows:
 Current executable set to '</path/to/executable.elf>' (hexagon).
 (lldb) gdb-remote 1234
 Process 1 stopped
-* thread #1, stop reason = signal SIGTRAP 
+* thread #1, stop reason = signal SIGTRAP
     frame #0: 0x00000000
 ->  0x0: { jump 0x44 }
 :::
@@ -310,7 +310,7 @@ during translation and translation-block-execution.
 
 The specifics of the interface are described at
 https://qemu.readthedocs.io/en/latest/devel/tcg-plugins.html and in
-the QEMU source in *./include/qemu/qemu-plugin.h* and 
+the QEMU source in *./include/qemu/qemu-plugin.h* and
 *./docs/devel/tcg-plugins.rst.* Example
 plug-ins are included in the source distribution of QEMU in the
 *./contrib/plugins/* directory.
