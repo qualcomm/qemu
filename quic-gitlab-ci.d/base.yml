@@ -124,6 +124,7 @@ variables:
     GIT_DEPTH: 1
   variables:
     TARBALL_PREFIX: ""
+    CUSTOM_INSTALL_SCRIPT: ""
     TARBALL_DIR_PREFIX: "Tools/QEMUHexagon/"
   script:
     - |
@@ -137,6 +138,11 @@ variables:
       tar --exclude-vcs -zcf $installdir/$src_tarball_name \
           --exclude $installdir --exclude $TARBALLS_PATH . \
           --transform "s/\./${CI_PROJECT_NAME}/"
+
+      if test -n "$CUSTOM_INSTALL_SCRIPT"
+      then
+        mv "$CUSTOM_INSTALL_SCRIPT" $installdir
+      fi
 
       mv quic/RELEASE-NOTES.txt $installdir
       tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name \
@@ -380,6 +386,7 @@ hexagon-win_tarball:
   extends: .base-tarball
   variables:
     TARBALL_PREFIX: "windows-x86_64-"
+    CUSTOM_INSTALL_SCRIPT: "quic/install_win_deps.bat"
 hexagon-win_tarball_tag:
   needs: [hexagon-win_tarball]
   extends: .base-tarball-tag
