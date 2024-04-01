@@ -56,6 +56,12 @@ pacman -S mingw-w64-x86_64-libwinpthread-git mingw-w64-x86_64-glib2 \
 You should now be able to open CMD or PowerShell and run
 `qemu-system-hexagon --help`.
 
+When installing dependencies, if you get errors like
+`SSL certificate problem: unable to get local issuer certificate`, you may
+have a corporate networking environment where all of the secure traffic is
+diverted, defeating the trust feature of the msys2 package manager.  See
+["How can I make MSYS2/pacman trust my company's custom TLS CA certificate" in the MSYS2 FAQ](https://www.msys2.org/docs/faq/#how-can-i-make-msys2pacman-trust-my-companys-custom-tls-ca-certificate) for more info.
+
 ## Coprocessor plugin
 
 Some Hexagon DSP configurations utilize a separate coprocessor plugin.
