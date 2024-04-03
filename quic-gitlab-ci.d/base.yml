@@ -187,7 +187,8 @@ variables:
 .base-check-tcg:
   extends: .after-build
   script:
-    - make -C $builddir -j check-tcg V=1 OVERRIDE_OPTS="$OVERRIDE_OPTS"
+    - make -C $builddir -j -O --no-print-directory check-tcg V=1
+      OVERRIDE_OPTS="$OVERRIDE_OPTS"
   artifacts:
     when: on_failure
     paths: [ "*_build" ]
