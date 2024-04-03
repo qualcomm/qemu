@@ -104,7 +104,7 @@ fi
 endef
 
 DOWNSTREAM_CC=hexagon-clang
-DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static
+DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static -Werror
 DOWNSTREAM_LDFLAGS=
 
 $(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign: BUILD_WITH_DOWNSTREAM_CC=yes
