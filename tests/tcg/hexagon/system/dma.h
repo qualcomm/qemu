@@ -19,6 +19,8 @@
 #define DMA_H
 
 #include <hexagon_types.h>
+#include <string.h>
+#include <stdio.h>
 
 /*
  * Helpers for DMA tests

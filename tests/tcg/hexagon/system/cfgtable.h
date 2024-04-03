@@ -18,16 +18,17 @@
 #ifndef CFGTABLE_H
 #define CFGTABLE_H
 
+#include <stdint.h>
+
 static uint32_t read_cfgtable_field(uint32_t offset)
 {
     uint32_t val;
-    asm volatile(
-        "r0 = cfgbase\n\t"
-        "r0 = asl(r0, #5)\n\t"
-        "%0 = memw_phys(%1, r0)\n\t"
-        : "=r"(val)
-        : "r"(offset)
-        : "r0");
+    asm volatile("r0 = cfgbase\n\t"
+                 "r0 = asl(r0, #5)\n\t"
+                 "%0 = memw_phys(%1, r0)\n\t"
+                 : "=r"(val)
+                 : "r"(offset)
+                 : "r0");
     return val;
 }
 

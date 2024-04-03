@@ -17,14 +17,16 @@
 #ifndef UTIL_H
 #define UTIL_H 1
 
+#include <stdint.h>
+
 typedef struct {
-  int is_open;
-  int buf_allocated;
-  void *buf;
-  unsigned mode;
-  long int buf_maxsize;
-  long int crnt_filesize;
-  long int pos;
+    int is_open;
+    int buf_allocated;
+    void *buf;
+    unsigned mode;
+    long int buf_maxsize;
+    long int crnt_filesize;
+    long int pos;
 } FILE_MEM;
 
 FILE_MEM *fmemopen_mem(void *buf, int max, const char *mode);
