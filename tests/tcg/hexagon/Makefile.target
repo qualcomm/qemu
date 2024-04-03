@@ -67,7 +67,7 @@ HEX_TESTS += hvx_sat
 HEX_TESTS += usr_ctrl_assign
 HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
-HEX_TESTS += scaler
+HEX_TESTS += scalar
 HEX_TESTS += upcycle
 
 TESTS += $(HEX_TESTS)
