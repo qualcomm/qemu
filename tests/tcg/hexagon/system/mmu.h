@@ -229,7 +229,7 @@ static void hex_dump_mmu_entry(uint64_t entry)
         printf(" PA:0x%09llx SZ:%s (0x%lx)",
                 PA,
                 pgsize_str[hex_tlb_pgsize(entry)],
-                hex_tlb_page_size(entry));
+                (unsigned long)hex_tlb_page_size(entry));
         printf("\n");
     } else {
         printf("invalid\n");
