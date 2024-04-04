@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "hexagon_standalone.h"
-#include "filename.h"
+
 
 void do_activation_weight(uintptr_t activations_vtcm,
                           unsigned activations_range,
@@ -73,7 +73,7 @@ int main()
     setup_translation();
     acquire_coproc();
     do_activation_weight(0xd8702740, 0xffff971f, 0xd8677800, 0x00000bff);
-    printf("%s : %s\n", "PASS", __FILENAME__);
+    printf("PASS\n");
 
     return 0;
 }

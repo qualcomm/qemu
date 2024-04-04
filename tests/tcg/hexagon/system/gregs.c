@@ -17,7 +17,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "filename.h"
+
 
 #define set_and_check(greg, val, expect_val, type, print_fmt) \
 do { \
@@ -30,7 +30,7 @@ do { \
     if (out_reg != expect) { \
         printf("ERROR: \"%s\" 0x" #print_fmt " != 0x" #print_fmt \
                "at %s:%d\n", greg, out_reg, \
-               expect, __FILENAME__, __LINE__); \
+               expect, __FILE__, __LINE__); \
         err++; \
     } \
 } while (0)
@@ -84,6 +84,6 @@ int main()
     pair_set_and_check_eq("g3:2");
     pair_set_and_check_zero("g5:4");
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -22,7 +22,7 @@
 #include <hexagon_types.h>
 #include <hexagon_protos.h>
 #include <hexagon_standalone.h>
-#include "filename.h"
+
 #include "cfgtable.h"
 #include "vtcm_common.h"
 #include "mmu.h"
@@ -162,7 +162,7 @@ void test_vtcm_dma(uint32_t access_addr, uint32_t wmin, uint32_t wmax,
     /* now allocate and init descriptor */
     hexagon_udma_descriptor_type0_t *desc = alloc_descriptor();
     if (!desc) {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
         printf("out of memory: descriptors\n");
         exit(-2);
     }
@@ -220,6 +220,6 @@ int main()
     test_coproc_vtcm_access(wmin, wmin, wmax, true);
     test_vtcm_dma(wmin, wmin, wmax, true);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

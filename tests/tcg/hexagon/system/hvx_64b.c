@@ -20,7 +20,7 @@
 #include "hexagon_standalone.h"
 #define NO_DEFAULT_EVENT_HANDLES
 #include "mmu.h"
-#include "filename.h"
+
 
 #define HEX_CAUSE_UNSUPORTED_HVX_64B 0x002
 #define HEX_CAUSE_NO_COPROC_ENABLE 0x016
@@ -119,6 +119,6 @@ int main(int argc, char **argv)
              : : : "r0");
     check_hvx(set_hvx_64b, 1 << HEX_CAUSE_NO_COPROC_ENABLE);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

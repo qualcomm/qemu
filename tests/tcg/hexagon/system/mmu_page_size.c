@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "filename.h"
+
 
 #define DEBUG        0
 
@@ -122,6 +122,6 @@ int main()
     test_page_size(PGSIZE_256M, 28);
     test_page_size(PGSIZE_1G,   30);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

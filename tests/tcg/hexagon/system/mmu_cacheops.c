@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "filename.h"
+
 
 #define DEBUG        0
 
@@ -113,6 +113,6 @@ int main()
 
     test_data_cache_ops();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

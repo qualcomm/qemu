@@ -49,7 +49,7 @@ static uintptr_t get_vtcm_base(void)
     void *vtcm =
         calloc(1024 * 1024 * 8, sizeof(char)); /* 8mb largest vtcm for now */
     if (!vtcm) {
-        printf("%s : %s\n", "FAIL", __FILENAME__);
+        printf("FAIL\n");
         printf("%s: out of memory allocating vtcm\n", __func__);
         exit(-1);
     }

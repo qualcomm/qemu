@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "thread_common.h"
-#include "filename.h"
+
 
 #define NUM_THREADS 2
 #define STACK_SIZE 0x8000
@@ -225,6 +225,6 @@ int main()
             break;
         }
     }
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

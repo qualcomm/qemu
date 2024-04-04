@@ -18,7 +18,7 @@
 
 #include "hvx-multi.h"
 #include <stdio.h>
-#include "filename.h"
+
 #include <stdint.h>
 
 enum {
@@ -57,10 +57,10 @@ int main()
  * independend of the thread.
  */
     if ((vb[0] == 0) && (va[1] == 0xffffffff)) {
-        printf("PASS : %s: vb[0] = 0x%x\n", __FILENAME__, vb[0]);
+        printf("PASS: vb[0] = 0x%x\n", vb[0]);
         return 0;
     }
-    printf("FAIL : %s: va[0] = 0x%x\n", __FILENAME__, va[0]);
+    printf("FAIL: va[0] = 0x%x\n", va[0]);
     printf("      vb[0] = 0x%x\n", vb[0]);
     return 1;
 

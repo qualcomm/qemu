@@ -17,7 +17,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "filename.h"
+
 
 static inline void siad(uint32_t val)
 {
@@ -53,9 +53,9 @@ main(int argc, char *argv[])
         goto fail;
     }
 
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 fail:
-    printf("FAIL : %s\n", __FILENAME__);
+    printf("FAIL\n");
     return 1;
 }

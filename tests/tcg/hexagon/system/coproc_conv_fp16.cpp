@@ -28,7 +28,7 @@
 #include "coproc_common.h"
 #include "coproc_input_fp16_dat.h"
 #include "coproc_ref_output_fp16_dat.h"
-#include "filename.h"
+
 #include "vtcm_common.h"
 
 int main(int argc, const char *argv[])
@@ -131,7 +131,7 @@ int main(int argc, const char *argv[])
     }
 
     int cmp = memcmp(tmp2, &coproc_ref_output_dat[0], CROUTON_SIZE);
-    printf("%s: %s: %s\n", argv[0], (cmp) ? "FAIL" : "PASS", __FILENAME__);
+    printf("%s: %s\n", argv[0], (cmp) ? "FAIL" : "PASS");
 
     free(tmp0);
     free(tmp1);

@@ -15,7 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "filename.h"
+
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -87,7 +87,7 @@ void test(bool use_small, const char *err_msg)
         fail = 1;
     }
     if (fail) {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
         printf("NOTE: %s\n", err_msg);
         exit(-3);
     }
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 {
     test(true, "General DMA failure");
     test(false, "Preload of dst buffers probably missing");
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
 
     exit(0);
 }

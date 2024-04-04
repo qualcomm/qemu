@@ -21,7 +21,7 @@
 int err;
 #include "../reg_mut.h"
 #include "../hex_test.h"
-#include "filename.h"
+
 
 static inline uint32_t ehw(uint64_t val)
 {
@@ -183,6 +183,6 @@ int main()
     write_thread_local_system_control_register_pairs();
     write_global_system_control_register_pairs();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

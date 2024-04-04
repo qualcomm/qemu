@@ -27,7 +27,7 @@
 #endif
 #endif
 #include <hexagon_protos.h>
-#include "filename.h"
+
 #include "cfgtable.h"
 
 int err = 0;
@@ -1465,6 +1465,6 @@ int main()
     check_scatter_q_16_32();
 
     inst_test();
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

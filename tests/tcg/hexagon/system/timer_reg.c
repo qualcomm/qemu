@@ -19,7 +19,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "filename.h"
+
 
 #define QTMR_BASE ((CSR_BASE) + 0x20000)
 #define QTMR_CNTP1_CTL ((uint32_t *)((QTMR_BASE) + 0x102c))
@@ -94,5 +94,5 @@ int main()
     while (start == timer_read()) {
         ;
     }
-    printf("%s : %s\n", "PASS", __FILENAME__);
+    printf("PASS\n");
 }

@@ -14,7 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "filename.h"
+
 #include <hexagon_standalone.h>
 #include <stdio.h>
 
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
         err = 1;
     }
 
-    printf("%s : %s", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     printf(" diag = 0x%x, ssr_cc1 = 0x%x, ssr_cc2 = 0x%x\n", diag,
            ssr_cc1 & 0xff, ssr_cc2 & 0xff);
     return err;

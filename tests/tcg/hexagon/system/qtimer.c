@@ -30,7 +30,7 @@
 #include <hexagon_sim_timer.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "filename.h"
+
 
 #define COMPUTE_THREADS 3
 #define STACK_SIZE 16384
@@ -246,6 +246,6 @@ int main()
         last = qtimer2_cnt + 1;
         asm_wait();
     }
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

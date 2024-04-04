@@ -25,7 +25,7 @@
 #if !defined(__linux__)
 #include "hexagon_standalone.h"
 #endif
-#include "filename.h"
+
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -181,9 +181,9 @@ int main()
 
     printf("output = %hhd, expected %hhd\n", output[0], (uint8_t)100);
     if (output[0] == (uint8_t)100) {
-        printf("PASS : %s\n", __FILENAME__);
+        printf("PASS\n");
     } else {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
     }
 
     return output[0] != 100;

@@ -23,7 +23,7 @@
 
 #include <hexagon_standalone.h>
 #include <stdio.h>
-#include "filename.h"
+
 
 volatile int running = 1;
 
@@ -40,6 +40,6 @@ int main()
     thread_create(thread_fn, &stack[STACK_SZ - 1], 1, NULL);
     running = 0;
     thread_join(1 << 1);
-    printf("%s : %s\n", "PASS", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

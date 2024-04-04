@@ -19,7 +19,7 @@
  * Test the range of the l2vic interface.
  */
 
-#include "filename.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,7 +99,7 @@ int main()
         }
     }
     if (left_set == LEFT_SET) {
-        printf("PASS : %s\n", __FILENAME__);
+        printf("PASS\n");
     }
     return ret;
 }

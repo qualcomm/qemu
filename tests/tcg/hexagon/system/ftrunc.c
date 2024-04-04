@@ -24,7 +24,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <assert.h>
-#include "filename.h"
+
 
 
 int main() {
@@ -37,7 +37,7 @@ int main() {
   memset(&st, 0, sizeof(struct stat));
   if ((rc = stat(fname, &st)) != 0) {
     perror("stat");
-    printf("FAIL: %s: rc = %d\n", __FILENAME__, rc);
+    printf("FAIL: rc = %d\n", rc);
     return 1;
   }
   assert (st.st_size == 6);
@@ -54,14 +54,14 @@ int main() {
   }
   if ((rc = ftruncate(fp, 1)) != 0) {
     perror("ftruncate");
-    printf("FAIL: %s: rc = %d\n", __FILENAME__, rc);
+    printf("FAIL: rc = %d\n", rc);
     return 1;
   }
 
   memset(&st, 0, sizeof(struct stat));
   if ((rc = fstat(fp, &st)) != 0) {
     perror("fstat");
-    printf("FAIL: %s: rc = %d\n", __FILENAME__, rc);
+    printf("FAIL: rc = %d\n", rc);
     return 1;
   }
   assert (st.st_size == 1);

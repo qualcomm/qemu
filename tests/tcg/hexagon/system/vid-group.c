@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <hexagon_standalone.h>
 #include "thread_common.h"
-#include "filename.h"
+
 #include "cfgtable.h"
 
 /* This and other volatiles are for dealing with mmio registers */
@@ -109,7 +109,7 @@ void intr_handler(int irq)
 
     vid = *((uint32_t *)(g_l2vic_base + (irq - 2) * 4));
     if ((vid - FIRST_IRQ) > 3) {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
         printf(" unexpected L2IRQ number %lu\n", vid);
         fflush(stdout);
         exit(-1);
@@ -299,6 +299,6 @@ int main()
         thread_join(1 << i);
     }
 
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

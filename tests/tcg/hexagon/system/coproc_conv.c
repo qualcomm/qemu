@@ -30,7 +30,7 @@
 #include "coproc_input_dat.h"
 #include "coproc_ref_output_dat.h"
 #include "util.h"
-#include "filename.h"
+
 #include "vtcm_common.h"
 
 unsigned int mxmem_gen_start(unsigned int dx, unsigned int dy, int input_depth,
@@ -285,8 +285,7 @@ int main(int argc, const char *argv[])
 
     write_output_image(ofname, tmp2, X, 8, output_depth, dy);
     int rval = validate_output(ofname);
-    printf("%s : %s: %s\n", argv[0],
-        ((rval == 0) ? "PASS" : "FAIL"), __FILENAME__);
+    printf("%s: %s\n", argv[0], ((rval == 0) ? "PASS" : "FAIL"));
 
     free(tmp0);
     free(tmp1);

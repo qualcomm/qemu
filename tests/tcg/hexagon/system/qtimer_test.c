@@ -26,7 +26,7 @@
  */
 #include <assert.h>
 
-#include "filename.h"
+
 #include "qtimer.h"
 
 int main()
@@ -63,6 +63,6 @@ int main()
         printf("qtimer_cnt1 = %d, qtimer_cnt2 = %d\n", qtimer1_cnt,
                qtimer2_cnt);
     }
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

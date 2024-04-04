@@ -27,7 +27,7 @@
 
 #include <assert.h>
 #include <hexagon_standalone.h>
-#include "filename.h"
+
 #include "cfgtable.h"
 
 #define CSR_BASE  0xfab00000
@@ -92,7 +92,7 @@ main()
 
     assert(interrupt_count == 0);
     if (ret == 0) {
-        printf("PASS : %s\n", __FILENAME__);
+        printf("PASS\n");
     }
     return ret;
 }

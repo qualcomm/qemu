@@ -22,7 +22,7 @@
 #include "hexagon_standalone.h"
 #define NO_DEFAULT_EVENT_HANDLES
 #include "mmu.h"
-#include "filename.h"
+
 
 #define HEX_CAUSE_NO_COPROC2_ENABLE 0x18
 
@@ -62,6 +62,6 @@ int main()
     invalid_coproc();
     check32(*my_exceptions, 1 << HEX_CAUSE_NO_COPROC2_ENABLE);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -94,7 +94,7 @@ invalid_opcode.h: mmu.h
 mmu_page_size.o: mmu_page_size.c mmu.h
 mmu_page_size: mmu_page_size.o dummy_mutex.o
 standalone_hw: standalone_hw.o monitor_insts.o
-standalone_vec.o: standalone_vec.c filename.h cfgtable.h
+standalone_vec.o: standalone_vec.c cfgtable.h
 standalone_vec: standalone_vec.o
 mmu_overlap.o: mmu_overlap.c mmu.h
 mmu_overlap: mmu_overlap.o dummy_mutex.o
@@ -103,9 +103,9 @@ mmu_asids: mmu_asids.o dummy_mutex.o
 mmu_cacheops.o: mmu_cacheops.c mmu.h
 ciad-siad: ciad-siad.o
 udma: udma.o
-udma.o: udma.c filename.h dma.h
+udma.o: udma.c dma.h
 vid_reg: vid_reg.o
-int_range.o: int_range.c filename.h cfgtable.h
+int_range.o: int_range.c cfgtable.h
 int_range: int_range.o
 semihost.o: semihost.c strutils.h
 semihost: semihost.o

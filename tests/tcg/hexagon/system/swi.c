@@ -15,7 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "filename.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <hexagon_standalone.h>
@@ -186,6 +186,6 @@ int main()
         }
     }
 
-    printf("\nPASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

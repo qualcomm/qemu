@@ -17,7 +17,7 @@
 
 #include <q6standalone.h>
 #include <string.h>
-#include "filename.h"
+
 
 #define THCNT 8
 static int thid[THCNT] = { 0 };
@@ -59,12 +59,12 @@ int main()
     thread_join(thmask);
 
     if (memcmp(thid, expect, sizeof(expect))) {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
         for (int i = 0; i < THCNT; i++)
             printf("EXPECT: expect[%d] = %d, GOT: thid[%d] = %d\n", i,
                    expect[i], i, thid[i]);
         return 1;
     }
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

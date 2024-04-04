@@ -22,7 +22,7 @@
  */
 
 #include <hexagon_standalone.h>
-#include "filename.h"
+
 #include "cfgtable.h"
 
 #define CSR_BASE  0xfab00000
@@ -77,9 +77,9 @@ main()
     }
 
     if (ret) {
-        printf("%s: FAIL, last failure near line %d\n", __FILENAME__, ret);
+        printf("%s: FAIL, last failure near line %d\n", __FILE__, ret);
     } else {
-        printf("PASS : %s\n", __FILENAME__);
+        printf("PASS\n");
     }
     return ret;
 }

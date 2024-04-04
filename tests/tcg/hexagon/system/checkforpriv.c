@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include "filename.h"
+
 
 #define DEBUG        0
 
@@ -93,6 +93,6 @@ int main()
     asm volatile("gelr = r0\n\t");
     check32(guest_exception_found, true);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "hexagon_standalone.h"
-#include "filename.h"
+
 
 static inline void tlblock(void)
 {
@@ -63,6 +63,6 @@ int main(int argc, char *argv[])
         tlbunlock();
         thread_join(((1 << COMPUTE_THREADS) - 1) << 1);
     }
-    printf("%s : %s\n", "PASS", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

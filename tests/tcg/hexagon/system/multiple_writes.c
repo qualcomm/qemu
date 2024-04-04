@@ -22,7 +22,7 @@
 #include "hexagon_standalone.h"
 #define NO_DEFAULT_EVENT_HANDLES
 #include "mmu.h"
-#include "filename.h"
+
 
 #define HEX_CAUSE_REG_WRITE_CONFLICT 0x01d
 
@@ -170,6 +170,6 @@ int main()
     check32(*my_exceptions, 1 << HEX_CAUSE_REG_WRITE_CONFLICT);
     *my_exceptions &= ~(1 << HEX_CAUSE_REG_WRITE_CONFLICT);
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -23,7 +23,7 @@
 #define DEBUG        0
 
 #include "mmu.h"
-#include "filename.h"
+
 
 /* Set up the event handlers */
 MY_EVENT_HANDLE(my_event_handle_error,            my_event_handle_error_helper)
@@ -136,6 +136,6 @@ int main()
 
     test_permissions();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -133,9 +133,9 @@ invalid_insn_for_rev.o: invalid_insn_for_rev.c invalid_opcode.h
 invalid_insn_for_rev: invalid_insn_for_rev.o
 sys_atomics: sys_atomics.o thread_common.o
 bestwait: bestwait.o thread_common.o
-fastl2vic.o: fastl2vic.c filename.h cfgtable.h
+fastl2vic.o: fastl2vic.c cfgtable.h
 fastl2vic: fastl2vic.o
-fastint.o: fastint.c filename.h cfgtable.h
+fastint.o: fastint.c cfgtable.h
 fastint: fastint.o
 swi: swi.o thread_common.o
 swi2.o: swi2.c interrupts.h
@@ -154,12 +154,12 @@ qtimer: qtimer.o thread_common.o
 ieee_fp: ieee_fp.o
 coproc: coproc.o
 coproc_conv.o: coproc_conv.c coproc_common.h coproc_conv_asm.h \
-	       coproc_input_dat.h coproc_ref_output_dat.h util.h filename.h \
+	       coproc_input_dat.h coproc_ref_output_dat.h util.h \
 	       vtcm_common.h
 coproc_conv: coproc_conv.o coproc_conv_asm.o util.o
 coproc_conv_fp16.o: coproc_conv_fp16.cpp coproc_common.h \
 	            coproc_input_fp16_dat.h coproc_ref_output_fp16_dat.h \
-		    filename.h vtcm_common.h
+		    vtcm_common.h
 coproc_conv_fp16: coproc_conv_fp16.o
 coproc_range: coproc_range.o
 neg-hvx_nocoproc: hvx_nocoproc.o
@@ -179,11 +179,11 @@ hvx_ext-0x75: hvx_ext-0x75.o
 hvx_ext-0x79: hvx_ext-0x79.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
-pendalot.o: pendalot.c filename.h cfgtable.h
+pendalot.o: pendalot.c cfgtable.h
 pendalot: pendalot.o
-vid-group.o : vid-group.c thread_common.h filename.h cfgtable.h
+vid-group.o : vid-group.c thread_common.h cfgtable.h
 vid-group: vid-group.o thread_common.o
-levelint.o: levelint.c filename.h cfgtable.h
+levelint.o: levelint.c cfgtable.h
 levelint: levelint.o
 fopen: fopen.o
 ftrunc: ftrunc.o
@@ -208,12 +208,12 @@ sys_reg_mut: sys_reg_mut.o
 memcpy.o: memcpy.c vtcm_common.h mmu.h
 memcpy: memcpy.o
 inf-loop: inf-loop.o
-double_ex.o: double_ex.c filename.h
+double_ex.o: double_ex.c
 double_ex: double_ex.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
-vwctrl.o: vwctrl.c filename.h cfgtable.h mmu.h vtcm_common.h dma.h
+vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024

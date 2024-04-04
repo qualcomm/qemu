@@ -17,7 +17,7 @@
 
 #include <q6standalone.h>
 #include <stdio.h>
-#include "filename.h"
+
 
 volatile int thcnt = 0;
 
@@ -100,9 +100,9 @@ int main()
     thread_join(1 << 0x1);
 
     if (thcnt == 5)
-        printf("PASS : %s\n", __FILENAME__);
+        printf("PASS\n");
     else
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
 
     return (thcnt == 5) ? 0 : 1;
 }

@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "filename.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -35,23 +35,23 @@ int main(int argc, char *argv[])
         sprintf(fileName, "%s", argv[i]);
         fp = fopen(fileName, "r+");
         if (!fp) {
-            printf("FAIL : %s: file not found: %s\n", __FILENAME__, fileName);
+            printf("FAIL: '%s': file not found", fileName);
             return 1;
         }
         errno = 0;
         rc = fread(contents, strlen("valid"), 1, fp);
         if (rc != 1) {
-            printf("FAIL : %s: file length mismatch!\n", __FILENAME__);
+            printf("FAIL: file length mismatch!\n");
             fclose(fp);
             return 1;
         }
         if (strncmp(contents, "valid", strlen("valid"))) {
-            printf("FAIL : %s:  file contents mismatch!\n", __FILENAME__);
+            printf("FAIL: file contents mismatch!\n");
             return 1;
         }
         printf("%s\n", contents);
         fclose(fp);
     }
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
     return 0;
 }

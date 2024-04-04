@@ -22,7 +22,7 @@
 #include <inttypes.h>
 #include <hexagon_standalone.h>
 #include "thread_common.h"
-#include "filename.h"
+
 
 #define TOLERANCE 0.1
 #define ERR (1 + TOLERANCE)
@@ -529,6 +529,6 @@ int main()
     test_event_change();
     test_committed_pkt_any();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

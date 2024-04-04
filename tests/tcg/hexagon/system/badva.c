@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <q6standalone.h>
-#include "filename.h"
+
 
 #define DEBUG 0
 
@@ -361,7 +361,7 @@ int main()
     test_load_store();
     test_badva_write();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }
 

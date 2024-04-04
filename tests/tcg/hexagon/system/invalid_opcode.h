@@ -22,7 +22,7 @@
 #include "hexagon_standalone.h"
 #define NO_DEFAULT_EVENT_HANDLES
 #include "mmu.h"
-#include "filename.h"
+
 
 #define HEX_CAUSE_INVALID_OPCODE 0x015
 
@@ -62,6 +62,6 @@ MAKE_ERR_HANDLER(my_err_handler, my_err_handler_helper)
         INSTALL_ERR_HANDLER(my_err_handler); \
         test_func(); \
         check32(*my_exceptions, exp_fail ? 1 << HEX_CAUSE_INVALID_OPCODE : 0); \
-        printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);\
+        printf("%s\n", ((err) ? "FAIL" : "PASS"));\
         return err; \
     }

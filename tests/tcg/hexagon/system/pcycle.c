@@ -26,7 +26,7 @@
 
 int err;
 #include "../hex_test.h"
-#include "filename.h"
+
 
 #define DECODE_CYCLES(cycles) cycles
 #define DECODE_OPINFO(name, action) \
@@ -333,6 +333,6 @@ int main()
     test_gpcycle();
     test_upcycle();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

@@ -27,7 +27,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include "filename.h"
+
 
 static uint8_t buffer[1024];
 
@@ -63,7 +63,7 @@ static void test_file_io()
 
     dir = opendir(".");
     if (!dir) {
-        printf("FAIL : %s\n", __FILENAME__);
+        printf("FAIL\n");
         perror("directory open failed");
         exit(3);
     }
@@ -95,5 +95,5 @@ int main()
 {
     test_file_io();
     test_missing_file();
-    printf("PASS : %s\n", __FILENAME__);
+    printf("PASS\n");
 }
