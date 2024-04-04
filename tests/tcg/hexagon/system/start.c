@@ -31,7 +31,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <q6standalone.h>
+#include <hexagon_standalone.h>
 #include "thread_common.h"
 
 int err;

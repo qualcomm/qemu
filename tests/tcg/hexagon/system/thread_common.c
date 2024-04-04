@@ -17,7 +17,7 @@
 
 #include "thread_common.h"
 
-#include <q6standalone.h>
+#include <hexagon_standalone.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>

@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <q6standalone.h>
+#include <hexagon_standalone.h>
 
 
 #define DEBUG 0

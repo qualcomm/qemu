@@ -15,7 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <q6standalone.h>
+#include <hexagon_standalone.h>
 #include <stdio.h>
 
 
