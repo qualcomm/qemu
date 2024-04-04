@@ -15,9 +15,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <stdint.h>
 #include <hexagon_standalone.h>
+#include <stdint.h>
+#include <stdio.h>
 
 
 #define DEBUG 0
@@ -30,66 +30,52 @@ typedef volatile int mmu_variable;
 mmu_variable data0 = 0xdeadbeef;
 mmu_variable data1 = 0xabcdef01;
 
-#define ONE_MB                      (1 << 20)
-#define INVALID_BADVA               0xbadabada
+#define ONE_MB (1 << 20)
+#define INVALID_BADVA 0xbadabada
 
 static uint32_t read_badva(void)
 {
     uint32_t ret;
-    __asm__ __volatile__ (
-        "%0 = badva\n\t"
-        : "=r"(ret)
-    );
+    __asm__ __volatile__("%0 = badva\n\t" : "=r"(ret));
     return ret;
 }
 
 static uint32_t read_badva0(void)
 {
     uint32_t ret;
-    __asm__ __volatile__ (
-        "%0 = badva0\n\t"
-        : "=r"(ret)
-    );
+    __asm__ __volatile__("%0 = badva0\n\t" : "=r"(ret));
     return ret;
 }
 
 static uint32_t read_badva1(void)
 {
     uint32_t ret;
-    __asm__ __volatile__ (
-        "%0 = badva1\n\t"
-        : "=r"(ret)
-    );
+    __asm__ __volatile__("%0 = badva1\n\t" : "=r"(ret));
     return ret;
 }
 
 static uint32_t read_ssr(void)
 {
     uint32_t ret;
-    __asm__ __volatile__ (
-        "%0 = ssr\n\t"
-        : "=r"(ret)
-    );
+    __asm__ __volatile__("%0 = ssr\n\t" : "=r"(ret));
     return ret;
 }
 
 static void write_badva0(uint32_t val)
 {
-    __asm__ __volatile__ ("badva0=%0;"
-        :: "r"(val));
+    __asm__ __volatile__("badva0=%0;" : : "r"(val));
     return;
 }
 
 static void write_badva1(uint32_t val)
 {
-    __asm__ __volatile__ ("badva1=%0;"
-        :: "r"(val));
+    __asm__ __volatile__("badva1=%0;" : : "r"(val));
     return;
 }
 
-#define SSR_V0_BIT           20
-#define SSR_V1_BIT           21
-#define SSR_BVS_BIT          21
+#define SSR_V0_BIT 20
+#define SSR_V1_BIT 21
+#define SSR_BVS_BIT 21
 
 static uint32_t read_ssr_v0(void)
 {
@@ -106,35 +92,33 @@ static uint32_t read_ssr_bvs(void)
     return (read_ssr() >> SSR_BVS_BIT) & 0x1;
 }
 
-static void dual_store(mmu_variable *p, mmu_variable *q,
-                       uint32_t pval, uint32_t qval)
+static void dual_store(mmu_variable *p, mmu_variable *q, uint32_t pval,
+                       uint32_t qval)
 {
 #if DEBUG
     printf("dual_store:\t0x%p, 0x%p, 0x%lx, 0x%lx\n", p, q, pval, qval);
 #endif
 
-    __asm__ __volatile__ (
-        "r6 = #0\n\t"
-        "badva0 = r6\n\t"
-        "badva1 = r6\n\t"
-        "r6 = ssr\n\t"
-        "r6 = clrbit(r6, #%4) // V0\n\t"
-        "r6 = clrbit(r6, #%5) // V1\n\t"
-        "r6 = clrbit(r6, #%6) // BVS\n\t"
-        "ssr = r6\n\t"
-        "{\n\t"
-        "    memw(%0) = %2    // slot 1\n\t"
-        "    memw(%1) = %3    // slot 0\n\t"
-        "}\n\t"
-        : "=m"(*p), "=m"(*q)
-        : "r"(pval), "r"(qval), "i"(SSR_V0_BIT),
-          "i"(SSR_V1_BIT), "i"(SSR_BVS_BIT)
-        : "r6"
-    );
+    __asm__ __volatile__("r6 = #0\n\t"
+                         "badva0 = r6\n\t"
+                         "badva1 = r6\n\t"
+                         "r6 = ssr\n\t"
+                         "r6 = clrbit(r6, #%4) // V0\n\t"
+                         "r6 = clrbit(r6, #%5) // V1\n\t"
+                         "r6 = clrbit(r6, #%6) // BVS\n\t"
+                         "ssr = r6\n\t"
+                         "{\n\t"
+                         "    memw(%0) = %2    // slot 1\n\t"
+                         "    memw(%1) = %3    // slot 0\n\t"
+                         "}\n\t"
+                         : "=m"(*p), "=m"(*q)
+                         : "r"(pval), "r"(qval), "i"(SSR_V0_BIT),
+                           "i"(SSR_V1_BIT), "i"(SSR_BVS_BIT)
+                         : "r6");
 }
 
-static void dual_load(mmu_variable *p, mmu_variable *q,
-                      uint32_t *pval, uint32_t *qval)
+static void dual_load(mmu_variable *p, mmu_variable *q, uint32_t *pval,
+                      uint32_t *qval)
 {
     uint32_t val0, val1;
 
@@ -142,23 +126,22 @@ static void dual_load(mmu_variable *p, mmu_variable *q,
     printf("dual_load:\t0x%p, 0x%p\n", p, q);
 #endif
 
-    __asm__ __volatile__ (
-        "r6 = #0\n\t"
-        "badva0 = r6\n\t"
-        "badva1 = r6\n\t"
-        "r6 = ssr\n\t"
-        "r6 = clrbit(r6, #%4) // V0\n\t"
-        "r6 = clrbit(r6, #%5) // V1\n\t"
-        "r6 = clrbit(r6, #%6) // BVS\n\t"
-        "ssr = r6\n\t"
-        "{\n\t"
-        "    %1 = memw(%3)    // slot 1\n\t"
-        "    %0 = memw(%2)    // slot 0\n\t"
-        "}\n\t"
-        : "=r"(val0), "=r"(val1)
-        : "m"(*p), "m"(*q), "i"(SSR_V0_BIT), "i"(SSR_V1_BIT), "i"(SSR_BVS_BIT)
-        : "r6"
-    );
+    __asm__ __volatile__("r6 = #0\n\t"
+                         "badva0 = r6\n\t"
+                         "badva1 = r6\n\t"
+                         "r6 = ssr\n\t"
+                         "r6 = clrbit(r6, #%4) // V0\n\t"
+                         "r6 = clrbit(r6, #%5) // V1\n\t"
+                         "r6 = clrbit(r6, #%6) // BVS\n\t"
+                         "ssr = r6\n\t"
+                         "{\n\t"
+                         "    %1 = memw(%3)    // slot 1\n\t"
+                         "    %0 = memw(%2)    // slot 0\n\t"
+                         "}\n\t"
+                         : "=r"(val0), "=r"(val1)
+                         : "m"(*p), "m"(*q), "i"(SSR_V0_BIT), "i"(SSR_V1_BIT),
+                           "i"(SSR_BVS_BIT)
+                         : "r6");
 
 #if DEBUG
     printf("\t\t0x%lx, 0x%lx\n", val0, val1);
@@ -168,7 +151,8 @@ static void dual_load(mmu_variable *p, mmu_variable *q,
     *qval = val1;
 }
 
-static void load_store(mmu_variable *p, mmu_variable *q, uint32_t *pval, uint32_t qval)
+static void load_store(mmu_variable *p, mmu_variable *q, uint32_t *pval,
+                       uint32_t qval)
 {
     uint32_t val;
 
@@ -176,23 +160,22 @@ static void load_store(mmu_variable *p, mmu_variable *q, uint32_t *pval, uint32_
     printf("load_store:\t0x%p, 0x%p, 0x%lx\n", p, q, qval);
 #endif
 
-    __asm__ __volatile__ (
-        "r6 = #0\n\t"
-        "badva0 = r6\n\t"
-        "badva1 = r6\n\t"
-        "r6 = ssr\n\t"
-        "r6 = clrbit(r6, #%4) // V0\n\t"
-        "r6 = clrbit(r6, #%5) // V1\n\t"
-        "r6 = clrbit(r6, #%6) // BVS\n\t"
-        "ssr = r6\n\t"
-        "{\n\t"
-        "    %0 = memw(%2)    // slot 1\n\t"
-        "    memw(%1) = %3    // slot 0\n\t"
-        "}\n\t"
-        : "=r"(val), "=m"(*q)
-        : "m"(*p), "r"(qval), "i"(SSR_V0_BIT), "i"(SSR_V1_BIT), "i"(SSR_BVS_BIT)
-        : "r6"
-    );
+    __asm__ __volatile__("r6 = #0\n\t"
+                         "badva0 = r6\n\t"
+                         "badva1 = r6\n\t"
+                         "r6 = ssr\n\t"
+                         "r6 = clrbit(r6, #%4) // V0\n\t"
+                         "r6 = clrbit(r6, #%5) // V1\n\t"
+                         "r6 = clrbit(r6, #%6) // BVS\n\t"
+                         "ssr = r6\n\t"
+                         "{\n\t"
+                         "    %0 = memw(%2)    // slot 1\n\t"
+                         "    memw(%1) = %3    // slot 0\n\t"
+                         "}\n\t"
+                         : "=r"(val), "=m"(*q)
+                         : "m"(*p), "r"(qval), "i"(SSR_V0_BIT), "i"(SSR_V1_BIT),
+                           "i"(SSR_BVS_BIT)
+                         : "r6");
 
 #if DEBUG
     printf("\t\t0x%lx\n", val);
@@ -211,19 +194,19 @@ enum {
 uint32_t add_trans_pgsize(uint32_t page_size_bits)
 {
     switch (page_size_bits) {
-    case 12:                    /* 4KB   */
+    case 12: /* 4KB   */
         return 1;
-    case 14:                    /* 16KB  */
+    case 14: /* 16KB  */
         return 2;
-    case 16:                    /* 64KB  */
+    case 16: /* 64KB  */
         return 4;
-    case 18:                    /* 256KB */
+    case 18: /* 256KB */
         return 8;
-    case 20:                    /* 1MB   */
+    case 20: /* 1MB   */
         return 16;
-    case 22:                    /* 4MB   */
+    case 22: /* 4MB   */
         return 32;
-    case 24:                    /* 16MB  */
+    case 24: /* 16MB  */
         return 64;
     default:
         return 1;
@@ -261,14 +244,14 @@ static void test_dual_store(void)
 
     dual_store(new_data0, new_data1, 0x1, 0x2);
     if (read_badva() == (uint32_t)new_data0) {
-        check32(read_badva0(), (uint32_t) new_data0);
+        check32(read_badva0(), (uint32_t)new_data0);
         check32(read_badva1(), INVALID_BADVA);
         check32(read_ssr_v0(), 1);
         check32(read_ssr_v1(), 0);
         check32(read_ssr_bvs(), 0);
     } else if (read_badva() == (uint32_t)new_data1) {
         check32(read_badva0(), INVALID_BADVA);
-        check32(read_badva1(), (uint32_t) new_data1);
+        check32(read_badva1(), (uint32_t)new_data1);
         check32(read_ssr_v0(), 0);
         check32(read_ssr_v1(), 1);
         check32(read_ssr_bvs(), 1);
@@ -294,14 +277,14 @@ static void test_dual_load(void)
 
     dual_load(new_data0, new_data1, &val0, &val1);
     if (read_badva() == (uint32_t)new_data0) {
-        check32(read_badva0(), (uint32_t) new_data0);
+        check32(read_badva0(), (uint32_t)new_data0);
         check32(read_badva1(), INVALID_BADVA);
         check32(read_ssr_v0(), 1);
         check32(read_ssr_v1(), 0);
         check32(read_ssr_bvs(), 0);
     } else if (read_badva() == (uint32_t)new_data1) {
         check32(read_badva0(), INVALID_BADVA);
-        check32(read_badva1(), (uint32_t) new_data1);
+        check32(read_badva1(), (uint32_t)new_data1);
         check32(read_ssr_v0(), 0);
         check32(read_ssr_v1(), 1);
         check32(read_ssr_bvs(), 1);
@@ -326,15 +309,15 @@ static void test_load_store(void)
     mb_counter++;
 
     load_store(new_data0, new_data1, &val, 0x123);
-    if (read_badva() == (uint32_t) new_data1) {
-        check32(read_badva0(), (uint32_t) new_data1);
+    if (read_badva() == (uint32_t)new_data1) {
+        check32(read_badva0(), (uint32_t)new_data1);
         check32(read_badva1(), INVALID_BADVA);
         check32(read_ssr_v0(), 1);
         check32(read_ssr_v1(), 0);
         check32(read_ssr_bvs(), 0);
-    } else if (read_badva() == (uint32_t) new_data0) {
+    } else if (read_badva() == (uint32_t)new_data0) {
         check32(read_badva0(), INVALID_BADVA);
-        check32(read_badva1(), (uint32_t) new_data0);
+        check32(read_badva1(), (uint32_t)new_data0);
         check32(read_ssr_v0(), 0);
         check32(read_ssr_v1(), 1);
         check32(read_ssr_bvs(), 1);
@@ -364,4 +347,3 @@ int main()
     printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }
-

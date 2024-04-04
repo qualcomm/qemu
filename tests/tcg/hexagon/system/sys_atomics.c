@@ -16,83 +16,86 @@
  */
 
 
-#include <stdio.h>
+#include "thread_common.h"
 #include <hexagon_standalone.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include "thread_common.h"
+#include <stdio.h>
 
 
 #define NUM_THREADS 2
 #define STACK_SIZE 0x8000
 char __attribute__((aligned(16))) stack[NUM_THREADS][STACK_SIZE];
 int id[NUM_THREADS + 1];
-volatile int done[NUM_THREADS + 1]; /* volatile because threads will change it */
-volatile int contention[NUM_THREADS + 1]; /* volatile because threads will change it */
+volatile int
+    done[NUM_THREADS + 1]; /* volatile because threads will change it */
+volatile int
+    contention[NUM_THREADS + 1]; /* volatile because threads will change it */
 
 static const int LOOP_CNT = 10000;
 volatile uint32_t tick32; /* volatile because we are testing atomics */
 volatile uint64_t tick64; /* volatile because we are testing atomics */
 
-#define DECLARE_ATOMIC_INC(SIZE, TYPE, SUFFIX) \
-    /* Using volatile because we are testing atomics */ \
-    static inline TYPE atomic_inc## SIZE(volatile TYPE * x, TYPE increment) \
-    { \
-        TYPE old, dummy; \
-        uint32_t iters = 0; \
-        asm volatile( \
-            "1: %0 = mem" SUFFIX "_locked(%3)\n\t" \
-            "   %1 = add(%0, %4)\n\t" \
-            "   %2 = add(%2, #1)\n\t" \
-            /* This pause makes the thread yield in single-thread TCG. */ \
-            "   pause(#0)\n\t" \
-            "   mem" SUFFIX "_locked(%3, p0) = %1\n\t" \
-            "   if (!p0) jump 1b\n\t" \
-            : "=&r"(old), "=&r"(dummy), "+&r"(iters) \
-            : "r"(x), "r"(increment) \
-            : "p0", "memory"); \
-        return (TYPE)iters; \
+#define DECLARE_ATOMIC_INC(SIZE, TYPE, SUFFIX)                                \
+    /* Using volatile because we are testing atomics */                       \
+    static inline TYPE atomic_inc##SIZE(volatile TYPE *x, TYPE increment)     \
+    {                                                                         \
+        TYPE old, dummy;                                                      \
+        uint32_t iters = 0;                                                   \
+        asm volatile(                                                         \
+            "1: %0 = mem" SUFFIX "_locked(%3)\n\t"                            \
+            "   %1 = add(%0, %4)\n\t"                                         \
+            "   %2 = add(%2, #1)\n\t"                                         \
+            /* This pause makes the thread yield in single-thread TCG. */     \
+            "   pause(#0)\n\t"                                                \
+            "   mem" SUFFIX "_locked(%3, p0) = %1\n\t"                        \
+            "   if (!p0) jump 1b\n\t"                                         \
+            : "=&r"(old), "=&r"(dummy), "+&r"(iters)                          \
+            : "r"(x), "r"(increment)                                          \
+            : "p0", "memory");                                                \
+        return (TYPE)iters;                                                   \
     }
 
 /*
  * This covers the case where a store-conditional targets a virtual address
  * other than the current load-locked address.
  */
-#define DECLARE_ATOMIC_INC_MISMATCH(SIZE, TYPE, SUFFIX) \
-    /* Using volatile because we are testing atomics */ \
-    static inline int atomic_inc## SIZE ##_mismatch(volatile TYPE *x, volatile TYPE *y) \
-    { \
-        TYPE old, dummy = 0; \
-        int pred; \
-        asm volatile( \
-            "%0 = mem" SUFFIX "_locked(%3)\n\t" \
-            "mem" SUFFIX "_locked(%4, p0) = %2\n\t" \
-            "%1 = p0\n\t" \
-            : "=&r"(old), "=&r"(pred) \
-            : "r"(dummy), "r"(x), "r"(y) \
-            : "p0", "memory"); \
-        return pred; \
+#define DECLARE_ATOMIC_INC_MISMATCH(SIZE, TYPE, SUFFIX)             \
+    /* Using volatile because we are testing atomics */             \
+    static inline int atomic_inc##SIZE##_mismatch(volatile TYPE *x, \
+                                                  volatile TYPE *y) \
+    {                                                               \
+        TYPE old, dummy = 0;                                        \
+        int pred;                                                   \
+        asm volatile("%0 = mem" SUFFIX "_locked(%3)\n\t"            \
+                     "mem" SUFFIX "_locked(%4, p0) = %2\n\t"        \
+                     "%1 = p0\n\t"                                  \
+                     : "=&r"(old), "=&r"(pred)                      \
+                     : "r"(dummy), "r"(x), "r"(y)                   \
+                     : "p0", "memory");                             \
+        return pred;                                                \
     }
 
-#define DECLARE_SAT_ADD(SIZE, TYPE) \
-    static inline void sat_add## SIZE(TYPE *a, TYPE b) \
-    { \
-        TYPE result = *a + b; \
-        *a = (result < *a || result < b) ? UINT## SIZE ##_MAX : result; \
+#define DECLARE_SAT_ADD(SIZE, TYPE)                                   \
+    static inline void sat_add##SIZE(TYPE *a, TYPE b)                 \
+    {                                                                 \
+        TYPE result = *a + b;                                         \
+        *a = (result < *a || result < b) ? UINT##SIZE##_MAX : result; \
     }
 
-#define TYPE(SIZE) uint## SIZE ##_t
+#define TYPE(SIZE) uint##SIZE##_t
 
-#define DECLARE_AUX_FUNCS(SIZE, SUFFIX) \
-    DECLARE_ATOMIC_INC(SIZE, TYPE(SIZE), SUFFIX) \
+#define DECLARE_AUX_FUNCS(SIZE, SUFFIX)                   \
+    DECLARE_ATOMIC_INC(SIZE, TYPE(SIZE), SUFFIX)          \
     DECLARE_ATOMIC_INC_MISMATCH(SIZE, TYPE(SIZE), SUFFIX) \
     DECLARE_SAT_ADD(SIZE, TYPE(SIZE))
 
 DECLARE_AUX_FUNCS(32, "w")
 DECLARE_AUX_FUNCS(64, "d")
 
-int thread_body(int id) {
+int thread_body(int id)
+{
     /*
      * These counters are to track how many times an atomic_incZZ()
      * had to iterate because the store-conditional returned 'false'.
@@ -195,11 +198,13 @@ int run_test(void)
     }
 
     if (tick32 != expected_tick_count) {
-        printf("ERROR: tick32 %"PRIu32" != %"PRIu32"\n", tick32, expected_tick_count);
+        printf("ERROR: tick32 %" PRIu32 " != %" PRIu32 "\n", tick32,
+               expected_tick_count);
         err++;
     }
     if (tick64 != expected_tick_count) {
-        printf("ERROR: tick64 %"PRIu64" != %"PRIu32"\n", tick64, expected_tick_count);
+        printf("ERROR: tick64 %" PRIu64 " != %" PRIu32 "\n", tick64,
+               expected_tick_count);
         err++;
     }
     return err;

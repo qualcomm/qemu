@@ -29,10 +29,10 @@
  * mask.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <hexagon_standalone.h>
 #include "thread_common.h"
+#include <hexagon_standalone.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 int err;
 #include "../hex_test.h"
@@ -43,20 +43,25 @@ static volatile uint32_t reset_mask;
 
 void (*default_reset_handler)(void);
 
-#define NUM_THREADS           4
-#define DUMMY_CAUSE           0x13
+#define NUM_THREADS 4
+#define DUMMY_CAUSE 0x13
 /* Mark volatile because it is modified by multiple threads */
 static volatile uint32_t ssr_cause_log[NUM_THREADS];
 
-#define get_ssr_cause() \
-    ({ uint32_t ssr; asm volatile ("%0 = ssr\n" : "=r"(ssr)); ssr & 0xff; })
+#define get_ssr_cause()                         \
+    ({                                          \
+        uint32_t ssr;                           \
+        asm volatile("%0 = ssr\n" : "=r"(ssr)); \
+        ssr & 0xff;                             \
+    })
 
-#define set_ssr_cause(CAUSE) do { \
-        uint32_t ssr; \
-        asm volatile ("%0 = ssr\n\t" : "=r"(ssr)); \
-        ssr &= ~0xff; \
-        ssr |= ((CAUSE) & 0xff); \
-        asm volatile ("ssr = %0\n\t" : : "r"(ssr)); \
+#define set_ssr_cause(CAUSE)                       \
+    do {                                           \
+        uint32_t ssr;                              \
+        asm volatile("%0 = ssr\n\t" : "=r"(ssr));  \
+        ssr &= ~0xff;                              \
+        ssr |= ((CAUSE) & 0xff);                   \
+        asm volatile("ssr = %0\n\t" : : "r"(ssr)); \
     } while (0)
 
 /*
@@ -94,7 +99,7 @@ static void test_start(uint32_t mask)
 
     set_event_handler(HEXAGON_EVENT_0, my_reset_handler);
     set_semaphore_state(mask, THREAD_SEMAPHORE_OFF);
-    asm volatile("start(%0)\n\t" :: "r"(mask));
+    asm volatile("start(%0)\n\t" : : "r"(mask));
     start_waiting_threads(mask);
     thread_join(remove_myself(mask));
     set_event_handler(HEXAGON_EVENT_0, default_reset_handler);

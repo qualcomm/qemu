@@ -17,10 +17,10 @@
 
 #include "thread_common.h"
 
-#include <hexagon_standalone.h>
 #include <assert.h>
-#include <stdlib.h>
+#include <hexagon_standalone.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 volatile int thread_semaphore[32]; /* volatile: changed by multiple threads */
 
@@ -64,7 +64,7 @@ void set_semaphore_state(uint32_t mask, int state)
 {
     for (int tid = 0; tid < 32; tid++) {
         if (mask & (1 << tid)) {
-             thread_semaphore[tid] = state;
+            thread_semaphore[tid] = state;
         }
     }
 }

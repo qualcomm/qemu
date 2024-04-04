@@ -15,9 +15,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cfgtable.h"
 #include <hexagon_standalone.h>
 #include <string.h>
-#include "cfgtable.h"
 
 static inline void infloop(void)
 {
@@ -43,7 +43,8 @@ int main()
     assert(read_cfgtable_field(THREAD_ENABLE_MASK) & 0xf);
     printf("Starting thread 0\n");
     for (int i = 1; i < NUM_THREADS; i++) {
-        thread_create(thread, (void *)&stack[i - 1][STACK_SIZE - 16], i, (void *)i);
+        thread_create(thread, (void *)&stack[i - 1][STACK_SIZE - 16], i,
+                      (void *)i);
     }
     infloop();
     return 0;
