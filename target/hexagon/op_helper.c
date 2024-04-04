@@ -1738,7 +1738,6 @@ static void hex_k0_lock(CPUHexagonState *env)
 {
     trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_lock");
     BQL_LOCK_GUARD();
-    trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_lock");
     print_thread_states("\tThread");
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
@@ -1783,7 +1782,6 @@ static void hex_k0_unlock(CPUHexagonState *env)
 {
     trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_unlock");
     BQL_LOCK_GUARD();
-    trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_unlock");
     print_thread_states("\tThread");
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
@@ -1854,7 +1852,6 @@ static void hex_k0_unlock(CPUHexagonState *env)
         cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
     }
 
-    trace_hexagon_k0_lock_info(env->threadId, "After hex_k0_unlock\n");
     print_thread_states("\tThread");
     trace_hexagon_k0_lock_info(env->threadId, "After hex_k0_unlock\n");
 }
