@@ -275,7 +275,8 @@ int main(int argc, char **argv)
 
     /* READDIR */
     char *expected_files[4] = { ".", "..", "fileA", "fileB" };
-    char found_files[4][256];
+    char found_files_buffer[4][256];
+    char *found_files[4];
     for (int i = 0; 1; i++) {
         struct __attribute__((__packed__)) { int32_t _; char d_name[256]; } dirent;
         DIRECT_SWI(HEX_SYS_READDIR, dir_index, &dirent);
@@ -283,10 +284,11 @@ int main(int argc, char **argv)
             break;
         }
         assert(i < 4);
+        found_files[i] = found_files_buffer[i];
         strcpy(found_files[i], dirent.d_name);
     }
 
-    sort_str_arr((char **)found_files, 4);
+    sort_str_arr(found_files, 4);
     for (int i = 0; i < 4; i++) {
         assert(!strcmp(found_files[i], expected_files[i]));
     }
