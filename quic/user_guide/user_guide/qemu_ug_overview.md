@@ -1,6 +1,6 @@
 # Overview
 
-This document describes the Qualcomm® Hexagon™ QEMU-VP utility, which
+This document describes the Qualcomm® Hexagon™ QEMU utility, which
 is an emulator that decodes and translates the instructions of a DSP
 program into instructions for a host architecture on a virtual
 platform.
