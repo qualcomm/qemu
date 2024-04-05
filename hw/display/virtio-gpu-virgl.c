@@ -397,22 +397,13 @@ static void virgl_cmd_get_capset_info(VirtIOGPU *g,
 {
     struct virtio_gpu_get_capset_info info;
     struct virtio_gpu_resp_capset_info resp;
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
     VIRTIO_GPU_FILL_CMD(info);
 
     memset(&resp, 0, sizeof(resp));
-    if (info.capset_index == 0) {
-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL;
-        virgl_renderer_get_cap_set(resp.capset_id,
-                                   &resp.capset_max_version,
-                                   &resp.capset_max_size);
-    } else if (info.capset_index == 1) {
-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL2;
-        virgl_renderer_get_cap_set(resp.capset_id,
-                                   &resp.capset_max_version,
-                                   &resp.capset_max_size);
-    } else if (info.capset_index == 2) {
-        resp.capset_id = VIRTIO_GPU_CAPSET_VENUS;
+    if (info.capset_index < VIRTIO_GPU_MAX_CAPSETS) {
+        resp.capset_id = gl->capset_ids[info.capset_index];
         virgl_renderer_get_cap_set(resp.capset_id,
                                    &resp.capset_max_version,
                                    &resp.capset_max_size);
@@ -873,18 +864,28 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
 
 int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 {
-    uint32_t capset2_max_ver, capset2_max_size, num_capsets;
-    num_capsets = 1;
+    uint32_t capset_max_ver, capset_max_size;
+    uint32_t capset_count = 0;
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+
+    gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VIRGL;
+    capset_count++;
 
     virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
-                               &capset2_max_ver,
-                               &capset2_max_size);
-    num_capsets += capset2_max_ver ? 1 : 0;
+                               &capset_max_ver,
+                               &capset_max_size);
+    if (capset_max_ver) {
+        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VIRGL2;
+        capset_count++;
+    }
 
     virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VENUS,
-                               &capset2_max_ver,
-                               &capset2_max_size);
-    num_capsets += capset2_max_size ? 1 : 0;
+                               &capset_max_ver,
+                               &capset_max_size);
+    if (capset_max_size) {
+        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VENUS;
+        capset_count++;
+    }
 
-    return num_capsets;
+    return capset_count;
 }

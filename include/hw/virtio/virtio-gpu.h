@@ -233,11 +233,15 @@ struct VirtIOGPUClass {
                              Error **errp);
 };
 
+#define VIRTIO_GPU_MAX_CAPSETS 8
+
 struct VirtIOGPUGL {
     struct VirtIOGPU parent_obj;
 
     bool renderer_inited;
     bool renderer_reset;
+
+    int capset_ids[VIRTIO_GPU_MAX_CAPSETS];
 };
 
 struct VhostUserGPU {
