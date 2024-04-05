@@ -887,5 +887,13 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
         capset_count++;
     }
 
+    virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VCL,
+                               &capset_max_ver,
+                               &capset_max_size);
+    if (capset_max_size) {
+        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VCL;
+        capset_count++;
+    }
+
     return capset_count;
 }
