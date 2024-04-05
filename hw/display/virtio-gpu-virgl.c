@@ -1237,5 +1237,12 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
         }
     }
 
+    virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VCL,
+                               &capset_max_ver,
+                               &capset_max_size);
+    if (capset_max_size) {
+        virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VCL);
+    }
+
     return capset_ids;
 }
