@@ -306,7 +306,6 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
         value = 0;
         qemu_log_mask(LOG_GUEST_ERROR, "L2VIC: %s: offset %x\n", __func__,
                       (int)offset);
-        g_assert(false);
     }
 
     trace_l2vic_reg_read((unsigned) offset, value);
