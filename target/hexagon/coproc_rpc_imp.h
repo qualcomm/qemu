@@ -38,6 +38,7 @@
 #include <type_traits>
 #include <unistd.h>
 #include <utility>
+#include <csignal>
 
 #define RPC_VERSION 4
 #define GS_Process_Server_Port "GS_Process_Server_Port"
@@ -271,6 +272,10 @@ class RemoteRPC {
                          GS_Process_Server_Port_Len + DECIMAL_PID_T_STR_LEN + 1,
                          "%s%d", GS_Process_Server_Port, getpid());
                 setenv(key, val, 1);
+
+                sigset_t sigset;
+                sigfillset(&sigset);
+                sigprocmask(SIG_SETMASK, &sigset, NULL);
 
                 execv(exec_path.c_str(), const_cast<char * *>(&argp[0]));
                 std::cout << "CLIENT: Unable to exec the "
