@@ -22,6 +22,7 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 #include "qom/object.h"
+#include "block/aio.h"
 
 /*
  * A guest should never accept this. It implies negotiation is broken
@@ -34,9 +35,6 @@
 #define VIRTIO_LEGACY_FEATURES ((0x1ULL << VIRTIO_F_BAD_FEATURE) | \
                                 (0x1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) | \
                                 (0x1ULL << VIRTIO_F_ANY_LAYOUT))
-
-#define LM_DISABLE      0x00
-#define LM_ENABLE       0x01
 
 struct VirtQueue;
 
@@ -98,11 +96,6 @@ enum virtio_device_endian {
     VIRTIO_DEVICE_ENDIAN_BIG,
 };
 
-typedef struct BitmapMemoryRegionCaches {
-    struct rcu_head rcu;
-    MemoryRegionCache bitmap;
-} BitmapMemoryRegionCaches;
-
 /**
  * struct VirtIODevice - common VirtIO structure
  * @name: name of the device
@@ -136,14 +129,6 @@ struct VirtIODevice
     uint32_t generation;
     int nvectors;
     VirtQueue *vq;
-    uint8_t lm_logging_ctrl;
-    uint32_t lm_base_addr_low;
-    uint32_t lm_base_addr_high;
-    uint32_t lm_end_addr_low;
-    uint32_t lm_end_addr_high;
-
-    BitmapMemoryRegionCaches *caches;
-
     MemoryListener listener;
     uint16_t device_id;
     /* @vm_running: current VM running state via virtio_vmstate_change() */
@@ -395,11 +380,8 @@ hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n);
 unsigned int virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n);
-unsigned int virtio_queue_get_vring_states(VirtIODevice *vdev, int n);
 void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n,
                                      unsigned int idx);
-void virtio_queue_set_vring_states(VirtIODevice *vdev, int n,
-                                   unsigned int idx);
 void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n);
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n);
 void virtio_queue_update_used_idx(VirtIODevice *vdev, int n);
@@ -526,5 +508,11 @@ static inline bool virtio_device_disabled(VirtIODevice *vdev)
 
 bool virtio_legacy_allowed(VirtIODevice *vdev);
 bool virtio_legacy_check_disabled(VirtIODevice *vdev);
+
+QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
+                                   QEMUBHFunc *cb, void *opaque,
+                                   const char *name);
+#define virtio_bh_new_guarded(dev, cb, opaque) \
+    virtio_bh_new_guarded_full((dev), (cb), (opaque), (stringify(cb)))
 
 #endif
