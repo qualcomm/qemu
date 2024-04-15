@@ -37,7 +37,7 @@ static const char *sreg2str(unsigned int reg)
 
 static const char *creg2str(unsigned int reg)
 {
-    return sreg2str(reg + HEX_REG_SA0);
+    return hexagon_regnames[reg + HEX_REG_SA0];
 }
 
 static inline bool valid_insn(Insn *insn)
