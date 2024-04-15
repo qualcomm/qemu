@@ -324,14 +324,10 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 #ifndef CONFIG_USER_ONLY
 static void gen_read_sreg(TCGv dst, int reg_num)
 {
-    if (reg_num < HEX_SREG_GLB_START) {
-        if (reg_num == HEX_SREG_BADVA) {
-            gen_helper_sreg_read(dst, tcg_env, tcg_constant_i32(reg_num));
-        } else {
-            tcg_gen_mov_tl(dst, hex_t_sreg[reg_num]);
-        }
-    } else {
+    if (reg_num >= HEX_SREG_GLB_START || reg_num == HEX_SREG_BADVA) {
         gen_helper_sreg_read(dst, tcg_env, tcg_constant_i32(reg_num));
+    } else {
+        tcg_gen_mov_tl(dst, hex_t_sreg[reg_num]);
     }
 }
 
