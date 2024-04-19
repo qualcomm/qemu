@@ -67,6 +67,10 @@ static void hex_symbol_callback(const char *st_name, int st_info,
 static Rev_t rev_from_rev_byte(int byte)
 {
     switch (byte) {
+    case 0x65:
+        warn_report("binary arch revision is too old (v%02x), using v66 instead",
+                    byte);
+        /* fallthrough */
     case 0x66: return v66_rev;
     case 0x67: return v67_rev;
     case 0x68: return v68_rev;
@@ -74,6 +78,7 @@ static Rev_t rev_from_rev_byte(int byte)
     case 0x71: return v71_rev;
     case 0x73: return v73_rev;
     case 0x75: return v75_rev;
+    case 0x77: return v75_rev; /* v77 is identical to v75 */
     case 0x79: return v79_rev;
     default: return unknown_rev;
     }
