@@ -374,23 +374,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fREAD_P0() (env->pred[0])
 #endif
 
-/*
- * FIXME
- * This is a nop in upstream
- * Should it be defined only in system mode?  (probably not)
- * It's only reference is is in op_helper.c, so the check
- * is not performed for every COF.  We should add the check
- * to COF instructions that have TCG overrides.  See
- * gen_write_new_pc function in genptr.c
- */
-#define fCHECK_PCALIGN(A, PC)                                    \
-    do {                                                         \
-        if (((A) & PCALIGN_MASK) != 0) {                         \
-            env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;          \
-            raise_exception(env, HEX_EVENT_PRECISE, PC); \
-        }                                                        \
-    } while (0)
-
 #define fWRITE_NPC(A) write_new_pc(env, pkt_has_multi_cof != 0, A, PC)
 
 #define MARK_LATE_PRED_WRITE(RNUM) /* Not modelled in qemu */
