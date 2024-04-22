@@ -155,6 +155,10 @@ void hvf_arm_init_debug(void)
 
     os_release(config);
 }
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 
 #define SYSREG_OP0_SHIFT      20
 #define SYSREG_OP0_MASK       0x3
