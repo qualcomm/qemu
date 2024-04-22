@@ -202,8 +202,8 @@ void libqemu_memory_region_init_io(MemoryRegion *mr, Object *obj, const MemoryRe
 
     wrapper->ops.read_with_attrs = libqemu_read_generic_cb;
     wrapper->ops.write_with_attrs = libqemu_write_generic_cb;
-
     memory_region_init_io(mr, obj, &wrapper->ops, wrapper, name, size);
+    mr->disable_reentrancy_guard = true;
 }
 
 void libqemu_memory_region_set_ops(MemoryRegion* mr, const MemoryRegionOps *ops) {
