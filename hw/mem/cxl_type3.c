@@ -986,7 +986,7 @@ static void init_alert_config(CXLType3Dev *ct3d)
     };
 }
 
-static void ct3_realize(PCIDevice *pci_dev, Error **errp)
+void ct3_realize(PCIDevice *pci_dev, Error **errp)
 {
     ERRP_GUARD();
     CXLType3Dev *ct3d = CXL_TYPE3(pci_dev);
@@ -1185,7 +1185,7 @@ err_free_special_ops:
     }
 }
 
-static void ct3_exit(PCIDevice *pci_dev)
+void ct3_exit(PCIDevice *pci_dev)
 {
     CXLType3Dev *ct3d = CXL_TYPE3(pci_dev);
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
@@ -1377,7 +1377,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     return address_space_write(as, dpa_offset, attrs, &data, size);
 }
 
-static void ct3d_reset(DeviceState *dev)
+void ct3d_reset(DeviceState *dev)
 {
     CXLType3Dev *ct3d = CXL_TYPE3(dev);
     uint32_t *reg_state = ct3d->cxl_cstate.crb.cache_mem_registers;

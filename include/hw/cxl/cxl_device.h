@@ -890,6 +890,9 @@ bool cxl_type3_get_hdm_interleave_props(CXLType3Dev *ct3d, int which,
                                         uint64_t *hpa_base, uint16_t *granual,
                                         uint8_t *ways);
 void cxl_type3_set_hdm_isp(CXLType3Dev *ctrd, int which, uint8_t isp);
+void ct3_realize(PCIDevice *pci_dev, Error **errp);
+void ct3_exit(PCIDevice *pci_dev);
+void ct3d_reset(DeviceState *d);
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxlds);
 
