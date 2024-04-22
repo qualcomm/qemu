@@ -233,7 +233,7 @@ static const MemoryRegionOps cpmu_ops = {
 static void cpmu_counter_update(void *opaque)
 {
     CPMUState *cpmu = opaque;
-    CXLDeviceState *cxl_dstate = cpmu->private;
+    PCIDevice *pdev = PCI_DEVICE(cpmu->private);
     bool interrupt_needed = false;
     int i;
 
@@ -272,12 +272,11 @@ static void cpmu_counter_update(void *opaque)
     }
     timer_mod(cpmu->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 100000000);
     if (interrupt_needed) {
-        CXLType3Dev *dev = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
 
-        if (msix_enabled(&dev->parent_obj)) {
-            msix_notify(&dev->parent_obj, cpmu->msi_n);
-        } else if (msi_enabled(&dev->parent_obj)) {
-            msi_notify(&dev->parent_obj, cpmu->msi_n);
+        if (msix_enabled(pdev)) {
+            msix_notify(pdev, cpmu->msi_n);
+        } else if (msi_enabled(pdev)) {
+            msi_notify(pdev, cpmu->msi_n);
         }
     }
 }
@@ -298,7 +297,7 @@ void cxl_cpmu_register_block_init(Object *obj, CXLDeviceState *cxl_dstate,
     g_autofree gchar *name = g_strdup_printf("cpmu%d-registers", id);
 
     cpmu->msi_n = msi_n;
-    cpmu->private = cxl_dstate;
+    cpmu->private = obj;
     memory_region_init_io(registers, obj, &cpmu_ops, cpmu,
                           name, pow2ceil(CXL_CPMU_SIZE));
     cpmu->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cpmu_counter_update,
@@ -308,4 +307,18 @@ void cxl_cpmu_register_block_init(Object *obj, CXLDeviceState *cxl_dstate,
     /* Need to force 64k Alignment in the bar */
     memory_region_add_subregion(&cxl_dstate->device_registers,
                                 CXL_CPMU_OFFSET(id), registers);
+}
+
+void cxl_cpmu_register_block_init2(Object *obj, CPMUState *cpmu,
+                                   MemoryRegion *registers,
+                                   int id, uint8_t msi_n)
+{
+    g_autofree gchar *name = g_strdup_printf("cpmu%d-registers", id);
+
+    cpmu->msi_n = msi_n;
+    cpmu->private = obj;
+    memory_region_init_io(registers, obj, &cpmu_ops, cpmu,  name,
+                          pow2ceil(CXL_CPMU_SIZE));
+    cpmu->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cpmu_counter_update, cpmu);
+    timer_mod(cpmu->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 100000000);
 }

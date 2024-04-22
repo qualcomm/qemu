@@ -111,7 +111,6 @@
                   1 << 16)
 
 #define CXL_NUM_CPMU_INSTANCES 2
-#define CXL_CPMU_SIZE          0x8f8
 #define CXL_CPMU_OFFSET(x)                                              \
     QEMU_ALIGN_UP(CXL_MEMORY_DEVICE_REGISTERS_OFFSET +                  \
                   CXL_MEMORY_DEVICE_REGISTERS_LENGTH +                  \
