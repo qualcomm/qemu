@@ -148,6 +148,10 @@ void hvf_arm_init_debug(void)
     hw_watchpoints =
         g_array_sized_new(true, true, sizeof(HWWatchpoint), max_hw_wps);
 }
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 
 #define HVF_SYSREG(crn, crm, op0, op1, op2) \
         ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2)
@@ -1743,6 +1747,11 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
      * Use pselect to sleep so that other threads can IPI us while we're
      * sleeping.
      */
+#ifdef CONFIG_LIBQEMU
+    cpu->halted = 1;
+        libqemu_cpu_end_of_loop_cb(cpu);
+    cpu->halted = 0;
+#endif
     qatomic_set_mb(&cpu->thread_kicked, false);
     bql_unlock();
 
@@ -1751,6 +1760,7 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
 
     pselect(0, 0, 0, 0, ts, &cpu->accel->unblock_ipi_mask);
     bql_lock();
+
 }
 
 static void hvf_wfi(CPUState *cpu)
