@@ -2545,6 +2545,7 @@ static void ct3_class_init(ObjectClass *oc, const void *data)
     cvc->get_lsa = get_lsa;
     cvc->set_lsa = set_lsa;
     cvc->set_cacheline = set_cacheline;
+    cvc->mhd_get_info = NULL;
     cvc->mhd_access_valid = NULL;
 }
 
