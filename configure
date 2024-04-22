@@ -417,8 +417,6 @@ elif check_define __arm__ ; then
   cpu="arm"
 elif check_define __aarch64__ ; then
   cpu="aarch64"
-elif check_define __hexagon__ ; then
-  cpu="hexagon"
 elif check_define __loongarch64 ; then
   cpu="loongarch64"
 else
