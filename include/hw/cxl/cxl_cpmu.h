@@ -98,4 +98,7 @@ void cxl_cpmu_register_block_init(Object *obj,
                                   CXLDeviceState *cxl_dstate,
                                   int id, uint8_t msi_n);
 
+void cxl_cpmu_register_block_init2(Object *obj, CPMUState *cpmu,
+                                   MemoryRegion *registers,
+                                   int id, uint8_t msi_n);
 #endif
