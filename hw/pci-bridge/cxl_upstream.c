@@ -37,6 +37,29 @@ CXLComponentState *cxl_usp_to_cstate(CXLUpstreamPort *usp)
     return &usp->cxl_cstate;
 }
 
+static void cxl_filtered_pci_bridge_write_config(PCIDevice *d, uint32_t address,
+                                                 uint32_t val, int len)
+{
+    if (ranges_overlap(address, len, PCI_BRIDGE_CONTROL, 1)) {
+        CXLUpstreamPort *usp = CXL_USP(d);
+        int byte = PCI_BRIDGE_CONTROL - address;
+        uint16_t cxl_port_ctl =
+            pci_get_word(d->config +
+                         usp->cxl_cstate.dvsecs[EXTENSIONS_PORT_DVSEC].lob +
+                         PORT_CONTROL_OFFSET);
+        /*
+         * If UNMASK SBR is not set, then the SBR bit in Bridge Control register
+         * has no affect (CXL 2.0 8.5.1.2 Port Control Extensions).
+         * Hence mask it out.
+         */
+        if (!(cxl_port_ctl & PORT_CONTROL_UNMASK_SBR)) {
+            val &= ~(PCI_BRIDGE_CTL_BUS_RESET << (byte * 8));
+        }
+    }
+
+    pci_bridge_write_config(d, address, val, len);
+}
+
 static void cxl_usp_dvsec_write_config(PCIDevice *dev, uint32_t addr,
                                        uint32_t val, int len)
 {
@@ -46,10 +69,6 @@ static void cxl_usp_dvsec_write_config(PCIDevice *dev, uint32_t addr,
         uint8_t *reg = &dev->config[addr];
         addr -= usp->cxl_cstate.dvsecs[EXTENSIONS_PORT_DVSEC].lob;
         if (addr == PORT_CONTROL_OFFSET) {
-            if (pci_get_word(reg) & PORT_CONTROL_UNMASK_SBR) {
-                /* unmask SBR */
-                qemu_log_mask(LOG_UNIMP, "SBR mask control is not supported\n");
-            }
             if (pci_get_word(reg) & PORT_CONTROL_ALT_MEMID_EN) {
                 /* Alt Memory & ID Space Enable */
                 qemu_log_mask(LOG_UNIMP,
@@ -65,7 +84,7 @@ static void cxl_usp_write_config(PCIDevice *d, uint32_t address,
     CXLUpstreamPort *usp = CXL_USP(d);
 
     pcie_doe_write_config(&usp->doe_cdat, address, val, len);
-    pci_bridge_write_config(d, address, val, len);
+    cxl_filtered_pci_bridge_write_config(d, address, val, len);
     pcie_cap_flr_write_config(d, address, val, len);
     pcie_aer_write_config(d, address, val, len);
 
