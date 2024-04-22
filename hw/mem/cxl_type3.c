@@ -36,6 +36,8 @@ enum CXL_T3_MSIX_VECTOR {
     CXL_T3_MSIX_PCIE_DOE_TABLE_ACCESS = 0,
     CXL_T3_MSIX_EVENT_START = 2,
     CXL_T3_MSIX_MBOX = CXL_T3_MSIX_EVENT_START + CXL_EVENT_TYPE_MAX,
+    CXL_T3_MSIX_CPMU0,
+    CXL_T3_MSIX_CPMU1,
     CXL_T3_MSIX_CHMU0_BASE,
     /* One interrupt per CMUH instance in the block */
     CXL_T3_MSIX_VECTOR_NR =
@@ -340,8 +342,9 @@ static void ct3d_config_write(PCIDevice *pci_dev, uint32_t addr, uint32_t val,
 static void build_dvsecs(CXLType3Dev *ct3d)
 {
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
+    CXLDVSECRegisterLocator *regloc_dvsec;
     uint8_t *dvsec;
-    uint32_t range1_size_hi, range1_size_lo,
+    uint32_t range1_size_hi = 0, range1_size_lo = 0,
              range1_base_hi = 0, range1_base_lo = 0,
              range2_size_hi = 0, range2_size_lo = 0,
              range2_base_hi = 0, range2_base_lo = 0;
@@ -390,7 +393,7 @@ static void build_dvsecs(CXLType3Dev *ct3d)
                                PCIE_CXL_DEVICE_DVSEC,
                                PCIE_CXL31_DEVICE_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
+    regloc_dvsec = &(CXLDVSECRegisterLocator){
         .rsvd         = 0,
         .reg_base[REG_LOC_IDX_COMPONENT] = {
             .lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
@@ -405,11 +408,19 @@ static void build_dvsecs(CXLType3Dev *ct3d)
             CXL_DEVICE_REG_BAR_IDX,
             .hi = 0,
         },
+        .reg_base[REG_LOC_IDX_CPMU0] = {
+            .lo = CXL_CPMU_OFFSET(0) | RBI_CXL_CPMU_REG | CXL_DEVICE_REG_BAR_IDX,
+            .hi = 0,
+        },
+        .reg_base[REG_LOC_IDX_CPMU1] = {
+            .lo = CXL_CPMU_OFFSET(1) | RBI_CXL_CPMU_REG | CXL_DEVICE_REG_BAR_IDX,
+            .hi = 0,
+        },
     };
 
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
-                               REG_LOC_DVSEC_REVID, dvsec);
+                               REG_LOC_DVSEC_REVID, (uint8_t *)regloc_dvsec);
     dvsec = (uint8_t *)&(CXLDVSECDeviceGPF){
         .phase2_duration = 0x603, /* 3 seconds */
         .phase2_power = 0x33, /* 0x33 miliwatts */
@@ -1018,6 +1029,11 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
                                    &ct3d->cci);
 
+    cxl_cpmu_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate, 0,
+                                 CXL_T3_MSIX_CPMU0);
+    cxl_cpmu_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate, 1,
+                                 CXL_T3_MSIX_CPMU1);
+
     rc = cxl_chmu_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
                                       0, CXL_T3_MSIX_CHMU0_BASE, errp);
     if (rc) {
@@ -1175,6 +1191,9 @@ static void ct3_exit(PCIDevice *pci_dev)
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
     ComponentRegisters *regs = &cxl_cstate->crb;
 
+    for(int i = 0; i < CXL_NUM_CPMU_INSTANCES; i++) {
+        cxl_cpmu_timer_destroy(&ct3d->cxl_dstate.cpmu[i]);
+    }
     pcie_aer_exit(pci_dev);
     cxl_doe_cdat_release(cxl_cstate);
     msix_uninit_exclusive_bar(pci_dev);
