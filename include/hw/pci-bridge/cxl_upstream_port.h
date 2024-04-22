@@ -16,6 +16,10 @@ typedef struct CXLUpstreamPort {
     CXLPhyPortPerst perst;
     CXLCCI mctpcci;
 
+    MemoryRegion bar;
+    CPMUState cpmu;
+    MemoryRegion cpmu_registers;
+
     PCIExpLinkSpeed speed;
     PCIExpLinkWidth width;
     bool flitmode;
