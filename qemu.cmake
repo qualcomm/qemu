@@ -31,7 +31,8 @@ set(QEMU_CONF_ARGS
     --disable-libusb
     --disable-tools
     --disable-nettle
-    --enable-virglrenderer
+    --disable-virglrenderer
+    --disable-virclrenderer
     --enable-opengl
     --enable-slirp
     --disable-vde
@@ -47,6 +48,18 @@ set(QEMU_CONF_ARGS
     --disable-capstone
     --enable-kvm
 )
+
+if (GS_ENABLE_VIRCLRENDERER)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virclrenderer)
+    set(VIRCLRENDERER_SOURCE_URL "${GREENSOCS_GIT}vcl/virglrenderer.git")
+    configure_file(virclrenderer.wrap.in ${PROJECT_SOURCE_DIR}/subprojects/virclrenderer.wrap @ONLY)
+    list(APPEND QEMU_DEPENDENCIES virclrenderer)
+endif()
+
+if (GS_ENABLE_VIRGLRENDERER)
+    message(STATUS "libqemu: enabling virglrender")
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virglrenderer)
+endif()
 
 # may be un-necissary in future releases of QEMU?
 if (APPLE)

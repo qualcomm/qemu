@@ -1,0 +1,5 @@
+[wrap-git]
+directory = virclrenderer
+
+url = @VIRCLRENDERER_SOURCE_URL@
+revision = virclrenderer-0.10.4.3
