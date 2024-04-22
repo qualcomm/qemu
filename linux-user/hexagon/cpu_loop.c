@@ -85,7 +85,7 @@ void cpu_loop(CPUHexagonState *env)
             break;
             default:
                 EXCP_DUMP(env, "\nqemu: unhandled CPU precise exception "
-                    "%#x/%#x - aborting\n",
+                    "0x%x/0x%x - aborting\n",
                     trapnr, env->cause_code);
                 exit(EXIT_FAILURE);
             }
@@ -101,7 +101,7 @@ void cpu_loop(CPUHexagonState *env)
             break;
         default:
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception "
-                "%#x/%#x - aborting\n",
+                "0x%x/0x%x - aborting\n",
                 trapnr, env->cause_code);
             exit(EXIT_FAILURE);
         }
