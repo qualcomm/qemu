@@ -27,10 +27,13 @@ typedef struct CXLDownstreamPort {
     /*< public >*/
     CXLComponentState cxl_cstate;
     CXLPhyPortPerst perst;
+    MemoryRegion bar;
+    CPMUState cpmu;
+    MemoryRegion cpmu_registers;
 } CXLDownstreamPort;
 
 #define CXL_DOWNSTREAM_PORT_MSI_OFFSET 0x70
-#define CXL_DOWNSTREAM_PORT_MSI_NR_VECTOR 1
+#define CXL_DOWNSTREAM_PORT_MSI_NR_VECTOR 2
 #define CXL_DOWNSTREAM_PORT_EXP_OFFSET 0x90
 #define CXL_DOWNSTREAM_PORT_AER_OFFSET 0x100
 #define CXL_DOWNSTREAM_PORT_DVSEC_OFFSET        \
@@ -125,7 +128,9 @@ static void cxl_dsp_reset(DeviceState *qdev)
 static void build_dvsecs(PCIDevice *d, CXLComponentState *cxl)
 {
     PCIESlot *s = PCIE_SLOT(d);
+    CXLDVSECRegisterLocator *regloc_dvsec;
     uint8_t *dvsec;
+    int i;
 
     dvsec = (uint8_t *)&(CXLDVSECPortExt){ 0 };
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
@@ -153,14 +158,20 @@ static void build_dvsecs(PCIDevice *d, CXLComponentState *cxl)
                                GPF_PORT_DVSEC_LENGTH, GPF_PORT_DVSEC,
                                GPF_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
+    regloc_dvsec = &(CXLDVSECRegisterLocator){
         .rsvd         = 0,
         .reg_base[0].lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
         .reg_base[0].hi = 0,
     };
+    for (i = 0; i < 1; i++) {
+        regloc_dvsec->reg_base[1 + i].lo =
+            QEMU_ALIGN_UP(i * (1 << 16) + CXL2_COMPONENT_BLOCK_SIZE, 1 << 16) |
+            RBI_CXL_CPMU_REG | 0; /* Port so only one 64 bit bar */
+        regloc_dvsec->reg_base[1 + i].hi = 0;
+    }
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
-                               REG_LOC_DVSEC_REVID, dvsec);
+                               REG_LOC_DVSEC_REVID, (uint8_t *)regloc_dvsec);
 }
 
 static void cxl_dsp_realize(PCIDevice *d, Error **errp)
@@ -213,10 +224,20 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
     cxl_cstate->pdev = d;
     build_dvsecs(d, cxl_cstate);
     cxl_component_register_block_init(OBJECT(d), cxl_cstate, TYPE_CXL_DSP);
+    memory_region_init(&dsp->bar, OBJECT(d), "registers", (2 << 16));
+    memory_region_add_subregion(&dsp->bar, 0, component_bar);
+    cxl_cpmu_register_block_init2(OBJECT(d), &dsp->cpmu,
+                                  &dsp->cpmu_registers, 0, 1);
+    /* Need to force 64k Alignment in the bar */
+    memory_region_add_subregion(&dsp->bar,
+                                QEMU_ALIGN_UP((1 << 16),
+                                              CXL2_COMPONENT_BLOCK_SIZE),
+                                &dsp->cpmu_registers);
+
     pci_register_bar(d, CXL_COMPONENT_REG_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
-                     component_bar);
+                     &dsp->bar);
 
     return;
 
@@ -234,6 +255,7 @@ static void cxl_dsp_exitfn(PCIDevice *d)
 {
     PCIESlot *s = PCIE_SLOT(d);
 
+    cxl_cpmu_timer_destroy(&CXL_DSP(d)->cpmu);
     pcie_aer_exit(d);
     pcie_chassis_del_slot(s);
     pcie_cap_exit(d);
