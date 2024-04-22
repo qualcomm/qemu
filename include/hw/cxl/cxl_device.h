@@ -869,6 +869,12 @@ struct CXLType3Class {
     bool (*set_cacheline)(CXLType3Dev *ct3d, uint64_t dpa_offset,
                           uint8_t *data);
     /* Multi-headed Device */
+    CXLRetCode (*mhd_get_info)(const struct cxl_cmd *cmd,
+                               uint8_t *payload_in,
+                               size_t len_in,
+                               uint8_t *payload_out,
+                               size_t *len_out,
+                               CXLCCI *cci);
     bool (*mhd_access_valid)(PCIDevice *d, uint64_t addr, unsigned int size);
 };
 
