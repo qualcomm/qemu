@@ -1280,7 +1280,6 @@ if not get_option('uadk').auto() or have_system
   endif
 endif
 virgl = not_found
-vcl = not_found
 
 have_vhost_user_gpu = have_tools and host_os == 'linux' and pixman.found()
 if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
@@ -1295,6 +1294,20 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
     endif
   endif
 endif
+
+vcl = not_found
+if not get_option('virclrenderer').auto() or have_system or have_vhost_user_gpu
+  vcl = dependency('virclrenderer',
+                   fallback: ['virclrenderer', 'libvirclrenderer_dep'],
+                   default_options: ['vcl=true'],
+                   required: get_option('virclrenderer'),
+                   static: true)
+  if vcl.found()
+    vcl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                             dependencies: vcl)
+  endif
+endif
+
 rutabaga = not_found
 if not get_option('rutabaga_gfx').auto() or have_system or have_vhost_user_gpu
   rutabaga = dependency('rutabaga_gfx_ffi',
