@@ -76,6 +76,33 @@ static void cxl_usp_dvsec_write_config(PCIDevice *dev, uint32_t addr,
             }
         }
     }
+    if (range_contains(&usp->cxl_cstate.dvsecs[PCIE_CXL_DEVICE_DVSEC], addr)) {
+        uint16_t offset = usp->cxl_cstate.dvsecs[PCIE_CXL_DEVICE_DVSEC].lob;
+
+        addr -= offset;
+        if (addr == offsetof(CXLDVSECDevice, lock)) {
+            if (val & 0x1) {
+                /*
+                 * If lock is set, change write masks to prevent updates to
+                 * locked registers in config space.
+                 */
+                memset(&dev->wmask[offset + offsetof(CXLDVSECDevice, ctrl)],
+                       0, sizeof(uint32_t));
+                memset(&dev->wmask[offset +
+                                   offsetof(CXLDVSECDevice, range1_base_hi)],
+                       0, sizeof(uint32_t));
+                memset(&dev->wmask[offset +
+                                   offsetof(CXLDVSECDevice, range1_base_lo)],
+                       0, sizeof(uint32_t));
+                memset(&dev->wmask[offset +
+                                   offsetof(CXLDVSECDevice, range2_base_hi)],
+                       0, sizeof(uint32_t));
+                memset(&dev->wmask[offset +
+                                   offsetof(CXLDVSECDevice, range2_base_lo)],
+                       0, sizeof(uint32_t));
+            }
+        }
+    }
 }
 
 static void cxl_usp_write_config(PCIDevice *d, uint32_t address,
