@@ -172,7 +172,14 @@ const char * const hexagon_sregnames[] = {
     "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
     "pcycle6t",   "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",
     "rgdr3",      "commit7t",   "commit8t",   "pcycle7t",   "pcycle8t",
+    "commit9t",   "commit10t",  "commit11t",  "commit12t",  "commit13t",
+    "commit14t",  "commit15t",  "commit16t",  "pcycle9t",   "pcycle10t",
+    "pcycle11t",  "pcycle12t",  "pcycle13t",  "pcycle14t",  "pcycle15t",
+    "pcycle16t",  "ipend",      "iad",        "isdbst1",    "isdbst2",
+    "brkptinfo1",
 };
+
+
 
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
 
@@ -420,6 +427,8 @@ void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
     print_sreg(f, env, HEX_SREG_BADVA);
     print_sreg(f, env, HEX_SREG_IMASK);
     print_sreg(f, env, HEX_SREG_IPENDAD);
+    print_sreg(f, env, HEX_SREG_IPEND);
+    print_sreg(f, env, HEX_SREG_IAD);
     print_sreg(f, env, HEX_SREG_VID);
     print_sreg(f, env, HEX_SREG_GEVB);
     print_greg(f, env, HEX_GREG_GELR);

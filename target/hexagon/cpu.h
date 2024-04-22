@@ -48,7 +48,7 @@ typedef enum {
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
 typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
-#define NUM_SREGS 85
+#define NUM_SREGS 106
 #define NUM_GREGS 32
 #define GREG_WRITES_MAX 32
 #define SREG_WRITES_MAX 64

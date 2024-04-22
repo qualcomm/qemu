@@ -236,7 +236,6 @@ const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_SSR] = 0x00008000,
     [HEX_SREG_CCR] = 0x10e0ff24,
     [HEX_SREG_HTID] = IMMUTABLE,
-    [HEX_SREG_IMASK] = 0xffff0000,
     [HEX_SREG_GEVB] = 0x000000ff,
     [HEX_SREG_VWCTRL] = 0x7000f000,
     [HEX_SREG_EVB] = 0x000000ff,
@@ -261,6 +260,11 @@ const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_TIMERHI] = IMMUTABLE,
     [HEX_SREG_ISDBVER] = IMMUTABLE,
     [HEX_SREG_BRKPTINFO] = IMMUTABLE,
+    [HEX_SREG_IPEND] = IMMUTABLE,
+    [HEX_SREG_IAD] = IMMUTABLE,
+    [HEX_SREG_ISDBST1] = IMMUTABLE,
+    [HEX_SREG_ISDBST2] = IMMUTABLE,
+    [HEX_SREG_BRKPTINFO1] = IMMUTABLE,
 };
 
 static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
