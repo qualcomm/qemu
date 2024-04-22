@@ -7,6 +7,7 @@ system_ss.add(when: 'CONFIG_CXL',
                    'cxl-cdat.c',
                    'cxl-events.c',
                    'cxl-chmu.c',
+                   'cxl-cpmu.c',
                    'switch-mailbox-cci.c',
                ))
 stub_ss.add(files(

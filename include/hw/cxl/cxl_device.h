@@ -16,6 +16,7 @@
 #include "hw/cxl/cxl_chmu.h"
 #include "hw/cxl/cxl_events.h"
 
+#include "hw/cxl/cxl_cpmu.h"
 /*
  * The following is how a CXL device's Memory Device registers are laid out.
  * The only requirement from the spec is that the capabilities array and the
@@ -26,6 +27,16 @@
  * mailbox payload (n) is given by
  * n = m + sizeof(mailbox registers) + sizeof(device registers).
  *
+ *                       +---------------------------------+
+ *                       |                                 |
+ *                       |             CPMU1               |
+ *                       |                                 |
+ *                       +---------------------------------+
+ *                       |                                 |
+ *                       |             CPMU0               |
+ *                       |                                 |
+ *                       +---------------------------------+
+ *                       |     Padding to 64k Aligned      |
  *                       +---------------------------------+
  *                       |                                 |
  *                       |    Memory Device Registers      |
@@ -99,9 +110,18 @@
                   (x) * QEMU_ALIGN_UP(CXL_CHMU_SIZE, 1 << 16),          \
                   1 << 16)
 
+#define CXL_NUM_CPMU_INSTANCES 2
+#define CXL_CPMU_SIZE          0x8f8
+#define CXL_CPMU_OFFSET(x)                                              \
+    QEMU_ALIGN_UP(CXL_MEMORY_DEVICE_REGISTERS_OFFSET +                  \
+                  CXL_MEMORY_DEVICE_REGISTERS_LENGTH +                  \
+                  CXL_NUM_CHMU_INSTANCES * QEMU_ALIGN_UP(CXL_CHMU_SIZE, 1 << 16) + \
+                  (x) * (1 << 16),                                      \
+                  1 << 16)
+
 #define CXL_MMIO_SIZE                                                   \
-    CXL_CHMU_OFFSET(CXL_NUM_CHMU_INSTANCES - 1) +                       \
-        QEMU_ALIGN_UP(CXL_CHMU_SIZE, 1 << 16)
+     CXL_CPMU_OFFSET(CXL_NUM_CPMU_INSTANCES - 1) +     \
+         QEMU_ALIGN_UP(CXL_CPMU_SIZE, 1 << 16)
 
 /* CXL r3.1 Table 8-34: Command Return Codes */
 typedef enum {
@@ -245,6 +265,7 @@ typedef struct CXLCCI {
 typedef struct cxl_device_state {
     MemoryRegion device_registers;
     MemoryRegion chmu_registers[1];
+    MemoryRegion cpmu_registers[CXL_NUM_CPMU_INSTANCES];
 
     /* CXL r3.1 Section 8.2.8.3: Device Status Registers */
     struct {
@@ -295,6 +316,7 @@ typedef struct cxl_device_state {
 
     const struct cxl_cmd (*cxl_cmd_set)[256];
     CHMUState chmu[1];
+    CPMUState cpmu[CXL_NUM_CPMU_INSTANCES];
     CXLEventLog event_logs[CXL_EVENT_TYPE_MAX];
 } CXLDeviceState;
 
