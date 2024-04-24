@@ -836,16 +836,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     }
 #endif
 
-#ifdef VIRGL_RENDERER_VENUS
-    ret = virgl_renderer_init(g, flags|VIRGL_RENDERER_VENUS, &virtio_gpu_3d_cbs);
-    if (ret != 0) {
-        warn_report("Failed to initialize virglrenderer with venus: %d", ret);
-        warn_report("Falling back to virgl only");
-        ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
-    }
-#else
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
-#endif
     if (ret != 0) {
         error_report("virgl could not be initialized: %d", ret);
         return ret;
