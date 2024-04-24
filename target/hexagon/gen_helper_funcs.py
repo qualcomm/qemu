@@ -107,17 +107,15 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         f.write("    CoprocArgs args = {0};\n")
         f.write(f"    args.opcode = {tag};\n")
         f.write(f"    args.unit = env->threadId;\n")
-        arg = 1
-        for regtype, regid in regs:
+        for i, regtype, regid in enumerate(regs, 1):
             if (regtype == 'R' and regid == 's'):
                 f.write(f"    hex_tlb_find_match(env, {regtype}{regid}V,"
                         + " MMU_DATA_LOAD, &phys, &prot, &args.page_size,"
                         + " &excp, cpu_mmu_index(env_cpu(thread), false));\n")
-                f.write(f"    args.arg{arg} = phys + ({regtype}{regid}V"
+                f.write(f"    args.arg{i} = phys + ({regtype}{regid}V"
                         + " & (args.page_size - 1));\n")
             else:
-                f.write(f"    args.arg{arg} = {regtype}{regid}V;\n")
-            arg += 1;
+                f.write(f"    args.arg{i} = {regtype}{regid}V;\n")
         f.write("    coproc(&args);\n")
         f.write("}\n\n")
         ## End of the helper definition
