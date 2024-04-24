@@ -466,15 +466,6 @@ analyze_funcs_generated = custom_target(
 )
 hexagon_ss.add(analyze_funcs_generated)
 
-#coproc_cases_generated = custom_target(
-#    'coproc_cases_generated.c.inc',
-#    output: 'coproc_cases_generated.c.inc',
-#    depends: [semantics_generated, op_attribs_generated],
-#    depend_files: [hex_common_py, attribs_def],
-#    command: [python, files('gen_coproc_cases.py'), semantics_generated, op_attribs_generated, '@OUTPUT@'],
-#)
-#hexagon_ss.add(coproc_cases_generated)
-
 if host_os != 'windows'
   rpclib_dir = 'subprojects/rpclib'
   cmake = import('cmake')
