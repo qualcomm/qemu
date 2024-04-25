@@ -325,6 +325,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "num-coproc-instance",
             (cfgTable->coproc2_reg0) ? 1 : 0);
+        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts", cfgTable->ext_contexts);
 
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);

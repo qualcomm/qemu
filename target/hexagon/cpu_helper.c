@@ -555,12 +555,6 @@ static bool sys_coproc_active(CPUHexagonState *env)
     return (GET_SSR_FIELD(SSR_XE2, ssr) == 1);
 }
 
-static bool sys_hvx_active(CPUHexagonState *env)
-{
-    uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
-    return (GET_SSR_FIELD(SSR_XE, ssr) == 1);
-}
-
 int get_cpu_mode(CPUHexagonState *env)
 
 {
@@ -674,6 +668,57 @@ void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause)
 static MMVector VRegs[VECTOR_UNIT_MAX][NUM_VREGS];
 static MMQReg QRegs[VECTOR_UNIT_MAX][NUM_QREGS];
 
+/*
+ *                            EXT_CONTEXTS
+ * SSR.XA   2              4              6              8
+ * 000      HVX Context 0  HVX Context 0  HVX Context 0  HVX Context 0
+ * 001      HVX Context 1  HVX Context 1  HVX Context 1  HVX Context 1
+ * 010      HVX Context 0  HVX Context 2  HVX Context 2  HVX Context 2
+ * 011      HVX Context 1  HVX Context 3  HVX Context 3  HVX Context 3
+ * 100      HVX Context 0  HVX Context 0  HVX Context 4  HVX Context 4
+ * 101      HVX Context 1  HVX Context 1  HVX Context 5  HVX Context 5
+ * 110      HVX Context 0  HVX Context 2  HVX Context 2  HVX Context 6
+ * 111      HVX Context 1  HVX Context 3  HVX Context 3  HVX Context 7
+ */
+static int parse_context_idx(CPUHexagonState *env, uint8_t XA)
+{
+    int ret;
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->hvx_contexts == 6 && XA >= 6) {
+        ret = XA - 6 + 2;
+    } else {
+        ret = XA % cpu->hvx_contexts;
+    }
+    g_assert(ret >= 0 && ret < VECTOR_UNIT_MAX);
+    return ret;
+}
+
+static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
+{
+    if (!GET_FIELD(SSR_XE, ssr)) {
+        return;
+    }
+
+    uint8_t XA = GET_SSR_FIELD(SSR_XA, ssr);
+
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *env_ = &cpu->env;
+        if (env_ == env) {
+            continue;
+        }
+        /* Check if another thread has the XE bit set and same XA */
+        uint32_t ssr_ = ARCH_GET_SYSTEM_REG(env_, HEX_SREG_SSR);
+        if (GET_SSR_FIELD(SSR_XE2, ssr_) && GET_FIELD(SSR_XA, ssr_) == XA) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "setting SSR.XA '%d' on thread %d but thread"
+                    " %d has same extension active\n", XA, env->threadId,
+                    env_->threadId);
+        }
+    }
+}
+
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
     g_assert(bql_locked());
@@ -721,40 +766,17 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     }
 
     if (old_XA != new_XA) {
-        /* SSR:XA bit 2 is presumed to be 1 for HVX */
-        int old_unit = old_XA & 0x3;
-        int new_unit = new_XA & 0x3;
+        int old_unit = parse_context_idx(env, old_XA);
+        int new_unit = parse_context_idx(env, new_XA);
         trace_hexagon_ssr_xa(env->threadId, old_XA, new_XA);
+
         /* Ownership exchange */
-       if ((old_XA != 0) && (new_XA != 0)) {
-            memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
-            memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
-            memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
-            memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
-        }
-        /* New owner acquire */
-        else if (new_XA != 0) {
-            CPUState *cs;
-            int hvxmax = 0;
-            CPU_FOREACH(cs) {
-                HexagonCPU *cpu = HEXAGON_CPU(cs);
-                CPUHexagonState *env_ = &cpu->env;
-                if (sys_hvx_active(env_)) {
-                    hvxmax++;
-                }
-            }
-            if (hvxmax > VECTOR_UNIT_MAX) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "Undefined behavior: HVX Units over committed\n");
-            }
-            memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
-            memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
-        }
-        /* Done using HVX */
-        else {
-            memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
-            memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
-        }
+        memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+        memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+        memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+        memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+
+        check_overcommitted_hvx(env, new);
     }
 
     /* See if the interrupts have been enabled or we have exited EX mode */

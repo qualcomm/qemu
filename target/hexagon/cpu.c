@@ -130,6 +130,7 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("paranoid-commit-state", HexagonCPU, paranoid_commit_state,
         false),
     DEFINE_PROP_UINT32("l2line-size", HexagonCPU, l2line_size, 0x80),
+    DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
