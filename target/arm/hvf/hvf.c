@@ -148,10 +148,6 @@ void hvf_arm_init_debug(void)
     hw_watchpoints =
         g_array_sized_new(true, true, sizeof(HWWatchpoint), max_hw_wps);
 }
-#ifdef CONFIG_LIBQEMU
-#include "libqemu/callbacks.h"
-#endif
-
 
 #define HVF_SYSREG(crn, crm, op0, op1, op2) \
         ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2)
@@ -1747,11 +1743,6 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
      * Use pselect to sleep so that other threads can IPI us while we're
      * sleeping.
      */
-#ifdef CONFIG_LIBQEMU
-    cpu->halted = 1;
-        libqemu_cpu_end_of_loop_cb(cpu);
-    cpu->halted = 0;
-#endif
     qatomic_set_mb(&cpu->thread_kicked, false);
     bql_unlock();
 
@@ -2012,20 +2003,12 @@ int hvf_vcpu_exec(CPUState *cpu)
                 advance_pc = true;
                 break;
             }
-            if (last_exited_addr == hvf_exit->exception.physical_address) {
-                error_report("0x%llx: unhandled data abort "
-                             "at 0x%llx (instruction: 0x%x)",
-                               env->pc,
-                               hvf_exit->exception.physical_address, ins);
-                break;
-            } else {
-                /* use global address space to cause mapping for everyone */
-                address_space_read(&address_space_memory,
-                               hvf_exit->exception.physical_address,
-                               MEMTXATTRS_UNSPECIFIED, &val, 4);
-                last_exited_addr = hvf_exit->exception.physical_address;
-                break;
-            }
+            /* this covers all other accesses to memory that can be DMI'd */
+            address_space_read(&address_space_memory,
+                           hvf_exit->exception.physical_address,
+                           MEMTXATTRS_UNSPECIFIED, &val, 4);
+            last_exited_addr = hvf_exit->exception.physical_address;
+            break;
         }
 
         assert(isv);
