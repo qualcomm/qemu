@@ -2356,6 +2356,7 @@ config_host_data.set('CONFIG_DEBUG_GRAPH_LOCK', get_option('debug_graph_lock'))
 config_host_data.set('CONFIG_DEBUG_MUTEX', get_option('debug_mutex'))
 config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage'))
 config_host_data.set('CONFIG_DEBUG_TCG', get_option('debug_tcg'))
+config_host_data.set('CONFIG_DEBUG_REMAP', get_option('debug_remap'))
 config_host_data.set('CONFIG_LIVE_BLOCK_MIGRATION', get_option('live_block_migration').allowed())
 config_host_data.set('CONFIG_QOM_CAST_DEBUG', get_option('qom_cast_debug'))
 config_host_data.set('CONFIG_REPLICATION', get_option('replication').allowed())
@@ -2839,37 +2840,6 @@ config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
     void foo(uint8x16_t *p) { *p = vaesmcq_u8(*p); }
   '''))
 
-have_pvrdma = get_option('pvrdma') \
-  .require(rdma.found(), error_message: 'PVRDMA requires OpenFabrics libraries') \
-  .require(cc.compiles(gnu_source_prefix + '''
-    #include <sys/mman.h>
-    int main(void)
-    {
-      char buf = 0;
-      void *addr = &buf;
-      addr = mremap(addr, 0, 1, MREMAP_MAYMOVE | MREMAP_FIXED);
-
-      return 0;
-    }'''), error_message: 'PVRDMA requires mremap').allowed()
-
-if have_pvrdma
-  config_host_data.set('LEGACY_RDMA_REG_MR', not cc.links('''
-    #include <infiniband/verbs.h>
-    int main(void)
-    {
-      struct ibv_mr *mr;
-      struct ibv_pd *pd = NULL;
-      size_t length = 10;
-      uint64_t iova = 0;
-      int access = 0;
-      void *addr = NULL;
-
-      mr = ibv_reg_mr_iova(pd, addr, length, iova, access);
-      ibv_dereg_mr(mr);
-      return 0;
-    }'''))
-endif
-
 if get_option('membarrier').disabled()
   have_membarrier = false
 elif host_os == 'windows'
@@ -2977,7 +2947,6 @@ disassemblers = {
   'm68k' : ['CONFIG_M68K_DIS'],
   'microblaze' : ['CONFIG_MICROBLAZE_DIS'],
   'mips' : ['CONFIG_MIPS_DIS'],
-  'nios2' : ['CONFIG_NIOS2_DIS'],
   'or1k' : ['CONFIG_OPENRISC_DIS'],
   'ppc' : ['CONFIG_PPC_DIS'],
   'riscv' : ['CONFIG_RISCV_DIS'],
@@ -3003,7 +2972,6 @@ host_kconfig = \
   (have_vhost_kernel ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
   (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
   (host_os == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
-  (have_pvrdma ? ['CONFIG_PVRDMA=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : []) + \
   (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : [])
@@ -3367,8 +3335,6 @@ if have_system
     'hw/pci',
     'hw/pci-host',
     'hw/ppc',
-    'hw/rdma',
-    'hw/rdma/vmw',
     'hw/rtc',
     'hw/s390x',
     'hw/scsi',
@@ -3405,7 +3371,6 @@ if have_system or have_user
     'target/i386/kvm',
     'target/loongarch',
     'target/mips/tcg',
-    'target/nios2',
     'target/ppc',
     'target/riscv',
     'target/s390x',
@@ -4049,7 +4014,6 @@ if have_tools
     }]
   endforeach
 
-  subdir('contrib/rdmacm-mux')
   subdir('contrib/elf2dmp')
 
   executable('qemu-edid', files('qemu-edid.c', 'hw/display/edid-generate.c'),
@@ -4327,6 +4291,9 @@ if config_all_accel.has_key('CONFIG_TCG')
   endif
   summary_info += {'TCG plugins':       get_option('plugins')}
   summary_info += {'TCG debug enabled': get_option('debug_tcg')}
+  if have_linux_user or have_bsd_user
+    summary_info += {'syscall buffer debugging support': get_option('debug_remap')}
+  endif
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system
@@ -4455,7 +4422,6 @@ summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
 summary_info += {'RDMA support':      rdma}
-summary_info += {'PVRDMA support':    have_pvrdma}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
