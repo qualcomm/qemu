@@ -105,7 +105,7 @@
 #define fVIRTINSN_RTE(IMM, REG)
 #define fGRE_ENABLED() GET_FIELD(CCR_GRE, READ_SREG(HEX_SREG_CCR))
 #define fTRAP1_VIRTINSN(IMM) \
-    (fGRE_ENABLED() && \
+    (g_assert_not_reached() && fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))
 
 /* Not modeled in qemu */

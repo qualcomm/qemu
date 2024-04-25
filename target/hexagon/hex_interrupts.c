@@ -182,7 +182,19 @@ static void restore_state(CPUHexagonState *env, bool int_accepted)
 static void hex_accept_int(CPUHexagonState *env, int int_num)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+
+    /* For hexagon-vm mode, use GEVB (Guest Exception Vector Base) instead of
+     * EVB */
+    target_ulong evb;
+    if (cpu->hexagon_vm) {
+      evb = arch_get_system_reg(env, HEX_SREG_GEVB);
+      qemu_log_mask(CPU_LOG_INT, "%s: Using GEVB=0x%x for hexagon-vm mode\n",
+                    __func__, evb);
+    } else {
+      evb = arch_get_system_reg(env, HEX_SREG_EVB);
+    }
+
     const int exe_mode = get_exe_mode(env);
     const bool in_wait_mode = exe_mode == HEX_EXE_MODE_WAIT;
 

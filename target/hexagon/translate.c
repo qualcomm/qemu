@@ -386,6 +386,11 @@ static bool need_next_PC(DisasContext *ctx)
                 GET_ATTRIB(opcode, A_HWLOOP1_END)) {
                 return true;
             }
+#if !defined(CONFIG_USER_ONLY)
+            if (ctx->has_hexagon_vm && opcode == J2_trap1) {
+                return true;
+            }
+#endif
         }
     }
     /*
@@ -1183,6 +1188,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->num_cycles = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
+#if !defined(CONFIG_USER_ONLY)
+    ctx->has_hexagon_vm = hex_cpu->hexagon_vm;
+#endif
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;

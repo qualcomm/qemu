@@ -1186,6 +1186,13 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     hexagon_modify_ssr(env, new, old);
 }
 
+static void modify_syscfg(CPUHexagonState *env, uint32_t val);
+void HELPER(modify_syscfg)(CPUHexagonState *env, uint32_t new)
+{
+  BQL_LOCK_GUARD();
+  modify_syscfg(env, new);
+}
+
 static void hex_k0_lock(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
@@ -2012,6 +2019,394 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
 }
 #endif
 
+
+
+#if !defined(CONFIG_USER_ONLY)
+typedef enum {
+    HEXVM_ENTRY_DIRECTORY,
+    HEXVM_ENTRY_TABLE,
+    HEXVM_ENTRY_INVALID,
+} HexVMPTEEntryType;
+
+typedef struct {
+    HexVMPTEEntryType entry_type;
+    uint32_t page_size_bytes;
+    uint32_t l2_entries;
+    uint32_t addr_start_bit;
+    uint32_t addr_bit_count;
+} l1_pte_types;
+
+
+#define COPY_FIELD(dest, src, FIELD)                                  \
+    dest = deposit64(dest, reg_field_info[FIELD].offset,              \
+                     reg_field_info[FIELD].width,                     \
+                     extract32(src, reg_field_info[VM##FIELD].offset, \
+                               reg_field_info[VM##FIELD].width))
+
+/* Helper function to process a VM mapping entry */
+static bool process_vm_mapping_entry(CPUHexagonState *env, uint32_t entry,
+                                     uint32_t tlb_index) {
+  uint64_t phys_entry = 0;
+
+  qemu_log_mask(CPU_LOG_INT, "%s: processing entry 0x%x for TLB index %d\n",
+                __func__, entry, tlb_index);
+
+  /* Set valid bit */
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_V].offset,
+                         reg_field_info[PTE_V].width, 1);
+
+  /* Copy permission bits from VM entry to PTE */
+  COPY_FIELD(phys_entry, entry, PTE_R);
+  COPY_FIELD(phys_entry, entry, PTE_W);
+  COPY_FIELD(phys_entry, entry, PTE_X);
+  COPY_FIELD(phys_entry, entry, PTE_U);
+  COPY_FIELD(phys_entry, entry, PTE_C);
+
+  /* Extract virtual page number from VM entry */
+  uint32_t vpn = extract32(entry, reg_field_info[VMPTE_VPN].offset,
+                           reg_field_info[VMPTE_VPN].width);
+
+  /* Set both VPN and PPD (assuming identity mapping for now) */
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_VPN].offset,
+                         reg_field_info[PTE_VPN].width, vpn);
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_PPD].offset,
+                         reg_field_info[PTE_PPD].width, vpn);
+
+  /* Write to TLB */
+  if (tlb_index < MAX_TLB_ENTRIES) {
+    hex_tlbw(env, tlb_index, phys_entry);
+    qemu_log_mask(CPU_LOG_INT, "%s: wrote TLB[%d] = 0x%lx (VPN=0x%x)\n",
+                  __func__, tlb_index, phys_entry, vpn);
+    return true;
+  } else {
+    qemu_log_mask(CPU_LOG_INT, "%s: TLB index %d out of range\n", __func__,
+                  tlb_index);
+    return false;
+  }
+}
+
+/* Helper function to process a page table entry */
+static bool process_page_table_entry(CPUHexagonState *env, uint32_t entry,
+                                     uint32_t tlb_index,
+                                     const l1_pte_types *pte_type) {
+  uint64_t phys_entry = 0;
+
+  qemu_log_mask(CPU_LOG_INT, "%s: processing page entry 0x%x, TLB index %d\n",
+                __func__, entry, tlb_index);
+
+  /* Set valid bit */
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_V].offset,
+                         reg_field_info[PTE_V].width, 1);
+
+  /* Extract permissions - if none are set, provide default permissions */
+  bool r = extract32(entry, reg_field_info[VMPTE_R].offset,
+                     reg_field_info[VMPTE_R].width);
+  bool w = extract32(entry, reg_field_info[VMPTE_W].offset,
+                     reg_field_info[VMPTE_W].width);
+  bool x = extract32(entry, reg_field_info[VMPTE_X].offset,
+                     reg_field_info[VMPTE_X].width);
+
+  /* If no permissions are explicitly set, provide default RWX permissions */
+  if (!(r || w || x)) {
+    qemu_log_mask(
+        CPU_LOG_INT,
+        "%s: entry 0x%x has no explicit permissions, using default RWX\n",
+        __func__, entry);
+    r = w = x = true; /* Default to full permissions */
+  }
+
+  /* Set permission bits in PTE */
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_R].offset,
+                         reg_field_info[PTE_R].width, r ? 1 : 0);
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_W].offset,
+                         reg_field_info[PTE_W].width, w ? 1 : 0);
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_X].offset,
+                         reg_field_info[PTE_X].width, x ? 1 : 0);
+
+  /* Copy other fields from VM entry */
+  COPY_FIELD(phys_entry, entry, PTE_U);
+  COPY_FIELD(phys_entry, entry, PTE_C);
+
+  /* Extract logical page number */
+  uint32_t logical_page_num =
+      extract32(entry, pte_type->addr_start_bit, pte_type->addr_bit_count);
+
+  /* Set VPN and PPD */
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_PPD].offset,
+                         reg_field_info[PTE_PPD].width, logical_page_num);
+  phys_entry = deposit64(phys_entry, reg_field_info[PTE_VPN].offset,
+                         reg_field_info[PTE_VPN].width, logical_page_num);
+
+  /* Set page size encoding */
+  switch (pte_type->page_size_bytes) {
+  case 4 * 1024:
+    phys_entry = deposit64(phys_entry, 0, 1, 1);
+    break;
+  case 16 * 1024:
+    phys_entry = deposit64(phys_entry, 1, 1, 1);
+    break;
+  case 64 * 1024:
+    phys_entry = deposit64(phys_entry, 2, 1, 1);
+    break;
+  case 256 * 1024:
+    phys_entry = deposit64(phys_entry, 3, 1, 1);
+    break;
+  case 1024 * 1024:
+    phys_entry = deposit64(phys_entry, 4, 1, 1);
+    break;
+  default:
+    qemu_log_mask(CPU_LOG_INT, "%s: unsupported page size %d\n", __func__,
+                  pte_type->page_size_bytes);
+    return false;
+  }
+
+  /* Write to TLB */
+  if (tlb_index < MAX_TLB_ENTRIES) {
+    hex_tlbw(env, tlb_index, phys_entry);
+    qemu_log_mask(CPU_LOG_INT,
+                  "%s: wrote TLB[%d] = 0x%lx (page=0x%x, size=%d)\n", __func__,
+                  tlb_index, phys_entry, logical_page_num,
+                  pte_type->page_size_bytes);
+    return true;
+  } else {
+    qemu_log_mask(CPU_LOG_INT, "%s: TLB index %d out of range\n", __func__,
+                  tlb_index);
+    return false;
+  }
+}
+
+void HELPER(vmnewmap)(CPUHexagonState *env, uint32_t map_type, uint32_t input,
+                      uint32_t tlb_inval) {
+  CPUState *cs = env_cpu(env);
+  static const l1_pte_types PTE_TYPES[] = {
+      {
+          HEXVM_ENTRY_DIRECTORY,
+          4 * 1024,
+          1024,
+          12,
+          20,
+      },
+      {
+          HEXVM_ENTRY_DIRECTORY,
+          16 * 1024,
+          256,
+          10,
+          22,
+      },
+      {
+          HEXVM_ENTRY_DIRECTORY,
+          64 * 1024,
+          64,
+          8,
+          24,
+      },
+      {
+          HEXVM_ENTRY_DIRECTORY,
+          256 * 1024,
+          16,
+          6,
+          26,
+      },
+      {
+          HEXVM_ENTRY_DIRECTORY,
+          1024 * 1024,
+          4,
+          4,
+          28,
+      },
+      {
+          HEXVM_ENTRY_TABLE,
+          4 * 1024 * 1024,
+          0,
+          0,
+          0,
+      },
+      {
+          HEXVM_ENTRY_TABLE,
+          16 * 1024 * 1024,
+          0,
+          0,
+          0,
+      },
+      {
+          HEXVM_ENTRY_INVALID,
+          0,
+          0,
+          0,
+          0,
+      },
+  };
+  static const int TYPE_MASK = 0x07;
+
+  bool fail = false;
+
+  qemu_log_mask(CPU_LOG_INT, "%s: map_type=0x%x, input=0x%x, tlb_inval=0x%x\n",
+                __func__, map_type, input, tlb_inval);
+
+  switch (map_type) {
+  case 0:
+    /* Linear list mapping */
+    qemu_log_mask(CPU_LOG_INT, "%s: linear list mapping\n", __func__);
+    {
+      uint32_t list_addr = input;
+      uint32_t entry_idx = 0;
+
+      while (entry_idx < MAX_TLB_ENTRIES) {
+        uint32_t entry;
+
+        /* Read the entry from guest memory */
+        address_space_read(cs->as, list_addr, MEMTXATTRS_UNSPECIFIED,
+                           (uint8_t *)&entry, sizeof(entry));
+
+        /* Check for null termination */
+        if (entry == 0) {
+          qemu_log_mask(CPU_LOG_INT, "%s: found null terminator at entry %d\n",
+                        __func__, entry_idx);
+          break;
+        }
+
+        /* Process this mapping entry */
+        if (!process_vm_mapping_entry(env, entry, entry_idx)) {
+          fail = true;
+          break;
+        }
+
+        list_addr += sizeof(entry);
+        entry_idx++;
+      }
+    }
+    break;
+  case 1:
+    /* Page table mapping */
+    qemu_log_mask(CPU_LOG_INT, "%s: page table mapping\n", __func__);
+    {
+      const l1_pte_types e = PTE_TYPES[input & TYPE_MASK];
+      switch (e.entry_type) {
+      case HEXVM_ENTRY_DIRECTORY: {
+        uint32_t l2_table_la = input & ~(0x0f);
+        qemu_log_mask(CPU_LOG_INT,
+                      "%s: directory table at 0x%x, %d entries, page size %d\n",
+                      __func__, l2_table_la, e.l2_entries, e.page_size_bytes);
+
+        uint32_t i;
+        for (i = 0; i < e.l2_entries && i < MAX_TLB_ENTRIES; i++) {
+          uint32_t entry;
+          uint32_t offset = i * sizeof(entry);
+          address_space_read(cs->as, l2_table_la + offset,
+                             MEMTXATTRS_UNSPECIFIED, (uint8_t *)&entry,
+                             sizeof(entry));
+
+          /* Check for termination */
+          if (entry == 0) {
+            qemu_log_mask(CPU_LOG_INT, "%s: found null entry at index %d\n",
+                          __func__, i);
+            break;
+          }
+
+          /* Process this page table entry */
+          if (!process_page_table_entry(env, entry, i, &e)) {
+            fail = true;
+            break;
+          }
+        }
+      } break;
+      case HEXVM_ENTRY_TABLE:
+        qemu_log_mask(CPU_LOG_INT, "%s: direct table mapping (large pages)\n",
+                      __func__);
+        /* Large page direct mapping - not commonly used, return success for now
+         */
+        break;
+      case HEXVM_ENTRY_INVALID:
+      default:
+        qemu_log_mask(CPU_LOG_INT, "%s: invalid entry type\n", __func__);
+        fail = true;
+        break;
+      }
+    }
+    break;
+  default:
+    qemu_log_mask(CPU_LOG_INT, "%s: unsupported map_type %d\n", __func__,
+                  map_type);
+    fail = true;
+    break;
+  }
+
+  env->gpr[HEX_REG_R00] = fail ? -1 : 0;
+}
+
+typedef enum {
+    HEX_VM_INFO_BUILD_ID,
+    HEX_VM_INFO_BOOT_FLAGS,
+    HEX_VM_INFO_STLB,
+    HEX_VM_INFO_SYSCFG,
+    HEX_VM_INFO_LIVELOCK,
+    HEX_VM_INFO_REV,
+    HEX_VM_INFO_SSBASE,
+    HEX_VM_INFO_TLB_FREE,
+    HEX_VM_INFO_TLB_SIZE,
+    HEX_VM_INFO_PHYSADDR,
+    HEX_VM_INFO_TCM_BASE,
+    HEX_VM_INFO_L2MEM_SIZE_BYTES,
+    HEX_VM_INFO_TCM_SIZE,
+    HEX_VM_INFO_H2K_PGSIZE,
+    HEX_VM_INFO_H2K_NPAGES,
+    HEX_VM_INFO_L2VIC_BASE,
+    HEX_VM_INFO_TIMER_BASE,
+    HEX_VM_INFO_TIMER_INT,
+    HEX_VM_INFO_ERROR,
+    HEX_VM_INFO_HTHREADS,
+    HEX_VM_INFO_L2TAG_SIZE,
+    HEX_VM_INFO_L2CFG_BASE,
+    HEX_VM_INFO_RESERVED_00,
+    HEX_VM_INFO_CFGBASE,
+    HEX_VM_INFO_HVX_VLENGTH,
+    HEX_VM_INFO_HVX_CONTEXTS,
+    HEX_VM_INFO_HVX_SWITCH,
+    HEX_VM_INFO_MAX,
+} HexVmInfoType;
+
+
+uint32_t HELPER(vmgetinfo)(CPUHexagonState *env, uint32_t info_type)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    hwaddr cfgtable_mem;
+    uint32_t cfg_val;
+
+    switch (info_type) {
+    case HEX_VM_INFO_BUILD_ID:
+        return 0x0001;
+    case HEX_VM_INFO_BOOT_FLAGS:
+        /* TODO: USE_TCM */
+        return 0;
+    case HEX_VM_INFO_STLB:
+        /* TODO: sets/ways/size/etc */
+        return 0;
+    case HEX_VM_INFO_SYSCFG:
+        /* TODO: host syscfg reg? */
+        return 0;
+    case HEX_VM_INFO_REV:
+        return cpu->rev_reg;
+    case HEX_VM_INFO_L2MEM_SIZE_BYTES:
+        /* location of l2size_kb entry: */
+        cfgtable_mem = cpu->config_table_addr + 0x44;
+        cpu_physical_memory_write(cfgtable_mem, &cfg_val, sizeof(cfg_val));
+        return cfg_val * 1024;
+    case HEX_VM_INFO_TCM_SIZE:
+        /* TODO: derive from l2 tags? */
+        return 0;
+    case HEX_VM_INFO_TCM_BASE:
+        cfgtable_mem = cpu->config_table_addr + 0;
+        cpu_physical_memory_write(cfgtable_mem, &cfg_val, sizeof(cfg_val));
+        return cfg_val << 16;
+    case HEX_VM_INFO_L2TAG_SIZE:
+        cfgtable_mem = cpu->config_table_addr + 0x40;
+        cpu_physical_memory_write(cfgtable_mem, &cfg_val, sizeof(cfg_val));
+        return cfg_val;
+    default:
+        return (uint32_t) -1;
+    }
+}
+#endif
 
 /* These macros can be referenced in the generated helper functions */
 #define warn(...) /* Nothing */

@@ -125,4 +125,9 @@
 #define fGEN_TCG_Y4_nmi(SHORTCODE) \
     gen_helper_nmi(tcg_env, RsV)
 
+#define fGEN_TCG_J2_trap1(SHORTCODE) \
+    do { \
+        gen_vminst(ctx, uiV); \
+    } while (0)
+
 #endif

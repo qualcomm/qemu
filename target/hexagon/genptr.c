@@ -1626,5 +1626,106 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
     gen_set_label(ret_label);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+enum hex_virt_opc {
+    HEX_VIRT_VMVERSION = 0x00,
+    HEX_VIRT_VMRETURN = 0x01,
+    HEX_VIRT_VMSETVEC = 0x02,
+    HEX_VIRT_VMSETIE = 0x03,
+    HEX_VIRT_VMGETIE = 0x04,
+    HEX_VIRT_VMINTOP = 0x05,
+    HEX_VIRT_VMCLRMAP = 0x0A,
+    HEX_VIRT_VMNEWMAP = 0x0B,
+    HEX_VIRT_VMCACHECTL = 0x0D,
+    HEX_VIRT_VMGETTIME = 0x0E,
+    HEX_VIRT_VMSETTIME = 0x0F,
+    HEX_VIRT_VMWAIT = 0x10,
+    HEX_VIRT_VMYIELD = 0x11,
+    HEX_VIRT_VMSTART = 0x12,
+    HEX_VIRT_VMSTOP = 0x13,
+    HEX_VIRT_VMVMPID = 0x14,
+    HEX_VIRT_VMSETREGS = 0x15,
+    HEX_VIRT_VMGETREGS = 0x16,
+    HEX_VIRT_VMTIMEROP = 0x18,
+    HEX_VIRT_VMPMUCTRL = 0x19,
+    HEX_VIRT_VMGETINFO = 0x1A,
+};
+
+#include "hex_vm.c.inc"
+
+static void gen_vminst(DisasContext *ctx, int operand)
+{
+    if (!ctx->has_hexagon_vm) {
+        /* FIXME: raise an exception instead? */
+        return;
+    }
+
+    /* TODO: when swapping guest/user, must exchange GOSP, R29... */
+    switch (operand) {
+    case HEX_VIRT_VMVERSION:
+        gen_vmversion();
+        break;
+    case HEX_VIRT_VMSETREGS:
+        gen_vmsetregs();
+        break;
+    case HEX_VIRT_VMGETREGS:
+        gen_vmgetregs();
+        break;
+    case HEX_VIRT_VMSETIE:
+        gen_vmsetie();
+        break;
+    case HEX_VIRT_VMGETIE:
+        gen_vmgetie();
+        break;
+    case HEX_VIRT_VMVMPID:
+        gen_vmvpid();
+        break;
+    case HEX_VIRT_VMCACHECTL:
+        gen_vmcache();
+        break;
+    case HEX_VIRT_VMSTOP:
+        gen_vmstop();
+        break;
+    case HEX_VIRT_VMYIELD:
+        gen_vmyield();
+        break;
+    case HEX_VIRT_VMGETTIME:
+        gen_vmgettime();
+        break;
+    case HEX_VIRT_VMSETTIME:
+      gen_vmsettime();
+      break;
+    case HEX_VIRT_VMRETURN:
+        gen_vmrte();
+        break;
+    case HEX_VIRT_VMCLRMAP:
+        gen_vmclrmap();
+        break;
+    case HEX_VIRT_VMNEWMAP:
+        gen_vmnewmap();
+        break;
+    case HEX_VIRT_VMSETVEC:
+        gen_vmsetvec();
+        break;
+    case HEX_VIRT_VMINTOP:
+        gen_vmintop();
+        break;
+    case HEX_VIRT_VMGETINFO:
+        gen_vmgetinfo();
+        break;
+    case HEX_VIRT_VMTIMEROP:
+        gen_vmtimerop();
+        break;
+
+
+    default:
+        /* FIXME: Invalid packet exception? */
+        fprintf(stderr, "Unknown VM instruction 0x%08x\n", operand);
+        g_assert_not_reached();
+        break;
+    }
+}
+#endif
+
 #include "tcg_funcs_generated.c.inc"
 #include "tcg_func_table_generated.c.inc"

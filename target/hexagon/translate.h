@@ -44,6 +44,7 @@ typedef struct DisasContext {
     int greg_log_idx;
     int sreg_log[SREG_WRITES_MAX];
     int sreg_log_idx;
+    bool has_hexagon_vm;
     TCGv t_sreg_new_value[NUM_SREGS];
     TCGv greg_new_value[NUM_GREGS];
 #endif
@@ -326,6 +327,7 @@ extern TCGv hex_greg[NUM_GREGS];
 extern TCGv hex_t_sreg[NUM_SREGS];
 extern TCGv_ptr hex_g_sreg_ptr;
 extern TCGv hex_g_sreg[NUM_SREGS];
+extern TCGv_i64 hex_cycle_count;
 #endif
 
 

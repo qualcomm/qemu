@@ -500,6 +500,12 @@
 #define fGEN_TCG_Y2_icinva(SHORTCODE) \
     do { RsV = RsV; } while (0)
 
+#ifdef CONFIG_USER_ONLY
+#define fGEN_TCG_J2_trap1(SHORTCODE) \
+    do { (void) uiV; } while (0)
+#endif
+
+
 /*
  * allocframe(#uiV)
  *     RxV == r29

@@ -79,6 +79,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
                        0xffffffffULL),
+    DEFINE_PROP_BOOL("hexagon-vm", HexagonCPU, hexagon_vm, false),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -362,11 +363,21 @@ static void mmu_reset(CPUHexagonState *env)
 void hexagon_cpu_soft_reset(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+
     arch_set_system_reg(env, HEX_SREG_SSR, 0);
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
     target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
     arch_set_thread_reg(env, HEX_REG_PC, evb);
+    if (cpu->hexagon_vm) {
+      /* For hexagon-vm mode, clear exception mode and enable interrupts */
+      SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_EX, 0); /* Clear exception mode */
+      SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_IE, 1); /* Enable interrupts */
+      /* Don't mask all interrupts - let the guest control this */
+      arch_set_system_reg(env, HEX_SREG_IMASK, 0);
+    }
 }
 #endif
 

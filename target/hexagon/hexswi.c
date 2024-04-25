@@ -502,11 +502,19 @@ static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
                           target_ulong exception_index)
 
 {
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
     arch_set_system_reg(env, HEX_SREG_ELR,
                         arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
     arch_set_thread_reg(env, HEX_REG_PC,
                         arch_get_system_reg(env, HEX_SREG_EVB) |
                             (exception_index << 2));
+    if (cpu->hexagon_vm) {
+        arch_set_system_reg(env, HEX_GREG_GELR,
+                arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
+
+        g_assert(arch_get_thread_reg(env, HEX_REG_PC) > 0x200);
+    }
 }
 
 static const char *event_name[] = {
@@ -559,6 +567,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         if (env->cause_code == 0) {
+            fprintf(stderr, "\tTRAP0 cause code 0\n");
             sim_handle_trap0(env);
         }
 
@@ -717,6 +726,18 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
                              target_ulong PC)
 {
     CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+
+    if (cpu->hexagon_vm) {
+        ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+        SET_SYSTEM_FIELD(env, HEX_GREG_GSR, GSR_CAUSE, imm);
+        /*
+        ARCH_SET_SYSTEM_REG(env, HEX_GREG_GELR, env->gpr[HEX_REG_PC] + sizeof(int32_t));
+        uint32_t pc = ARCH_GET_SYSTEM_REG(env, HEX_SREG_GEVB) + (imm * sizeof(int32_t));
+        */
+        env->gpr[HEX_REG_PC] = PC + 4; /* HACK FIXME */
+        return;
+    }
 
     cs->exception_index = (traptype == 0) ? HEX_EVENT_TRAP0 : HEX_EVENT_TRAP1;
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
