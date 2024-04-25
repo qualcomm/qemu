@@ -109,14 +109,13 @@ int_range.o: int_range.c cfgtable.h
 int_range: int_range.o
 semihost.o: semihost.c strutils.h
 semihost: semihost.o
-hvx-multi.o: hvx-multi.c
-hvx-multi: hvx-multi.o hvx-multi-asm.o
+hvx-multi.o: hvx-multi.c ../hvx_misc.h
+hvx-multi: hvx-multi.o
 
 ############# Custom build options
 
 standalone_vec.o: CFLAGS+= -mv69 -O2 -mhvx  -fvectorize
 hvx-multi.o: CFLAGS+= -O2 -mhvx
-hvx-multi-asm.o: CFLAGS+= -mhvx
 
 # We don't want to link this one with crt0 files
 tlb-miss-tlblock: tlb-miss-tlblock.o

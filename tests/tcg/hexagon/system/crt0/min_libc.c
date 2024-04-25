@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 
 FILE *const stdout = (FILE *)1;
 
@@ -151,15 +152,11 @@ int putchar(int c)
     return c;
 }
 
-static char *num_to_s(int signed_num, unsigned int base)
+static char *num_to_s(uint64_t signed_num, uint64_t base)
 {
     static char buffer[1024];
     char *bptr = buffer;
-    unsigned int num;
-
-    if (!num) {
-        return "0";
-    }
+    uint64_t num;
 
     if (base == 16) {
         num = signed_num;
@@ -174,8 +171,12 @@ static char *num_to_s(int signed_num, unsigned int base)
         exit(1);
     }
 
-    unsigned int divider = 1;
-    for (unsigned int n = num; n >= base; n /= base) {
+    if (!num) {
+        return "0";
+    }
+
+    uint64_t divider = 1;
+    for (uint64_t n = num; n >= base; n /= base) {
         divider *= base;
     }
 
@@ -202,10 +203,39 @@ static char *num_to_s(int signed_num, unsigned int base)
     return buffer;
 }
 
+static int advance_prefix(const char **str_ptr, char *prefix)
+{
+    const char *str = *str_ptr;
+    while (*str && *str == *prefix) {
+        str++;
+        prefix++;
+    }
+    str--;
+    if (!*prefix) {
+        *str_ptr = str;
+        return 1;
+    }
+    return 0;
+}
+
+static char *pad0(char *str, int n)
+{
+    static char buffer[1024];
+    int len = strlen(str);
+    assert(n < 1024);
+
+    int i;
+    for (i = 0; i < n - len; i++) {
+        buffer[i] = '0';
+    }
+    strcpy(&buffer[i], str);
+    return buffer;
+}
+
 /*
  * Very simple implementation. No error checking.
  * Supported formats are:
- * %d, %s, %c, %x
+ * %d, %s, %c, %x, %016llx
  */
 int printf(const char *format, ...)
 {
@@ -232,6 +262,13 @@ int printf(const char *format, ...)
             case '%':
                 putchar('%');
                 break;
+            case '0':
+                if (advance_prefix(&ptr, "016llx")) {
+                    uint64_t num = __builtin_va_arg(ap, uint64_t);
+                    fputs(pad0(num_to_s(num, 16), 16), stdout);
+                    break;
+                }
+                /* else: fallthrough */
             default:
                 fputs("fatal: unknown printf modifier '", stdout);
                 putchar(*ptr);

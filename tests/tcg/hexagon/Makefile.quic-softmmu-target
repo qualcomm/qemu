@@ -86,6 +86,7 @@ DOWNSTREAM_TESTS += \
 	double_ex \
 	qfloat_test \
 	vwctrl \
+	hvx-multi-0x79 \
 	$()
 
 TESTS += $(DOWNSTREAM_TESTS)
@@ -113,6 +114,9 @@ inf-loop k0locklock tlblocklock simple-assign:
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
 hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@ 
+hvx-multi-0x79.o: hvx-multi.c ../hvx_misc.h
+	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
+
 
 mmu.h: ../hex_test.h
 invalid_opcode.h: mmu.h
@@ -177,6 +181,7 @@ hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
 hvx_ext-0x75: hvx_ext-0x75.o
 hvx_ext-0x79: hvx_ext-0x79.o
+hvx-multi-0x79: hvx-multi-0x79.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
 pendalot.o: pendalot.c cfgtable.h
@@ -223,6 +228,7 @@ memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 hvx_ext-0x75.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv75
 hvx_ext-0x79.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv79
+hvx-multi-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
 
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
@@ -349,6 +355,7 @@ run-qfloat_test: qfloat_test
 
 run-hvx_ext-0x75: QEMU_EXTRA_OPTS=-M V75NA_1024
 run-hvx_ext-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
+run-hvx-multi-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
 
 run-fopen: fopen
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< -append dummy.so,"$< on $(TARGET_NAME)")
