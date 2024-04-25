@@ -155,10 +155,6 @@ void hvf_arm_init_debug(void)
 
     os_release(config);
 }
-#ifdef CONFIG_LIBQEMU
-#include "libqemu/callbacks.h"
-#endif
-
 
 #define SYSREG_OP0_SHIFT      20
 #define SYSREG_OP0_MASK       0x3
@@ -2240,18 +2236,12 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 advance_pc = true;
                 break;
             }
-            if (last_exited_addr == ipa) {
-                error_report("0x%llx: unhandled data abort "
-                             "at 0x%llx (instruction: 0x%x)",
-                               env->pc, (unsigned long long)ipa, ins);
-            } else {
-                /* use global address space to cause mapping for everyone */
-                address_space_read(&address_space_memory,
-                               ipa,
-                               MEMTXATTRS_UNSPECIFIED, &val, 4);
-                last_exited_addr = ipa;
-                break;
-            }
+            /* this covers all other accesses to memory that can be DMI'd */
+            address_space_read(&address_space_memory,
+                           ipa,
+                           MEMTXATTRS_UNSPECIFIED, &val, 4);
+            last_exited_addr = ipa;
+            break;
         }
 
         /*
