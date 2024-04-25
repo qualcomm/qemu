@@ -347,6 +347,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
+        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
+                             m_cfg->cfgtable.ext_contexts);
+
 
         env->shm_fd = shm_fd;
         if (i == 0) {
