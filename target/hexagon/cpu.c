@@ -564,14 +564,15 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 #endif
 
 #define HEXAGON_CFG_ADDR_BASE(addr) ((addr >> 16) & 0x0fffff)
-static void hexagon_cpu_reset_hold(Object *obj)
+
+static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
     CPUHexagonState *env = cpu_env(cs);
 
     if (mcc->parent_phases.hold) {
-        mcc->parent_phases.hold(obj);
+        mcc->parent_phases.hold(obj, type);
     }
 
     set_default_nan_mode(1, &env->fp_status);
