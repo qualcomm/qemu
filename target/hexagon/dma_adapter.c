@@ -345,7 +345,7 @@ int dma_adapter_in_debug_mode(dma_t *dma) {
 	thread_t* thread __attribute__((unused)) = dma_adapter_retrieve_thread(dma);
 #ifdef VERIFICATION		
 	if (fIN_DEBUG_MODE(thread->threadId)) {
-		PRINTF(dma, "DMA %d: ADAPTER thread->debug_mode=%d ISDST=%llx ",dma->num, thread->debug_mode, (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<thread->threadId));
+		PRINTF(dma, "DMA %d: ADAPTER thread->debug_mode=%d ISDST=%llx ",dma->num, thread->debug_mode, (fREAD_GLOBAL_REG_FIELD(ISDBST2,ISDBST2_DEBUGMODE) & 1<<thread->threadId));
 	}
 #endif	
 	return fIN_DEBUG_MODE(thread->threadId);

@@ -628,8 +628,8 @@ int get_exe_mode(CPUHexagonState *env)
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
     uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
     bool W_bit = thread_wait_mask & (0x1 << env->threadId);
-    target_ulong isdbst = ARCH_GET_SYSTEM_REG(env, HEX_SREG_ISDBST);
-    uint32_t debugmode = GET_FIELD(ISDBST_DEBUGMODE, isdbst);
+    target_ulong isdbst2 = ARCH_GET_SYSTEM_REG(env, HEX_SREG_ISDBST2);
+    uint32_t debugmode = GET_FIELD(ISDBST2_DEBUGMODE, isdbst2);
     bool D_bit = debugmode & (0x1 << env->threadId);
 
     /* Figure 4-2 */

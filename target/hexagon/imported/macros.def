@@ -3152,7 +3152,7 @@ DEF_MACRO(
 	(TNUM),
 	"in_debug_mode",
 	"in_debug_mode",
-	(thread->debug_mode || (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM)),
+	(thread->debug_mode || (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM) || (fREAD_GLOBAL_REG_FIELD(ISDBST2,ISDBST2_DEBUGMODE) & 1<<TNUM)),
 	()
 )
 
@@ -3170,7 +3170,7 @@ DEF_MACRO(
 	(TNUM),
 	"",
 	"",
-	{ if (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM) warn("In ISDB debug mode, but TB told me to step normally"); },
+	{ if ((fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE)+} & 1<<TNUM) {+|| (fREAD_GLOBAL_REG_FIELD(ISDBST2,ISDBST2_DEBUGMODE) & 1<<TNUM)) warn("In ISDB debug mode, but TB told me to step normally"); },
 	()
 )
 
