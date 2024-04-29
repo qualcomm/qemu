@@ -1751,7 +1751,6 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
 
     pselect(0, 0, 0, 0, ts, &cpu->accel->unblock_ipi_mask);
     bql_lock();
-
 }
 
 static void hvf_wfi(CPUState *cpu)
