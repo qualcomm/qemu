@@ -19,8 +19,8 @@
 #include "hex_arch_types.h"
 #else
 #include "qemu/osdep.h"
-#include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "cpu.h"
 #endif
 #include "coproc.h"
