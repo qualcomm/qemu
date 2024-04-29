@@ -50,6 +50,8 @@ static inline const char *cpu_get_model(uint32_t eflags)
         return "v77";
     case 0x79:   /* v79 */
         return "v79";
+    case 0x81:
+        return "v81";
     }
 
     err = snprintf(buf, sizeof(buf), "unknown (0x%x)", eflags);

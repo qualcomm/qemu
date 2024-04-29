@@ -81,6 +81,7 @@ static Rev_t rev_from_rev_byte(int byte)
     case 0x75: return v75_rev;
     case 0x77: return v75_rev; /* v77 is identical to v75 */
     case 0x79: return v79_rev;
+    case 0x81: return v81_rev;
     default: return unknown_rev;
     }
 }
@@ -700,6 +701,46 @@ static void v79m_1_init(ObjectClass *oc, void *data)
     mc->default_cpus = 4;
 }
 
+static void v81na_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81_rev, &v81na_1);
+}
+
+static void v81na_1_linux_config_init(MachineState *machine)
+{
+    syscfg_is_linux = true;
+
+    v81na_1_config_init(machine);
+}
+
+static void v81na_1_linux_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon Linux V81NA_1";
+    mc->init = v81na_1_linux_config_init;
+    mc->is_default = false;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
+static void v81na_1_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V81NA_1";
+    mc->init = v81na_1_config_init;
+    mc->is_default = false;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
 static void virt_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -770,6 +811,14 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V79_Linux"),
         .parent = TYPE_MACHINE,
         .class_init = v79na_1_linux_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V81NA_1"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81na_1_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V81_Linux"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81na_1_linux_init,
     }, {
         .name = MACHINE_TYPE_NAME("V66_Linux"),
         .parent = TYPE_MACHINE,
