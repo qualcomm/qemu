@@ -426,7 +426,6 @@ void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
     print_sreg(f, env, HEX_SREG_HTID);
     print_sreg(f, env, HEX_SREG_BADVA);
     print_sreg(f, env, HEX_SREG_IMASK);
-    print_sreg(f, env, HEX_SREG_IPENDAD);
     print_sreg(f, env, HEX_SREG_IPEND);
     print_sreg(f, env, HEX_SREG_IAD);
     print_sreg(f, env, HEX_SREG_VID);
@@ -641,6 +640,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_PMUCNT5, INVALID_REG_VAL);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_PMUCNT6, INVALID_REG_VAL);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_PMUCNT7, INVALID_REG_VAL);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPENDAD, INVALID_REG_VAL);
     }
 
     memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);

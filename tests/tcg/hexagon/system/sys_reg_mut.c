@@ -62,7 +62,7 @@ static inline void write_thread_local_system_control_registers(void)
     check32(result, mask(new_val, cur_val, 0x10e0ff24));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "imask", new_val);
-    check32(result, mask(new_val, cur_val, 0xffff0000));
+    check32(result, mask(new_val, cur_val, 0x00000000));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "gevb", new_val);
     check32(result, mask(new_val, cur_val, 0x000000ff));
@@ -115,7 +115,7 @@ static inline void write_thread_local_system_control_register_pairs(void)
     check64(result, mask_pair(new_val, cur_val, 0x00000003, 0xff00ff00));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "s11:10", new_val);
-    check64(result, mask_pair(new_val, cur_val, 0x000000ff, 0xffff0000));
+    check64(result, mask_pair(new_val, cur_val, 0x000000ff, 0x00000000));
 }
 
 /*

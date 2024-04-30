@@ -661,28 +661,22 @@ static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
 
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = READ_SREG(HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPENDAD, ipendad);
+    iad = READ_SREG(HEX_SREG_IAD) & ~(mask);
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IAD, iad);
     hexagon_clear_last_irq(env, L2VIC_VID_0);
     hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = READ_SREG(HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPENDAD, ipendad);
+    iad = READ_SREG(HEX_SREG_IAD) | mask;
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IAD, iad);
     hex_interrupt_update(env);
 }
 
@@ -2193,6 +2187,9 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
         return ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA0);
     } else if (IS_PMU_SREG(reg)) {
         return hexagon_get_pmu_counter(env, pmu_index_from_sreg(reg));
+    } else if (reg == HEX_SREG_IPENDAD) {
+        return (ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND) & 0xffff) |
+            ((ARCH_GET_SYSTEM_REG(env, HEX_SREG_IAD) & 0xffff) << 16);
     }
     return ARCH_GET_SYSTEM_REG(env, reg);
 }
