@@ -355,9 +355,9 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
     /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
     if (details->len) {
-        qemu_printf("s390 %-15s %-35s (%s)\n", name, scc->desc, details->str);
+        qemu_printf("  %-15s %-35s (%s)\n", name, scc->desc, details->str);
     } else {
-        qemu_printf("s390 %-15s %-35s\n", name, scc->desc);
+        qemu_printf("  %-15s %-35s\n", name, scc->desc);
     }
     g_free(name);
 }
@@ -402,6 +402,7 @@ void s390_cpu_list(void)
     S390Feat feat;
     GSList *list;
 
+    qemu_printf("Available CPUs:\n");
     list = object_class_get_list(TYPE_S390_CPU, false);
     list = g_slist_sort(list, s390_cpu_list_compare);
     g_slist_foreach(list, s390_print_cpu_model_list_entry, NULL);
@@ -411,14 +412,14 @@ void s390_cpu_list(void)
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
         const S390FeatDef *def = s390_feat_def(feat);
 
-        qemu_printf("%-20s %s\n", def->name, def->desc);
+        qemu_printf("  %-20s %s\n", def->name, def->desc);
     }
 
     qemu_printf("\nRecognized feature groups:\n");
     for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
         const S390FeatGroupDef *def = s390_feat_group_def(group);
 
-        qemu_printf("%-20s %s\n", def->name, def->desc);
+        qemu_printf("  %-20s %s\n", def->name, def->desc);
     }
 }
 
@@ -510,7 +511,7 @@ static void check_compat_model_failed(Error **errp,
     return;
 }
 
-static void check_compatibility(const S390CPUModel *max_model,
+static bool check_compatibility(const S390CPUModel *max_model,
                                 const S390CPUModel *model, Error **errp)
 {
     ERRP_GUARD();
@@ -518,11 +519,11 @@ static void check_compatibility(const S390CPUModel *max_model,
 
     if (model->def->gen > max_model->def->gen) {
         check_compat_model_failed(errp, max_model, "Selected CPU generation is too new");
-        return;
+        return false;
     } else if (model->def->gen == max_model->def->gen &&
                model->def->ec_ga > max_model->def->ec_ga) {
         check_compat_model_failed(errp, max_model, "Selected CPU GA level is too new");
-        return;
+        return false;
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -530,14 +531,14 @@ static void check_compatibility(const S390CPUModel *max_model,
         error_setg(errp, "The unpack facility is not compatible with "
                    "the --only-migratable option. You must remove either "
                    "the 'unpack' facility or the --only-migratable option");
-        return;
+        return false;
     }
 #endif
 
     /* detect the missing features to properly report them */
     bitmap_andnot(missing, model->features, max_model->features, S390_FEAT_MAX);
     if (bitmap_empty(missing, S390_FEAT_MAX)) {
-        return;
+        return true;
     }
 
     error_setg(errp, " ");
@@ -546,11 +547,11 @@ static void check_compatibility(const S390CPUModel *max_model,
                   "available in the current configuration: ");
     error_append_hint(errp,
                       "Consider a different accelerator, QEMU, or kernel version\n");
+    return false;
 }
 
 S390CPUModel *get_max_cpu_model(Error **errp)
 {
-    Error *err = NULL;
     static S390CPUModel max_model;
     static bool cached;
 
@@ -559,15 +560,13 @@ S390CPUModel *get_max_cpu_model(Error **errp)
     }
 
     if (kvm_enabled()) {
-        kvm_s390_get_host_cpu_model(&max_model, &err);
+        if (!kvm_s390_get_host_cpu_model(&max_model, errp)) {
+            return NULL;
+        }
     } else {
         max_model.def = s390_find_cpu_def(QEMU_MAX_CPU_TYPE, QEMU_MAX_CPU_GEN,
                                           QEMU_MAX_CPU_EC_GA, NULL);
         bitmap_copy(max_model.features, qemu_max_cpu_feat, S390_FEAT_MAX);
-    }
-    if (err) {
-        error_propagate(errp, err);
-        return NULL;
     }
     cached = true;
     return &max_model;
@@ -576,7 +575,6 @@ S390CPUModel *get_max_cpu_model(Error **errp)
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
     ERRP_GUARD();
-    Error *err = NULL;
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
@@ -605,9 +603,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     cpu->model->cpu_ver = max_model->cpu_ver;
 
     check_consistency(cpu->model);
-    check_compatibility(max_model, cpu->model, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!check_compatibility(max_model, cpu->model, errp)) {
         return;
     }
 
