@@ -249,7 +249,11 @@ static void sim_handle_trap0(CPUHexagonState *env)
             exit(ret);
         } else {
             CPUState *cs = CPU(cpu);
-            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR, "resetting\n");
+            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR,\
+                "WARNING: Resetting DSP%d SSR: 0x%x ELR: 0x%x,\n",
+                cpu->subsystem_id,
+                arch_get_system_reg(env, HEX_SREG_SSR),
+                arch_get_system_reg(env, HEX_SREG_ELR));
             CPU_FOREACH(cs) {
                 cpu_reset(cs);
             }
