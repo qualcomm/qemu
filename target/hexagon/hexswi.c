@@ -271,8 +271,22 @@ static void sim_handle_trap0(CPUHexagonState *env)
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
         target_ulong ret = env->gpr[HEX_REG_R02];
-        hexagon_dump_json(env);
-        exit(ret);
+
+        if (!cpu->vp_mode) {
+            hexagon_dump_json(env);
+            exit(ret);
+        } else {
+            CPUState *cs;
+
+            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR,
+                          "WARNING: Resetting DSP%d SSR: 0x%x ELR: 0x%x,\n",
+                          cpu->subsystem_id,
+                          env->t_sreg[HEX_SREG_SSR],
+                          env->t_sreg[HEX_SREG_ELR]);
+            CPU_FOREACH(cs) {
+                cpu_reset(cs);
+            }
+        }
     }
     break;
 
@@ -1125,4 +1139,3 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
     cpu_loop_exit(cs);
 }
 #endif
-
