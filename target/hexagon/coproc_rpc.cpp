@@ -53,10 +53,11 @@ int hexagon_coproc_rpclib_init(const char *coproc_path, int hex_rev)
         return ERROR;
     }
     strncpy(coproc_full_name, coproc_path, sizeof(coproc_full_name) - 1);
-    strncat(coproc_full_name, "//coproc_rpc_remote",
+    strncat(coproc_full_name, "/coproc_rpc_remote",
         sizeof(coproc_full_name) - 1);
     if (access(coproc_full_name, F_OK) != 0) {
-        fprintf(stderr, "Fatal error: Hexagon COPROC not found: (%s)\n",
+        fprintf(stderr, "Fatal error: Hexagon COPROC not found: (%s)\n"
+                "Either disable the coproc or make sure it exists at this path.\n",
             coproc_full_name);
         return ERROR;
     }
