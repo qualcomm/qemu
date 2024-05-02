@@ -854,7 +854,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                 int hex_rev = cpu->rev_reg;
                 trace_hexagon_coproc_file(coproc_path);
                 if (hexagon_coproc_rpclib_init(coproc_path, hex_rev) == 1) {
-                    g_assert_not_reached();
+                    exit(1);
                 }
                 g_free((void *)coproc_path);
             }
