@@ -1280,6 +1280,7 @@ if not get_option('uadk').auto() or have_system
   endif
 endif
 virgl = not_found
+vcl = not_found
 
 have_vhost_user_gpu = have_tools and host_os == 'linux' and pixman.found()
 if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu

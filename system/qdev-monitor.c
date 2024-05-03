@@ -85,6 +85,8 @@ static const QDevAlias qdev_alias_table[] = {
     { "virtio-gpu-pci", "virtio-gpu", QEMU_ARCH_VIRTIO_PCI },
     { "virtio-gpu-gl-device", "virtio-gpu-gl", QEMU_ARCH_VIRTIO_MMIO },
     { "virtio-gpu-gl-pci", "virtio-gpu-gl", QEMU_ARCH_VIRTIO_PCI },
+    { "virtio-gpu-cl-device", "virtio-gpu-cl", QEMU_ARCH_VIRTIO_MMIO },
+    { "virtio-gpu-cl-pci", "virtio-gpu-cl", QEMU_ARCH_VIRTIO_PCI },
     { "virtio-gpu-rutabaga-device", "virtio-gpu-rutabaga",
       QEMU_ARCH_VIRTIO_MMIO },
     { "virtio-gpu-rutabaga-pci", "virtio-gpu-rutabaga", QEMU_ARCH_VIRTIO_PCI },
