@@ -34,6 +34,12 @@
 
 #include <qemu-plugin.h>
 
+/*
+ * FIXME: this is a crutch/workaround for systems with old
+ * glib.
+ */
+gpointer g_memdup2(gconstpointer mem, gsize byte_size);
+
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 /* saved so we can uninstall later */
