@@ -120,6 +120,14 @@ int desc_tracker_cycle(processor_t *proc, int dmanum)
 	return 1;
 }
 
+// https://jira-dc.qualcomm.com/jira/browse/QTOOL-116102
+// Issue with LTO on some version of clang, at least to versions
+// 10 and 11.0.0.  Once the builders use 16 and above we can remove this.
+#ifdef __clang__
+#if __clang_major__ <= 11
+#pragma clang optimize off
+#endif
+#endif
 void desc_tracker_init(processor_t * proc, int dmanum)
 {
 	desc_tracker_t * const tracker = get_desc_tracker(proc, dmanum);
@@ -129,6 +137,11 @@ void desc_tracker_init(processor_t * proc, int dmanum)
 	tracker->pending_free_list = empty;
 	object_pool_init( &tracker->pool, (char *)&tracker->entry_storage, sizeof(tracker->entry_storage[0]), DESC_TABLESIZE);
 }
+#ifdef __clang__
+#if __clang_major__ <= 11
+#pragma clang optimize on
+#endif
+#endif
 
 int desc_unreleased_check ( processor_t *proc, int dmanum);
 int
