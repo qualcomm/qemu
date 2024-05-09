@@ -72,6 +72,7 @@ typedef enum {
     v79_rev = 0x8c79,
 } Rev_t;
 #define HEXAGON_LATEST_REV v79
+#define HEXAGON_LATEST_REV_UPPER V79
 
 /* Config table address bases represent bits [35:16].
  */

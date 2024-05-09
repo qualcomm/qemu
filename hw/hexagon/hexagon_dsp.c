@@ -695,7 +695,8 @@ static void virt_init(ObjectClass *oc, void *data)
     mc->init = virt_nocoproc_config_init;
     mc->is_default = true;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
+    mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
+        HEXAGON_LATEST_REV_UPPER);
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -709,7 +710,8 @@ static void virt_coproc_init(ObjectClass *oc, void *data)
     mc->init = virt_coproc_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
+    mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
+        HEXAGON_LATEST_REV_UPPER);
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
