@@ -24,9 +24,9 @@
 #include <string.h>
 
 
-#define MAX_INT_NUM (8)
-#define ALL_INTERRUPTS_MASK (0xff)
-#define MAX_THREADS (4 - 1) /* 1 for cycling settings */
+#define MAX_INT_NUM (32)
+#define ALL_INTERRUPTS_MASK (0xffffffff)
+#define MAX_THREADS (12 - 1 - 1) /* 1 for cycling settings; 1 for control */
 
 /* volatile bacause it tracks when interrupts have been processed */
 volatile int ints_by_irq[MAX_INT_NUM];
@@ -125,9 +125,8 @@ int main()
     thread_create(interrupt_cycles,
                   &intcycles_stack[ARRAY_SIZE(intcycles_stack) - 1], 1, NULL);
 
-    int task_thread_count = 2;
     printf("spawning threads\n");
-    for (int i = 0; i < task_thread_count; i++) {
+    for (int i = 0; i < MAX_THREADS; i++) {
         thread_create(task_thread,
                       &task_stack[i][ARRAY_SIZE(task_stack[i]) - 1], i + 1 + 1,
                       (void *)i);
@@ -144,7 +143,7 @@ int main()
     printf("tests done, waiting for cycle task\n");
 
     thread_join(1 << 1);
-    for (int i = 0; i < task_thread_count; i++) {
+    for (int i = 0; i < MAX_THREADS; i++) {
         printf("tests done, waiting for task #%d\n", i);
         thread_join(1 << (i + 1 + 1));
     }
