@@ -120,7 +120,7 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("isdben-trusted", HexagonCPU, isdben_trusted, false),
     DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
-    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance, 1),
+    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance, 0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
