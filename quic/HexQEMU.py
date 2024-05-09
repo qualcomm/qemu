@@ -362,7 +362,7 @@ class SysStatCommand(object):
         BESTWAIT_PRIO_MASK = 0b01_1111_1111
         bestwait_prio = sysregs["bestwait"] & BESTWAIT_PRIO_MASK
 
-        SCHEDCFG_INTNO_MASK = 0b0_1111
+        SCHEDCFG_INTNO_MASK = 0b0_11111
         schedcfg = sysregs["schedcfg"]
         schedcfg_intno = schedcfg & SCHEDCFG_INTNO_MASK
         schedcfg_en = (schedcfg >> 8) & 1

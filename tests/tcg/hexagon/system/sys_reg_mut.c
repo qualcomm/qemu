@@ -84,7 +84,7 @@ static inline void write_global_system_control_registers(void)
     check32(result, mask(new_val, cur_val, 0xfffffe00));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "schedcfg", new_val);
-    check32(result, mask(new_val, cur_val, 0xfffffef0));
+    check32(result, mask(new_val, cur_val, 0xfffffee0));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "isdbcfg0", new_val);
     check32(result, mask(new_val, cur_val, 0xe0000000));
@@ -149,7 +149,7 @@ static inline void write_global_system_control_register_pairs(void)
     check64(result, mask_pair(new_val, cur_val, 0xfc00fc00, 0xffffffff));
 
     READ_WRITE_REG_NOCLOBBER(cur_val, result, "s25:24", new_val);
-    check64(result, mask_pair(new_val, cur_val, 0xfffffef0, 0x00000000));
+    check64(result, mask_pair(new_val, cur_val, 0xfffffee0, 0x00000000));
 
     READ_WRITE_REG_ENCODED(cur_val, result, "s27:26", new_val, S27_26_EQ_R1_0);
     check64(result, mask_pair(new_val, cur_val, 0xffffffff, 0x00000000));
