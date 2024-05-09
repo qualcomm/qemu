@@ -429,7 +429,7 @@ static void v66g_1024_init(ObjectClass *oc, void *data)
     mc->init = v66g_1024_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V66;
     mc->default_cpus = 4;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -467,7 +467,7 @@ static void v68n_1024_init(ObjectClass *oc, void *data)
     mc->init = v68n_1024_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V68;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -506,7 +506,7 @@ static void v69na_1024_init(ObjectClass *oc, void *data)
     mc->init = v69na_1024_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V69;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -532,7 +532,7 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
     mc->init = SA8775P_cdsp0_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
     mc->default_cpus = 6;
     mc->max_cpus = 6;
     mc->default_ram_size = 4 * GiB;
@@ -552,7 +552,7 @@ static void SA8540P_cdsp0_init(ObjectClass *oc, void *data)
     mc->init = SA8540P_cdsp0_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V69;
     mc->default_cpus = 6;
     mc->max_cpus = 6;
     mc->default_ram_size = 4 * GiB;
@@ -573,7 +573,7 @@ static void v73na_1024_linux_init(ObjectClass *oc, void *data)
     mc->init = v73na_1024_linux_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -587,7 +587,7 @@ static void v73na_1024_init(ObjectClass *oc, void *data)
     mc->init = v73na_1024_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -626,7 +626,7 @@ static void v75na_1024_linux_init(ObjectClass *oc, void *data)
     mc->init = v75na_1024_linux_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V75;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -640,7 +640,7 @@ static void v75na_1024_init(ObjectClass *oc, void *data)
     mc->init = v75na_1024_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V75;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -667,7 +667,7 @@ static void v79na_1_linux_init(ObjectClass *oc, void *data)
     mc->init = v79na_1_linux_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
     mc->default_cpus = 8;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -681,7 +681,7 @@ static void v79na_1_init(ObjectClass *oc, void *data)
     mc->init = v79na_1_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
     mc->default_cpus = 8;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -695,7 +695,7 @@ static void virt_init(ObjectClass *oc, void *data)
     mc->init = virt_nocoproc_config_init;
     mc->is_default = true;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -709,7 +709,7 @@ static void virt_coproc_init(ObjectClass *oc, void *data)
     mc->init = virt_coproc_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
     mc->default_cpus = 6;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
