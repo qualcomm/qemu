@@ -214,7 +214,7 @@ vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
-swi2: EXTRA_TEST_CFLAGS=-mv81
+swi swi2: EXTRA_TEST_CFLAGS=-mv81
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
@@ -222,7 +222,7 @@ run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
 run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
-run-swi2: QEMU_EXTRA_OPTS=-M V81NA_1
+run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81NA_1
 run-swi: swi
 run-swi2: swi2
 run-thread_scheduling: thread_scheduling

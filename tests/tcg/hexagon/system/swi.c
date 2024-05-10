@@ -25,9 +25,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include "thread_common.h"
 
 
-#define MAX_THREADS 4
+#define MAX_THREADS 12 /* including main thread */
 
 uint32_t read_ssr(void)
 {
@@ -85,11 +86,11 @@ void setimask(unsigned int tid, unsigned int imask_irq)
 typedef void (*ThreadT)(void *);
 long long t_stack[MAX_THREADS][1024];
 
-/* volatile because it tracks the interrupts taken */
-volatile int intcnt[8];
+volatile int intcnt[32]; /* volatile because it tracks the interrupts taken */
 
 void int_hdl(int intno)
 {
+    printf("  tid [%lu] received int %d\n", get_htid(), intno);
     intcnt[intno]++;
 }
 
@@ -110,71 +111,64 @@ void my_thread_function(void *y)
     /* let creating thread know we are done with initialization */
     do_wait();
 
-    /* thread 0 sends to thread 1, thread 1 sends to thread 2, etc. */
-    static unsigned int send_int_mask[4] = { 0x0, 0x4, 0x2, 0x0 };
+    /* thread 1 sends to thread 2, 2 to 3, ..., (MAX_THREADS - 1) to 1 */
+    unsigned int send_int_mask = tid == (MAX_THREADS - 1) ? 2 : 1 << (tid + 1);
     printf("app:%s: tid %u: sending swi with mask 0x%x, modectl = 0x%lx\n",
-           __func__, tid, send_int_mask[tid], read_modectl());
-    send_swi(send_int_mask[tid]);
+           __func__, tid, send_int_mask, read_modectl());
+    send_swi(send_int_mask);
 
     while (intcnt[tid] == 0) {
         ;
     }
-    printf("app:%s: intcnt[tid=%d] %d, imask 1:0x%lx, imask 2:0x%lx\n",
-           __func__, tid, intcnt[tid], getimask(1), getimask(2));
 }
 
 void wait_for_threads(void)
 {
-    unsigned t1mode, t2mode;
+    unsigned wait_mask, threads_mask = 0;
+    for (int i = 1; i < MAX_THREADS; i++) {
+        threads_mask |= (1 << i);
+    }
     do {
-        unsigned modectl = read_modectl();
-        t1mode = modectl & (0x1 << (16 + 1)); /* thread 1 wait bit */
-        t2mode = modectl & (0x1 << (16 + 2)); /* thread 2 wait bit */
-    } while (t1mode == 0 || t2mode == 0);
+        wait_mask = (read_modectl() >> 16) & threads_mask;
+    } while (wait_mask != threads_mask);
 }
 
 int main()
 {
     unsigned join_mask = 0;
-    int tid = 0;
-    int id[MAX_THREADS] = { 0, 1, 2, 3 };
+    int id[MAX_THREADS];
 
     unsigned ssr = read_ssr();
-    printf("app:%s: tid %d, ssr 0x%x, imask 0x%lx\n", __func__, tid, ssr,
-           getimask(tid));
+    printf("app:%s: tid 0, ssr 0x%x, imask 0x%lx\n", __func__, ssr, getimask(0));
 
-    /* kick off the two threads and let them do their init */
+    /* kick off the threads and let them do their init */
     unsigned first_modectl = read_modectl();
-    tid = 1;
-    join_mask |= 0x1 << tid;
-    thread_create(my_thread_function, &t_stack[tid][1023], tid,
-                  (void *)&id[tid]);
-    tid = 2;
-    join_mask |= 0x1 << tid;
-    thread_create(my_thread_function, &t_stack[tid][1023], tid,
-                  (void *)&id[tid]);
+    for (int tid = 1; tid < MAX_THREADS; tid++) {
+        join_mask |= 0x1 << tid;
+        id[tid] = tid;
+        thread_create(my_thread_function, &t_stack[tid][1023], tid,
+                      (void *)&id[tid]);
+    }
 
     /* wait for both threads to finish their init and then restart them */
     wait_for_threads();
+    printf("app:%s: after wait:\n", __func__);
 
-    tid = 0;
-    setimask(tid, 0xFF);
-    tid = 1;
-    setimask(tid, (~(0x1 << tid)) & 0xFF);
-    tid = 2;
-    setimask(tid, (~(0x1 << tid)) & 0xFF);
-    printf("app:%s: after wait: "
-           "imask 0:0x%lx, imask 1:0x%lx, imask 2:0x%lx, imask 3:0x%lx\n",
-           __func__, getimask(0), getimask(1), getimask(2), getimask(3));
+    setimask(0, 0xffffffff);
+    printf("  imask 0:0x%lx\n", getimask(0));
+    for (int tid = 1; tid < MAX_THREADS; tid++) {
+        setimask(tid, (~(0x1 << tid)) & 0xffffffff);
+        printf("  imask %d:0x%lx\n", tid, getimask(tid));
+    }
 
     printf("app:%s: threads done with init: "
            "join mask 0x%x, first 0x%x, modectl 0x%lx\n",
            __func__, join_mask, first_modectl, read_modectl());
     do_resume(join_mask);
 
-    /* wait for both to finish */
-    thread_join(1 << 1);
-    thread_join(1 << 2);
+    /* wait for threads to finish */
+    printf("waiting threads with mask 0x%x\n", join_mask);
+    thread_join(join_mask);
 
     printf("app:%s: printing intcnt array: modectl 0x%lx\n", __func__,
            read_modectl());
@@ -186,6 +180,6 @@ int main()
         }
     }
 
-    printf("PASS\n");
+    printf("\nPASS\n");
     return 0;
 }
