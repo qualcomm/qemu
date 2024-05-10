@@ -328,10 +328,10 @@ class SysStatCommand(object):
             return
 
         modectl = sysregs["modectl"]
-        isdbst = sysregs["isdbst"]
+        isdbst2 = sysregs["isdbst2"]
 
         def to_dwe(thread_num):
-            d = bool(isdbst & (1 << thread_num))
+            d = bool((isdbst2 >> 16) & (1 << thread_num))
             w = bool(modectl & (1 << (thread_num + 16)))
             e = bool(modectl & (1 << thread_num))
             return (int(d), int(w), int(e))
