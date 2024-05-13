@@ -310,8 +310,11 @@ run-rev: rev
 	for comb in $(REV_TEST_COMBINATIONS); do \
 		opt="$$(echo "$$comb" | cut -d: -f1)"; \
 		exp="$$(echo "$$comb" | cut -d: -f2)"; \
-		$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< $$opt \
-			>$@.$$i.out 2>$@.$$i.err, $< on $(TARGET_NAME) ($$i)) && \
+		echo "$< on $(TARGET_NAME) ($$i)"; \
+		( \
+			if test -n "$(V)"; then set -x; fi; \
+			$(QEMU) $(QEMU_OPTS) $< $$opt >$@.$$i.out 2>$@.$$i.err  \
+		) && \
 		grep -qF $$exp $@.$$i.out; \
 		err=$$?; \
 		if test $$exp != 0x73; then \
