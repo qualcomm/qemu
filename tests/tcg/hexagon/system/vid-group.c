@@ -213,11 +213,10 @@ char __attribute__((aligned(16))) stack2[STACK_SIZE];
 char __attribute__((aligned(16))) stack3[STACK_SIZE];
 char __attribute__((aligned(16))) stack4[STACK_SIZE];
 
-
 void thread(void *data)
 {
     uint32_t pcyclo;
-    int *int_seen = (int *)data;
+    volatile int *int_seen = (int *)data; /* volatile: changed in int handler */
     while (*int_seen == 0) {
         __asm__ __volatile__("%0 = pcyclelo" : "=r"(pcyclo));
         pause();

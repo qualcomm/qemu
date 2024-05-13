@@ -26,7 +26,9 @@
  */
 
 #define TARGET_PAGE_BITS            12
+#ifndef TLB_NOT_FOUND
 #define TLB_NOT_FOUND               (1 << 31)
+#endif
 
 static inline uint32_t page_start(uint32_t addr, uint32_t page_size_bits)
 {
