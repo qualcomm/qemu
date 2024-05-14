@@ -230,7 +230,8 @@ typedef struct TCGPool {
 
 #define TCG_POOL_CHUNK_SIZE 32768
 
-#define TCG_MAX_TEMPS 512
+/* FIXME: workaround for QTOOL-116497 */
+#define TCG_MAX_TEMPS 2048
 #define TCG_MAX_INSNS 512
 
 /* when the size of the arguments of a called function is smaller than
