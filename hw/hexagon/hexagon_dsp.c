@@ -414,6 +414,11 @@ static void init_mc(MachineClass *mc)
 {
     mc->block_default_type = IF_SCSI;
     mc->default_ram_size = 4 * GiB;
+    mc->no_parallel = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->no_serial = 1;
+    mc->no_sdcard = 1;
     mc->is_default = false;
     mc->max_cpus = THREADS_MAX;
 }
@@ -671,6 +676,7 @@ static void virt_init(ObjectClass *oc, void *data)
     mc->desc = "Hexagon Virt";
     mc->init = virt_nocoproc_config_init;
     init_mc(mc);
+    mc->is_default = true;
     mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
         HEXAGON_LATEST_REV_UPPER);
     mc->default_cpus = 6;
