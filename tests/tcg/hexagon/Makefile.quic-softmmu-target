@@ -17,32 +17,6 @@
 
 # -*- Mode: makefile -*-
 
-ifneq (,$(findstring w64,$(CROSS_PREFIX)))
-WIN=yes
-else
-WIN=no
-endif
-
-ifeq ($(WIN),no)
-DOWNSTREAM_TESTS += \
-	invalid_coproc \
-	timer_reg \
-	qtimer_test \
-	qtimer \
-	ieee_fp \
-	coproc \
-	coproc_conv \
-	coproc_conv_fp16 \
-	coproc_range \
-	pcycle \
-	neg-framelimit \
-	neg-float_excp \
-	neg-hvx_nocoproc \
-	neg-no-coproc \
-	swi_fs \
-	$()
-endif
-
 DOWNSTREAM_TESTS += \
 	mmu_multi_tlb \
 	mmu_permissions \
@@ -89,6 +63,11 @@ DOWNSTREAM_TESTS += \
 	hvx-multi-0x79 \
 	$()
 
+# We skip these tests for windows builds
+ifeq (,$(findstring w64,$(CROSS_PREFIX)))
+include $(SRC_PATH)/tests/tcg/hexagon/Makefile.quic-softmmu-target-linux
+endif
+
 TESTS += $(DOWNSTREAM_TESTS)
 
 # Override the build function for downstream
@@ -116,7 +95,6 @@ hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@ 
 hvx-multi-0x79.o: hvx-multi.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
-
 
 mmu.h: ../hex_test.h
 invalid_opcode.h: mmu.h
@@ -148,35 +126,7 @@ swi_wait.o: swi_wait.c util.h thread_common.h
 swi_wait: swi_wait.o util.o thread_common.o
 qfloat_test: qfloat_test.o
 simple-assign: simple-assign.o
-
-ifeq ($(WIN),no)
-invalid_coproc.o: invalid_coproc.c mmu.h
-invalid_coproc: invalid_coproc.o
-timer_reg: timer_reg.o
-qtimer_test: qtimer_test.o
-qtimer: qtimer.o thread_common.o
-ieee_fp: ieee_fp.o
-coproc: coproc.o
-coproc_conv.o: coproc_conv.c coproc_common.h coproc_conv_asm.h \
-	       coproc_input_dat.h coproc_ref_output_dat.h util.h \
-	       vtcm_common.h
-coproc_conv: coproc_conv.o coproc_conv_asm.o util.o
-coproc_conv_fp16.o: coproc_conv_fp16.cpp coproc_common.h \
-	            coproc_input_fp16_dat.h coproc_ref_output_fp16_dat.h \
-		    vtcm_common.h
-coproc_conv_fp16: coproc_conv_fp16.o
-coproc_range: coproc_range.o
-neg-hvx_nocoproc: hvx_nocoproc.o
-neg-no-coproc: coproc.o
-swi_fs: swi_fs.o
-test-thread: test-thread.o
-endif
-
 wait: wait.o
-pcycle.o: pcycle.c ../hex_test.h
-pcycle: pcycle.o
-neg-framelimit: framelimit.o
-neg-float_excp: float_excp.o
 hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
 hvx_ext-0x75: hvx_ext-0x75.o
@@ -221,37 +171,28 @@ tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
 
-# memcpy insn was removed in v75
-run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
-
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
-
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 hvx_ext-0x75.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv75
 hvx_ext-0x79.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv79
 hvx-multi-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
-
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
-
 qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
-
-ifeq ($(WIN),no)
-hvx_nocoproc.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
-ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp
-coproc.o: EXTRA_TEST_CFLAGS= -mhmx
-coproc_conv.o: EXTRA_TEST_CFLAGS= -mhmx
-coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
-coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
-coproc_range.o: EXTRA_TEST_CFLAGS= -mhmx
-
-timer_reg.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000
-qtimer_test.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
-qtimer.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
-endif
-
 vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
 
+# memcpy insn was removed in v75
+run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
+run-hvx_ext-0x75: QEMU_EXTRA_OPTS=-M V75NA_1024
+run-hvx_ext-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
+run-hvx-multi-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
+run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
+run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
+run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
+run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
+run-swi: swi
+run-swi2: swi2
+run-thread_scheduling: thread_scheduling
 run-neg-framelimit: neg-framelimit
 run-neg-float_excp: neg-float_excp
 run-neg-unaligned: neg-unaligned
@@ -265,127 +206,13 @@ run-neg-vtcm_error: neg-vtcm_error
 		grep -q "exception 0x26" $<.stderr, \
 		"GREP", "exception 0x26");
 
-ifeq ($(WIN),no)
-run-neg-hvx_nocoproc: neg-hvx_nocoproc
-
-run-neg-no-coproc:neg-no-coproc
-	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 255 ] ; then \
-		return -1; \
-	fi
-	$(call quiet-command, \
-		grep -q "exception 0x18" $<.stderr, \
-		"GREP", "exception 0x18");
-
-run-vid-group: vid-group
-run-timer_reg: timer_reg
-run-qtimer_test: qtimer_test
-run-swi: swi
-run-swi2: swi2
-run-swi_wait: swi_wait
-run-tlblock: tlblock
-run-k0lock: k0lock
-run-thread_scheduling: thread_scheduling
-
-run-gregs: gregs
-	$(call run-test, $<, $(QEMU) -d unimp $(QEMU_OPTS) $< 2> _$<.stderr, \
-		"$< on $(TARGET_NAME)") || { cat _$<.stderr; exit 1; }
-	grep -E 'Warning: (guest register|ignoring write to guest register)' \
-		_$<.stderr > _$<.stderr.filtered
-	diff $(HEXAGON_SYSTEM_SRC)/expected-gregs-warnings.txt _$<.stderr.filtered
-
-# Test combinations, with expected output separated by a ':'
-#
-REV_TEST_COMBINATIONS="-M V69NA_1024           : 0x69" \
-		      "-cpu any                : 0x73" \
-		      "-cpu v69                : 0x69" \
-		      "-cpu v73 -M V69NA_1024  : 0x73" \
-		      "-cpu v69 -M V73NA_1024  : 0x69" \
-		      "-cpu any -M V69NA_1024  : 0x69" \
-		      "-cpu any -M V73NA_1024  : 0x73"
-
-run-rev: rev
-	@i=0; \
-	ret=0; \
-	for comb in $(REV_TEST_COMBINATIONS); do \
-		opt="$$(echo "$$comb" | cut -d: -f1)"; \
-		exp="$$(echo "$$comb" | cut -d: -f2)"; \
-		echo "$< on $(TARGET_NAME) ($$i)"; \
-		( \
-			if test -n "$(V)"; then set -x; fi; \
-			$(QEMU) $(QEMU_OPTS) $< $$opt >$@.$$i.out 2>$@.$$i.err  \
-		) && \
-		grep -qF $$exp $@.$$i.out; \
-		err=$$?; \
-		if test $$exp != 0x73; then \
-			grep -q 'warning: using .* cpu but binary is for v73' $@.$$i.err; \
-			err=$$(($$err + $$?)); \
-		fi; \
-		if test $$err -eq 0; then \
-			echo "  rev test $$i: OK"; \
-		else \
-			echo "  rev test $$i: FAIL"; \
-			ret=1; \
-		fi; \
-		i=$$(($$i + 1)); \
-	done; \
-	exit $$ret
-
-# Run some tests with paranoid-commit-state turned on
-
-ifeq ($(OVERRIDE_OPTS),)
-run-test-extra = $(call run-test, $1, $2, $3)
-else
-# If OVERRIDE_OPTS is defined, we skip tests using custom options that
-# could interfere with OVERRIDE_OPTS
-define run-test-extra
-	echo "WARNING: OVERRIDE_OPTS defined, SKIPPING '$3'"
-endef
-endif
-
-ICOUNT_OPTS=-icount auto
-run-tlblock run-k0lock run-swi_wait run-timer_reg run-qtimer_test run-vid-group:
+run-swi run-swi2 run-thread_scheduling:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
-
-run-swi run-thread_scheduling:
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
-	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
-
-run-swi2:
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
-	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
-
-run-vid-group: vid-group
-run-vid-group: QEMU_BASE_MACHINE=-cpu v67,sched-limit=on
-
-run-test-thread: QEMU_EXTRA_OPTS=-smp cpus=8
-run-test-thread: run-test-thread-mttcg
-run-test-thread-mttcg: QEMU_EXTRA_OPTS+=-accel tcg,thread=multi
-run-test-thread run-test-thread-mttcg: test-thread
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< ,"$< on $(TARGET_NAME) $(@:run-$<-%=%)")
-
-# coproc tests
-run-coproc:QEMU_EXTRA_OPTS=-M virt_coproc
-run-coproc:coproc
-run-coproc_conv:QEMU_EXTRA_OPTS=-M virt_coproc
-run-coproc_conv:coproc_conv
-run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
-run-coproc_range:coproc_range
-run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M virt_coproc
-run-coproc_conv_fp16: coproc_conv_fp16
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< --append "2 2 2 coproc_input_fp16.dat coproc_output_fp16.dat","$< on $(TARGET_NAME)")
-run-invalid_coproc:QEMU_EXTRA_OPTS=-M virt_coproc
-run-invalid_coproc:invalid_coproc
-endif # no WIN
 
 run-qfloat_test: qfloat_test
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< >_$@.out ,"$< on $(TARGET_NAME)")
 	diff --strip-trailing-cr -q $(HEXAGON_SYSTEM_SRC)/qfloat.out.ref _$@.out
-
-run-hvx_ext-0x75: QEMU_EXTRA_OPTS=-M V75NA_1024
-run-hvx_ext-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
-run-hvx-multi-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
 
 run-fopen: fopen
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< -append dummy.so,"$< on $(TARGET_NAME)")
@@ -413,8 +240,6 @@ run-hvx_64b: hvx_64b
 	$(call run-test, $<, $(QEMU) -M V66G_1024 -kernel $<, "$< on $(TARGET_NAME) V66")
 	$(call run-test, $<, $(QEMU) -M V68N_1024 -kernel $<, "$< on $(TARGET_NAME) V68")
 
-run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
-
 run-start: start
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< > $<.stdout)
 	$(call quiet-command, \
@@ -423,80 +248,5 @@ run-start: start
 
 run-invalid_insn_for_rev: run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68
 	@: # do nothing
-run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
-run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68: invalid_insn_for_rev
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
-
-run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
-
-ifeq ($(WIN),no)
-run-reset-test: inf-loop
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn $(QEMU) $(QEMU_OPTS) $<"; \
-		  echo 'expect "Starting thread 0"'; \
-		  echo 'expect "Starting thread 1"'; \
-		  echo 'expect "Starting thread 2"'; \
-		  echo 'expect "Starting thread 3"'; \
-		  echo 'send "system_reset\r"'; \
-		  echo 'expect "Starting thread 0"'; \
-		  echo 'expect "Starting thread 1"'; \
-		  echo 'expect "Starting thread 2"'; \
-		  echo 'expect "Starting thread 3"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"reset through monitor")
-
-run-k0locklock-test: k0locklock
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn timeout 5 $(QEMU) -d guest_errors $(QEMU_OPTS) $<"; \
-		  echo 'expect "Double k0lock at PC"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"done")
-
-run-tlblocklock-test: tlblocklock
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn timeout 5 $(QEMU) -d guest_errors $(QEMU_OPTS) $<"; \
-		  echo 'expect "Double tlblock at PC"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"done")
-
-EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test
-
-ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
-
-# hexagon-lldb starts qemu with an empty environment. To bypass that, we create
-# a wrapper script which properly sets the environment before invoking qemu.
-.PHONY: FORCE
-qemu-wrapper-for-lldb: FORCE
-	{ echo '#!/bin/bash' && \
-	  export -p && \
-	  echo '"$(QEMU)"' '"$$@"'; } >$@ && \
-	chmod +x $@
-
-run-and-check-pass = $(call run-test, $1, \
-	bash -c "{ $2 | tee /dev/fd/8 | grep -q '^PASS$$'; } 8>&1", $3)
-
-run-lldb-revcon: export LLDB_HEXAGON_USE_QEMU = 1
-run-lldb-revcon: export LLDB_HEXAGON_QEMU_PATH = qemu-wrapper-for-lldb
-run-lldb-revcon: simple-assign qemu-wrapper-for-lldb
-	$(call run-and-check-pass, $@, \
-		$(HAVE_HEXAGON_LLDB_BIN) --no-lldbinit --batch \
-		--source $(HEXAGON_SYSTEM_SRC)/lldbscripts/test-revcon.lldb \
-		$< -- $(filter-out -kernel,$(QEMU_OPTS)), \
-		"basic qemu revcon test")
-
-EXTRA_RUNS += run-lldb-revcon
-
-endif # have LLDB
-
-endif # no WIN
-
