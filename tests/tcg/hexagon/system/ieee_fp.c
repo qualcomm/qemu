@@ -37,7 +37,6 @@ union ui16f16 {
 /* 128 byte vectors */
 #define VSIZE_BYTES 128
 #define VSIZE_WORDS (VSIZE_BYTES / 4)
-#define FATTR __attribute__((always_inline))
 
 /*
  * Create vectors
@@ -45,7 +44,7 @@ union ui16f16 {
 
 
 /* create a vector of single floats from a float */
-static FATTR HVX_Vector create_sfv_from_sf(float value)
+static HVX_Vector create_sfv_from_sf(float value)
 {
     union ui32f cvt;
     cvt.f = value;
@@ -54,7 +53,7 @@ static FATTR HVX_Vector create_sfv_from_sf(float value)
 }
 
 /* create a vector of half floats from a float */
-static FATTR HVX_Vector create_hfv_from_sf(float value)
+static HVX_Vector create_hfv_from_sf(float value)
 {
     __fp16 hf = value;
     union ui16f16 cvt;
@@ -64,14 +63,14 @@ static FATTR HVX_Vector create_hfv_from_sf(float value)
 }
 
 /* create a vector of halfs from a short */
-static FATTR HVX_Vector create_hv_from_short(short value)
+static HVX_Vector create_hv_from_short(short value)
 {
     HVX_Vector tmp = Q6_Vh_vsplat_R(value);
     return tmp;
 }
 
 /* create a vector of halfs from an unsiged short */
-static FATTR HVX_Vector create_hv_from_ushort(unsigned short value)
+static HVX_Vector create_hv_from_ushort(unsigned short value)
 {
     HVX_Vector tmp = Q6_Vh_vsplat_R(value);
     return tmp;
@@ -83,7 +82,7 @@ static FATTR HVX_Vector create_hv_from_ushort(unsigned short value)
 
 
 /* get lowest float from a vector of floats */
-static FATTR float get_flt0_from_fltv(HVX_Vector vect)
+static float get_flt0_from_fltv(HVX_Vector vect)
 {
     union ui32f cvt;
     cvt.i = vect[0];
@@ -92,7 +91,7 @@ static FATTR float get_flt0_from_fltv(HVX_Vector vect)
 
 
 /* get lowest float from a vector of halfs */
-static FATTR float get_flt0_from_halfv(HVX_Vector vect)
+static float get_flt0_from_halfv(HVX_Vector vect)
 {
     union ui16f16 cvt;
     cvt.i = (vect[0] & 0xffff);
@@ -101,7 +100,7 @@ static FATTR float get_flt0_from_halfv(HVX_Vector vect)
 
 
 //
-static FATTR float get_flt0_from_vp(HVX_VectorPair vect)
+static float get_flt0_from_vp(HVX_VectorPair vect)
 {
     union ui16f16 cvt;
     HVX_Vector tmp = HEXAGON_HVX_GET_V0(vect);
@@ -109,7 +108,7 @@ static FATTR float get_flt0_from_vp(HVX_VectorPair vect)
     return cvt.f16;
 }
 
-static FATTR float get_sf0_from_vp(HVX_VectorPair vect)
+static float get_sf0_from_vp(HVX_VectorPair vect)
 {
     union ui32f cvt;
     HVX_Vector tmp = HEXAGON_HVX_GET_V0(vect);
@@ -117,12 +116,12 @@ static FATTR float get_sf0_from_vp(HVX_VectorPair vect)
     return cvt.f;
 }
 
-static FATTR char get_b0_from_vb(HVX_Vector vect)
+static char get_b0_from_vb(HVX_Vector vect)
 {
     return vect[0];
 }
 
-static FATTR short get_h0_from_vh(HVX_Vector vect)
+static short get_h0_from_vh(HVX_Vector vect)
 {
     return vect[0];
 }
