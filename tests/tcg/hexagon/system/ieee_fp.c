@@ -20,7 +20,6 @@
 #include <stdlib.h>
 
 #include "hexagon_protos.h"
-#include <hexagon_standalone.h>
 #include <hexagon_types.h>
 
 #include "ieee_ref_output_dat.h"
@@ -131,8 +130,6 @@ static FATTR short get_h0_from_vh(HVX_Vector vect)
 int main(int argc, char **argv)
 {
     int err = 0;
-    SIM_ACQUIRE_HVX;
-    SIM_SET_HVX_DOUBLE_MODE;
 
     FILE *test_file = fopen("result.txt", "w+");
     if (test_file == NULL) {
