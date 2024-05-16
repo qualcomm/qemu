@@ -29,17 +29,17 @@ union ui32f { int32_t i; float f; };
 union ui16f16 { int16_t i; __fp16 f16; };
 
 
-// 128 byte vectors
+/* 128 byte vectors */
 #define VSIZE_BYTES 128
-#define VSIZE_WORDS VSIZE_BYTES/4
+#define VSIZE_WORDS (VSIZE_BYTES / 4)
 #define FATTR __attribute__((always_inline))
 
-//
-// Create vectors
-//
+/*
+ * Create vectors
+ */
 
 
-// create a vector of single floats from a float
+/* create a vector of single floats from a float */
 static FATTR HVX_Vector create_sfv_from_sf(float value)
 {
 	union ui32f cvt;
@@ -48,7 +48,7 @@ static FATTR HVX_Vector create_sfv_from_sf(float value)
 	return tmp;
 }
 
-// create a vector of half floats from a float
+/* create a vector of half floats from a float */
 static FATTR HVX_Vector create_hfv_from_sf(float value)
 {
 	__fp16 hf = value;
@@ -58,32 +58,26 @@ static FATTR HVX_Vector create_hfv_from_sf(float value)
 	return tmp;
 }
 
-// create a vector of halfs from a short
+/* create a vector of halfs from a short */
 static FATTR HVX_Vector create_hv_from_short(short value)
 {
 	HVX_Vector tmp = Q6_Vh_vsplat_R(value);
 	return tmp;
 }
 
-// create a vector of halfs from an unsiged short
+/* create a vector of halfs from an unsiged short */
 static FATTR HVX_Vector create_hv_from_ushort(unsigned short value)
 {
 	HVX_Vector tmp = Q6_Vh_vsplat_R(value);
 	return tmp;
 }
 
-//
-// Conversion vectors
-//
+/*
+ * Extraction routines
+ */
 
 
-
-//
-// Extraction routines
-//
-
-
-// get lowest float from a vector of floats
+/* get lowest float from a vector of floats */
 static FATTR float get_flt0_from_fltv(HVX_Vector vect)
 {
 	union ui32f cvt;
@@ -92,7 +86,7 @@ static FATTR float get_flt0_from_fltv(HVX_Vector vect)
 }
 
 
-// get lowest float from a vector of halfs
+/* get lowest float from a vector of halfs */
 static FATTR float get_flt0_from_halfv(HVX_Vector vect)
 {
 	union ui16f16 cvt;
@@ -118,16 +112,14 @@ static FATTR float get_sf0_from_vp(HVX_VectorPair vect)
 	return cvt.f;
 }
 
-//
 static FATTR char get_b0_from_vb(HVX_Vector vect)
 {
-	return vect[0];;
+    return vect[0];
 }
 
-//
 static FATTR short get_h0_from_vh(HVX_Vector vect)
 {
-	return vect[0];;
+    return vect[0];
 }
 
 int main(int argc, char **argv)
@@ -143,20 +135,20 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-	// create half float vectors from a float
+    /* create half float vectors from a float */
 	HVX_Vector hfv2 = create_hfv_from_sf(2.0);
 	HVX_Vector hfv4 = create_hfv_from_sf(4.0);
 	HVX_Vector hfvn6 = create_hfv_from_sf(-6.0);
 
-	// create single float vectors from a float
+    /* create single float vectors from a float */
 	HVX_Vector sfvp5 = create_sfv_from_sf(0.5);
 	HVX_Vector sfvp25 = create_sfv_from_sf(0.25);
 	HVX_Vector sfvnp25 = create_sfv_from_sf(-0.25);
 
-	// create a half vector from a short
+    /* create a half vector from a short */
 	HVX_Vector hvn3 = create_hv_from_short(-3);
 
-	// create a half vector from a unsigned short
+    /* create a half vector from a unsigned short */
 	HVX_Vector hv32k = create_hv_from_ushort(0x8000);
 
 	fprintf(test_file,"\nConversion intructions\n\n");
