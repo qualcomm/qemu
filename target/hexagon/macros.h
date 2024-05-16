@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -371,7 +371,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef QEMU_GENERATE
 #define fREAD_P0() gen_read_preg(tmp, 0)
 #else
-#define fREAD_P0() (env->pred[0])
+#define fREAD_P0() (P0)
 #endif
 
 #define fWRITE_NPC(A) write_new_pc(env, pkt_has_multi_cof != 0, A, PC)
