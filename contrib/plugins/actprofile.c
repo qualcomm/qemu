@@ -158,7 +158,8 @@ static const uint32_t HEXAGON_INST_PARSE_MASK       = 0x0000c000;
 
 static InstType get_inst_type(struct qemu_plugin_insn *inst)
 {
-    uint32_t opcode = *((uint32_t *)qemu_plugin_insn_data(inst));
+    uint32_t opcode = 0;
+    qemu_plugin_insn_data(inst, &opcode, sizeof(opcode));
     if ((opcode & ITYPE_ST_MASK) == ITYPE_ST_BUS)
         return HEXAGON_BUS;
 
