@@ -1016,17 +1016,12 @@ have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
 # below can also be removed.
 glib_req_ver = '>=2.66.0'
 glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
-                    method: 'pkg-config')
+                    method: 'pkg-config', fallback: ['glib', 'libglib_dep'],
+		    default_options: ['werror=false', 'default_library=static',
+				      'tests=false'])
 glib_cflags = []
-if enable_modules
-  gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config')
-elif get_option('plugins')
-  gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config')
-else
-  gmodule = not_found
-endif
+gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
+                       method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
 
 # This workaround is required due to a bug in pkg-config file for glib as it
 # doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
@@ -1039,7 +1034,7 @@ endif
 # problems on multi-arch where people try to build
 # 32-bit QEMU while pointing at 64-bit glib headers
 
-if not cc.compiles('''
+if glib_pc.type_name() != 'internal' and not cc.compiles('''
   #include <glib.h>
   #include <unistd.h>
 
@@ -1068,7 +1063,9 @@ glib_has_gslice = glib.version().version_compare('<2.75.3')
 glib_has_aligned_alloc = glib.version().version_compare('>=2.72.0')
 
 # override glib dep to include the above refinements
+if glib_pc.type_name() != 'internal'
 meson.override_dependency('glib-2.0', glib)
+endif
 
 # The path to glib.h is added to all compilation commands.
 add_project_dependencies(glib.partial_dependency(compile_args: true, includes: true),
@@ -1080,7 +1077,7 @@ gdbus_codegen_error = '@0@ requires gdbus-codegen, please install libgio'
 if not get_option('gio').auto() or have_system
   gio = dependency('gio-2.0', required: get_option('gio'),
                    method: 'pkg-config')
-  if gio.found() and not cc.links('''
+  if glib_pc.type_name() != 'internal' and gio.found() and not cc.links('''
     #include <gio/gio.h>
     int main(void)
     {
@@ -1517,7 +1514,7 @@ if have_system and get_option('curses').allowed()
       # the system libc does not work.
       # However, without adding glib to the dependencies -L/usr/local/lib will not be
       # included in the command line and libiconv will not be found.
-      if cc.links('''
+      if glib_pc.type_name() != 'internal' and cc.links('''
         #include <iconv.h>
         int main(void) {
           iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
@@ -1652,7 +1649,7 @@ endif
 
 hv_balloon = false
 if get_option('hv_balloon').allowed() and have_system
-  if cc.links('''
+  if glib_pc.type_name() != 'internal' and cc.links('''
     #include <string.h>
     #include <gmodule.h>
     int main(void) {
