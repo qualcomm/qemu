@@ -31,7 +31,7 @@ def main():
     ##     Generate all the attributes associated with each instruction
     ##
     with open(sys.argv[-1], "w") as f:
-        for tag in hex_common.tags:
+        for tag in hex_common.get_all_tags():
             f.write(
                 f"OP_ATTRIB({tag},ATTRIBS("
                 f'{",".join(sorted(hex_common.attribdict[tag]))}))\n'
