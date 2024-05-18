@@ -22,6 +22,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 #include "cpu.h"
+#include "trace.h"
 #endif
 #include "coproc.h"
 
@@ -29,6 +30,7 @@
 void coproc(const CoprocArgs *args)
 {
 #if !defined(CONFIG_USER_ONLY) && !defined(_WIN32)
+    trace_hexagon_coproc_op(args->opcode);
     hexagon_coproc_rpclib_call((const void *)args);
 #endif
 }
