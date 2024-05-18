@@ -23,11 +23,6 @@ import string
 import hex_common
 
 
-def _line():
-    f = sys._getframe().f_back
-    return "[{f.f_code.co_filename}:{f.f_lineno}]"
-
-
 ##
 ## Generate the TCG code to call the helper
 ##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
