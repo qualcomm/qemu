@@ -318,12 +318,6 @@ def is_gather(tag):
     return "A_CVI_GATHER" in attribdict[tag]
 
 
-def is_coproc_act(tag):
-    return ('A_COPROC' in attribdict[tag] and 'A_PAIR_1OF2' in attribdict[tag]);
-
-def is_coproc(tag):
-    return ('A_COPROC' in attribdict[tag])
-
 def is_scatter_gather(tag):
     return (
         "A_CVI_SCATTER" in attribdict[tag]
@@ -435,6 +429,14 @@ class Register:
         if subtype == "":
             return self
         raise Exception(f"unknown subtype '{subtype}' on generic Register class")
+
+# QUIC SPECIFIC
+def is_coproc_act(tag):
+    return ('A_COPROC' in attribdict[tag] and 'A_PAIR_1OF2' in attribdict[tag]);
+
+def is_coproc(tag):
+    return ('A_COPROC' in attribdict[tag])
+# end QUIC SPECIFIC
 
 #
 # Every register is either Scalar or Hvx
