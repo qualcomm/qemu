@@ -278,15 +278,15 @@ def need_PC(tag):
 
 
 def need_next_PC(tag):
-    return "A_CALL" in attribdict[tag]
+    return "A_CALL" in attribdict[tag] or tag == "J2_trap0" or tag == "J2_trap1"
 
 
 def need_pkt_has_multi_cof(tag):
-    if "A_JUMP" in attribdict[tag] or "A_CALL" in attribdict[tag]:
-        if tag == "J4_hintjumpr":
-            return False
-        return True
-    return False
+    return (
+        "A_JUMP" in attribdict[tag]
+        or "A_CALL" in attribdict[tag]
+        or "J2_rte" == tag
+    ) and tag != "J2_hintjumpr"
 
 
 def need_pkt_need_commit(tag):
