@@ -379,6 +379,15 @@ tcg_funcs_generated = custom_target(
 )
 hexagon_ss.add(tcg_funcs_generated)
 
+tcg_func_table_generated = custom_target(
+    'tcg_func_table_generated.c.inc',
+    output: 'tcg_func_table_generated.c.inc',
+    depends: [semantics_generated],
+    depend_files: [hex_common_py],
+    command: [python, files('gen_tcg_func_table.py'), semantics_generated, '@OUTPUT@'],
+)
+hexagon_ss.add(tcg_func_table_generated)
+
 analyze_funcs_generated = custom_target(
     'analyze_funcs_generated.c.inc',
     output: 'analyze_funcs_generated.c.inc',
