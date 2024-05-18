@@ -42,8 +42,6 @@ def tag_ignore(tag):
         "Y6_diag",
         "Y6_diag0",
         "Y6_diag1",
-        #        'V6_v6mpyhubs10_vxx',
-        #        'V6_v6mpyvubs10_vxx',
     )
     attr_skips = (
         "A_FAKEINSN",
@@ -52,24 +50,15 @@ def tag_ignore(tag):
     return tag in tag_skips or any(attr in attribdict[tag] for attr in attr_skips)
 
 
-def tag_skip(tag):
-    tag_skips = ()
-    attr_skips = (
-        #        'A_FAKEINSN',
-        #        'A_MAPPING',
-    )
-    return tag in tag_skips or any(attr in attribdict[tag] for attr in attr_skips)
-
-
 def get_sys_tags():
     return sorted(
-        tag for tag in frozenset(tags) if is_sysemu_tag(tag) and not tag_skip(tag)
+        tag for tag in frozenset(tags) if is_sysemu_tag(tag)
     )
 
 
 def get_user_tags():
     return sorted(
-        tag for tag in frozenset(tags) if not is_sysemu_tag(tag) and not tag_skip(tag)
+        tag for tag in frozenset(tags) if not is_sysemu_tag(tag)
     )
 
 
