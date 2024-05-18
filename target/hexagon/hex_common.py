@@ -306,9 +306,6 @@ def is_tmp_result(tag):
     return "A_CVI_TMP" in attribdict[tag] or "A_CVI_TMP_DST" in attribdict[tag]
 
 
-def is_coproc(tag):
-    return ('A_COPROC' in attribdict[tag])
-
 def is_scatter_gather(tag):
     return (
         "A_CVI_SCATTER" in attribdict[tag]
