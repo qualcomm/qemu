@@ -75,8 +75,10 @@ typedef struct L2VICState {
 } L2VICState;
 
 
-/* Find out if this irq is associated with a group other than
- * the default group */
+/*
+ * Find out if this irq is associated with a group other than
+ * the default group
+ */
 static uint32_t *get_int_group(L2VICState *s, int irq)
 {
     int n = irq & 0x1f;
@@ -304,7 +306,7 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
         value = L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3);
     } else {
         value = 0;
-        qemu_log_mask(LOG_GUEST_ERROR, "L2VIC: %s: offset %x\n", __func__,
+        qemu_log_mask(LOG_GUEST_ERROR, "L2VIC: %s: offset 0x%x\n", __func__,
                       (int)offset);
     }
 
@@ -346,14 +348,12 @@ static void fastl2vic_write(void *opaque, hwaddr offset,
         }
         /* RESERVED */
         else if (cmd == 0x3) {
-            g_assert(0);
+            g_assert_not_reached();
         }
         return;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write offset 0x%08x\n",
         __func__, (unsigned int)offset);
-    /* Address zero is the only legal spot to write */
-    g_assert(0);
 }
 
 static const MemoryRegionOps fastl2vic_ops = {
@@ -407,8 +407,9 @@ static void l2vic_init(Object *obj)
 
     qdev_init_gpio_in(dev, l2vic_set_irq, L2VIC_INTERRUPT_MAX);
     qdev_init_gpio_in_named(dev, reset_irq_handler, "reset", 1);
-    for (i=0; i<8; i++)
+    for (i = 0; i < 8; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
+    }
     qemu_mutex_init(&s->active); /* TODO: Remove this is an experiment */
 }
 
