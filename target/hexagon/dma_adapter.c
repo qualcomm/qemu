@@ -28,6 +28,7 @@
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #endif
+#include "trace.h"
 #include "cpu.h"
 #include "arch.h"
 #include "dma_adapter.h"
@@ -123,6 +124,20 @@ dma_adapter_cmd_impl_t dma_adapter_cmd_impl_tab[DMA_CMD_UND] = {
     [DMA_CMD_PAUSE]    = &dma_adapter_cmd_pause,             /* dmpause */
     [DMA_CMD_RESUME]   = &dma_adapter_cmd_resume,            /* dmresume */
     [DMA_CMD_TLBSYNCH] = &dma_adapter_cmd_tlbsynch,          /* dmtlbsynch */
+};
+
+static const char *dma_cmd_name[] = {
+   [DMA_CMD_START]          = "Y6_dmstart",
+   [DMA_CMD_LINK]           = "Y6_dmlink",
+   [DMA_CMD_POLL]           = "Y6_dmpoll",
+   [DMA_CMD_WAIT]           = "Y6_dmwait",
+   [DMA_CMD_SYNCHT]         = "Y6_dmsyncht",
+   [DMA_CMD_WAITDESCRIPTOR] = "Y6_dmwaitdescriptor",
+   [DMA_CMD_CFGRD]          = "Y6_dmcfgrd",
+   [DMA_CMD_CFGWR]          = "Y6_dmcfgwr",
+   [DMA_CMD_PAUSE]          = "Y6_dmpause",
+   [DMA_CMD_RESUME]         = "Y6_dmresume",
+   [DMA_CMD_TLBSYNCH]       = "Y6_dmtlbsynch"
 };
 
 #if 0
@@ -1316,6 +1331,8 @@ size4u_t dma_adapter_cmd(thread_t *thread, dma_cmd_t opcode,
 	size4u_t ret_val = 0;
 
 	if (opcode < DMA_CMD_UND) {
+
+  		trace_hexagon_dma_op(dma_cmd_name[opcode]);
 
 		// Call an instruction implementation at the adapter side.warn("DMA %d: ADAPTER  dma_adapter_set_staller. tick count=%d", dma->num, dma_get_tick_count(dma));
 		dma_adapter_cmd_impl_t impl = dma_adapter_cmd_impl_tab[opcode];
