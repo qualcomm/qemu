@@ -68,8 +68,32 @@ union qemu_plugin_cb_sig {
 
 enum plugin_dyn_cb_type {
     PLUGIN_CB_REGULAR,
+    PLUGIN_CB_COND,
     PLUGIN_CB_MEM_REGULAR,
-    PLUGIN_CB_INLINE,
+    PLUGIN_CB_INLINE_ADD_U64,
+    PLUGIN_CB_INLINE_STORE_U64,
+};
+
+struct qemu_plugin_regular_cb {
+    union qemu_plugin_cb_sig f;
+    TCGHelperInfo *info;
+    void *userp;
+    enum qemu_plugin_mem_rw rw;
+};
+
+struct qemu_plugin_inline_cb {
+    qemu_plugin_u64 entry;
+    uint64_t imm;
+    enum qemu_plugin_mem_rw rw;
+};
+
+struct qemu_plugin_conditional_cb {
+    union qemu_plugin_cb_sig f;
+    TCGHelperInfo *info;
+    void *userp;
+    qemu_plugin_u64 entry;
+    enum qemu_plugin_cond cond;
+    uint64_t imm;
 };
 
 /*
@@ -78,37 +102,24 @@ enum plugin_dyn_cb_type {
  * instance of a callback to be called upon the execution of a particular TB.
  */
 struct qemu_plugin_dyn_cb {
-    void *userp;
     enum plugin_dyn_cb_type type;
-    /* @rw applies to mem callbacks only (both regular and inline) */
-    enum qemu_plugin_mem_rw rw;
-    /* fields specific to each dyn_cb type go here */
     union {
-        struct {
-            union qemu_plugin_cb_sig f;
-            TCGHelperInfo *info;
-        } regular;
-        struct {
-            qemu_plugin_u64 entry;
-            enum qemu_plugin_op op;
-            uint64_t imm;
-        } inline_insn;
+        struct qemu_plugin_regular_cb regular;
+        struct qemu_plugin_conditional_cb cond;
+        struct qemu_plugin_inline_cb inline_insn;
     };
 };
 
 /* Internal context for instrumenting an instruction */
 struct qemu_plugin_insn {
-    GByteArray *data;
     uint64_t vaddr;
-    void *haddr;
     GArray *insn_cbs;
     GArray *mem_cbs;
+    uint8_t len;
     bool calls_helpers;
 
     /* if set, the instruction calls helpers that might access guest memory */
     bool mem_helper;
-
-    bool mem_only;
 };
 
 /* A scoreboard is an array of values, indexed by vcpu_index */
@@ -117,27 +128,10 @@ struct qemu_plugin_scoreboard {
     QLIST_ENTRY(qemu_plugin_scoreboard) entry;
 };
 
-/*
- * qemu_plugin_insn allocate and cleanup functions. We don't expect to
- * cleanup many of these structures. They are reused for each fresh
- * translation.
- */
-
-static inline void qemu_plugin_insn_cleanup_fn(gpointer data)
-{
-    struct qemu_plugin_insn *insn = (struct qemu_plugin_insn *) data;
-    g_byte_array_free(insn->data, true);
-}
-
 /* Internal context for this TranslationBlock */
 struct qemu_plugin_tb {
     GPtrArray *insns;
     size_t n;
-    uint64_t vaddr;
-    uint64_t vaddr2;
-    void *haddr1;
-    void *haddr2;
-    bool mem_only;
 
     /* if set, the TB calls helpers that might access guest memory */
     bool mem_helper;
