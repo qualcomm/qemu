@@ -79,4 +79,6 @@ void register_coproc_ldst_exception(thread_t * thread, int slot,
 int check_coproc_page_cross(thread_t* thread, vaddr_t base,
     int length, int page_size);
 
+#define TLB_NO_OVERLAP -2
+
 #endif

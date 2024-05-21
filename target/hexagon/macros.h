@@ -714,7 +714,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fVIRTINSN_SPSWAP(IMM, REG) g_assert_not_reached()
 #define fVIRTINSN_GETIE(IMM, REG)  g_assert_not_reached()
 #define fVIRTINSN_SETIE(IMM, REG)  g_assert_not_reached()
-#define fVIRTINSN_RTE(IMM, REG)    g_assert_not_reached()
+#define fVIRTINSN_RTE(IMM)    g_assert_not_reached()
 #endif
 
 #define fPREDUSE_TIMING()
@@ -747,5 +747,9 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     0    /* FIXME */
 
 #define fTLBMATCH_MIN_SIZE() (hexagon_rev_byte(thread) < 0x79 ? 6 : 9)
+
+/* Extended DMA TLB is in entries 512 512+QDSP6_DMAJTLB_SZ */
+#define DMA_TLB_OFFSET 512
+#define NUM_DMATLB_REGS(PROC) ((PROC)->arch_proc_options->QDSP6_DMAJTLB_SZ)
 
 #endif

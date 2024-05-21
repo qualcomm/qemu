@@ -186,6 +186,7 @@ typedef struct arch_proc_opt {
     int QDSP6_VX_CONTEXTS;
     int QDSP6_VX_MEM_ENTRIES;
     int QDSP6_VX_VEC_SZ;
+    int QDSP6_DMAJTLB_SZ;
 } arch_proc_opt_t;
 
 typedef struct {

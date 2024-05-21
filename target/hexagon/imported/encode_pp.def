@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,9 +18,7 @@
 /*
  * encode32.def
  * Encodings for 32 bit instructions
- *
  */
-
 
 DEF_ENC32(A2_abs,"10001100100sssssPP------100ddddd")
 DEF_ENC32(A2_absp,"10000000100sssssPP------110ddddd")
@@ -1690,7 +1688,7 @@ DEF_ENC32(Y4_tfrspcp,"0110110100-sssssPP-------ddddddd")
 DEF_ENC32(Y4_trace,"01100010010sssssPP------000-----")
 DEF_ENC32(Y5_ctlbw,"01101100110sssssPP0ttttt---ddddd")
 DEF_ENC32(Y5_l2cleanidx,"10100110001sssssPP--------------")
-DEF_ENC32(Y5_l2fetch,"10100110100sssssPP-ttttt--------")
+DEF_ENC32(Y5_l2fetch,"10100110100sssssPP0ttttt--------")
 DEF_ENC32(Y5_l2gclean,"10101000001-----PP-100----------")
 DEF_ENC32(Y5_l2gcleaninv,"10101000001-----PP-110----------")
 DEF_ENC32(Y5_l2gunlock,"10101000001-----PP-010----------")
@@ -1870,3 +1868,4 @@ DEF_FIELD32("---! !!!! !!!!!!!! EE------ --------",SUBFIELD_B_SLOT1,"B: Slot1 In
 LEGACY_DEF_ENC32(A2_addsat,"11010101  100sssss  PP-ttttt 0--ddddd")
 LEGACY_DEF_ENC32(A2_subsat,"11010101  100sssss  PP-ttttt 1--ddddd")
 LEGACY_DEF_ENC32(S2_packhl,"11010100  --0sssss  PP-ttttt ---ddddd")
+DEF_CLASS32("---- ---- -------- EE------ --------",ALL_EE)
