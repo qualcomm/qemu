@@ -731,10 +731,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     if (*errp) {
         return;
     }
-    if (cs->cpu_index >= THREADS_MAX) {
-        error_setg(errp, "Out of threads.  Max is: %d, wanted: %d", THREADS_MAX, cs->cpu_index);
-        return;
-    }
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
