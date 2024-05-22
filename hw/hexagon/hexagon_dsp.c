@@ -412,7 +412,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
 static void init_mc(MachineClass *mc)
 {
-    mc->block_default_type = IF_SCSI;
+    mc->block_default_type = IF_SD;
     mc->default_ram_size = 4 * GiB;
     mc->no_parallel = 1;
     mc->no_floppy = 1;
