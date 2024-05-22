@@ -684,6 +684,7 @@ static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 }
 
 dma_t *dma_adapter_init(processor_t *proc, int dmanum);
+#ifndef CONFIG_USER_ONLY
 static const rev_features_t rev_features_v68 = {
 };
 
@@ -716,6 +717,7 @@ static struct ProcessorState ProcessorStateV68 = {
     .thread_system_mask = 0,
     .timing_on = 0,
 };
+#endif
 
 #include "coproc.inc"
 
@@ -748,6 +750,9 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
     env->threadId = cs->cpu_index;
+    env->processor_ptr = NULL;
+
+#ifndef CONFIG_USER_ONLY
     env->processor_ptr = &ProcessorStateV68;
     env->processor_ptr->runnable_threads_max = cpu->cluster_thread_count;
     env->processor_ptr->thread_system_mask   = (1 << cpu->cluster_thread_count) - 1;
@@ -756,7 +761,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->processor_ptr,
         env->threadId);
 
-#ifndef CONFIG_USER_ONLY
     cpu->vmstate_num_g_sreg = NUM_SREGS;
     cpu->vmstate_num_g_gcycle = NUM_GLOBAL_GCYCLE;
     env->pmu.vmstate_num_ctrs = NUM_PMU_CTRS;
@@ -807,14 +811,16 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->pmu.g_ctrs_off = env0->pmu.g_ctrs_off;
         env->pmu.g_events = env0->pmu.g_events;
 
-        dma_t *dma_ptr = env->processor_ptr->dma[env->threadId];
-        udma_ctx_t *udma_ctx = (udma_ctx_t *)dma_ptr->udma_ctx;
+        if (env->processor_ptr) {
+            dma_t *dma_ptr = env->processor_ptr->dma[env->threadId];
+            udma_ctx_t *udma_ctx = (udma_ctx_t *)dma_ptr->udma_ctx;
 
-        dma_t *dma0_ptr = env->processor_ptr->dma[env0->threadId];
-        udma_ctx_t *udma0_ctx = (udma_ctx_t *)dma0_ptr->udma_ctx;
+            dma_t *dma0_ptr = env->processor_ptr->dma[env0->threadId];
+            udma_ctx_t *udma0_ctx = (udma_ctx_t *)dma0_ptr->udma_ctx;
 
-        /* init dm2 of new thread to env_0 thread */
-        udma_ctx->dm2.val = udma0_ctx->dm2.val;
+            /* init dm2 of new thread to env_0 thread */
+            udma_ctx->dm2.val = udma0_ctx->dm2.val;
+        }
     }
 #else
     env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
