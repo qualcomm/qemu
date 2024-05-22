@@ -38,10 +38,6 @@ run-float_%: float_%
 testthread: LDFLAGS+=-lpthread
 
 threadcount: LDFLAGS+=-lpthread
-# QUIC-specific
-run-threadcount: threadcount
-	$(call run-test, threadcount, $(QEMU) $< 3)
-# QUIC-end
 
 
 signals: LDFLAGS+=-lrt -lpthread
