@@ -108,6 +108,8 @@ static size4u_t dma_adapter_cmd_cfgwr(thread_t *thread, size4u_t dummy1, size4u_
 static size4u_t dma_adapter_cmd_syncht(thread_t *thread, size4u_t dummy1, size4u_t dummy2, dma_insn_checker_ptr *insn_checker);
 static size4u_t dma_adapter_cmd_tlbsynch(thread_t *thread, size4u_t dummy1, size4u_t dummy2, dma_insn_checker_ptr *insn_checker);
 
+#define dma_instance(t) (assert(t->threadId < ARRAY_SIZE(t->processor_ptr->dma)), t->processor_ptr->dma[t->threadId])
+
 //! Function table of the user-DMA instructions (commands).
 // ATTENTION ==================================================================
 // The element order should match to that of the enumerator dma_cmd_t
@@ -278,7 +280,7 @@ static inline dma_adapter_engine_info_t* dma_retrieve_dma_adapter(dma_t *dma) {
 
 #if 0
 static int staller_dmainsn(thread_t *thread) {
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+    dma_t *dma = dma_instance(thread);
   if (thread->processor_ptr->dma_insn_checker[thread->threadId] == NULL) { return 0; }
 
 	// This staller will check if a thread 0's DMA instruction is done with its
@@ -409,7 +411,7 @@ void do_callback(dma_t *dma, uint32_t id, uint32_t desc_va, uint32_t *desc_info,
 }
 
 void dma_adapter_set_target_descriptor(thread_t *thread, uint32_t dm0,  uint32_t va, uint32_t width, uint32_t height, uint32_t no_transfer) {
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	CALL_DMA_CMD(dma_target_desc,dma, va, width, height, no_transfer);
 }
 
@@ -597,7 +599,7 @@ int dma_adapter_register_error_exception(dma_t *dma, uint32_t va) {
 };
 
 void dma_adapter_force_dma_error(thread_t *thread, uint32_t badva, uint32_t syndrome) {
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_force_error(dma, badva, syndrome);
 	//PRINTF(dma, "DMA %d: ADAPTER  forcing DMA error for badva=%x syndrome=%d", dma->num, badva, syndrome);
 	//warn("DMA %d: ADAPTER  forcing DMA error for badva=%x syndrome=%d", dma->num, badva, syndrome);	
@@ -1055,7 +1057,7 @@ static int dma_adapter_report_exception(dma_t *dma) {
 size4u_t dma_adapter_cmd_start(thread_t *thread, size4u_t new_dma, size4u_t dummy,
                                dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	dma->pc = thread->Regs[REG_PC];
 
@@ -1088,7 +1090,7 @@ size4u_t dma_adapter_cmd_start(thread_t *thread, size4u_t new_dma, size4u_t dumm
 //! dmlink and its variants' implementation.
 size4u_t dma_adapter_cmd_link(thread_t *thread, size4u_t tail, size4u_t new_dma, dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	dma->pc = thread->Regs[REG_PC];
 	 
@@ -1123,7 +1125,7 @@ size4u_t dma_adapter_cmd_poll(thread_t *thread, size4u_t dummy1,
                               size4u_t dummy2,
                               dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	size4u_t dst=0;   // Destination to get DM0 value returned back.
 
@@ -1154,7 +1156,7 @@ size4u_t dma_adapter_cmd_wait(thread_t *thread, size4u_t dummy1,
                               size4u_t dummy2,
                               dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	size4u_t dst=0;
 
@@ -1193,7 +1195,7 @@ size4u_t dma_adapter_cmd_pause(thread_t *thread, size4u_t dummy1,
                                dma_insn_checker_ptr *insn_checker) {
 
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	size4u_t dst=0;
 
@@ -1218,7 +1220,7 @@ size4u_t dma_adapter_cmd_resume(thread_t *thread, size4u_t arg1, size4u_t dummy,
                                 dma_insn_checker_ptr *insn_checker) {
 
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 
 	if ((arg1& ~0x3)==0) {
@@ -1248,7 +1250,7 @@ size4u_t dma_adapter_cmd_cfgrd(thread_t *thread,
                                dma_insn_checker_ptr *insn_checker)
 {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+	dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
     uint32_t val=0;
 
@@ -1267,7 +1269,7 @@ void dma_adapter_snapshot_flush(processor_t * proc) {
     g_assert(proc->runnable_threads_max > 0);
 	for (int32_t tnum = 0; tnum < proc->runnable_threads_max; tnum++) {
 		thread_t * thread = proc->thread[tnum];
-		dma_t *dma = thread->processor_ptr->dma[tnum];
+        dma_t *dma = dma_instance(thread);
 		uarch_dma_snaphot_flush(dma);
 		dma_adapter_pop_desc_queue_pause(dma);
 	}
@@ -1279,7 +1281,7 @@ size4u_t dma_adapter_cmd_cfgwr(thread_t *thread,
                                dma_insn_checker_ptr *insn_checker)
 {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+    dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 
 	index &= 0xf; // QDSP-38444
@@ -1326,7 +1328,7 @@ size4u_t dma_adapter_cmd(thread_t *thread, dma_cmd_t opcode,
 	}
 #endif
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+    dma_t *dma = dma_instance(thread);
     g_assert(thread->processor_ptr->dma[thread->threadId]);
 	size4u_t ret_val = 0;
 
@@ -1358,7 +1360,7 @@ size4u_t dma_adapter_cmd(thread_t *thread, dma_cmd_t opcode,
 size4u_t dma_adapter_cmd_syncht(thread_t *thread, size4u_t dummy1, size4u_t dummy2,
                                 dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+    dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 
 	CALL_DMA_CMD(dma_cmd_syncht, dma, dummy1, dummy2, &report);
@@ -1372,7 +1374,7 @@ size4u_t dma_adapter_cmd_syncht(thread_t *thread, size4u_t dummy1, size4u_t dumm
 size4u_t dma_adapter_cmd_tlbsynch(thread_t *thread, size4u_t dummy1, size4u_t dummy2,
                                 dma_insn_checker_ptr *insn_checker) {
 	// Obtain a current DMA instance from a thread ID.
-	dma_t *dma = thread->processor_ptr->dma[thread->threadId];
+    dma_t *dma = dma_instance(thread);
 	dma_cmd_report_t report = {.excpt = 0, .insn_checker = NULL};
 	CALL_DMA_CMD(dma_cmd_tlbsynch, dma, dummy1, dummy2, &report);
 
