@@ -51,8 +51,6 @@ set(QEMU_CONF_ARGS
 
 if (GS_ENABLE_VIRCLRENDERER)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virclrenderer)
-    set(VIRCLRENDERER_SOURCE_URL "${GREENSOCS_GIT}vcl/virglrenderer.git")
-    configure_file(virclrenderer.wrap.in ${PROJECT_SOURCE_DIR}/subprojects/virclrenderer.wrap @ONLY)
     list(APPEND QEMU_DEPENDENCIES virclrenderer)
 endif()
 
