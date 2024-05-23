@@ -23,6 +23,7 @@
 /quote-*
 /syn-*
 /unicode-ident-*
+/virclrenderer
 
 # Workaround for Meson v1.9.0 https://github.com/mesonbuild/meson/issues/14948
 /.wraplock
