@@ -420,6 +420,11 @@ void qemu_process_cpu_events(CPUState *cpu)
             qemu_plugin_vcpu_idle_cb(cpu);
         }
         qemu_cond_wait_bql(cpu->halt_cond);
+#ifdef CONFIG_LIBQEMU
+        if (cpu_thread_is_idle(cpu)) {
+            libqemu_cpu_end_of_loop_cb(cpu);
+        }
+#endif
     }
     if (slept) {
         qemu_plugin_vcpu_resume_cb(cpu);
