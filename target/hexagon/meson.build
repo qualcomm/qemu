@@ -68,6 +68,7 @@ hexagon_ss.add(semantics_generated)
 #     printinsn_generated.h.inc
 #     op_attribs_generated.h.inc
 #     opcodes_def_generated.h.inc
+#     coproc_opcodes_generated.h.inc
 #
 tcg_func_table_generated = custom_target(
     'tcg_func_table_generated.c.inc',
@@ -98,10 +99,11 @@ hexagon_ss.add(op_attribs_generated)
 
 opcodes_def_generated = custom_target(
     'opcodes_def_generated.h.inc',
-    output: 'opcodes_def_generated.h.inc',
+    output: ['coproc_opcodes_generated.h.inc', 'opcodes_def_generated.h.inc'],
     depends: [semantics_generated],
     depend_files: [hex_common_py],
-    command: [python, files('gen_opcodes_def.py'), semantics_generated, '@OUTPUT@'],
+    command: [python, files('gen_opcodes_def.py'), semantics_generated,
+	      '@OUTPUT0@', '@OUTPUT1@'],
 )
 hexagon_ss.add(opcodes_def_generated)
 
@@ -459,7 +461,7 @@ if host_os != 'windows'
   rpclib_dir_inc = include_directories('../../'+rpclib_dir / 'include')
   rpclib_dep = declare_dependency(
       link_args : ['-L' + rpclib_dir_abs_lib, '-l' + rpclib] + qemu_ldflags,
-      include_directories : rpclib_dir_inc)
+      include_directories : rpclib_dir_inc, sources: opcodes_def_generated)
   coproc_rpc = static_library('coproc_rpc', 'coproc_rpc.cpp',dependencies : [rpclib_dep])
 endif
 

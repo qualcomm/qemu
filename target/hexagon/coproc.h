@@ -21,6 +21,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
+typedef enum {
+#define OPCODE(IID) COPROC_ ##IID
+#include "coproc_opcodes_generated.h.inc"
+#undef OPCODE
+} Coproc_opcode;
+
+#define COPROC_INIT -1
+#define COPROC_RESET -2
+#define COPROC_COMMIT -3
+
 typedef struct {
     int32_t opcode;
     hwaddr vtcm_base;

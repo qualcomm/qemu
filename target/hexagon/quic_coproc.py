@@ -9,7 +9,7 @@ def handle_coproc(tag, regs, f):
     int __attribute__((unused)) prot;
     int32_t __attribute__((unused)) excp;
     CoprocArgs args = {{0}};
-    args.opcode = {tag};
+    args.opcode = COPROC_{tag};
     args.unit = env->threadId;
 """))
     for i, (regtype, regid) in enumerate(regs, 1):

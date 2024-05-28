@@ -21,21 +21,21 @@ import sys
 import re
 import string
 import hex_common
+import os
 
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])
+    coproc_opcodes_fname = sys.argv[2]
+    opcodes_fname = sys.argv[3]
 
-    ##
-    ##     Generate a list of all the opcodes
-    ##
-    with open(sys.argv[-1], "w") as f:
-        for tag in hex_common.get_user_tags():
-            f.write(f"OPCODE({tag}),\n")
+    with open(coproc_opcodes_fname, "w") as coproc_f, \
+         open(opcodes_fname, "w") as all_f:
 
-        for tag in hex_common.get_sys_tags():
-            f.write(f"OPCODE({tag}),\n")
-
+        for tag in hex_common.get_all_tags():
+            all_f.write(f"OPCODE({tag}),\n")
+            if hex_common.is_coproc(tag):
+                coproc_f.write(f"OPCODE({tag}),\n")
 
 if __name__ == "__main__":
     main()

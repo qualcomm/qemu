@@ -21,10 +21,7 @@
 typedef enum {
 #define OPCODE(IID) IID
 #include "opcodes_def_generated.h.inc"
-    XX_LAST_OPCODE,
-    COPROC_INIT,
-    COPROC_RESET,
-    COPROC_COMMIT,
+    XX_LAST_OPCODE
 #undef OPCODE
 } Opcode;
 

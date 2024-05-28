@@ -64,7 +64,7 @@ variables:
 
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
-  HEX_COPROC_SHA: e7e7ace69fdd4213293c47212ed4507027f761db
+  HEX_COPROC_SHA: eae409c9a5e70b56eaa82bc0e536fbf140a28201
 
   HEX_INSTALL_PREFIX: "Tools"
   HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
