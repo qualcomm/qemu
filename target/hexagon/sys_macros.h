@@ -173,6 +173,8 @@
     (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
 #define fTLBP(TLBHI) \
     hex_tlb_lookup(env, ((TLBHI) >> 12), ((TLBHI) << 12))
+#define fTLBPP(TLBHI) \
+    hex_tlb_lookup_extended(env, ((TLBHI) << 8), ((TLBHI) & 0xfffffffffffff000))
 
 #define fIN_DEBUG_MODE(TNUM) \
     0    /* FIXME */

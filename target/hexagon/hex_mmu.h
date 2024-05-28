@@ -26,6 +26,7 @@ struct CPUHexagonTLBContext {
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);
 extern uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA);
+extern uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr, uint64_t VA);
 extern void hex_mmu_realize(CPUHexagonState *env);
 extern void hex_mmu_on(CPUHexagonState *env);
 extern void hex_mmu_off(CPUHexagonState *env);

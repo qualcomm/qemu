@@ -426,6 +426,12 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
     return hex_tlb_lookup_by_asid(env, GET_SSR_FIELD(SSR_ASID, ssr), VA);
 }
 
+uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr, uint64_t VA)
+{
+    /* TODO */
+    g_assert_not_reached();
+}
+
 static bool hex_tlb_is_match(CPUHexagonState *env,
                              uint64_t entry1, uint64_t entry2,
                              bool consider_gbit)

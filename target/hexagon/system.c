@@ -39,6 +39,7 @@
 //#include "iic.h"
 //#include "uarch/uarch.h"
 
+#define ARCHOPT(OPTION)  (proc->arch_proc_options->OPTION)
 
 #ifdef VERIFICATION
 #include "ver_external_api.h"
@@ -149,7 +150,7 @@ static void register_einfo(thread_t *thread, hex_exception_info *einfo)
 {
         target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
         int register_double_exception = (GET_SSR_FIELD(SSR_EX, ssr)>0);
-        warn ("register_einfo \n");
+        warn ("register_einfo  cause: %x\n", einfo->cause);
         // Imprecise can't cause double exception, but TB doesn't check anything on imprecise exception
         // Precise, but higher priority than double, can't cause a double
         if ((einfo->type == EXCEPT_TYPE_PRECISE) && (einfo->cause < PRECISE_CAUSE_DOUBLE_EXCEPT))

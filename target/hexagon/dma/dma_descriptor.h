@@ -136,15 +136,17 @@ typedef enum dma_descriptor_state_t {
 
 typedef enum dma_2d_desc_type {
 															 DMA_DESC_32BIT_VA_TYPE               = 0,
-															 DMA_DESC_38BIT_VA_TYPE               = 2,
+															 DMA_DESC_39BIT_VA_TYPE               = 2,
 															 DMA_DESC_32BIT_VA_L2FETCH_TYPE       = 3,
 															 DMA_DESC_32BIT_VA_GATHER_TYPE        = 4,
-															 DMA_DESC_38BIT_VA_GATHER_TYPE        = 5,
+															 DMA_DESC_39BIT_VA_GATHER_TYPE        = 5,
 															 DMA_DESC_32BIT_VA_EXPANSION_TYPE     = 6,
 															 DMA_DESC_32BIT_VA_COMPRESSION_TYPE   = 7,
 															 DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE = 8,
 															 DMA_DESC_32BIT_VA_WIDE_TYPE          = 9,
-															 DMA_DESC_38BIT_VA_WIDE_TYPE          = 10
+															 DMA_DESC_39BIT_VA_WIDE_TYPE          = 10,
+															 DMA_DESC_32BIT_VA_CENG_TYPE          = 14,
+															 DMA_DESC_39BIT_VA_CENG_TYPE          = 15
 } dma_2d_desc_type_t;
 
 // Mapping common fields of all descriptor types.
@@ -191,11 +193,14 @@ typedef union {
 
 typedef union {
 	struct {
+    // Word 0, bytes 3:0
 		vaddr_t nextDescPointer;
+
+    // Word 1, bytes 7:4
 		union {
-			struct {
+			struct {  // Type 0~7
 				uint32_t curBlockOffset   :  8;
-				uint32_t startBlockOffest :  8;
+				uint32_t startBlockOffset :  8;
 				uint32_t undefined_w1_b16 :  8;
 				uint32_t descSize         :  2;   // == 2'b01
 				uint32_t dstDlbc          :  1;
@@ -205,29 +210,40 @@ typedef union {
 				uint32_t order            :  1;
 				uint32_t done             :  1;
 			};
-			struct {
+			struct {  // Type 9, 10
 				uint32_t dstStride_wide   : 24;    // Wide Descriptor type
 				uint32_t undefined_w1_b24 :  8;
 			};
+      struct { // Type 14, 15
+        uint32_t command          :  8;
+        uint32_t undefined_w1_b0  : 24;
+      };
 		};
-		vaddr_t srcAddress;
-		vaddr_t dstAddress;
 
+    // Word 2, bytes 11:8
+    union {
+      vaddr_t srcAddress;
+      uint32_t payload;
+    };
+
+    // Word 3, bytes 15:12
+		vaddr_t dstAddress;
 
 		// Word 4, bytes 19:16
 		uint8_t type;
 		union {
 			struct {
-				uint8_t srcUpperAddr          : 6; // 38-bit VA
-				uint8_t srcUpperAddr_reserved : 2;
+				uint8_t srcUpperAddr          : 7; // 39-bit VA
+				uint8_t srcUpperAddr_reserved : 1;
 			};
 			uint8_t blockDelta; // Expansion/Compression
 			uint8_t fillValue ; // Constant Fill
+            uint8_t ext_payload;
 		};
 		union {
 			struct {
-				uint8_t dstUpperAddr          : 6; // 38-bit VA
-				uint8_t dstUpperAddr_reserved : 2;
+				uint8_t dstUpperAddr          : 7; // 39-bit VA
+				uint8_t dstUpperAddr_reserved : 1;
 			};
 			uint8_t blockSize; // Expansion/Compression
 		};
@@ -305,6 +321,12 @@ enum {
 			UBWCA_OUT
 };
 
+enum {
+     CENG_CMD_CACHE_CLEAN = 0x0,
+     CENG_CMD_INVALIDATE_ONLY_CACHE_CLEAN  = 0x1,
+     UBWCD_CMD_TEARDOWN = 0x10
+};
+
 typedef struct dma_decoded_descriptor {
 	HEXAGON_DmaDescriptor_t desc;
 	uint32_t pc;
@@ -318,6 +340,9 @@ typedef struct dma_decoded_descriptor {
 	uint32_t bytes_to_transfer;
 	uint32_t lines_to_transfer;
 	uint32_t max_transfer_size;
+
+    vaddr_t srcAddressDesc;
+    vaddr_t dstAddressDesc;
 
 	uint32_t bytes_to_read;
 	uint32_t bytes_to_write;
@@ -342,6 +367,7 @@ typedef struct dma_decoded_descriptor {
 	uint32_t extended_va;   // type 2, 5, 10
 	uint32_t wide;          //      9, 10
 	uint32_t dwo;           //      6, 7, 8  has destination width offset
+	uint32_t ceng;          // type 14, 15
 	uint32_t exception;
 	uint32_t pause;
 	uint32_t state;

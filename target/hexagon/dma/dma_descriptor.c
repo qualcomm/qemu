@@ -32,7 +32,6 @@
 #include "dma_adapter.h"
 #include "dma_descriptor.h"
 
-
 // DMA Descriptor getter/setter ------------------------------------------------
 uint32_t get_dma_desc_next(void *d)
 {
@@ -232,7 +231,6 @@ void set_dma_desc_padding(void *d, uint32_t v)
     (((dma_descriptor_type1_t*)d)->allocation_padding) |= ((v << DESC_PADDING_SHIFT) & DESC_PADDING_MASK); 
 }
 
-
 uint32_t get_dma_dm2_cfg_guest_mode_stall(uint32_t cfg)
 {
     return (cfg & DM2CFG_GUEST_MODE_STALL_MASK) >> DM2CFG_GUEST_MODE_STALL_SHIFT; 
@@ -378,46 +376,46 @@ int HEXAGON_DmaDescriptorLinear_toStr(char *s, const HEXAGON_DmaDescriptorLinear
 	return(nChars);
 }
 
-uint32_t decode_stride2(uint32_t stride );
+static
 uint32_t decode_stride2(uint32_t stride ) {
     return (stride) ? stride : 65536;
 }
 
-uint32_t decode_stride_wide(uint32_t stride );
+static
 uint32_t decode_stride_wide(uint32_t stride ) {
     return (stride) ? stride : 0x1000000;
 }
 
-uint32_t decode_height_wide(uint32_t height_hi, uint32_t height_lo);
+static
 uint32_t decode_height_wide(uint32_t height_hi, uint32_t height_lo) {
 	return (height_hi << 8) | height_lo;
 }
 
-unsigned long long int decode_addr_wide(uint32_t addr_hi, uint32_t addr_lo);
+static
 unsigned long long int decode_addr_wide(uint32_t addr_hi, uint32_t addr_lo) {
 	return (((unsigned long long int)addr_hi) <<32) | ((unsigned long long int)addr_lo);
 }
-	
+
 
 int HEXAGON_DmaDescriptor2D_toStr(char *s, const HEXAGON_DmaDescriptor2D_t *p) {
     int nChars = 0;
     long long int src = 0;
     long long int dst = 0;
-    switch (p->type) 
+    switch (p->type)
     {
         case 0:  // default
                 nChars = sprintf(s,
                 "2D Desc 32-bit: SRC: 0x%08x -> DST: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
                 p->srcAddress, p->dstAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
                 break;
-        case 2: 
+        case 2:
                 src = (long long int)p->srcAddress | ( (long long int)p->srcUpperAddr <<32);
                 dst = (long long int)p->dstAddress | ( (long long int)p->dstUpperAddr <<32);
                 nChars = sprintf(s,
-                "2D Desc 38-bit: SRC: 0x%010llx -> DST: 0x%010llx  %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u  wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
+                "2D Desc 39-bit: SRC: 0x%010llx -> DST: 0x%010llx  %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u  wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
                 src, dst, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset,  p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
                 break;
-        case 3:        
+        case 3:
             nChars = sprintf(s,
                 "2D Desc L2 Fetch: SRC: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
                 p->srcAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
@@ -431,18 +429,18 @@ int HEXAGON_DmaDescriptor2D_toStr(char *s, const HEXAGON_DmaDescriptor2D_t *p) {
                 src = (long long int)p->srcAddress | ( (long long int)p->srcUpperAddr <<32);
                 dst = (long long int)p->dstAddress | ( (long long int)p->dstUpperAddr <<32);
                 nChars = sprintf(s,
-                "2D Desc 38-bit Gather: SRC: 0x%010llx -> DST: 0x%010llx  %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u  wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
+                "2D Desc 39-bit Gather: SRC: 0x%010llx -> DST: 0x%010llx  %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u  wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
                 src, dst, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
                 break;
         case 6:
                 nChars = sprintf(s,
-                "2D Desc 32-bit Expansion: SRC: 0x%08x -> DST: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u blockSize=%u curBlockOffset=%u startBlockOffest=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
-                p->srcAddress, p->dstAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->blockSize, p->curBlockOffset, p->startBlockOffest, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
+                "2D Desc 32-bit Expansion: SRC: 0x%08x -> DST: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u blockSize=%u curBlockOffset=%u startBlockOffset=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
+                p->srcAddress, p->dstAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->blockSize, p->curBlockOffset, p->startBlockOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
                 break;
         case 7:
                 nChars = sprintf(s,
-                "2D Desc 32-bit Compression: SRC: 0x%08x -> DST: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u blockSize=%u curBlockOffset=%u startBlockOffest=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
-                p->srcAddress, p->dstAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->blockSize, p->curBlockOffset, p->startBlockOffest, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
+                "2D Desc 32-bit Compression: SRC: 0x%08x -> DST: 0x%08x %u x %u  src: bypass=%u stride=%u widthOffset=%u  dst: bypass=%u stride=%u widthOffset=%u blockSize=%u curBlockOffset=%u startBlockOffset=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
+                p->srcAddress, p->dstAddress, p->width, p->height, p->srcBypass, decode_stride2(p->srcStride), p->srcWidthOffset, p->dstBypass, decode_stride2(p->dstStride), p->dstWidthOffset, p->blockSize, p->curBlockOffset, p->startBlockOffset, p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
                 break;
 
         case 8:
@@ -459,18 +457,23 @@ int HEXAGON_DmaDescriptor2D_toStr(char *s, const HEXAGON_DmaDescriptor2D_t *p) {
 
 		case 10:
 			nChars = sprintf(s,
-											 "2D Desc 38-bit Wide 2D: SRC: 0x%010llx -> DST: 0x%010llx %u x %u  src: bypass=%u stride=%u dst: bypass=%u stride=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
+											 "2D Desc 39-bit Wide 2D: SRC: 0x%010llx -> DST: 0x%010llx %u x %u  src: bypass=%u stride=%u dst: bypass=%u stride=%u wr_allocation=%u rd_allocation=%u order=%u done=%u nextP=0x%08x",
 											 decode_addr_wide(p->srcUpperAddr, p->srcAddress), decode_addr_wide(p->dstUpperAddr, p->dstAddress), p->width_wide, decode_height_wide(p->height_hi, p->height_lo), p->srcBypass, decode_stride_wide(p->srcStride_wide), p->dstBypass, decode_stride_wide(p->dstStride_wide), p->wr_alloc, p->rd_alloc, p->order, p->done, p->nextDescPointer);
 			break;
-
-
+        case 14:
+                nChars = sprintf(s,
+                "2D Desc 32-bit Wide 2D: command=%u payload=0x%08x done=%u nextP=0x%08x", p->command, p->payload, p->done, p->nextDescPointer);
+                break;
+        case 15:
+                nChars = sprintf(s,
+                "2D Desc 39-bit Wide 2D: command=%u payload=0x%08x ext_payload=0x%02x done=%u nextP=0x%08x", p->command, p->payload, p->ext_payload, p->done, p->nextDescPointer);
+                break;
 		default:
 			nChars = sprintf(s, "Unknown Type");
     };
 
 
 
-	
+
 		return(nChars);
 }
-

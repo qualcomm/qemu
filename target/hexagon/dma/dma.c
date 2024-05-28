@@ -268,6 +268,31 @@ static uint32_t ARCH_FUNCTION(dma_data_write)(dma_t *dma, uint64_t pa, uint32_t 
     return 1;
 }
 
+static uint32_t ARCH_FUNCTION(dma_desc_write_with_mask)(dma_t *dma, uint64_t pa, uint8_t *buffer, uint32_t mask)
+{
+    DMA_DEBUG(dma, "DMA %d: Tick %8d: update desc=%"PRIx64": mask=%x\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, pa, mask);
+    uint8_t *p = buffer;
+    uint64_t pa_cur = pa;
+
+#if !defined(CONFIG_USER_ONLY)
+    thread_t* thread = dma_adapter_retrieve_thread(dma);
+#endif
+
+    while (mask)
+    {
+        if (mask & 0x1) {
+#if defined(CONFIG_USER_ONLY)
+            dma_adapter_memwrite(dma, 0, pa_cur, p, 1);
+#else
+            hexagon_write_memory_block(thread, pa_cur, 1, p);
+#endif
+        }
+        p++;
+        pa_cur++;
+        mask >>= 1;
+    }
+    return 1;
+}
 
 static int ARCH_FUNCTION(set_dma_error)(dma_t *dma, uint32_t addr, uint32_t reason, const char * reason_str) 
 {
@@ -288,7 +313,7 @@ static int ARCH_FUNCTION(set_dma_error)(dma_t *dma, uint32_t addr, uint32_t reas
     return 0;
 }
 static inline uint32_t ARCH_FUNCTION(badva_report)(uint64_t va, uint32_t extended) {
-    return (extended) ? (uint32_t) (( (uint64_t) va>>32) | (va & ~0xFFF)) : (uint32_t)va;
+    return (uint32_t) ((va >> 8) & ~0xF);
 }
 
 static uint32_t ARCH_FUNCTION(check_dma_address)(dma_t *dma, uint32_t addr, dma_memtype_t  * memtype, uint32_t result) 
@@ -347,8 +372,7 @@ void ARCH_FUNCTION(dma_target_desc)(dma_t *dma, uint32_t addr, uint32_t width, u
     DMA_DEBUG_ONLY(ARCH_FUNCTION(verif_descriptor_peek)(dma, addr););
 }
 
-int ARCH_FUNCTION(dma_check_verif_pause)(dma_t *dma); 
-int ARCH_FUNCTION(dma_check_verif_pause)(dma_t *dma) 
+static int ARCH_FUNCTION(dma_check_verif_pause)(dma_t *dma) 
 {
 #ifdef VERIFICATION
     if (!dma_test_gen_mode(dma))
@@ -427,54 +451,55 @@ static void ARCH_FUNCTION(dma_word_store)(dma_t *dma, vaddr_t desc_va, vaddr_t p
     }
 }
 
+static inline size4u_t dma_testgen_mode(dma_t *dma) {
+    return dma_adapter_retrieve_thread(dma)->processor_ptr->options->testgen_mode;
+}
+
 static void ARCH_FUNCTION(update_descriptor)(dma_t *dma, dma_decoded_descriptor_t * entry)
 {
     HEXAGON_DmaDescriptor_t *desc = (HEXAGON_DmaDescriptor_t*) &entry->desc;
-    const uint64_t pa = entry->pa; 
+    const uint64_t pa = entry->pa;
     const uint32_t partial_desc = (entry->pause || entry->exception);
     const uint32_t type1 = (desc->common.descSize == DESC_DESCTYPE_TYPE1);
-    //DMA_DEBUG(dma, "DMA %d: Tick %8d: descriptor=%x update at pa=%llx pause=%d exception=%d\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, entry->va, (long long int)pa, entry->pause, entry->exception);
+    const size4u_t testgen_mode = dma_testgen_mode(dma);
 
-		/* FIXME: man, has no one heard of offsetof()? */
-    ARCH_FUNCTION(dma_data_write)(dma, pa + 4, 4, (uint8_t *)&desc->word[1]);  //ptr->dstate_order_bypass_comp_desctype_length
-    ARCH_FUNCTION(dma_word_store)(dma, entry->va, entry->pc, entry->va, entry->pa);
+    uint32_t desc_write_mask_complete;
+    uint32_t desc_write_mask_partial;
 
-    if (partial_desc && !entry->constant_fill) {
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 8,  4, (uint8_t *)&desc->common.srcAddress); 
-    }
-    if (partial_desc && !entry->l2fetch) {
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 12, 4, (uint8_t *)&desc->common.dstAddress); 
-    }
-    if (partial_desc && type1 && entry->extended_va) {
-        uint8_t byte = desc->type1.srcUpperAddr;
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 17, 1, &byte);
-    }
-    if (partial_desc && type1 && entry->extended_va) {
-        uint8_t byte = desc->type1.dstUpperAddr;
-        ARCH_FUNCTION(dma_data_write)(dma, pa + 18, 1, &byte);
-    }
-    if (!partial_desc && type1) {
-			if (entry->wide) {
-        ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, width_wide_height_lo[0]), 3, (uint8_t *)&desc->type1.width_wide_height_lo[0]);
-			} else {
-        ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, width), 2, (uint8_t *)&desc->type1.width);
-			}
-    }
     if (type1) {
-			if (entry->wide) {  // height bytes split
-				ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, width_wide_height_lo[3]), 1, (uint8_t *)&desc->type1.width_wide_height_lo[3]);
-				ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, height_hi_srcStride_wide[0]), 1, (uint8_t *)&desc->type1.height_hi_srcStride_wide[0]);
-				ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, width_offset_undefined_w7_24[0]), 3, (uint8_t *)&desc->type1.width_offset_undefined_w7_24[0]);
-			} else {
-        ARCH_FUNCTION(dma_data_write)(dma, pa + offsetof(HEXAGON_DmaDescriptor2D_t, height), 2, (uint8_t *)&desc->type1.height);
-				if (!(partial_desc && entry->constant_fill)) {
-					ARCH_FUNCTION(dma_data_write)(dma, pa + 28, 2, (uint8_t *)&desc->type1.srcWidthOffset); 
-				}
-				if (entry->dwo && !(partial_desc && entry->l2fetch)) {
-					ARCH_FUNCTION(dma_data_write)(dma, pa + 30, 2, (uint8_t *)&desc->type1.dstWidthOffset);
-				}
-			}
+        switch(desc->type1.type) {
+            case DMA_DESC_32BIT_VA_TYPE: desc_write_mask_partial = 0xF0C0FF80; break; //type 0
+            case DMA_DESC_39BIT_VA_TYPE: desc_write_mask_partial = 0xF0C6FF80; break; //type 2
+            case DMA_DESC_32BIT_VA_L2FETCH_TYPE: desc_write_mask_partial = 0x30C00F80; break; //type 3
+            case DMA_DESC_32BIT_VA_GATHER_TYPE: desc_write_mask_partial =  0xF0C0FF80; break; //type 4
+            case DMA_DESC_39BIT_VA_GATHER_TYPE: desc_write_mask_partial = 0xF0C0FF80; break; //type 5
+            case DMA_DESC_32BIT_VA_EXPANSION_TYPE: desc_write_mask_partial = 0xF0C0FF80; break; //type 6
+            case DMA_DESC_32BIT_VA_COMPRESSION_TYPE: desc_write_mask_partial =0xF0C0FF80; break; //type 7
+            case DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE: desc_write_mask_partial = 0xC0C0F080; break; //type 8
+            case DMA_DESC_32BIT_VA_WIDE_TYPE: desc_write_mask_partial = 0x7180FF80; break; //type 9
+            case DMA_DESC_39BIT_VA_WIDE_TYPE: desc_write_mask_partial = 0x7186FF80; break; //type 10
+            default: desc_write_mask_partial = 0x0080;
+        }
+
+        switch(desc->type1.type) {
+            case DMA_DESC_32BIT_VA_WIDE_TYPE: desc_write_mask_complete = 0x71F00080; break; //type 9
+            case DMA_DESC_39BIT_VA_WIDE_TYPE: desc_write_mask_complete = 0x71F00080; break; //type 10
+            default: desc_write_mask_complete = 0xF0F00080;
+        }
+    } else {
+        desc_write_mask_partial = 0xFFF0;
+        desc_write_mask_complete = 0x00F0;
     }
+
+    uint32_t desc_write_mask = testgen_mode ? desc_write_mask_complete | desc_write_mask_partial :
+        partial_desc ? desc_write_mask_partial : desc_write_mask_complete;
+
+    DMA_DEBUG(dma, "DMA %d: Tick %8d: descriptor=%x update at pa=%llx pause=%d exception=%d desc_mask=%x testgen=%d\n", 
+            dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, entry->va, (long long int)pa, entry->pause, entry->exception,
+            desc_write_mask, testgen_mode);
+
+    ARCH_FUNCTION(dma_desc_write_with_mask)(dma, pa, (uint8_t*)desc, desc_write_mask);
+    ARCH_FUNCTION(dma_word_store)(dma, entry->va, entry->pc, entry->va, entry->pa);
     DMA_DEBUG_ONLY(ARCH_FUNCTION(dump_dma_desc)(dma, (void*) desc, entry->va, pa, "updated descriptor in memory"););
     dma_adapter_descriptor_end(dma, entry->id, entry->va, (uint32_t*)desc, entry->pause, entry->exception);
 }
@@ -483,7 +508,7 @@ static void ARCH_FUNCTION(update_descriptor)(dma_t *dma, dma_decoded_descriptor_
 static uint64_t ARCH_FUNCTION(retrieve_descriptor)(dma_t *dma, uint32_t desc_va, uint8_t *pdesc, uint32_t peek)
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
+    dma_decoded_descriptor_t *desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
     uint32_t transfer_size = sizeof(dma_descriptor_type0_t);
     const uint32_t xlate_va = desc_va & 0xFFFFFFF0; // Force alignment to 16B for translation
     dma_memaccess_info_t dma_mem_access;
@@ -526,63 +551,72 @@ static uint64_t ARCH_FUNCTION(retrieve_descriptor)(dma_t *dma, uint32_t desc_va,
             DMA_DEBUG_ONLY(ARCH_FUNCTION(dump_dma_desc)(dma, (void*) pdesc, xlate_va , pa,  "read 16-byte linear descriptor"););
         }
 
+        desc_state->wide = type1 && ((desc->type1.type == DMA_DESC_32BIT_VA_WIDE_TYPE) || (desc->type1.type == DMA_DESC_39BIT_VA_WIDE_TYPE));
+
         // Use ExtendVA when not supported
-				desc_state->extended_va = type1 && ((desc->type1.type == DMA_DESC_38BIT_VA_TYPE)
-																						|| (desc->type1.type == DMA_DESC_38BIT_VA_GATHER_TYPE)
-																						|| (desc->type1.type == DMA_DESC_38BIT_VA_WIDE_TYPE));
+				desc_state->extended_va = type1 && ((desc->type1.type == DMA_DESC_39BIT_VA_TYPE)
+																						|| (desc->type1.type == DMA_DESC_39BIT_VA_GATHER_TYPE)
+																						|| (desc->type1.type == DMA_DESC_39BIT_VA_WIDE_TYPE)
+																						|| (desc->type1.type == DMA_DESC_39BIT_VA_CENG_TYPE));
 				uint32_t syndrome_error = type1 && desc_state->extended_va && !dma_adapter_has_extended_tlb(dma);
         if (syndrome_error) {
             uint32_t syndrome_addr = (xlate_va & ~0xF) | 0x1;
             uint32_t syndrome_code = DMA_CFG0_SYNDROME_CODE___DESCRIPTOR_INVALID_TYPE;
-            ARCH_FUNCTION(set_dma_error)(dma, syndrome_addr, syndrome_code , "38-bit va not supported");
+            ARCH_FUNCTION(set_dma_error)(dma, syndrome_addr, syndrome_code , "39-bit va not supported");
             return 0;
         }
 
         // DLBC
 				uint32_t dlbc_allowed = (type0 || (type1 && ((desc->type1.type == DMA_DESC_32BIT_VA_TYPE)
-																										 || (desc->type1.type ==DMA_DESC_38BIT_VA_TYPE)
+																										 || (desc->type1.type ==DMA_DESC_39BIT_VA_TYPE)
 																										 || (desc->type1.type ==DMA_DESC_32BIT_VA_WIDE_TYPE)
-																										 || (desc->type1.type ==DMA_DESC_38BIT_VA_WIDE_TYPE)
+																										 || (desc->type1.type ==DMA_DESC_39BIT_VA_WIDE_TYPE)
 																										 )));
         if (udma_ctx->dm2.dlbc_enable && (desc->common.dstDlbc || desc->common.srcDlbc)) // enabled && active
-					{
+        {
             //DMA_DEBUG(dma, "DMA %d: Tick %8d: descriptor retrieve error alginment src=%d dst=%d\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count,
             //((desc->common.srcAddress & 255) == 0) , ((desc->common.dstAddress & 255) == 0));
 
 					  syndrome_error |= !dlbc_allowed;
 
             // Target must be bypass
-            syndrome_error |= (desc->common.srcDlbc && !desc->common.srcBypass) || (desc->common.dstDlbc && !desc->common.dstBypass);
+            syndrome_error |= !desc_state->extended_va && ((desc->common.srcDlbc && !desc->common.srcBypass) || (desc->common.dstDlbc && !desc->common.dstBypass));
 
             // SRC or DST is DLBC and src/dst are not 256-byte aligned
             syndrome_error |= !(((desc->common.srcAddress & 255) == 0) && ((desc->common.dstAddress & 255) == 0));
 
             // SRC or DST is DLBC and length is not a multiple of 256
-            syndrome_error |= ((desc->type0.length & 255) != 0);
+            syndrome_error |= type0 && ((desc->type0.length & 255) != 0);
+
+            // SRC or DST is DLBC and width is not a multiple of 256
+            syndrome_error |= type1 && ((get_width((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state) & 255) != 0);
 
             if (syndrome_error) {
-							uint32_t syndrome_addr = xlate_va;
-							uint32_t syndrome_code = DMA_CFG0_SYNDROME_CODE___UNSUPPORTED_COMP_MODE;
-							ARCH_FUNCTION(set_dma_error)(dma, syndrome_addr, syndrome_code , "DLBC descriptor error");
-							return 0;
+                uint32_t syndrome_addr = xlate_va;
+                uint32_t syndrome_code = DMA_CFG0_SYNDROME_CODE___UNSUPPORTED_COMP_MODE;
+                ARCH_FUNCTION(set_dma_error)(dma, syndrome_addr, syndrome_code , "DLBC descriptor error");
+                return 0;
             }
-					}
+        }
         // ROI for src/dst stride vs list, only checks some type of descriptors
         uint32_t exclude_list = 0;
-				desc_state->wide = type1 && ((desc->type1.type == DMA_DESC_32BIT_VA_WIDE_TYPE) || (desc->type1.type == DMA_DESC_38BIT_VA_WIDE_TYPE));
 
         exclude_list =  type1 && (desc->type1.type == DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_GATHER_TYPE);
-        exclude_list |= type1 && (desc->type1.type == DMA_DESC_38BIT_VA_GATHER_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_39BIT_VA_GATHER_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_EXPANSION_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_COMPRESSION_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_CENG_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_39BIT_VA_CENG_TYPE);
         syndrome_error |= (type1 && !exclude_list) && (get_width((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state) > get_src_stride((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state));
 
         exclude_list =  type1 && (desc->type1.type == DMA_DESC_32BIT_VA_L2FETCH_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_GATHER_TYPE);
-        exclude_list |= type1 && (desc->type1.type == DMA_DESC_38BIT_VA_GATHER_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_39BIT_VA_GATHER_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_EXPANSION_TYPE);
         exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_COMPRESSION_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_32BIT_VA_CENG_TYPE);
+        exclude_list |= type1 && (desc->type1.type == DMA_DESC_39BIT_VA_CENG_TYPE);
         syndrome_error |= (type1 && !exclude_list) && (get_width((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state) > get_dst_stride((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state));
 
         // Padded source/dest not tested, not supported by RTL
@@ -614,7 +648,7 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
        Two paths: 1) from the user side via dmstart, dmlink and dmresume, or
        2) from DMA chaining via \transfer_done(). */
     DMA_DEBUG_ONLY(ARCH_FUNCTION(dump_dma_status)(dma, "->start_dma new", new_dma););
-    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
+    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
     desc_state->pa = ARCH_FUNCTION(retrieve_descriptor)(dma, new_dma, (uint8_t*)&desc_state->desc, 0);
     udma_ctx->exception_va = 0;
 
@@ -652,6 +686,7 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
 		// desc_state->extended_va = 0;
 		// desc_state->wide = 0;
     desc_state->dwo = 0;
+    desc_state->ceng = 0;
 
     desc_state->l2fetch = 0;
     desc_state->gather = 0;
@@ -664,33 +699,37 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
     if (desc->common.descSize == DESC_DESCTYPE_TYPE0) {  
         desc_state->bytes_to_transfer = desc->type0.length;
         desc_state->lines_to_transfer = 0;
-        desc_state->desc.type1.srcStride = desc->type0.srcAddress;  // This is a one-off hack for UBWC-A error checking
-        desc_state->desc.type1.dstStride = desc->type0.dstAddress;  // Store initial addresses in unused field of struct, could check in the retrieve function instead ...
+        desc_state->srcAddressDesc = desc->type0.srcAddress;
+        desc_state->dstAddressDesc = desc->type0.dstAddress;
     } 
     else if (desc_state->desc.common.descSize == DESC_DESCTYPE_TYPE1) 
     {
         dma_adapter_pmu_increment(dma, DMA_PMU_PADDING_DESCRIPTOR, (desc->type1.transform != 0));
 
 				/* set in retrieve_descriptor() */
-        /* desc_state->extended_va = ((desc->type1.type == DMA_DESC_38BIT_VA_TYPE) */
-				/* 													 || (desc->type1.type == DMA_DESC_38BIT_VA_GATHER_TYPE) */
-				/* 													 || (desc->type1.type == DMA_DESC_38BIT_VA_WIDE_TYPE)); */
+        /* desc_state->extended_va = ((desc->type1.type == DMA_DESC_39BIT_VA_TYPE) */
+				/* 													 || (desc->type1.type == DMA_DESC_39BIT_VA_GATHER_TYPE) */
+				/* 													 || (desc->type1.type == DMA_DESC_39BIT_VA_WIDE_TYPE)); */
 
 				/* set in retrieve_descriptor() */
-				// desc_state->wide = (desc->type1.type == DMA_DESC_32BIT_VA_WIDE_TYPE) || (desc->type1.type == DMA_DESC_38BIT_VA_WIDE_TYPE);
+				// desc_state->wide = (desc->type1.type == DMA_DESC_32BIT_VA_WIDE_TYPE) || (desc->type1.type == DMA_DESC_39BIT_VA_WIDE_TYPE);
 				desc_state->dwo = (desc->type1.type==DMA_DESC_32BIT_VA_EXPANSION_TYPE) || (desc->type1.type==DMA_DESC_32BIT_VA_COMPRESSION_TYPE)
 					|| (desc->type1.type==DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE);
-        desc_state->gather      = (desc->type1.type==DMA_DESC_32BIT_VA_GATHER_TYPE) || (desc->type1.type==DMA_DESC_38BIT_VA_GATHER_TYPE) ; 
+				desc_state->ceng = (desc->type1.type==DMA_DESC_32BIT_VA_CENG_TYPE) || (desc->type1.type==DMA_DESC_39BIT_VA_CENG_TYPE);
+        desc_state->gather      = (desc->type1.type==DMA_DESC_32BIT_VA_GATHER_TYPE) || (desc->type1.type==DMA_DESC_39BIT_VA_GATHER_TYPE) ; 
         desc_state->l2fetch     = (desc->type1.type==DMA_DESC_32BIT_VA_L2FETCH_TYPE);
         desc_state->constant_fill = (desc->type1.type==DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE);
         desc_state->expansion   = (desc->type1.type==DMA_DESC_32BIT_VA_EXPANSION_TYPE);
         desc_state->compression = (desc->type1.type==DMA_DESC_32BIT_VA_COMPRESSION_TYPE);
 
-        desc_state->src_roi_width      = get_width(&desc->type1, desc_state);
-        desc_state->dst_roi_width      = get_width(&desc->type1, desc_state);
-        desc_state->bytes_to_transfer  = get_width(&desc->type1, desc_state) - ((desc_state->constant_fill) ? get_dst_widthoffset((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state) : get_src_widthoffset((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state));
-        desc_state->lines_to_transfer  = get_height(&desc->type1, desc_state);
-
+        if (!desc_state->ceng) {
+            desc_state->src_roi_width      = get_width(&desc->type1, desc_state);
+            desc_state->dst_roi_width      = get_width(&desc->type1, desc_state);
+            desc_state->bytes_to_transfer  = get_width(&desc->type1, desc_state) - ((desc_state->constant_fill) ? get_dst_widthoffset((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state) : get_src_widthoffset((HEXAGON_DmaDescriptor2D_t *)(&desc->type1), desc_state));
+            desc_state->lines_to_transfer  = get_height(&desc->type1, desc_state);
+            desc_state->srcAddressDesc     = desc->type1.srcAddress;
+            desc_state->dstAddressDesc     = desc->type1.dstAddress;
+        }
 
         if (desc_state->expansion || desc_state->compression)  {
             uint32_t rd_block_size = desc->type1.blockSize + (desc_state->expansion ? 0 : desc->type1.blockDelta);
@@ -704,31 +743,31 @@ static uint32_t ARCH_FUNCTION(start_dma)(dma_t *dma, uint32_t new_dma)
 
             DMA_DEBUG(dma, "DMA %d: Tick %8d: Expansion/Compression DMA desc=%08x dst_roi_width=%d\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, (unsigned int)desc_state->va, desc_state->dst_roi_width);
         }
-
-        
     } 
 
-    uint32_t src_alignment = (desc->type0.srcAddress & 0x255);
-    uint32_t dst_alignment = (desc->type0.dstAddress & 0x255);
-    uint32_t unaligned_desc = src_alignment != dst_alignment;
-    dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_DESCRIPTOR, unaligned_desc);
-    if (unaligned_desc) {
-        uint32_t count = 0;
-        while (src_alignment) {
-           src_alignment += dma_transfer_size_lut[src_alignment & 0xFF] + 1;  
-           src_alignment &= 0xFF; 
-           count++;
+    if (!desc_state->ceng) {
+        uint32_t src_alignment = (desc->type0.srcAddress & 0x255);
+        uint32_t dst_alignment = (desc->type0.dstAddress & 0x255);
+        uint32_t unaligned_desc = src_alignment != dst_alignment;
+        dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_DESCRIPTOR, unaligned_desc);
+        if (unaligned_desc) {
+            uint32_t count = 0;
+            while (src_alignment) {
+                src_alignment += dma_transfer_size_lut[src_alignment & 0xFF] + 1;  
+                src_alignment &= 0xFF; 
+                count++;
+            }
+            if (desc_state->desc.common.descSize == DESC_DESCTYPE_TYPE1) count *= desc_state->lines_to_transfer;
+            dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_RD, count);
+            count = 0;
+            while (dst_alignment) {
+                dst_alignment += dma_transfer_size_lut[dst_alignment & 0xFF] + 1;  
+                dst_alignment &= 0xFF; 
+                count++;
+            }
+            if (desc_state->desc.common.descSize == DESC_DESCTYPE_TYPE1) count *= desc_state->lines_to_transfer;
+            dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_WR, count);
         }
-        if (desc_state->desc.common.descSize == DESC_DESCTYPE_TYPE1) count *= desc_state->lines_to_transfer;
-        dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_RD, count);
-        count = 0;
-        while (dst_alignment) {
-           dst_alignment += dma_transfer_size_lut[dst_alignment & 0xFF] + 1;  
-           dst_alignment &= 0xFF; 
-           count++;
-        }
-        if (desc_state->desc.common.descSize == DESC_DESCTYPE_TYPE1) count *= desc_state->lines_to_transfer;
-        dma_adapter_pmu_increment(dma, DMA_PMU_UNALIGNED_WR, count);
     }
 
     if (udma_ctx->timing_on)
@@ -798,121 +837,131 @@ void ARCH_FUNCTION(dma_update_descriptor_done)(dma_t *dma, dma_decoded_descripto
 
 static inline int ARCH_FUNCTION(check_ubwca_state)(dma_t *dma, dma_decoded_descriptor_t *desc_state, uint32_t new_state) {
 
-	if (desc_state->ubwc_a_state==UBWCA_NEW) {
-    desc_state->ubwc_a_state = new_state; /* upadate state, once we're in a new state we can't change it */
-	} else if (desc_state->ubwc_a_state != new_state) {
-    int32_t syndrome_address = desc_state->va & ~0xF;
-    syndrome_address |= ((desc_state->ubwc_a_state & 0xFF) != (new_state & 0xFF)) ? 5 : 13;
-    ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
-    return 1;
-	}
-	return 0;
+    if (desc_state->ubwc_a_state==UBWCA_NEW) {
+        desc_state->ubwc_a_state = new_state; /* upadate state, once we're in a new state we can't change it */
+    } else if (desc_state->ubwc_a_state != new_state) {
+        int32_t syndrome_address = desc_state->va & ~0xF;
+        syndrome_address |= ((desc_state->ubwc_a_state & 0xFF) != (new_state & 0xFF)) ? 5 : 13;
+        ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
+        return 1;
+    }
+    return 0;
 }
 
 static inline int ARCH_FUNCTION(check_ubwc_16b)(dma_t *dma, dma_decoded_descriptor_t *desc_state, uint64_t src_pa, uint64_t dst_pa) {
-
-	if (((udma_ctx_t *)dma->udma_ctx)->ubwc_a_en) {			
-		dm3_reg_t dm3 = ((udma_ctx_t *)dma->udma_ctx)->dm3;
-		uint32_t aperture_src = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (src_pa >> 32)) == (dm3.ubwc_mask & dm3.ubwc_range) );
-		uint32_t aperture_dst = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (dst_pa >> 32)) == (dm3.ubwc_mask & dm3.ubwc_range) );
-		uint32_t ubwca_state_new = (aperture_src ? UBWCA_IN : UBWCA_OUT) |  ((aperture_dst ? UBWCA_IN : UBWCA_OUT) << 8); 
-		DMA_DEBUG(dma, "DMA %d: Tick %8d: DESC=%08x UBWC Aperture access src=%d dst=%d dm3 val=%x enable=%d mask=%x range=%x src pa=%"PRIx32" (%"PRIx64" %"PRIx64") dst pa = %"PRIx32" (%"PRIx64" %"PRIx64")n", 
-							dma->num,  ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, aperture_src, aperture_dst, dm3.val, dm3.ubwc_support_enable, dm3.ubwc_mask, dm3.ubwc_range, 
-							(uint32_t) (src_pa>>32), (uint64_t)(dm3.ubwc_mask & (src_pa >> 32)), (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range), (uint32_t)(dst_pa>>32), (uint64_t)(dm3.ubwc_mask & (dst_pa >> 32)) , (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range));
-		if (aperture_src || aperture_dst)  {
-			int32_t error = 0;
-			int32_t syndrome_address = desc_state->va & ~0xF;
-			if ( aperture_src && desc_state->desc.type0.srcDlbc) { 
-				error = 1; 
-				syndrome_address |= 3;
-			} else if ( aperture_dst && desc_state->desc.type0.dstDlbc) { 
-				error = 1; 
-				syndrome_address |= 11;
-			} else if ( aperture_src && !desc_state->desc.type0.srcBypass) { 
-				error = 1; 
-				syndrome_address |= 4;
-			} else if ( aperture_dst && !desc_state->desc.type0.dstBypass) { 
-				error = 1; 
-				syndrome_address |= 12;
-			} else if ( (src_pa & 0xFF) != (dst_pa & 0xFF) ) { 
-				error = 1; 
-				syndrome_address |= aperture_src ? 1 : 9;
-			}  else if ( aperture_src && ((desc_state->desc.type1.srcStride & 0xFF) != 0))  { /* reusing unused members for address */
-				error = 1; 
-				syndrome_address |= 6;
-			} else if ( aperture_dst && ((desc_state->desc.type1.dstStride & 0xFF) != 0))  { 
-				error = 1; 
-				syndrome_address |= 14;
-			}
-			if(error) {
-				ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
-				return 1;
-			}
-		} 
-		if (ARCH_FUNCTION(check_ubwca_state)(dma, desc_state, ubwca_state_new)) {
-			return 1;
-		}
-	}
-	return 0;
-}
-		
-static inline int ARCH_FUNCTION(check_ubwc_32b)(dma_t *dma, dma_decoded_descriptor_t *desc_state, uint64_t src_pa, uint64_t dst_pa) {
-	if (((udma_ctx_t *)dma->udma_ctx)->ubwc_a_en) {				
-		dm3_reg_t dm3 = ((udma_ctx_t *)dma->udma_ctx)->dm3;
-		uint32_t aperture_src = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (src_pa >> 32)) == (dm3.ubwc_mask & dm3.ubwc_range) );
-		uint32_t aperture_dst = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (dst_pa >> 32)) == (dm3.ubwc_mask & dm3.ubwc_range) );
-		uint32_t ubwca_state_new = (aperture_src ? UBWCA_IN : UBWCA_OUT) |  ((aperture_dst ? UBWCA_IN : UBWCA_OUT) << 8); 
-
-		DMA_DEBUG(dma, "DMA %d: Tick %8d: DESC=%08x UBWC Aperture access src=%d dst=%d dm3 enable=%d mask=%x range=%x src pa=%"PRIx32" (%"PRIx64" %"PRIx64") dst pa = %"PRIx32" (%"PRIx64" %"PRIx64")n", dma->num,  ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, aperture_src, aperture_dst, dm3.ubwc_support_enable, dm3.ubwc_mask, dm3.ubwc_range, (uint32_t) (src_pa>>32), (uint64_t)(dm3.ubwc_mask & (src_pa >> 32)), (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range), (uint32_t) (dst_pa>>32), (dm3.ubwc_mask & (dst_pa >> 32)) , (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range));
-    if (aperture_src || aperture_dst)  {
-			int32_t error = 0;
-			int32_t syndrome_address = desc_state->va & ~0xF;
-			aperture_src = (desc_state->desc.type1.type == 8) ? 0 :  aperture_src;
-			aperture_dst = (desc_state->desc.type1.type == 3) ? 0 :  aperture_dst;
-			if ( aperture_src && desc_state->desc.type1.srcDlbc) { 
-				error = 1; 
-				syndrome_address |= 3;
-			} else if ( aperture_dst && desc_state->desc.type1.dstDlbc) { 
-				error = 1; 
-				syndrome_address |= 11;
-			} else if ( aperture_src && !desc_state->desc.type1.srcBypass) { 
-				error = 1; 
-				syndrome_address |= 4;
-			} else if ( aperture_dst && !desc_state->desc.type1.dstBypass) { 
-				error = 1; 
-				syndrome_address |= 12;
-			} else if (aperture_src && (desc_state->desc.type1.type >= 3) && (desc_state->desc.type1.type != 9) && (desc_state->desc.type1.type != 10)) { 
-				error = 1; 
-				syndrome_address |= 0;
-			} else if (aperture_dst && (desc_state->desc.type1.type >= 3) && (desc_state->desc.type1.type != 9) && (desc_state->desc.type1.type != 10)) { 
-				error = 1; 
-				syndrome_address |= 8;
-			} else if ( ((desc_state->desc.type1.type != 3) && (desc_state->desc.type1.type != 8))  && (((desc_state->desc.type1.srcAddress & 0xFF) != (desc_state->desc.type1.dstAddress & 0xFF)) || ((get_src_stride((HEXAGON_DmaDescriptor2D_t *) (&desc_state->desc.type1), desc_state) & 0xFF) != (get_dst_stride((HEXAGON_DmaDescriptor2D_t *)(&desc_state->desc.type1), desc_state) & 0xFF))) ) { 
-				error = 1; 
-				syndrome_address |= aperture_src ? 1 : 9;
-			} else if ( desc_state->desc.type1.transform != 0) { 
-				error = 1; 
-				syndrome_address |= aperture_src ? 2 : 10;
-			} else if ( aperture_src && ((desc_state->desc.type1.srcAddress & 0xFF) != 0))  { 
-				error = 1; 
-				syndrome_address |= 6;
-			} else if ( aperture_dst && ((desc_state->desc.type1.dstAddress & 0xFF) != 0))  { 
-				error = 1; 
-				syndrome_address |= 14;
-			}
-			if(error) {
-				ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
-				return 1;
-			}
+    if (((udma_ctx_t *)dma->udma_ctx)->ubwc_a_en) {
+        dm3_reg_t dm3 = ((udma_ctx_t *)dma->udma_ctx)->dm3;
+        uint32_t aperture_src = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (src_pa >> 42)) == (dm3.ubwc_mask & dm3.ubwc_range) );
+        uint32_t aperture_dst = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (dst_pa >> 42)) == (dm3.ubwc_mask & dm3.ubwc_range) );
+        uint32_t ubwca_state_new = (aperture_src ? UBWCA_IN : UBWCA_OUT) |  ((aperture_dst ? UBWCA_IN : UBWCA_OUT) << 8); 
+        DMA_DEBUG(dma, "DMA %d: Tick %8d: DESC=%08x UBWC aperture access src=%d dst=%d dm3 val=%x enable=%d mask=%x range=%x src pa=%x (%"PRIx64" %"PRIx64") dst pa = %x (%"PRIx64" %"PRIx64")\n", 
+                dma->num,  ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, aperture_src, aperture_dst, dm3.val, dm3.ubwc_support_enable, dm3.ubwc_mask, dm3.ubwc_range, 
+                (uint32_t) (src_pa>>42), (uint64_t)(dm3.ubwc_mask & (src_pa >> 42)), (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range), (uint32_t)(dst_pa>>42), (uint64_t)(dm3.ubwc_mask & (dst_pa >> 42)) , (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range));
+        if (aperture_src || aperture_dst)  {
+            int32_t error = 0;
+            int32_t syndrome_address = desc_state->va & ~0xF;
+            if ( aperture_src && desc_state->desc.type0.srcDlbc) { 
+                error = 1; 
+                syndrome_address |= 3;
+            } else if ( aperture_dst && desc_state->desc.type0.dstDlbc) { 
+                error = 1; 
+                syndrome_address |= 11;
+            } else if ( aperture_src && !desc_state->desc.type0.srcBypass && !desc_state->extended_va) { 
+                error = 1; 
+                syndrome_address |= 4;
+            } else if ( aperture_dst && !desc_state->desc.type0.dstBypass && !desc_state->extended_va) { 
+                error = 1; 
+                syndrome_address |= 12;
+            } else if ( aperture_src && aperture_dst) { 
+                error = 1; 
+                syndrome_address |= 8;
+            } else if (aperture_dst && ((src_pa & 0xFF) != (dst_pa & 0xFF)) ) { 
+                error = 1; 
+                syndrome_address |= 9;
+            } else if ( aperture_dst && ((desc_state->dstAddressDesc & 0xFF) != 0))  {
+                error = 1; 
+                syndrome_address |= 15;
+            }
+            if(error) {
+                ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
+                return 1;
+            }
+        } 
+        if (ARCH_FUNCTION(check_ubwca_state)(dma, desc_state, ubwca_state_new)) {
+            return 1;
+        }
     }
-    if (ARCH_FUNCTION(check_ubwca_state)(dma, desc_state, ubwca_state_new)) {
-			return 1;
-		}
-	}
-	return 0;
+    return 0;
 }
 
-#define ADD_38BIT_UPPER_VA(VA, OFFSET, EXTENDED)\
+static inline int ARCH_FUNCTION(check_ubwc_32b)(dma_t *dma, dma_decoded_descriptor_t *desc_state, uint64_t src_pa, uint64_t dst_pa) {
+    if (((udma_ctx_t *)dma->udma_ctx)->ubwc_a_en) {
+        dm3_reg_t dm3 = ((udma_ctx_t *)dma->udma_ctx)->dm3;
+        uint32_t aperture_src = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (src_pa >> 42)) == (dm3.ubwc_mask & dm3.ubwc_range) );
+        uint32_t aperture_dst = dm3.ubwc_support_enable && ( (dm3.ubwc_mask & (dst_pa >> 42)) == (dm3.ubwc_mask & dm3.ubwc_range) );
+        uint32_t ubwca_state_new = (aperture_src ? UBWCA_IN : UBWCA_OUT) |  ((aperture_dst ? UBWCA_IN : UBWCA_OUT) << 8); 
+
+        DMA_DEBUG(dma, "DMA %d: Tick %8d: DESC=%08x UBWC Aperture access src=%d dst=%d dm3 enable=%d mask=%x range=%x src pa=%x (%"PRIx64" %"PRIx64") dst pa=%x (%"PRIx64" %"PRIx64")n", dma->num,  ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, aperture_src, aperture_dst, dm3.ubwc_support_enable, dm3.ubwc_mask, dm3.ubwc_range, (uint32_t) (src_pa>>42), (uint64_t)(dm3.ubwc_mask & (src_pa >> 42)), (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range), (uint32_t) (dst_pa>>42), (dm3.ubwc_mask & (dst_pa >> 42)) , (uint64_t)(dm3.ubwc_mask & dm3.ubwc_range));
+        if (aperture_src || aperture_dst)  {
+            int32_t error = 0;
+            int32_t syndrome_address = desc_state->va & ~0xF;
+            uint32_t stride_src = get_src_stride((HEXAGON_DmaDescriptor2D_t *)(&desc_state->desc.type1), desc_state);
+            uint32_t stride_dst = get_dst_stride((HEXAGON_DmaDescriptor2D_t *)(&desc_state->desc.type1), desc_state);
+            aperture_src = (desc_state->desc.type1.type == 8) ? 0 :  aperture_src;
+            aperture_dst = (desc_state->desc.type1.type == 3) ? 0 :  aperture_dst;
+            if ( aperture_src && desc_state->desc.type1.srcDlbc) { 
+                error = 1; 
+                syndrome_address |= 3;
+            } else if ( aperture_dst && desc_state->desc.type1.dstDlbc) {
+                error = 1; 
+                syndrome_address |= 11;
+            } else if ( aperture_src && !desc_state->desc.type1.srcBypass && !desc_state->extended_va) { 
+                error = 1; 
+                syndrome_address |= 4;
+            } else if ( aperture_dst && !desc_state->desc.type1.dstBypass && !desc_state->extended_va) { 
+                error = 1; 
+                syndrome_address |= 12;
+            } else if (aperture_src && (desc_state->desc.type1.type >= 3) && (desc_state->desc.type1.type <= 8)) { 
+                error = 1; 
+                syndrome_address |= 0;
+            } else if (aperture_dst && (desc_state->desc.type1.type >= 3) && (desc_state->desc.type1.type <= 8)) { 
+                error = 1; 
+                syndrome_address |= 8;
+            } else if ( aperture_src && desc_state->extended_va && desc_state->desc.type1.srcUpperAddr && !dm3.ubwc_extra_error_disable) {
+                error = 1;
+                syndrome_address |= 0;
+            } else if ( aperture_dst && desc_state->extended_va && desc_state->desc.type1.dstUpperAddr && !dm3.ubwc_extra_error_disable) {
+                error = 1;
+                syndrome_address |= 8;
+            } else if (aperture_src && aperture_dst) {
+                error = 1; 
+                syndrome_address |= 8;
+            } else if (aperture_dst && ((desc_state->desc.type1.type != 3) && (desc_state->desc.type1.type != 8)) && (((src_pa & 0xFF) != (dst_pa & 0xFF)) || ((stride_src & 0xFF) != (stride_dst & 0xFF))) ) {
+                error = 1; 
+                syndrome_address |= 9;
+            } else if ( aperture_dst && ((desc_state->dstAddressDesc & 0xFF) != 0)) {
+                error = 1; 
+                syndrome_address |= 15;
+            } else if ( aperture_src && ((stride_src & 0x1FF) != 0)) {
+                error = 1; 
+                syndrome_address |= 6;
+            } else if ( aperture_dst && ((stride_dst & 0x1FF) != 0)) {
+                error = 1; 
+                syndrome_address |= 14;
+            }
+            if(error) {
+                ARCH_FUNCTION(set_dma_error)(dma, syndrome_address, DMA_CFG0_SYNDROME_CODE___UBWC_D, "ubwc aperture error");
+                return 1;
+            }
+        }
+        if (ARCH_FUNCTION(check_ubwca_state)(dma, desc_state, ubwca_state_new)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+#define ADD_39BIT_UPPER_VA(VA, OFFSET, EXTENDED)\
 if (EXTENDED) { VA += ((uint64_t)OFFSET) << 32; }
 
 
@@ -939,8 +988,7 @@ ARCH_FUNCTION(dma_data_write)(DMA, PA, LEN, BUFFER);
 #define DMA_BUFFER_WRITE_NONE(DMA, VA, PA, LEN, BUFFER)
 
 
-uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma);
-uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma) 
+static uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma) 
 {
 
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
@@ -950,7 +998,7 @@ uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma)
     uint32_t desc_transfer_done = 0;
     while(!desc_transfer_done) 
     {   
-        dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
+        dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;   
         HEXAGON_DmaDescriptorLinear_t * desc = (HEXAGON_DmaDescriptorLinear_t*) &desc_state->desc;
         if(ARCH_FUNCTION(dma_check_verif_pause)(dma)) {
             desc_state->pause = 1;
@@ -969,8 +1017,8 @@ uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma)
             DMA_XLATE(dma, src_va, src_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_LOAD,  0, 0, dlbc_src);
             DMA_XLATE(dma, dst_va, dst_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_STORE, 0, 0, dlbc_dst);
             if (ARCH_FUNCTION(check_ubwc_16b)(dma, desc_state, src_pa, dst_pa)) {
-							return 0;
-						}
+                return 0;
+            }
 
             uint8_t buffer[2*DMA_MAX_TRANSFER_SIZE];
             DMA_BUFFER_FILL_LOAD(dma, src_va, src_pa, transfer_size, buffer);
@@ -1013,11 +1061,16 @@ uint32_t ARCH_FUNCTION(step_linear_descriptor)(dma_t *dma)
     return 1;
 }
 
-uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma);
-uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma) 
+static uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma) 
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
+    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
+    const uint32_t dlbc_support = (desc_state->desc.type1.type == DMA_DESC_32BIT_VA_TYPE) ||
+            (desc_state->desc.type1.type == DMA_DESC_39BIT_VA_TYPE) ||
+            (desc_state->desc.type1.type == DMA_DESC_32BIT_VA_WIDE_TYPE) ||
+            (desc_state->desc.type1.type == DMA_DESC_39BIT_VA_WIDE_TYPE);
+    const uint32_t dlbc_src = udma_ctx->dm2.dlbc_enable && udma_ctx->active.desc.common.srcDlbc && dlbc_support;
+    const uint32_t dlbc_dst = udma_ctx->dm2.dlbc_enable && udma_ctx->active.desc.common.dstDlbc && dlbc_support;
     //DMA_DEBUG(dma, "DMA %d: Tick %8d: step_2d_descriptor for %x udma_ctx->exception_status=%d\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, desc_state->va, udma_ctx->exception_status);
     const uint32_t extended_va = desc_state->extended_va;
     const uint32_t gather = desc_state->gather;
@@ -1025,6 +1078,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
     const uint32_t constant_fill = desc_state->constant_fill;
     const uint32_t expansion = desc_state->expansion;
     const uint32_t compression = desc_state->compression;
+    const uint32_t ceng = desc_state->ceng;
     
     uint32_t new_gather_va = gather;
     uint64_t current_gather_list_va = 0;
@@ -1032,7 +1086,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
     uint32_t desc_transfer_done = 0;
     uint32_t transferred_blocks = 0;
     if (expansion||compression) {
-        transferred_blocks = (desc_state->desc.type1.srcWidthOffset+desc_state->desc.type1.startBlockOffest) /  (  desc_state->desc.type1.blockSize +  ( (compression) ? desc_state->desc.type1.blockDelta : 0) );
+        transferred_blocks = (desc_state->desc.type1.srcWidthOffset+desc_state->desc.type1.startBlockOffset) /  (  desc_state->desc.type1.blockSize +  ( (compression) ? desc_state->desc.type1.blockDelta : 0) );
     } 
     while(!desc_transfer_done) 
     {
@@ -1040,6 +1094,34 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
         if(ARCH_FUNCTION(dma_check_verif_pause)(dma)) 
         {
             desc_state->pause = 1;
+            return 1;
+        }
+        if (ceng) {
+            dma_memaccess_info_t dma_mem_access;
+            uint64_t va;
+            uint64_t pa;
+            if (desc->command == CENG_CMD_CACHE_CLEAN || desc->command == CENG_CMD_INVALIDATE_ONLY_CACHE_CLEAN) {
+                if (!udma_ctx->dm2.dlbc_enable) {
+                    return 1;
+                }
+                va = (uint64_t)(desc->payload & 0xFFFF0000);
+                ADD_39BIT_UPPER_VA(va, desc->ext_payload, extended_va);
+            } else if (desc->command == UBWCD_CMD_TEARDOWN) {
+                if (!udma_ctx->dm3.ubwc_support_enable) {
+                    return 1;
+                }
+                va = (uint64_t)(desc->payload);
+                ADD_39BIT_UPPER_VA(va, desc->ext_payload, extended_va);
+            } else {
+                g_assert_not_reached();
+            }
+            
+            DMA_XLATE(dma, va, pa, dma_mem_access, 1, DMA_XLATE_TYPE_UPERM, extended_va, 0, 1);
+
+            //TODO: If a UBWCD command is received then the PA shall be in the UBWC Aperture; otherwise, an error shall be generated.
+            //TODO: If a non-UBWCD command is received, then the PA shall not be in the UBWC Aperture; otherwise, an error shall be generated.
+            //TODO: syndrome code = 12; syndrom address[32:4] = va of the descriptor, syndrom address[3:0] not described in HDD
+
             return 1;
         }
         if (get_height(desc, desc_state))
@@ -1063,7 +1145,13 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
                     if (dma_adapter_xlate_va(dma, current_gather_list_va, &gather_addr_pa, &dma_mem_access, desc->srcStride, DMA_XLATE_TYPE_LOAD, 0, except_vtcm, 0, 0)) 
                     {
                         current_gather_src_va = 0;
-                        dma_data_read(dma, gather_addr_pa, desc->srcStride, (uint8_t *) &current_gather_src_va);
+#if defined(CONFIG_USER_ONLY)
+                        dma_adapter_memread(dma, src_va, gather_addr_pa, (uint8_t *) &current_gather_src_va, desc->srcStride);
+#else
+                        thread_t* thread = dma_adapter_retrieve_thread(dma);
+                        hexagon_read_memory_block(thread, gather_addr_pa, desc->srcStride, (unsigned char *)&current_gather_src_va);
+#endif
+
                         DMA_DEBUG(dma, "DMA %d: Tick %8d: gather address fetched for desc=%08x from src_va: %llx pa: %llx gather va=%llx\n", dma->num, ((udma_ctx_t *)dma->udma_ctx)->dma_tick_count, ((udma_ctx_t *)dma->udma_ctx)->active.va, (long long int)src_va, (long long int)gather_addr_pa, (long long int)current_gather_src_va);
                         new_gather_va = 0;
                     } 
@@ -1086,9 +1174,9 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
             }
             else 
             {
-                ADD_38BIT_UPPER_VA(src_va, desc->srcUpperAddr, extended_src_va);
+                ADD_39BIT_UPPER_VA(src_va, desc->srcUpperAddr, extended_src_va);
             }
-            ADD_38BIT_UPPER_VA(dst_va, desc->dstUpperAddr, extended_dst_va);
+            ADD_39BIT_UPPER_VA(dst_va, desc->dstUpperAddr, extended_dst_va);
 
 
             uint32_t bytes_to_transfer = desc_state->bytes_to_transfer;
@@ -1117,14 +1205,14 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
             uint64_t src_pa = 0, dst_pa = 0;
             dma_memaccess_info_t dma_mem_access = {0};
             if (!constant_fill) {
-                DMA_XLATE(dma, src_va, src_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_LOAD,  extended_src_va, l2fetch, 0);
+                DMA_XLATE(dma, src_va, src_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_LOAD,  extended_src_va, l2fetch, dlbc_src);
             }
             if (!l2fetch) {
-                DMA_XLATE(dma, dst_va, dst_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_STORE, extended_dst_va, 0, 0);
+                DMA_XLATE(dma, dst_va, dst_pa, dma_mem_access, transfer_size, DMA_XLATE_TYPE_STORE, extended_dst_va, 0, dlbc_dst);
             }
             if (ARCH_FUNCTION(check_ubwc_32b)(dma, desc_state, src_pa, dst_pa)) {
-							return 0;
-						}
+                return 0;
+            }
 
             uint8_t buffer[DMA_MAX_TRANSFER_SIZE];
             if (!constant_fill) {
@@ -1142,14 +1230,14 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
             
             if (expansion) {
                 desc->srcWidthOffset += transfer_size;
-                transferred_blocks = (desc->srcWidthOffset+desc->startBlockOffest)/desc->blockSize;
+                transferred_blocks = (desc->srcWidthOffset+desc->startBlockOffset)/desc->blockSize;
                 desc->dstWidthOffset = desc->srcWidthOffset + transferred_blocks*desc->blockDelta;
             } else if (compression) {
             
-                uint32_t written_blocks = (desc->dstWidthOffset + desc->startBlockOffest + transfer_size)/(desc->blockSize); 
-                uint32_t remainder = (desc->dstWidthOffset + desc->startBlockOffest  + transfer_size) - written_blocks*(desc->blockSize);
+                uint32_t written_blocks = (desc->dstWidthOffset + desc->startBlockOffset + transfer_size)/(desc->blockSize); 
+                uint32_t remainder = (desc->dstWidthOffset + desc->startBlockOffset  + transfer_size) - written_blocks*(desc->blockSize);
                 desc->srcWidthOffset = written_blocks*(desc->blockSize+desc->blockDelta)+remainder;
-                transferred_blocks = (desc->srcWidthOffset+desc->startBlockOffest)/(desc->blockSize+desc->blockDelta);
+                transferred_blocks = (desc->srcWidthOffset+desc->startBlockOffset)/(desc->blockSize+desc->blockDelta);
                 desc->dstWidthOffset = desc->srcWidthOffset - transferred_blocks*desc->blockDelta;
                 
                 desc_state->bytes_to_transfer = desc->width - desc->srcWidthOffset;
@@ -1207,7 +1295,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
             else 
             {
                 uint64_t base_addr = (uint64_t)desc->srcAddress + ( extended_src_va ? (((uint64_t)desc->srcUpperAddr)<<32) : 0);
-                uint64_t addr_src_mask = (extended_src_va) ? 0x3FFFFFFFFFll : 0xFFFFFFFFll;
+                uint64_t addr_src_mask = (extended_src_va) ? 0x7FFFFFFFFFll : 0xFFFFFFFFll;
                 if (gather) 
                 {
                     if (new_gather_va) {
@@ -1228,7 +1316,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
                     return 0;
                 } else {
                     base_addr = (uint64_t)desc->dstAddress + (extended_dst_va ? (((uint64_t)desc->dstUpperAddr)<<32) : 0);
-                    uint64_t addr_dst_mask = (extended_dst_va) ? 0x3FFFFFFFFFll : 0xFFFFFFFFll;
+                    uint64_t addr_dst_mask = (extended_dst_va) ? 0x7FFFFFFFFFll : 0xFFFFFFFFll;
                     uint64_t dst_addr = base_addr + get_dst_widthoffset(desc, desc_state);
                     dst_addr &= addr_dst_mask;
                     if ((dst_addr < dst_va) && !l2fetch) {
@@ -1251,7 +1339,7 @@ uint32_t ARCH_FUNCTION(step_2d_descriptor)(dma_t *dma)
 static uint32_t ARCH_FUNCTION(dma_step_descriptor_chain)(dma_t *dma)
 {
     udma_ctx_t *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
-    dma_decoded_descriptor_t *desc_state = &udma_ctx->active;
+    dma_decoded_descriptor_t * desc_state = (dma_decoded_descriptor_t *) &udma_ctx->active;
     HEXAGON_DmaDescriptor_t *desc = (HEXAGON_DmaDescriptor_t*) &desc_state->desc;
 
     DMA_STATUS_INT_SET(udma_ctx, DMA_STATUS_INT_RUNNING);
@@ -1342,11 +1430,11 @@ static uint32_t ARCH_FUNCTION(dma_step_descriptor_chain)(dma_t *dma)
 }
  
 void ARCH_FUNCTION(dma_arch_tlbw)(dma_t *dma, uint32_t jtlb_idx) {
-    udma_ctx_t __attribute__((unused)) *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
+    udma_ctx_t *udma_ctx __attribute__((unused)) = (udma_ctx_t *)dma->udma_ctx;
     ARCH_FUNCTION(uarch_dma_tlbw)(udma_ctx->uarch_dma_engine, jtlb_idx);
 }
 void ARCH_FUNCTION(dma_arch_tlbinvasid)(dma_t *dma) {
-    udma_ctx_t __attribute__((unused)) *udma_ctx = (udma_ctx_t *)dma->udma_ctx;
+    udma_ctx_t *udma_ctx __attribute__((unused)) = (udma_ctx_t *)dma->udma_ctx;
     ARCH_FUNCTION(uarch_dma_tlbinvasid)(udma_ctx->uarch_dma_engine);
 }
 uint32_t ARCH_FUNCTION(dma_get_tick_count)(dma_t *dma) {
@@ -1947,9 +2035,9 @@ uint32_t ARCH_FUNCTION(dma_init)(dma_t *dma, uint32_t timing_on)
     udma_ctx->dm2.no_stall_guest = 0;
     udma_ctx->dm2.no_stall_monitor = 0;
     udma_ctx->dm2.no_cont_debug = 0;
-	udma_ctx->dm2.priority = 1;					// Inherits the thread?s priority
-    udma_ctx->dm2.dlbc_enable = 1;
-    udma_ctx->dm2.error_exception_enable = 1;
+	udma_ctx->dm2.priority = 2;					// Inherits the thread?s priority
+    udma_ctx->dm2.dlbc_enable = 0;
+    udma_ctx->dm2.error_exception_enable = 0;
     udma_ctx->exception_status = 0;
 	udma_ctx->ubwc_a_en = dma_adapter_ubwc_ap_en(dma);
 	dma->verbosity = dma_adapter_debug_verbosity(dma);

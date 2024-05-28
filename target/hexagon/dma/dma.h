@@ -84,20 +84,6 @@ typedef uint32_t (*dma_insn_checker_ptr)(struct dma_state *dma);
 #define DMA_MEM_PERMISSION_READ     0x00000004
 #define DMA_MEM_PERMISSION_EXECUTE  0x00000008
 
-#define DMA_XLATE_TYPE_LOAD         0x00000000
-#define DMA_XLATE_TYPE_STORE        0x00000001
-
-#define DMA_DESC_32BIT_VA_TYPE 0
-#define DMA_DESC_38BIT_VA_TYPE 2
-#define DMA_DESC_32BIT_VA_L2FETCH_TYPE 3
-#define DMA_DESC_32BIT_VA_GATHER_TYPE 4
-#define DMA_DESC_38BIT_VA_GATHER_TYPE 5
-#define DMA_DESC_32BIT_VA_EXPANSION_TYPE 6
-#define DMA_DESC_32BIT_VA_COMPRESSION_TYPE 7
-#define DMA_DESC_32BIT_VA_CONSTANT_FILL_TYPE 8
-#define DMA_DESC_32BIT_VA_WIDE_TYPE 9
-#define DMA_DESC_38BIT_VA_WIDE_TYPE 10
-
 #define DMA_CACHE_ALLOCATION_NONE 0
 #define DMA_CACHE_ALLOCATION_WR_ONLY 1
 #define DMA_CACHE_ALLOCATION_RD_ONLY 2
@@ -105,6 +91,11 @@ typedef uint32_t (*dma_insn_checker_ptr)(struct dma_state *dma);
 
 #define DMA_MAX_REG 13
 
+typedef enum dma_xlate_t {
+  DMA_XLATE_TYPE_LOAD,
+  DMA_XLATE_TYPE_STORE,
+  DMA_XLATE_TYPE_UPERM
+} dma_xlate_t;
 
 typedef struct dma_state {
     int num;                          // DMA instance identification index (num).
@@ -144,11 +135,17 @@ typedef struct dm3_reg_t {
     struct {
       uint32_t unaligned_desc_max_part_size:4;
       uint32_t read_request_micro_part_size:2;
-      uint32_t reserved:2;
-      uint32_t ubwc_mask:8;
-      uint32_t ubwc_range:8;
-      uint32_t ubwc_support_enable:1;
-      uint32_t reserved2:7;    
+      uint32_t reserved_0:2;
+      uint32_t ubwc_mask:4;
+      uint32_t reserved_1:4;
+      uint32_t ubwc_range:4;
+      uint32_t reserved_2:4;
+      uint32_t ubwc_support_enable:1; //bit-24
+      uint32_t ubwc_programming_error_check_disable:1;  //bit-25
+      uint32_t ubwc_init_flush_disable:1;  //bit-26
+      uint32_t ubwc_extra_error_disable:1; //bit-27
+      uint32_t ubwc_teardown_disable:1; //bit-28
+      uint32_t reserved_3:3;
     };
     uint32_t val;
   };

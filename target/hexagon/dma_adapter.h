@@ -116,7 +116,7 @@ struct dma_addr_range_t* dma_adapter_find_mem(paddr_t paddr);
 //! @param store 0 for load type, and non-0 for store type.
 //! @return 1 for success, and 0 for exception
 						 
-uint32_t dma_adapter_xlate_va(dma_t *dma, uint64_t va, uint64_t* pa, dma_memaccess_info_t * dma_mem_access, uint32_t width, uint32_t store, uint32_t extended_va, uint32_t except_vtcm, uint32_t is_dlbc, uint32_t is_forget);
+uint32_t dma_adapter_xlate_va(dma_t *dma, uint64_t va, uint64_t* pa, dma_memaccess_info_t * dma_mem_access, uint32_t width, dma_xlate_t dma_xlate_type, uint32_t extended_va, uint32_t except_vtcm, uint32_t is_dlbc, uint32_t is_forget);
 uint32_t dma_adapter_xlate_desc_va(dma_t *dma, uint32_t va, uint64_t* pa, dma_memaccess_info_t * dma_mem_access);
 
 //! @return 1 for success, and 0 for running into exception.
@@ -129,6 +129,7 @@ int dma_adapter_memwrite(dma_t *dma, uint32_t va, uint64_t pa, uint8_t* src,
 
 //! Initialize the DMA engine when a simulator is invoked.
 dma_t *dma_adapter_init(processor_t *proc, int dmanum);
+dma_t *dma_adapter_init_archonly(processor_t *proc, int dmanum);
 
 //! Free the DMA engine and resources.
 void dma_adapter_free(processor_t *proc, int dmanum);
@@ -276,6 +277,7 @@ int dma_adapter_match_tlb_entry (dma_t *dma, uint64_t entry, uint32_t asid, uint
 int dma_adapter_has_extended_tlb(dma_t *dma);
 size8u_t dma_adapter_get_pa(dma_t *dma, size8u_t entry, size8u_t vaddr );
 void dma_adapter_mask_badva(dma_t *dma, uint32_t mask);
+int dma_adapter_ubwc_ap_en(dma_t *dma);
 
 int dma_adapter_get_ju_latency(dma_t *dma);
 int dma_adapter_get_startup_latency(dma_t *dma);
@@ -284,7 +286,6 @@ int dma_adapter_get_prefetch_depth(dma_t *dma);
 int dma_adapter_log_xact(dma_t * dma, uint32_t desc_va, uint32_t pc, uint32_t va, uint64_t pa, uint32_t len, uint32_t is_read, uint32_t is_desc, uint32_t is_bypass, void * callback, void * entry);
 dma_t * dma_adapter_get_dma(processor_t * proc, int dnum);
 uint32_t dma_adapter_peek_desc_queue_head_va(dma_t *dma);
-int dma_adapter_ubwc_ap_en(dma_t *dma);
 
 
 void dma_adapter_snapshot_flush(processor_t * proc); 

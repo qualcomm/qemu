@@ -187,10 +187,20 @@ typedef struct arch_proc_opt {
     int QDSP6_VX_MEM_ENTRIES;
     int QDSP6_VX_VEC_SZ;
     int QDSP6_DMAJTLB_SZ;
+    int udma_dmwait_latency;
+    int udma_dmresume_latency;
+    int udma_dmstart_latency;
+    int udma_dmlink_latency;
+    int udma_dmpoll_latency;
+    int udma_dmpause_latency;
+    int udma_ju_request_latency;
+    int udma_startup_latency;
+    int udma_prefetch_depth;
 } arch_proc_opt_t;
 
 typedef struct {
     uint64_t l2tcm_base;
+    int testgen_mode;
 } options_struct;
 
 struct ProcessorState {

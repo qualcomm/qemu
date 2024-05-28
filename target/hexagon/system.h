@@ -13,6 +13,7 @@
 #define TYPE_FETCH 'F'
 #define TYPE_ICINVA 'I'
 #define TYPE_DMA_FETCH 'D'
+#define TYPE_UPERM 'U'
 
 //#include "thread.h"
 #include "macros.h"

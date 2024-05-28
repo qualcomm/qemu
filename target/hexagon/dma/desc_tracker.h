@@ -40,7 +40,7 @@ typedef struct desc_tracker_entry_t {
 
 	/* book keeping */
 	desc_id_t id; /* xact id */
-	size8u_t pcycle;  /* time acquired */
+	uint64_t pcycle;  /* time acquired */
 
 	void * dma;
 	int dnum; /* DMA number */

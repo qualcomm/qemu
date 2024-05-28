@@ -34,6 +34,8 @@
 #include "dma_adapter.h"
 #include "system.h"
 
+#define ARCHOPT(OPTION)  (proc->arch_proc_options->OPTION)
+
 #if 1
 //#define PRINTF(DMA, ...)  printf(__VA_ARGS__)
 #define PRINTF(...)
@@ -508,23 +510,36 @@ void dma_adapter_mask_badva(dma_t *dma, uint32_t mask) {
 }
  
  
-uint32_t dma_adapter_xlate_va(dma_t *dma, uint64_t va, uint64_t* pa, dma_memaccess_info_t * dma_memaccess_info, uint32_t width, uint32_t store, uint32_t extended_va, uint32_t except_vtcm, uint32_t is_dlbc, uint32_t is_forget) {
-	
-	// Decode Access type
-	
-	uint32_t access_type = TYPE_LOAD;
-	uint32_t maptr_type = access_type_load;
-	if (store) {
-		access_type = TYPE_STORE;
-		maptr_type = access_type_store;
-	}
+uint32_t dma_adapter_xlate_va(dma_t *dma, uint64_t va, uint64_t* pa, dma_memaccess_info_t * dma_memaccess_info, uint32_t width, dma_xlate_t dma_xlate_type, uint32_t extended_va, uint32_t except_vtcm, uint32_t is_dlbc, uint32_t is_forget) {
+
+    // Decode Access type
+    uint32_t access_type;
+    uint32_t maptr_type;
+
+
+    switch(dma_xlate_type) {
+        case DMA_XLATE_TYPE_LOAD:
+            access_type = TYPE_LOAD;
+            maptr_type = access_type_load;
+            break;
+        case DMA_XLATE_TYPE_STORE:
+            access_type = TYPE_STORE;
+            maptr_type = access_type_store;
+            break;
+        case DMA_XLATE_TYPE_UPERM:
+            access_type = TYPE_UPERM;
+            maptr_type = access_type_load;
+            break;
+        default:
+            g_assert_not_reached();
+    }
 
 	// Translate a VA.
 	xlate_info_t xlate_task;   // Storage to get a PA returned back.
 	hex_exception_info e_info = {0};      // Storage to retrieve an exception if it occurs.
 	thread_t * thread = dma_adapter_retrieve_thread(dma);
 
-	uint32_t ret = sys_xlate_dma(thread, va, access_type, maptr_type, 0, width-1, &xlate_task, &e_info, extended_va, except_vtcm, is_dlbc, is_forget);
+	uint32_t ret = sys_xlate_dma(thread, va, access_type, maptr_type, 0, width-1, &xlate_task, &e_info, 0, except_vtcm, is_dlbc, is_forget);
 	// If an exception occurs, keep it for future.
 	// Retrieve a PA.
 
@@ -756,6 +771,60 @@ int dma_adapter_memwrite(dma_t *dma, uint32_t va, uint64_t pa, uint8_t *src, int
 }
 #endif
 
+dma_t *dma_adapter_init_archonly(processor_t *proc, int dmanum) {
+	dma_t *dma = NULL;
+	dma_adapter_engine_info_t *dma_adapter = NULL;
+
+	if ((dma = (dma_t *) calloc(1, sizeof(dma_t))) == NULL) {
+		sim_err_fatal(proc->system_ptr, proc, 0, (char *) __FUNCTION__,
+		              __FILE__, __LINE__, "cannot create dma");
+		return NULL;
+	}
+	
+	if ((dma_adapter = (dma_adapter_engine_info_t *) calloc(1, sizeof(dma_adapter_engine_info_t))) == NULL) {
+		sim_err_fatal(proc->system_ptr, proc, 0, (char *) __FUNCTION__,
+		              __FILE__, __LINE__, "cannot create dma_adapter");
+		return NULL;
+	}
+
+	
+
+  // Set up other arguments.
+	dma->num = dmanum;
+
+	// An owner of each DMA instance is a hardware thread.
+  	dma_adapter->owner = proc->thread[dmanum];
+	dma->owner = (void*)dma_adapter;
+	proc->dma_engine_info[dmanum] = (struct dma_adapter_engine_info *)dma_adapter;
+	desc_tracker_init(proc, dmanum);
+
+	queue_alloc(&dma_adapter->desc_queue, dma_adapter->desc_entries, DESC_TABLESIZE);
+  	// At a thread side, we will maintain an instruction completeness checker
+  	// to manage stalling. Here, we initialize the checker to null by default.
+  	proc->dma_insn_checker[dmanum] = NULL;
+
+  if (dma_init(dma, 0) == 0) {
+		sim_err_fatal(proc->system_ptr, proc, 0, (char *) __FUNCTION__,
+		              __FILE__, __LINE__, "failed dma_init");
+
+		free(dma);
+		free(dma_adapter);
+		return NULL;
+	}
+
+
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMSTART]  = ARCHOPT(udma_dmstart_latency);
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMRESUME] = ARCHOPT(udma_dmresume_latency); 
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMLINK]   = ARCHOPT(udma_dmlink_latency);
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMPAUSE]  = ARCHOPT(udma_dmpause_latency);
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMPOLL]   = ARCHOPT(udma_dmpoll_latency);
+	dma_adapter_cmd_latency[DMA_INSN_LATENCY_DMWAIT]   = ARCHOPT(udma_dmwait_latency);
+
+
+
+	return dma;
+}
+
 dma_t *dma_adapter_init(processor_t *proc, int dmanum) {
 	dma_t *dma = NULL;
 	dma_adapter_engine_info_t *dma_adapter = NULL;
@@ -783,7 +852,7 @@ dma_t *dma_adapter_init(processor_t *proc, int dmanum) {
 	proc->dma_engine_info[dmanum] = (struct dma_adapter_engine_info *)dma_adapter;
 	desc_tracker_init(proc, dmanum);
 
-	queue_alloc(proc, &dma_adapter->desc_queue, dma_adapter->desc_entries, DESC_TABLESIZE);
+	queue_alloc(&dma_adapter->desc_queue, dma_adapter->desc_entries, DESC_TABLESIZE);
   	// At a thread side, we will maintain an instruction completeness checker
   	// to manage stalling. Here, we initialize the checker to null by default.
   	proc->dma_insn_checker[dmanum] = NULL;
@@ -835,7 +904,7 @@ desc_tracker_entry_t *  dma_adapter_insert_desc_queue(dma_t *dma, dma_decoded_de
 	processor_t * proc = thread->processor_ptr;
 	dma_adapter_engine_info_t * dma_info = dma_retrieve_dma_adapter(dma);
 	desc_tracker_entry_t * entry = desc_tracker_acquire(proc, dma->num, desc);
-	int idx = queue_push(proc, dma->num, &dma_info->desc_queue);
+	int idx = queue_push(&dma_info->desc_queue);
 	dma_info->desc_entries[idx] = entry;
 	entry->dnum = dma->num;
 	entry->desc = *desc;
@@ -849,7 +918,7 @@ int dma_adapter_pop_desc_queue(dma_t *dma, desc_tracker_entry_t * entry ) {
 	thread_t* thread = dma_adapter_retrieve_thread(dma);
 	processor_t * proc = thread->processor_ptr;
 	dma_adapter_engine_info_t * dma_info = dma_retrieve_dma_adapter(dma);
-	int idx = queue_pop(proc, dma->num, &dma_info->desc_queue);
+	int idx = queue_pop(&dma_info->desc_queue);
 	CACHE_ASSERT(proc, dma_info->desc_entries[idx]->id == entry->id);
 	PRINTF(dma, "DMA %d: Tick %8lli: ADAPTER pop from descriptor tracker entry=idx=%d id=%lli", dma->num, ARCH_GET_PCYCLES(proc), idx, entry->id);
 	dma_info->desc_entries[idx] = NULL;
@@ -857,17 +926,15 @@ int dma_adapter_pop_desc_queue(dma_t *dma, desc_tracker_entry_t * entry ) {
 	return 1;
 }
 uint64_t dma_adapter_get_pcycle(dma_t *dma){ 
-	thread_t* thread __attribute__((unused)) = dma_adapter_retrieve_thread(dma);
+	thread_t *thread __attribute__((unused)) = dma_adapter_retrieve_thread(dma);
 	return ARCH_GET_PCYCLES(thread->processor_ptr);
 }
 
 
 
 desc_tracker_entry_t *   dma_adapter_peek_desc_queue_head(dma_t *dma) {
-	thread_t* thread = dma_adapter_retrieve_thread(dma);
-	processor_t * proc = thread->processor_ptr;
 	dma_adapter_engine_info_t * dma_info = dma_retrieve_dma_adapter(dma);
-	int idx = queue_peek(proc, dma->num, &dma_info->desc_queue);
+	int idx = queue_peek(&dma_info->desc_queue);
 	//PRINTF(dma, "DMA %d: ADAPTER  dma_adapter_peek_desc_queue_head idx=%d", dma->num, idx);
 	return (idx >= 0) ? dma_info->desc_entries[idx] : 0;
 }
@@ -884,13 +951,13 @@ int dma_adapter_pop_desc_queue_done(dma_t *dma) {
 	int done = 1;
 	int is_empty = 0;
 	while (done) {
-		int idx = queue_peek(proc, dma->num, &dma_info->desc_queue);
+		int idx = queue_peek(&dma_info->desc_queue);
 		int pop = 0;
 		pop = (idx>=0);
 		pop &= (dma_info->desc_entries[idx]->desc.state == DMA_DESC_DONE) || (dma_info->desc_entries[idx]->desc.state ==  DMA_DESC_EXCEPT_ERROR);
 		// If it's exception running, we're going to keep that descriptor 	
 		if ( pop ) {
-			idx = queue_pop(proc, dma->num, &dma_info->desc_queue);
+			idx = queue_pop(&dma_info->desc_queue);
 			
 			PRINTF(dma, "DMA %d: Tick %8lli: ADAPTER releasing descriptor va=%x id=%lli desc.state=%d pause=%d", dma->num, ARCH_GET_PCYCLES(proc), dma_info->desc_entries[idx]->desc.va, dma_info->desc_entries[idx]->id, dma_info->desc_entries[idx]->desc.state,  dma_info->desc_entries[idx]->desc.pause);
 
@@ -901,7 +968,7 @@ int dma_adapter_pop_desc_queue_done(dma_t *dma) {
 			desc_tracker_release(proc, dma->num, dma_info->desc_entries[idx]);
 			dma_info->desc_entries[idx] = NULL;
 
-			is_empty = queue_empty(proc, dma->num, &dma_info->desc_queue);
+			is_empty = queue_empty(&dma_info->desc_queue);
 		} else {
 
 			//if (dma_info->desc_entries[idx]->desc.state ==  DMA_DESC_EXCEPT_RUNNING) {
@@ -932,18 +999,18 @@ int dma_adapter_pop_desc_queue_pause(dma_t *dma) {
 	int done = 1;
 	int is_empty = 0;
 	while (done) {
-		int idx = queue_peek(proc, dma->num, &dma_info->desc_queue);
+		int idx = queue_peek(&dma_info->desc_queue);
 		int pop = 0;
 		pop = (idx>=0); 	
 		if ( pop ) {
-			idx = queue_pop(proc, dma->num, &dma_info->desc_queue);
+			idx = queue_pop(&dma_info->desc_queue);
 			PRINTF(dma, "DMA %d: Tick %8lli: ADAPTER cmd_pause releasing descriptor va=%x id=%lli desc.state=%d pause=%d", dma->num, ARCH_GET_PCYCLES(proc), dma_info->desc_entries[idx]->desc.va, dma_info->desc_entries[idx]->id, dma_info->desc_entries[idx]->desc.state,  dma_info->desc_entries[idx]->desc.pause);
 
 			// Update Descriptor	
 			CALL_DMA_CMD(dma_update_descriptor_done,dma, &dma_info->desc_entries[idx]->desc);
 			desc_tracker_release(proc, dma->num, dma_info->desc_entries[idx]);
 			dma_info->desc_entries[idx] = NULL;
-			is_empty = queue_empty(proc, dma->num, &dma_info->desc_queue);
+			is_empty = queue_empty(&dma_info->desc_queue);
 		} else {
 			done = 0;
 		}
@@ -958,25 +1025,9 @@ int dma_adapter_pop_desc_queue_pause(dma_t *dma) {
 
 
 int dma_adapter_desc_queue_empty(dma_t *dma) {
-	thread_t* thread = dma_adapter_retrieve_thread(dma);
-	processor_t * proc = thread->processor_ptr;
 	dma_adapter_engine_info_t * dma_info = dma_retrieve_dma_adapter(dma);
-	return queue_empty(proc, dma->num, &dma_info->desc_queue);
+	return queue_empty(&dma_info->desc_queue);
 }
-
-
-
-uint32_t dma_adapter_head_desc_queue_peek(dma_t *dma);
-uint32_t dma_adapter_head_desc_queue_peek(dma_t *dma) {
-	thread_t* thread = dma_adapter_retrieve_thread(dma);
-	processor_t * proc = thread->processor_ptr;
-	dma_adapter_engine_info_t * dma_info = dma_retrieve_dma_adapter(dma);
-	int idx = queue_peek(proc, dma->num, &dma_info->desc_queue);
-	PRINTF(dma, "DMA %d: Tick %lli: ADAPTER  dma_adapter_head_desc_queue_peek idx=%d", dma->num, ARCH_GET_PCYCLES(proc), idx);
-	return (idx >= 0) ? dma_info->desc_entries[idx]->desc.va : 0;
-}
-
-
 
 void dma_adapter_free(processor_t *proc, int dmanum) {
 	dma_free(proc->dma[dmanum]);

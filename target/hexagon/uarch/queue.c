@@ -30,16 +30,11 @@
 	(((char *)(ENTRY_PTR) - (char *)((QUEUE_PTR)->entries_ptr))/((QUEUE_PTR)->entry_size))
 
 
-typedef struct ProcessorState processor_t;
-
 /*------*/
 /* Init */
 /*------*/
-void
-UARCH_FUNCTION(_queue_alloc) (const processor_t *proc, queue_t *queue,
-		void *entries_ptr, int depth, int is_circular);
-void
-UARCH_FUNCTION(_queue_alloc) (const processor_t *proc, queue_t *queue,
+static void
+UARCH_FUNCTION(_queue_alloc) (queue_t *queue,
 		void *entries_ptr, int depth, int is_circular)
 {
 	queue->entries_ptr = entries_ptr;
@@ -51,21 +46,21 @@ UARCH_FUNCTION(_queue_alloc) (const processor_t *proc, queue_t *queue,
 }
 
 void
-UARCH_FUNCTION(queue_alloc) (const processor_t *proc, queue_t *queue,
+UARCH_FUNCTION(queue_alloc) (queue_t *queue,
 		void *entries_ptr, int depth)
 {
-    UARCH_FUNCTION(_queue_alloc)(proc, queue, entries_ptr, depth, 0);
+    UARCH_FUNCTION(_queue_alloc)(queue, entries_ptr, depth, 0);
 }
 
 void
-UARCH_FUNCTION(circular_queue_alloc) (const processor_t *proc, queue_t *queue,
+UARCH_FUNCTION(circular_queue_alloc) (queue_t *queue,
 		void *entries_ptr, int depth)
 {
-    UARCH_FUNCTION(_queue_alloc)(proc, queue, entries_ptr, depth, 1);
+    UARCH_FUNCTION(_queue_alloc)(queue, entries_ptr, depth, 1);
 }
 
 void
-UARCH_FUNCTION(queue_reset) (const processor_t *proc, queue_t *queue)
+UARCH_FUNCTION(queue_reset) (queue_t *queue)
 {
 	queue->occupied = 0;
 	queue->head = 0;
@@ -76,18 +71,18 @@ UARCH_FUNCTION(queue_reset) (const processor_t *proc, queue_t *queue)
 /* Manipulate */
 /*------------*/
 int
-UARCH_FUNCTION(queue_undo_push) (const processor_t *proc, int tnum, queue_t *queue)
+UARCH_FUNCTION(queue_undo_push) (queue_t *queue)
 {
   assert(queue->occupied && "nothing pushed to undo");
 
   MODULO_DEC_LHS(queue->tail, queue->depth);
   queue->occupied--;
-
+  
   return queue->tail;
 }
 
 int
-UARCH_FUNCTION(queue_undo_pop_n) (const processor_t * proc, int tnum, queue_t* queue, int n){
+UARCH_FUNCTION(queue_undo_pop_n) (queue_t* queue, int n){
     queue->head -= n;
     if (queue->head < 0)
         queue->head += queue->depth;
@@ -96,7 +91,7 @@ UARCH_FUNCTION(queue_undo_pop_n) (const processor_t * proc, int tnum, queue_t* q
 }
 
 int
-UARCH_FUNCTION(queue_pop) (const processor_t *proc, int tnum, queue_t *queue)
+UARCH_FUNCTION(queue_pop) (queue_t *queue)
 {
 	int popped = queue->head;
 	assert((queue->circular || queue->occupied) && "nothing to pop");
@@ -110,7 +105,7 @@ UARCH_FUNCTION(queue_pop) (const processor_t *proc, int tnum, queue_t *queue)
 }
 
 int
-UARCH_FUNCTION(queue_push) (const processor_t *proc, int tnum, queue_t *queue)
+UARCH_FUNCTION(queue_push) (queue_t *queue)
 {
 	int pushed = queue->tail;
 
@@ -124,7 +119,7 @@ UARCH_FUNCTION(queue_push) (const processor_t *proc, int tnum, queue_t *queue)
 }
 
 int
-UARCH_FUNCTION(queue_push_at_head) (const processor_t *proc, int tnum, queue_t *queue)
+UARCH_FUNCTION(queue_push_at_head) (queue_t *queue)
 {
 	assert((queue->circular || (queue->occupied < queue->depth)) && "Vqueue over occupied");
 	MODULO_DEC_LHS(queue->head, queue->depth);
@@ -138,7 +133,7 @@ UARCH_FUNCTION(queue_push_at_head) (const processor_t *proc, int tnum, queue_t *
 }
 
 void
-UARCH_FUNCTION(queue_reserve_n) (const processor_t *proc, int tnum, queue_t *queue, int res_num)
+UARCH_FUNCTION(queue_reserve_n) (queue_t *queue, int res_num)
 {
 
     queue->reserved += res_num;
@@ -148,7 +143,7 @@ UARCH_FUNCTION(queue_reserve_n) (const processor_t *proc, int tnum, queue_t *que
 }
 
 void
-UARCH_FUNCTION(queue_unreserve_n) (const processor_t *proc, int tnum, queue_t *queue, int res_num)
+UARCH_FUNCTION(queue_unreserve_n) (queue_t *queue, int res_num)
 {
     queue->reserved -= res_num;
 
@@ -161,7 +156,7 @@ UARCH_FUNCTION(queue_unreserve_n) (const processor_t *proc, int tnum, queue_t *q
 /*-------*/
 
 int
-UARCH_FUNCTION(queue_peek_tail) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_peek_tail) (const queue_t *queue)
 {
 	int tail = queue->tail;
 
@@ -173,16 +168,16 @@ UARCH_FUNCTION(queue_peek_tail) (const processor_t *proc, int tnum, const queue_
 }
 
 int
-UARCH_FUNCTION(queue_peek_tail_plus_one) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_peek_tail_plus_one) (const queue_t *queue)
 {
-	if (UARCH_FUNCTION(queue_full)(proc, tnum, queue)) {
+	if (UARCH_FUNCTION(queue_full)(queue)) {
 		return -1;
 	}
 	return queue->tail;
 }
 
 int
-UARCH_FUNCTION(queue_peek_head) (const processor_t *proc, int tnum, const queue_t * queue)
+UARCH_FUNCTION(queue_peek_head) (const queue_t * queue)
 {
 	if (queue->occupied == 0) {
 		return -1;
@@ -191,13 +186,13 @@ UARCH_FUNCTION(queue_peek_head) (const processor_t *proc, int tnum, const queue_
 }
 
 int
-UARCH_FUNCTION(queue_peek) (const processor_t *proc, int tnum, const queue_t * queue)
+UARCH_FUNCTION(queue_peek) (const queue_t * queue)
 {
-	return UARCH_FUNCTION(queue_peek_head) (proc, tnum, queue);
+	return UARCH_FUNCTION(queue_peek_head) (queue);
 }
 
 int
-UARCH_FUNCTION(queue_peek_nth) (const processor_t *proc, int tnum, const queue_t * queue, int n)
+UARCH_FUNCTION(queue_peek_nth) (const queue_t * queue, int n)
 {
 	if (queue->occupied == 0) {
 		return -1;
@@ -206,46 +201,46 @@ UARCH_FUNCTION(queue_peek_nth) (const processor_t *proc, int tnum, const queue_t
 }
 
 int
-UARCH_FUNCTION(queue_full) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_full) (const queue_t *queue)
 {
 	return (queue->occupied == queue->depth);
 }
 
 int
-UARCH_FUNCTION(queue_empty) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_empty) (const queue_t *queue)
 {
 	return (queue->occupied == 0);
 }
 
 
 int
-UARCH_FUNCTION(queue_occupied) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_occupied) (const queue_t *queue)
 {
 	return queue->occupied;
 }
 
 int
-UARCH_FUNCTION(queue_reservable) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_reservable) (const queue_t *queue)
 {
     return queue->depth - queue->occupied - queue->reserved;
 }
 
 
 int
-UARCH_FUNCTION(queue_reserved) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_reserved) (const queue_t *queue)
 {
     return queue->reserved;
 }
 
 int
-UARCH_FUNCTION(queue_depth) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_depth) (const queue_t *queue)
 {
     return queue->depth;
 }
 
 
 void *
-UARCH_FUNCTION(queue_get_entries) (const processor_t *proc, int tnum, const queue_t *queue)
+UARCH_FUNCTION(queue_get_entries) (const queue_t *queue)
 {
 	return queue->entries_ptr;
 }

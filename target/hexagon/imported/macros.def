@@ -3364,6 +3364,15 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
+        fTLBPP,
+        (TLBHI),
+        "search_TLB(TLBHI)",
+        "search_TLB(TLBHI)",
+        tlb_lookup_extended(thread,((TLBHI)<<8),((TLBHI) & 0xfffffffffffff000)),
+        ()
+)
+
+DEF_MACRO(
 	READ_SGP0,
 	(),
 	"SGP0",
