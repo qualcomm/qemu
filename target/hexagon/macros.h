@@ -676,3 +676,5 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #endif
 
 #endif
+
+#define fPREDUSE_TIMING()
