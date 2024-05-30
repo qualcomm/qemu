@@ -76,8 +76,9 @@ static struct sdl2_console *get_scon_from_window(uint32_t window_id)
     return NULL;
 }
 
-void sdl2_window_create(struct sdl2_console *scon)
+void sdl2_window_create(DisplayChangeListener *dcl)
 {
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     int flags = 0;
 
     if (!scon->surface) {
@@ -111,6 +112,11 @@ void sdl2_window_create(struct sdl2_console *scon)
                                          surface_width(scon->surface),
                                          surface_height(scon->surface),
                                          flags);
+    sdl_update_caption(scon);
+}
+
+void sdl2_gl_create(struct sdl2_console *scon)
+{
     if (scon->opengl) {
         const char *driver = "opengl";
 
@@ -126,11 +132,11 @@ void sdl2_window_create(struct sdl2_console *scon)
         /* The SDL renderer is only used by sdl2-2D, when OpenGL is disabled */
         scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
     }
-    sdl_update_caption(scon);
 }
 
-void sdl2_window_destroy(struct sdl2_console *scon)
+void sdl2_window_destroy(DisplayChangeListener *dcl)
 {
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     if (!scon->real_window) {
         return;
     }
@@ -147,8 +153,9 @@ void sdl2_window_destroy(struct sdl2_console *scon)
     scon->real_window = NULL;
 }
 
-void sdl2_window_resize(struct sdl2_console *scon)
+void sdl2_window_resize(DisplayChangeListener *dcl)
 {
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     if (!scon->real_window) {
         return;
     }
@@ -441,7 +448,7 @@ static void handle_keydown(SDL_Event *ev)
             }
             break;
         case SDL_SCANCODE_U:
-            sdl2_window_resize(scon);
+            scon->dcl.ops->dpy_window_resize(&scon->dcl);
             if (!scon->opengl) {
                 /* re-create scon->texture */
                 sdl2_2d_switch(&scon->dcl, scon->surface);
@@ -667,8 +674,9 @@ static void handle_windowevent(SDL_Event *ev)
     }
 }
 
-void sdl2_poll_events(struct sdl2_console *scon)
+void sdl2_poll_events(DisplayChangeListener *dcl)
 {
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     SDL_Event ev1, *ev = &ev1;
     bool allow_close = true;
     int idle = 1;
@@ -808,6 +816,11 @@ static const DisplayChangeListenerOps dcl_2d_ops = {
     .dpy_refresh          = sdl2_2d_refresh,
     .dpy_mouse_set        = sdl_mouse_warp,
     .dpy_cursor_define    = sdl_mouse_define,
+
+    .dpy_window_create    = sdl2_window_create,
+    .dpy_window_destroy   = sdl2_window_destroy,
+    .dpy_window_resize    = sdl2_window_resize,
+    .dpy_poll_events      = sdl2_poll_events,
 };
 
 #ifdef CONFIG_OPENGL
@@ -823,6 +836,15 @@ static const DisplayChangeListenerOps dcl_gl_ops = {
     .dpy_gl_scanout_disable  = sdl2_gl_scanout_disable,
     .dpy_gl_scanout_texture  = sdl2_gl_scanout_texture,
     .dpy_gl_update           = sdl2_gl_scanout_flush,
+
+    /*
+     * Window callbacks can be set e.g. for running on main-thread
+     * while GL functions can run on a separate thread
+     */
+    .dpy_window_create       = sdl2_window_create,
+    .dpy_window_destroy      = sdl2_window_destroy,
+    .dpy_window_resize       = sdl2_window_resize,
+    .dpy_poll_events         = sdl2_poll_events,
 };
 
 static bool sdl2_gl_is_compatible_dcl(DisplayGLCtx *dgc,

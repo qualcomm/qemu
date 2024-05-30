@@ -268,6 +268,10 @@ typedef struct DisplayChangeListenerOps {
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
+    void (*dpy_window_create)(DisplayChangeListener *dcl);
+    void (*dpy_window_destroy)(DisplayChangeListener *dcl);
+    void (*dpy_window_resize)(DisplayChangeListener *dcl);
+    void (*dpy_poll_events)(DisplayChangeListener *dcl);
 } DisplayChangeListenerOps;
 
 struct DisplayChangeListener {
