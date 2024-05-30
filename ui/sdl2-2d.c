@@ -73,16 +73,16 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
     }
 
     if (surface_is_placeholder(new_surface) && qemu_console_get_index(dcl->con)) {
-        sdl2_window_destroy(scon);
+        dcl->ops->dpy_window_destroy(dcl);
         return;
     }
 
     if (!scon->real_window) {
-        sdl2_window_create(scon);
+        dcl->ops->dpy_window_create(dcl);
     } else if (old_surface &&
                ((surface_width(old_surface)  != surface_width(new_surface)) ||
                 (surface_height(old_surface) != surface_height(new_surface)))) {
-        sdl2_window_resize(scon);
+        dcl->ops->dpy_window_resize(dcl);
     }
 
     SDL_RenderSetLogicalSize(scon->real_renderer,
@@ -130,7 +130,7 @@ void sdl2_2d_refresh(DisplayChangeListener *dcl)
 
     assert(!scon->opengl);
     graphic_hw_update(dcl->con);
-    sdl2_poll_events(scon);
+    dcl->ops->dpy_poll_events(dcl);
 }
 
 void sdl2_2d_redraw(struct sdl2_console *scon)
