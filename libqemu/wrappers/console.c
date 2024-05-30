@@ -43,6 +43,7 @@ DisplayOptions *libqemu_display_options_new(void)
     struct DisplayOptions *opts = g_new0(struct DisplayOptions, 1);
     opts->has_gl = true;
     opts->gl = DISPLAYGL_MODE_ES;
+    opts->type = DISPLAY_TYPE_SDL;
     return opts;
 }
 
@@ -134,6 +135,10 @@ DisplayChangeListenerOps *libqemu_dcl_ops_new(void)
     ops->dpy_gl_scanout_disable = sdl2_gl_scanout_disable;
     ops->dpy_gl_scanout_texture = sdl2_gl_scanout_texture;
     ops->dpy_gl_update = sdl2_gl_scanout_flush;
+    ops->dpy_gfx_switch = sdl2_gl_switch;
+    ops->dpy_gfx_update = sdl2_gl_update;
+    ops->dpy_refresh = sdl2_gl_refresh;
+    ops->dpy_poll_events = sdl2_poll_events;
     return ops;
 }
 
@@ -158,6 +163,30 @@ void libqemu_dcl_ops_set_refresh(DisplayChangeListenerOps *ops,
                                  LibQemuRefreshFn refresh_fn)
 {
     ops->dpy_refresh = refresh_fn;
+}
+
+void libqemu_dcl_ops_set_window_create(DisplayChangeListenerOps *ops,
+                                       LibQemuWindowCreateFn window_create_fn)
+{
+    ops->dpy_window_create = window_create_fn;
+}
+
+void libqemu_dcl_ops_set_window_destroy(DisplayChangeListenerOps *ops,
+                                        LibQemuWindowDestroyFn window_destroy_fn)
+{
+    ops->dpy_window_destroy = window_destroy_fn;
+}
+
+void libqemu_dcl_ops_set_window_resize(DisplayChangeListenerOps *ops,
+                                       LibQemuWindowResizeFn window_resize_fn)
+{
+    ops->dpy_window_resize = window_resize_fn;
+}
+
+void libqemu_dcl_ops_set_poll_events(DisplayChangeListenerOps *ops,
+                                       LibQemuPollEventsFn poll_events_fn)
+{
+    ops->dpy_poll_events = poll_events_fn;
 }
 
 void libqemu_sdl2_console_set_window_id(struct sdl2_console *sdl2_con,

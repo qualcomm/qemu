@@ -57,10 +57,11 @@ void sdl2_create_consoles(int num);
 struct sdl2_console *sdl2_get_console(int index);
 void sdl_cleanup(void);
 
-void sdl2_window_create(struct sdl2_console *scon);
-void sdl2_window_destroy(struct sdl2_console *scon);
-void sdl2_window_resize(struct sdl2_console *scon);
-void sdl2_poll_events(struct sdl2_console *scon);
+void sdl2_window_create(DisplayChangeListener *dcl);
+void sdl2_gl_create(struct sdl2_console *scon);
+void sdl2_window_destroy(DisplayChangeListener *dcl);
+void sdl2_window_resize(DisplayChangeListener *dcl);
+void sdl2_poll_events(DisplayChangeListener *dcl);
 
 void sdl2_process_key(struct sdl2_console *scon, SDL_KeyboardEvent *ev);
 

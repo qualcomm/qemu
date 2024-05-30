@@ -240,6 +240,18 @@ ExportedFct('dcl_ops_set_name', 'void', [ 'DisplayChangeListenerOps *', 'const c
 ExportedFct('dcl_ops_set_gfx_update', 'void', [ 'DisplayChangeListenerOps *', 'LibQemuGfxUpdateFn' ], priv = 'libqemu_dcl_ops_set_gfx_update')
 ExportedFct('dcl_ops_set_gfx_switch', 'void', [ 'DisplayChangeListenerOps *', 'LibQemuGfxSwitchFn' ], priv = 'libqemu_dcl_ops_set_gfx_switch')
 ExportedFct('dcl_ops_set_refresh', 'void', [ 'DisplayChangeListenerOps *', 'LibQemuRefreshFn' ], priv = 'libqemu_dcl_ops_set_refresh')
+ExportedFct('dcl_ops_set_window_create', 'void',
+            [ 'DisplayChangeListenerOps *', 'LibQemuWindowCreateFn' ],
+            priv = 'libqemu_dcl_ops_set_window_create')
+ExportedFct('dcl_ops_set_window_destroy', 'void',
+            [ 'DisplayChangeListenerOps *', 'LibQemuWindowDestroyFn' ],
+            priv = 'libqemu_dcl_ops_set_window_destroy')
+ExportedFct('dcl_ops_set_window_resize', 'void',
+            [ 'DisplayChangeListenerOps *', 'LibQemuWindowResizeFn' ],
+            priv = 'libqemu_dcl_ops_set_window_resize')
+ExportedFct('dcl_ops_set_poll_events', 'void',
+            [ 'DisplayChangeListenerOps *', 'LibQemuPollEventsFn' ],
+            priv = 'libqemu_dcl_ops_set_poll_events')
 ExportedFct('dcl_register', 'void', [ 'DisplayChangeListener *' ], priv = 'register_displaychangelistener')
 
 ExportedFct('sdl2_init', 'int', [ 'void' ], priv = 'libqemu_sdl2_init')
@@ -253,6 +265,10 @@ ExportedFct('sdl2_2d_refresh', 'void', [ 'DisplayChangeListener *' ])
 ExportedFct('sdl2_gl_update', 'void', [ 'DisplayChangeListener *', 'int', 'int', 'int' , 'int' ])
 ExportedFct('sdl2_gl_switch', 'void', [ 'DisplayChangeListener *', 'DisplaySurface *' ])
 ExportedFct('sdl2_gl_refresh', 'void', [ 'DisplayChangeListener *' ])
+ExportedFct('sdl2_window_create', 'void', [ 'DisplayChangeListener *' ])
+ExportedFct('sdl2_window_destroy', 'void', [ 'DisplayChangeListener *' ])
+ExportedFct('sdl2_window_resize', 'void', [ 'DisplayChangeListener *' ])
+ExportedFct('sdl2_poll_events', 'void', [ 'DisplayChangeListener *' ])
 ExportedFct('dcl_dpy_gfx_replace_surface', 'void', [ 'DisplayChangeListener *', 'DisplaySurface *' ])
 
 ExportedFct('sdl2_gl_create_context', 'QEMUGLContext', [ 'DisplayGLCtx*', 'QEMUGLParams*' ])
