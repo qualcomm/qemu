@@ -93,17 +93,18 @@ void sdl2_gl_switch(DisplayChangeListener *dcl,
     if (surface_is_placeholder(new_surface) && !scon->opengl) {
         qemu_gl_fini_shader(scon->gls);
         scon->gls = NULL;
-        sdl2_window_destroy(scon);
+        dcl->ops->dpy_window_destroy(dcl);
         return;
     }
 
     if (!scon->real_window) {
-        sdl2_window_create(scon);
+        dcl->ops->dpy_window_create(dcl);
+        sdl2_gl_create(scon);
         scon->gls = qemu_gl_init_shader();
     } else if (old_surface &&
                ((surface_width(old_surface)  != surface_width(new_surface)) ||
                 (surface_height(old_surface) != surface_height(new_surface)))) {
-        sdl2_window_resize(scon);
+        dcl->ops->dpy_window_resize(dcl);
     }
 
     surface_gl_create_texture(scon->gls, scon->surface);
@@ -118,9 +119,11 @@ void sdl2_gl_refresh(DisplayChangeListener *dcl)
     graphic_hw_update(dcl->con);
     if (scon->updates && scon->real_window) {
         scon->updates = 0;
-        sdl2_gl_render_surface(scon);
+        if (scon->surface) {
+            sdl2_gl_render_surface(scon);
+        }
     }
-    sdl2_poll_events(scon);
+    dcl->ops->dpy_poll_events(dcl);
 }
 
 void sdl2_gl_redraw(struct sdl2_console *scon)
@@ -303,7 +306,7 @@ void sdl2_gl_console_init(struct sdl2_console *scon)
 
     scon->hidden = true;
     scon->surface = qemu_create_displaysurface(1, 1);
-    sdl2_window_create(scon);
+    sdl2_window_create(&scon->dcl);
 
     /*
      * QEMU checks whether console supports dma-buf before switching
@@ -312,7 +315,7 @@ void sdl2_gl_console_init(struct sdl2_console *scon)
      */
     scon->has_dmabuf = qemu_egl_has_dmabuf();
 
-    sdl2_window_destroy(scon);
+    sdl2_window_destroy(&scon->dcl);
     qemu_free_displaysurface(scon->surface);
 
     scon->surface = NULL;

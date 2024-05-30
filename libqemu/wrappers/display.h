@@ -34,6 +34,10 @@ typedef struct QEMUGLParams QEMUGLParams;
 typedef void (*LibQemuGfxUpdateFn)(DisplayChangeListener *, int, int, int, int);
 typedef void (*LibQemuGfxSwitchFn)(DisplayChangeListener *, DisplaySurface *);
 typedef void (*LibQemuRefreshFn)(DisplayChangeListener *);
+typedef void (*LibQemuWindowCreateFn)(DisplayChangeListener *);
+typedef void (*LibQemuWindowDestroyFn)(DisplayChangeListener *);
+typedef void (*LibQemuWindowResizeFn)(DisplayChangeListener *);
+typedef void (*LibQemuPollEventsFn)(DisplayChangeListener *);
 
 typedef bool (*LibQemuIsCompatibleDclFn)(DisplayGLCtx *,
                                          DisplayChangeListener *);
@@ -52,4 +56,12 @@ void libqemu_dcl_ops_set_gfx_update(DisplayChangeListenerOps *,
 void libqemu_dcl_ops_set_gfx_switch(DisplayChangeListenerOps *,
                                     LibQemuGfxSwitchFn);
 void libqemu_dcl_ops_set_refresh(DisplayChangeListenerOps *, LibQemuRefreshFn);
+void libqemu_dcl_ops_set_window_create(DisplayChangeListenerOps *,
+                                       LibQemuWindowCreateFn);
+void libqemu_dcl_ops_set_window_destroy(DisplayChangeListenerOps *,
+                                        LibQemuWindowDestroyFn);
+void libqemu_dcl_ops_set_window_resize(DisplayChangeListenerOps *,
+                                       LibQemuWindowResizeFn);
+void libqemu_dcl_ops_set_poll_events(DisplayChangeListenerOps *,
+                                     LibQemuPollEventsFn);
 #endif
