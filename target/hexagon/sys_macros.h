@@ -30,14 +30,11 @@
 #define READ_SGP10()   ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP0) | \
     ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP1) << 32))
 
-#define WRITE_SREG(NUM, VAL)      log_sreg_write(env, NUM, VAL, slot)
-#define WRITE_SGP0(VAL)           log_sreg_write(env, HEX_SREG_SGP0, VAL, slot)
-#define WRITE_SGP1(VAL)           log_sreg_write(env, HEX_SREG_SGP1, VAL, slot)
+#define WRITE_SREG(NUM, VAL)      g_assert_not_reached()
+#define WRITE_SGP0(VAL)           g_assert_not_reached()
+#define WRITE_SGP1(VAL)           g_assert_not_reached()
 #define WRITE_SGP10(VAL) \
-    do { \
-        log_sreg_write(env, HEX_SREG_SGP0, (VAL) & 0xFFFFFFFF, slot); \
-        log_sreg_write(env, HEX_SREG_SGP1, (VAL) >> 32, slot); \
-    } while (0)
+        g_assert_not_reached()
 
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
@@ -169,13 +166,7 @@
 /* Always succeed: */
 #define fL2LOCKA(EA, PDV, PDN) (PDV = 0xFF)
 #define fCLEAR_RTE_EX() \
-    do { \
-        uint32_t tmp = 0; \
-        tmp = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR); \
-        fINSERT_BITS(tmp, reg_field_info[SSR_EX].width, \
-                     reg_field_info[SSR_EX].offset, 0); \
-        log_sreg_write(env, HEX_SREG_SSR, tmp, slot); \
-    } while (0)
+        g_assert_not_reached()
 
 #define fDCINVIDX(REG)
 #define fDCINVA(REG) do { REG = REG; } while (0) /* Nothing to do in qemu */
