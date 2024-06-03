@@ -126,19 +126,6 @@ typedef enum {
     NUM_PGSIZE_TYPES
 } tlb_pgsize_t;
 
-static const tlb_pgsize_t pgsize[NUM_PGSIZE_TYPES] = {
-    PGSIZE_4K,
-    PGSIZE_16K,
-    PGSIZE_64K,
-    PGSIZE_256K,
-    PGSIZE_1M,
-    PGSIZE_4M,
-    PGSIZE_16M,
-    PGSIZE_64M,
-    PGSIZE_256M,
-    PGSIZE_1G
-};
-
 static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
     "4K",
     "16K",
@@ -176,12 +163,12 @@ static const uint64_t encmask_2_mask[] = {
     0xffffffffLL,                       /* RSVD, 0111 */
 };
 
-static inline tlb_pgsize_t hex_tlb_pgsize(uint64_t entry)
+static inline int hex_tlb_pgsize(uint64_t entry)
 {
     assert(entry != 0);
     int size = __builtin_ctzll(entry);
     assert(size < NUM_PGSIZE_TYPES);
-    return pgsize[size];
+    return size;
 }
 
 static inline uint32_t hex_tlb_page_size(uint64_t entry)

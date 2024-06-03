@@ -56,19 +56,6 @@ typedef enum {
     NUM_PGSIZE_TYPES
 } tlb_pgsize_t;
 
-static const tlb_pgsize_t pgsize[NUM_PGSIZE_TYPES] = {
-    PGSIZE_4K,
-    PGSIZE_16K,
-    PGSIZE_64K,
-    PGSIZE_256K,
-    PGSIZE_1M,
-    PGSIZE_4M,
-    PGSIZE_16M,
-    PGSIZE_64M,
-    PGSIZE_256M,
-    PGSIZE_1G
-};
-
 static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
     "4K",
     "16K",
@@ -98,15 +85,15 @@ size8u_t encmask_2_mask[] = {
     INVALID_MASK,                       /* RSVD, 0111 */
 };
 
-static inline tlb_pgsize_t hex_tlb_pgsize(uint64_t entry)
+static inline int hex_tlb_pgsize(uint64_t entry)
 {
     if (entry == 0) {
         qemu_log_mask(CPU_LOG_MMU, "%s: Supplied TLB entry was 0!\n", __func__);
-        return pgsize[0];
+        return 0;
     }
-    int size = __builtin_ctzll(entry);
+    int size = ctz64(entry);
     g_assert(size < NUM_PGSIZE_TYPES);
-    return pgsize[size];
+    return size;
 }
 
 static inline uint32_t hex_tlb_page_size(uint64_t entry)
