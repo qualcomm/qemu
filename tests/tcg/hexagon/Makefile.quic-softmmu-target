@@ -21,7 +21,6 @@ DOWNSTREAM_TESTS += \
 	mmu_multi_tlb \
 	mmu_permissions \
 	mmu_cacheops \
-	badva \
 	tlblock \
 	k0lock \
 	k0lock-syscfg \
@@ -29,7 +28,6 @@ DOWNSTREAM_TESTS += \
 	invalid_insn_for_rev \
 	sys_atomics \
 	bestwait \
-	fastl2vic \
 	fastint \
 	swi \
 	swi2 \
@@ -106,8 +104,6 @@ mmu_permissions.o: mmu_permissions.c mmu.h
 mmu_permissions: mmu_permissions.o dummy_mutex.o
 mmu_cacheops.o: mmu_cacheops.c mmu.h
 mmu_cacheops: mmu_cacheops.o dummy_mutex.o
-badva.o: badva.c ../hex_test.h
-badva: badva.o
 tlblock: tlblock.o thread_common.o
 k0lock: k0lock.o thread_common.o
 invalid_opcode.o: invalid_opcode.c invalid_opcode.h
@@ -116,8 +112,6 @@ invalid_insn_for_rev.o: invalid_insn_for_rev.c invalid_opcode.h
 invalid_insn_for_rev: invalid_insn_for_rev.o
 sys_atomics: sys_atomics.o thread_common.o
 bestwait: bestwait.o thread_common.o
-fastl2vic.o: fastl2vic.c cfgtable.h
-fastl2vic: fastl2vic.o
 fastint.o: fastint.c cfgtable.h
 fastint: fastint.o
 swi: swi.o thread_common.o

@@ -47,7 +47,9 @@ crt0.o: crt0/crt0.S crt0/crt0.inc
 crt0_standalone.o: crt0/crt0_standalone.S crt0/crt0.inc
 pte.o: crt0/pte.S
 min_libc.o: crt0/min_libc.c
-CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o
+tlb.o: crt0/tlb.c
+
+CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o tlb.o
 
 TESTS += \
 	mmu_page_size \
@@ -62,6 +64,8 @@ TESTS += \
 	int_range \
 	hvx-multi \
 	tlb-miss-tlblock \
+	badva \
+	fastl2vic \
 	$()
 
 $(TESTS): $(CRT0_OBJS)
@@ -111,6 +115,10 @@ semihost.o: semihost.c strutils.h
 semihost: semihost.o
 hvx-multi.o: hvx-multi.c ../hvx_misc.h
 hvx-multi: hvx-multi.o
+badva.o: badva.c ../hex_test.h crt0/hexagon_standalone.h
+badva: badva.o
+fastl2vic.o: fastl2vic.c cfgtable.h
+fastl2vic: fastl2vic.o
 
 ############# Custom build options
 

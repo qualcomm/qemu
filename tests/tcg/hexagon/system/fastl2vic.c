@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  *  hexagon-sim a.out --subsystem_base=0xfab0  --cosim_file q6ss.cfg
  */
 
-#include <hexagon_standalone.h>
+#include "crt0/hexagon_standalone.h"
 
 #include "cfgtable.h"
 

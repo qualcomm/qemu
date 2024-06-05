@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,10 +15,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <hexagon_standalone.h>
-#include <stdint.h>
-#include <stdio.h>
-
+#include "crt0/hexagon_standalone.h"
 
 #define DEBUG 0
 
