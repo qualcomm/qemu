@@ -19,8 +19,10 @@
 #define HEXAGON_MMU_H
 
 #define NUM_TLB_ENTRIES   192
+#include "max.h"
+
 struct CPUHexagonTLBContext {
-    uint64_t entries[NUM_TLB_ENTRIES];
+    uint64_t entries[MAX_TLB_ENTRIES];
 };
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);

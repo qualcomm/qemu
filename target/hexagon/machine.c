@@ -104,7 +104,7 @@ static int get_hex_tlb_ptr(QEMUFile *f, void *pv, size_t size,
                        const VMStateField *field)
 {
     CPUHexagonTLBContext *tlb = pv;
-    for (int i = 0; i < NUM_TLB_ENTRIES; i++) {
+    for (int i = 0; i < ARRAY_SIZE(tlb->entries); i++) {
         tlb->entries[i] = qemu_get_be64(f);
     }
     return 0;
@@ -114,7 +114,7 @@ static int put_hex_tlb_ptr(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
     CPUHexagonTLBContext *tlb = pv;
-    for (int i = 0; i < NUM_TLB_ENTRIES; i++) {
+    for (int i = 0; i < ARRAY_SIZE(tlb->entries); i++) {
         qemu_put_be64(f,  tlb->entries[i]);
     }
     return 0;
