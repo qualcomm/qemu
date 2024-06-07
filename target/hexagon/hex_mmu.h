@@ -18,7 +18,6 @@
 #ifndef HEXAGON_MMU_H
 #define HEXAGON_MMU_H
 
-#define NUM_TLB_ENTRIES   192
 #include "max.h"
 
 struct CPUHexagonTLBContext {

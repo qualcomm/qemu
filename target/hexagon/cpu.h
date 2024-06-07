@@ -52,7 +52,6 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define NUM_GREGS 32
 #define GREG_WRITES_MAX 32
 #define SREG_WRITES_MAX 64
-#define NUM_TLB_REGS(PROC) NUM_TLB_ENTRIES
 #endif
 
 #include "hex_regs.h"
@@ -488,6 +487,7 @@ struct ArchCPU {
     bool isdben_secure;
     uint32_t num_coproc_instance;
     uint32_t subsystem_id;
+    uint32_t num_tlbs;
 #endif
     uint32_t rev_reg;
     bool lldb_compat;

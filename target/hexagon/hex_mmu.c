@@ -151,7 +151,8 @@ void dump_mmu(CPUHexagonState *env)
 {
     int i;
 
-    for (i = 0; i < NUM_TLB_ENTRIES; i++) {
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
         if (GET_TLB_FIELD(entry, PTE_V)) {
             qemu_printf("0x%016" PRIx64 ": ", entry);
@@ -183,7 +184,8 @@ static void hex_dump_mmu(CPUHexagonState *env, FILE *f)
     bool valid_found = false;
     int i;
     rcu_read_lock();
-    for (i = 0; i < NUM_TLB_ENTRIES; i++) {
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
         valid_found |= hex_dump_mmu_entry(f, env->hex_tlb->entries[i]);
     }
     if (!valid_found) {
@@ -383,7 +385,8 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
     uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
     uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     int i;
-    for (i = 0; i < NUM_TLB_ENTRIES; i++) {
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
         if (hex_tlb_entry_match(env, entry, asid, VA, access_type, PA, prot,
                                 size, excp, mmu_idx)) {
@@ -401,7 +404,8 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
     int i;
 
     env->imprecise_exception = 0;
-    for (i = 0; i < NUM_TLB_ENTRIES; i++) {
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
         if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
             if (idx != not_found) {
@@ -475,7 +479,8 @@ int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry, uint64_t index)
     int last_match = 0;
     int i;
 
-    for (i = 0; i < NUM_TLB_ENTRIES; i++) {
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
         if (hex_tlb_is_match(env, entry, env->hex_tlb->entries[i], false)) {
             matches++;
             last_match = i;

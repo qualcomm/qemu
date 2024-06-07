@@ -97,19 +97,18 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
     DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
-        0xffffffffULL),
+                       0xffffffffULL),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
     DEFINE_PROP_UINT32("start-evb", HexagonCPU, boot_evb, 0x0),
-    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr,
-        0xffffffffULL),
+    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
-        0xffffffffULL),
+                       0xffffffffULL),
     DEFINE_PROP_UINT32("qtimer-base-addr", HexagonCPU, qtimer_base_addr,
-        0xffffffffULL),
+                       0xffffffffULL),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
-        false),
+                     false),
     DEFINE_PROP_UINT32("thread-count", HexagonCPU, cluster_thread_count,
-        THREADS_MAX),
+                       THREADS_MAX),
     DEFINE_PROP_LINK("vtcm", HexagonCPU, vtcm, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT64("vtcm-base-addr", HexagonCPU, vtcm_base_addr, 0x0),
@@ -120,15 +119,17 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("isdben-trusted", HexagonCPU, isdben_trusted, false),
     DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
-    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance, 0),
+    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
+                       0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
+    DEFINE_PROP_UINT32("num-tlbs", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
-    DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust,
-                         0, qdev_prop_uint32, target_ulong),
+    DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
+                         qdev_prop_uint32, target_ulong),
     DEFINE_PROP_BOOL("paranoid-commit-state", HexagonCPU, paranoid_commit_state,
-        false),
+                     false),
     DEFINE_PROP_UINT32("l2line-size", HexagonCPU, l2line_size, 0x80),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_END_OF_LIST()
@@ -725,12 +726,20 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
     CPUState *cs = CPU(dev);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(dev);
 
     cpu_exec_realizefn(cs, errp);
     if (*errp) {
         return;
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (cpu->num_tlbs > MAX_TLB_ENTRIES) {
+        error_setg(errp, "Number of TLBs selected is invalid");
+        return;
+    }
+#endif
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
@@ -743,7 +752,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
     env->threadId = cs->cpu_index;
     env->processor_ptr = NULL;

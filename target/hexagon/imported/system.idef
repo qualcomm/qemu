@@ -148,7 +148,7 @@ Q6INSN(Y2_tlbp,"Rd32=tlbp(Rs32)", ATTRIBS(A_PRIV,A_NOTE_PRIV,A_NOTE_NOPACKET,A_R
 Q6INSN(Y5_tlbasidi,"tlbinvasid(Rs32)",ATTRIBS(A_PRIV,A_NOTE_PRIV,A_NOTE_NOPACKET,A_RESTRICT_NOPACKET), "Invalidate ASID",
 {
 	fHIDE(int i;)
-    fHIDE(unsigned int num_tlb_entries = NUM_TLB_REGS(thread->processor_ptr);)
+    fHIDE(unsigned int num_tlb_entries = env_archcpu(thread)->num_tlbs;)
 	for (i = 0; i < num_tlb_entries; i++) {
 		if ((fGET_FIELD(fTLBR(i),PTE_G) == 0) &&
 			(fGET_FIELD(fTLBR(i),PTE_ASID) == fEXTRACTU_RANGE(RsV,26,20))) {

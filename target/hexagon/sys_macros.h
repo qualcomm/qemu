@@ -186,10 +186,12 @@
 #define WRITE_PRIO(TH, PRIO)      setprio(env, TH, PRIO)
 
 #define fTLB_IDXMASK(INDEX) \
-    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(NUM_TLB_ENTRIES)) - 1))
+    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->num_tlbs)) - 1))
 
-#define fTLB_NONPOW2WRAP(INDEX) \
-    (((INDEX) >= NUM_TLB_ENTRIES) ? ((INDEX) - NUM_TLB_ENTRIES) : (INDEX))
+#define fTLB_NONPOW2WRAP(INDEX)                 \
+    (((INDEX) >= env_archcpu(env)->num_tlbs) ?  \
+         ((INDEX) - env_archcpu(env)->num_tlbs) : \
+         (INDEX))
 
 #define fTLBW(INDEX, VALUE) \
     hex_tlbw(env, (INDEX), (VALUE))
