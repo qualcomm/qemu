@@ -272,14 +272,17 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, sram);
 
-    MemoryRegion *vtcm = g_new(MemoryRegion, 1);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
+    if (vtcm_size_bytes > 0) {
+        MemoryRegion *vtcm = g_new(MemoryRegion, 1);
 
-    vtcm_addr =
-        setup_vtcm(vtcm_size_bytes, (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0, 0);
-    memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
-                               vtcm_addr);
-    memory_region_add_subregion(address_space, m_cfg->cfgtable.vtcm_base, vtcm);
+        vtcm_addr = setup_vtcm(vtcm_size_bytes,
+                               (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0, 0);
+        memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
+                                   vtcm_addr);
+        memory_region_add_subregion(address_space, m_cfg->cfgtable.vtcm_base,
+                                    vtcm);
+    }
 
     /* Test region for cpz addresses above 32-bits */
     MemoryRegion *cpz = g_new(MemoryRegion, 1);
