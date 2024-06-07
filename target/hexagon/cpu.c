@@ -109,8 +109,6 @@ static Property hexagon_cpu_properties[] = {
                      false),
     DEFINE_PROP_UINT32("thread-count", HexagonCPU, cluster_thread_count,
                        THREADS_MAX),
-    DEFINE_PROP_LINK("vtcm", HexagonCPU, vtcm, TYPE_MEMORY_REGION,
-                     MemoryRegion *),
     DEFINE_PROP_UINT64("vtcm-base-addr", HexagonCPU, vtcm_base_addr, 0x0),
     DEFINE_PROP_UINT32("vtcm-size-kb", HexagonCPU, vtcm_size_kb, 0),
 

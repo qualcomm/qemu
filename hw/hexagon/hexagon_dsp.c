@@ -308,8 +308,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
-        object_property_set_link(OBJECT(cpu), "vtcm", OBJECT(vtcm),
-                &error_fatal);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",

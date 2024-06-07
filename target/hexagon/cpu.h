@@ -478,7 +478,6 @@ struct ArchCPU {
     uint32_t boot_evb;
     uint32_t l2vic_base_addr;
     uint32_t qtimer_base_addr;
-    MemoryRegion *vtcm;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
     bool isdben_etm_enable;
