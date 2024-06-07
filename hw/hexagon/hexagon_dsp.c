@@ -522,6 +522,11 @@ static void v73na_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, v73_rev, &v73na_1024);
 }
 
+static void v73m_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v73m_rev, &v73m);
+}
+
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
@@ -583,6 +588,17 @@ static void v73na_1024_init(ObjectClass *oc, void *data)
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
     mc->default_cpus = 6;
+}
+
+static void v73m_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V73M";
+    mc->init = v73m_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
+    mc->default_cpus = 4;
 }
 
 static void v75na_1024_config_init(MachineState *machine)
@@ -705,6 +721,10 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V73NA_1024"),
         .parent = TYPE_MACHINE,
         .class_init = v73na_1024_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V73M"),
+        .parent = TYPE_MACHINE,
+        .class_init = v73m_init,
     }, {
         .name = MACHINE_TYPE_NAME("V73_Linux"),
         .parent = TYPE_MACHINE,
