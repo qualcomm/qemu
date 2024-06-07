@@ -249,7 +249,7 @@ static void do_cpu_reset(void *opaque)
 }
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev,
-    hexagon_config_table *cfgTable, hexagon_config_extensions *cfgExtensions)
+                                hexagon_machine_config *m_cfg)
 {
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     if (machine->kernel_filename) {
@@ -263,8 +263,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     MemoryRegion *config_table_rom = g_new(MemoryRegion, 1);
     memory_region_init_rom(config_table_rom, NULL, "config_table.rom",
-                           sizeof(*cfgTable), &error_fatal);
-    memory_region_add_subregion(address_space, cfgExtensions->cfgbase,
+                           sizeof(m_cfg->cfgtable), &error_fatal);
+    memory_region_add_subregion(address_space, m_cfg->cfgbase,
                                 config_table_rom);
 
     MemoryRegion *sram = g_new(MemoryRegion, 1);
@@ -273,13 +273,13 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     memory_region_add_subregion(address_space, 0x0, sram);
 
     MemoryRegion *vtcm = g_new(MemoryRegion, 1);
-    uint32_t vtcm_size_bytes = cfgTable->vtcm_size_kb * 1024;
+    uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
 
-    vtcm_addr = setup_vtcm(vtcm_size_bytes, (cfgTable->coproc2_reg0) ? 1 : 0,
-                           0);
+    vtcm_addr =
+        setup_vtcm(vtcm_size_bytes, (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0, 0);
     memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
                                vtcm_addr);
-    memory_region_add_subregion(address_space, cfgTable->vtcm_base, vtcm);
+    memory_region_add_subregion(address_space, m_cfg->cfgtable.vtcm_base, vtcm);
 
     /* Test region for cpz addresses above 32-bits */
     MemoryRegion *cpz = g_new(MemoryRegion, 1);
@@ -287,11 +287,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     memory_region_add_subregion(address_space, 0x910000000, cpz);
 
     /* Skip if the core doesn't allocate space for TCM */
-    if (cfgExtensions->l2tcm_size) {
+    if (m_cfg->l2tcm_size) {
         MemoryRegion *tcm = g_new(MemoryRegion, 1);
-        memory_region_init_ram(tcm, NULL, "tcm.ram", cfgExtensions->l2tcm_size,
-            &error_fatal);
-        memory_region_add_subregion(address_space, cfgTable->l2tcm_base, tcm);
+        memory_region_init_ram(tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
+                               &error_fatal);
+        memory_region_add_subregion(address_space, m_cfg->cfgtable.l2tcm_base,
+                                    tcm);
     }
 
 
@@ -304,19 +305,17 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qemu_register_reset(do_cpu_reset, cpu);
 
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", machine->smp.cpus);
-        qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr",
-            cfgExtensions->cfgbase);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr",
-            cfgExtensions->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr",
-            cfgExtensions->qtmr_rg0);
+        qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
+        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
         object_property_set_link(OBJECT(cpu), "vtcm", OBJECT(vtcm),
                 &error_fatal);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
-            cfgTable->vtcm_base);
+                             m_cfg->cfgtable.vtcm_base);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
-            cfgTable->vtcm_size_kb);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2line-size", cfgTable->l2line_size);
+                             m_cfg->cfgtable.vtcm_size_kb);
+        qdev_prop_set_uint32(DEVICE(cpu), "l2line-size",
+                             m_cfg->cfgtable.l2line_size);
 
         /*
          * CPU #0 is the only CPU running at boot, others must be
@@ -324,10 +323,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "num-coproc-instance",
-            (cfgTable->coproc2_reg0) ? 1 : 0);
-        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts", cfgTable->ext_contexts);
+                             (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0);
+        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
+                             m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "num-tlbs",
-                             cfgTable->jtlb_size_entries);
+                             m_cfg->cfgtable.jtlb_size_entries);
 
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);
@@ -360,8 +360,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     HexagonCPU *cpu = cpu_0;
     DeviceState *dev;
-    dev = sysbus_create_varargs("l2vic", cfgExtensions->l2vic_base,
-                                             /* IRQ#, Evnt#,CauseCode */
+    dev = sysbus_create_varargs(
+        "l2vic", m_cfg->l2vic_base,
+        /* IRQ#, Evnt#,CauseCode */
         qdev_get_gpio_in(DEVICE(cpu), 0), /* IRQ 0, 16, 0xc0 */
         qdev_get_gpio_in(DEVICE(cpu), 1), /* IRQ 1, 17, 0xc1 */
         qdev_get_gpio_in(DEVICE(cpu), 2), /* IRQ 2, 18, 0xc2  VIC0 interface */
@@ -371,7 +372,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
         qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
         NULL);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, cfgTable->fastl2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base);
 
     /*
      * This is tightly with the IRQ selected must match the value below
@@ -391,25 +392,26 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0,
                     0xfab20000);
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
-                    cfgExtensions->qtmr_rg0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
                        qdev_get_gpio_in(dev, QTMR0_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(dev, 4));
 
-    hexagon_config_table *config_table = cfgTable;
+    hexagon_config_table *config_table = &m_cfg->cfgtable;
 
-    config_table->l2tcm_base = HEXAGON_CFG_ADDR_BASE(cfgTable->l2tcm_base);
-    config_table->subsystem_base =
-        HEXAGON_CFG_ADDR_BASE(cfgExtensions->csr_base);
-    config_table->vtcm_base = HEXAGON_CFG_ADDR_BASE(cfgTable->vtcm_base);
-    config_table->l2cfg_base = HEXAGON_CFG_ADDR_BASE(cfgTable->l2cfg_base);
+    config_table->l2tcm_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2tcm_base);
+    config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
+    config_table->vtcm_base = HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.vtcm_base);
+    config_table->l2cfg_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2cfg_base);
     config_table->fastl2vic_base =
-                             HEXAGON_CFG_ADDR_BASE(cfgTable->fastl2vic_base);
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.fastl2vic_base);
 
     rom_add_blob_fixed_as("config_table.rom", config_table,
-        sizeof(*config_table), cfgExtensions->cfgbase, &address_space_memory);
+                          sizeof(*config_table), m_cfg->cfgbase,
+                          &address_space_memory);
 }
 
 static void init_mc(MachineClass *mc)
@@ -432,8 +434,7 @@ static void init_mc(MachineClass *mc)
 
 static void v66g_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v66_rev, &v66g_1024_cfgtable,
-        &v66g_1024_extensions);
+    hexagon_common_init(machine, v66_rev, &v66g_1024);
 }
 
 static void v66g_1024_init(ObjectClass *oc, void *data)
@@ -467,8 +468,7 @@ static void v66g_linux_init(ObjectClass *oc, void *data)
 static void v68n_1024_config_init(MachineState *machine)
 
 {
-    hexagon_common_init(machine, v68_rev, &v68n_1024_cfgtable,
-        &v68n_1024_extensions);
+    hexagon_common_init(machine, v68_rev, &v68n_1024);
 }
 
 static void v68n_1024_init(ObjectClass *oc, void *data)
@@ -503,8 +503,7 @@ static void v68g_h2_init(ObjectClass *oc, void *data)
 
 static void v69na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v69_rev, &v69na_1024_cfgtable,
-        &v69na_1024_extensions);
+    hexagon_common_init(machine, v69_rev, &v69na_1024);
 }
 
 static void v69na_1024_init(ObjectClass *oc, void *data)
@@ -520,14 +519,12 @@ static void v69na_1024_init(ObjectClass *oc, void *data)
 
 static void v73na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73_rev, &v73na_1024_cfgtable,
-        &v73na_1024_extensions);
+    hexagon_common_init(machine, v73_rev, &v73na_1024);
 }
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0_cfgtable,
-        &SA8775P_cdsp0_extensions);
+    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
@@ -544,8 +541,7 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
 
 static void SA8540P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v68_rev, &SA8540P_cdsp0_cfgtable,
-        &SA8540P_cdsp0_extensions);
+    hexagon_common_init(machine, v68_rev, &SA8540P_cdsp0);
 }
 
 static void SA8540P_cdsp0_init(ObjectClass *oc, void *data)
@@ -591,20 +587,17 @@ static void v73na_1024_init(ObjectClass *oc, void *data)
 
 static void v75na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v75_rev, &v75na_1024_cfgtable,
-        &v75na_1024_extensions);
+    hexagon_common_init(machine, v75_rev, &v75na_1024);
 }
 
 static void virt_nocoproc_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, unknown_rev, &v75na_1024_nocoproc_cfgtable,
-        &v75na_1024_nocoproc_extensions);
+    hexagon_common_init(machine, unknown_rev, &v75na_1024_nocoproc);
 }
 
 static void virt_coproc_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, unknown_rev, &v75na_1024_cfgtable,
-        &v75na_1024_extensions);
+    hexagon_common_init(machine, unknown_rev, &v75na_1024);
 }
 
 static void v75na_1024_linux_config_init(MachineState *machine)
@@ -638,8 +631,7 @@ static void v75na_1024_init(ObjectClass *oc, void *data)
 
 static void v79na_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v79_rev, &v79na_1_cfgtable,
-        &v79na_1_extensions);
+    hexagon_common_init(machine, v79_rev, &v79na_1);
 }
 
 static void v79na_1_linux_config_init(MachineState *machine)

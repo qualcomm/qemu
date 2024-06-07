@@ -76,7 +76,7 @@ typedef enum {
 
 /* Config table address bases represent bits [35:16].
  */
-#define HEXAGON_CFG_ADDR_BASE(addr) ((addr >> 16) & 0x0fffff)
+#define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 
 #define HEXAGON_DEFAULT_L2_TAG_SIZE (1024)
 #define HEXAGON_DEFAULT_TLB_ENTRIES (128)
@@ -168,6 +168,7 @@ typedef struct {
     uint32_t csr_base; /* QTimer csr base */
     uint32_t qtmr_rg0;
     uint32_t qtmr_rg1;
-} hexagon_config_extensions;
+    hexagon_config_table cfgtable;
+} hexagon_machine_config;
 
 #endif
