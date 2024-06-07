@@ -25,16 +25,6 @@
 #ifndef CONFIG_USER_ONLY
 
 #define READ_SREG(NUM) ARCH_GET_SYSTEM_REG(env, NUM)
-#define READ_SGP0()    ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP0)
-#define READ_SGP1()    ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP1)
-#define READ_SGP10()   ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP0) | \
-    ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP1) << 32))
-
-#define WRITE_SREG(NUM, VAL)      g_assert_not_reached()
-#define WRITE_SGP0(VAL)           g_assert_not_reached()
-#define WRITE_SGP1(VAL)           g_assert_not_reached()
-#define WRITE_SGP10(VAL) \
-        g_assert_not_reached()
 
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
@@ -83,8 +73,6 @@
         } \
     } while (0)
 #endif
-
-#define fREAD_ELR() (READ_SREG(HEX_SREG_ELR))
 
 #define fLOAD_PHYS(NUM, SIZE, SIGN, SRC1, SRC2, DST) { \
   const uintptr_t rs = ((unsigned long)(unsigned)(SRC1)) & 0x7ff; \
@@ -169,21 +157,12 @@
         g_assert_not_reached()
 
 #define fDCINVIDX(REG)
-#define fDCINVA(REG) do { REG = REG; } while (0) /* Nothing to do in qemu */
 
 #define fSET_TLB_LOCK()       hex_tlb_lock(env);
 #define fCLEAR_TLB_LOCK()     hex_tlb_unlock(env);
 
 #define fSET_K0_LOCK()        hex_k0_lock(env);
 #define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
-
-#define fGET_TNUM()               thread->threadId
-#define fSTART(REG)               hexagon_start_threads(env, REG)
-#define fRESUME(REG)              hexagon_resume_threads(env, REG)
-#define fCLEAR_RUN_MODE(x)        hexagon_stop_thread(env)
-#define READ_IMASK(TID)           getimask(env, TID)
-#define WRITE_IMASK(PRED, MASK)   setimask(env, PRED, MASK)
-#define WRITE_PRIO(TH, PRIO)      setprio(env, TH, PRIO)
 
 #define fTLB_IDXMASK(INDEX) \
     ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->num_tlbs)) - 1))
@@ -212,7 +191,6 @@
     0    /* FIXME */
 #define fIN_DEBUG_MODE_NO_ISDB(TNUM) \
     0    /* FIXME */
-#define fIN_DEBUG_MODE_WARN(TNUM)
 
 #ifdef QEMU_GENERATE
 
