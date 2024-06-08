@@ -23,9 +23,11 @@
 #define THREADS_PER_CORE (MAX_CLUSTERS_DMA * MAX_THREADS_PER_CLUSTER)		/* HW threads in a core */
 #define THREADS_MAX_DMA (MAX_CORES * THREADS_PER_CORE)
 #define DMA_MAX THREADS_MAX_DMA  // DMA: make this independent
-#define MAX_EXT_CONTEXTS 4
+#define MAX_EXT_CONTEXTS 8
 #define MAX_L2_INTERLEAVES 2
 #define MAX_VFIFO_COUNT 4
+
+#define MAX_VTCM_SIZE_KB (32 * 1024)
 
 #define SLOTS_MAX 4
 
