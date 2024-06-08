@@ -162,7 +162,6 @@ typedef  union {
 
 typedef struct {
     uint32_t cfgbase; /* Base address of config table */
-    uint32_t cfgtable_size; /* Size of config table */
     uint32_t l2tcm_size; /* Size of L2 TCM */
     uint32_t l2vic_base; /* Base address of L2VIC */
     uint32_t l2vic_size; /* Size of L2VIC region */

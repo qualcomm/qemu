@@ -30,7 +30,6 @@
 
 static hexagon_machine_config v66g_1024 = {
     .cfgbase =        0xd8180000,
-    .cfgtable_size =  0x00000400,
     .l2tcm_size =     0x00000000,
     .l2vic_base =     0xfc910000,
     .l2vic_size =     0x00001000,
@@ -94,7 +93,6 @@ static hexagon_machine_config v66g_1024 = {
 
 static hexagon_machine_config v68n_1024 = {
     .cfgbase =           0xde000000,
-    .cfgtable_size =     0x00000400,
     .l2tcm_size =        0x00000000,
     .l2vic_base =        0xfc910000,
     .l2vic_size =        0x00001000,
@@ -158,7 +156,6 @@ static hexagon_machine_config v68n_1024 = {
 
 static hexagon_machine_config v69na_1024 = {
     .cfgbase =             0xde000000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xfc910000,
     .l2vic_size =          0x00001000,
@@ -222,7 +219,6 @@ static hexagon_machine_config v69na_1024 = {
 
 static hexagon_machine_config v73m = {
     .cfgbase =             0xd8380000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xd8300000 + 0x90000,
     .l2vic_size =          0x00001000,
@@ -285,7 +281,6 @@ static hexagon_machine_config v73m = {
 
 static hexagon_machine_config v73na_1024 = {
     .cfgbase =             0xd8180000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xfc910000,
     .l2vic_size =          0x00001000,
@@ -349,7 +344,6 @@ static hexagon_machine_config v73na_1024 = {
 
 static hexagon_machine_config v75na_1024 = {
     .cfgbase =             0xd8180000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xfc910000,
     .l2vic_size =          0x00001000,
@@ -413,7 +407,6 @@ static hexagon_machine_config v75na_1024 = {
 
 static hexagon_machine_config v75na_1024_nocoproc = {
     .cfgbase =             0xd8180000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xfc910000,
     .l2vic_size =          0x00001000,
@@ -477,7 +470,6 @@ static hexagon_machine_config v75na_1024_nocoproc = {
 
 static hexagon_machine_config v79na_1 = {
     .cfgbase =             0xd8180000,
-    .cfgtable_size =       0x00000400,
     .l2tcm_size =          0x00000000,
     .l2vic_base =          0xfc910000,
     .l2vic_size =          0x00001000,
@@ -541,7 +533,6 @@ static hexagon_machine_config v79na_1 = {
 
 static hexagon_machine_config SA8540P_cdsp0 = {
     .cfgbase =         0x1a000000 + 0x180000,
-    .cfgtable_size =   0x00000400,
     .l2tcm_size =      0x00000000,
     .l2vic_base =      0x1B300000 + 0x90000,
     .l2vic_size =      0x00001000,
@@ -605,7 +596,6 @@ static hexagon_machine_config SA8540P_cdsp0 = {
 
 static hexagon_machine_config SA8775P_cdsp0 = {
     .cfgbase =         0x24000000 + 0x180000,
-    .cfgtable_size =   0x00000400,
     .l2tcm_size =      0x00000000,
     .l2vic_base =      0x26300000 + 0x90000,
     .l2vic_size =      0x00001000,
