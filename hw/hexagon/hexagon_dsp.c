@@ -489,9 +489,9 @@ static void v68g_1024_h2_init(MachineState *machine)
     v68n_1024_config_init(machine);
 }
 
-static void v68g_h2_init(ObjectClass *oc, void *data)
+static void v68n_h2_init(ObjectClass *oc, void *data)
 {
-    v66g_1024_init(oc, data);
+    v68n_1024_init(oc, data);
 
     MachineClass *mc = MACHINE_CLASS(oc);
     mc->init = v68g_1024_h2_init;
@@ -753,7 +753,7 @@ static const TypeInfo hexagon_machine_types[] = {
     }, {
         .name = MACHINE_TYPE_NAME("V68_H2"),
         .parent = TYPE_MACHINE,
-        .class_init = v68g_h2_init,
+        .class_init = v68n_h2_init,
     }, {
         .name = MACHINE_TYPE_NAME("SA8540P_CDSP0"),
         .parent = TYPE_MACHINE,
