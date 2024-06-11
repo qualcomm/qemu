@@ -69,8 +69,6 @@ HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
 HEX_TESTS += scalar
 HEX_TESTS += upcycle
-HEX_TESTS += unaligned_pc
-HEX_TESTS += unaligned_pc_multi_cof
 
 TESTS += $(HEX_TESTS)
 
@@ -109,8 +107,6 @@ run-hvx_misc run-scatter_gather run-hvx_histogram run-hvx_sat:
 # We'll grep for the proper exception number in their stderr
 run-privcheck: privcheck
 run-guestcheck: guestcheck
-run-unaligned_pc: unaligned_pc
-run-unaligned_pc_multi_cof: unaligned_pc_multi_cof
 
 run-privcheck:
 	$(call run-test, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
@@ -130,16 +126,8 @@ run-guestcheck:
 		grep -q "exception 0x1a" $<.stderr, \
 		"GREP", "exception 0x1a");
 
-run-unaligned_pc run-unaligned_pc_multi_cof:
-	$(call run-test, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 1 ] ; then \
-		return 1; \
-	fi
-	$(call quiet-command, \
-		grep -q "exception 0x1e" $<.stderr, \
-		"GREP", "exception 0x1e");
-
 HEX_TESTS += invalid-slots
+HEX_TESTS += unaligned_pc
 
 run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
 	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
@@ -196,6 +184,7 @@ overflow: overflow.c hex_test.h
 preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
+unaligned_pc: unaligned_pc.c
 
 # This test has to be compiled for the -mv67t target
 usr: usr.c hex_test.h

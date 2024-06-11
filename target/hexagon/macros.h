@@ -26,9 +26,6 @@
 #include "reg_fields.h"
 #include "attribs.h"
 
-#define PCALIGN 4
-#define PCALIGN_MASK (PCALIGN - 1)
-
 #ifdef QEMU_GENERATE
 #define HEXAGON_REV_BYTE() (ctx->rev)
 #else
@@ -669,7 +666,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #ifdef CONFIG_USER_ONLY
 #define fTRAP(TRAPTYPE, IMM) \
     do { \
-        raise_exception(env, HEX_EVENT_TRAP0, PC); \
+        hexagon_raise_exception_err(env, HEX_EVENT_TRAP0, PC); \
     } while (0)
 #endif
 

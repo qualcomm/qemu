@@ -336,9 +336,13 @@ if host_arch == 'i386' and not cc.links('''
   qemu_common_flags = ['-march=i486'] + qemu_common_flags
 endif
 
-# ??? Only extremely old AMD cpus do not have cmpxchg16b.
-# If we truly care, we should simply detect this case at
-# runtime and generate the fallback to serial emulation.
+# Assume x86-64-v2 (minus CMPXCHG16B for 32-bit code)
+if host_arch == 'i386'
+  qemu_common_flags = ['-mfpmath=sse'] + qemu_common_flags
+endif
+if host_arch in ['i386', 'x86_64']
+  qemu_common_flags = ['-mpopcnt', '-msse4.2'] + qemu_common_flags
+endif
 if host_arch == 'x86_64'
   qemu_common_flags = ['-mcx16'] + qemu_common_flags
 endif
@@ -2562,10 +2566,16 @@ config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(gnu_source_prefix + '''
   #else
   int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
   #endif'''))
-config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
-  #include <sys/mman.h>
-  #include <stddef.h>
-  int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+
+# On Darwin posix_madvise() has the same return semantics as plain madvise(),
+# i.e. errno is set and -1 is returned. That's not really how POSIX defines the
+# function. On the flip side, it has madvise() which is preferred anyways.
+if host_os != 'darwin'
+  config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
+    #include <sys/mman.h>
+    #include <stddef.h>
+    int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+endif
 
 config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links(gnu_source_prefix + '''
   #include <pthread.h>

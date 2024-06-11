@@ -111,16 +111,17 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     cs->halted = false;
 }
 
-G_NORETURN void raise_exception(CPUHexagonState *env, uint32_t excp,
-                                target_ulong PC)
+G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
+                                            uint32_t exception,
+                                            uintptr_t pc)
 {
-    do_raise_exception(env, excp, PC, 0);
+    do_raise_exception(env, exception, pc, 0);
 }
 
 G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
                                         target_ulong PC)
 {
-    raise_exception(env, excp, PC);
+    hexagon_raise_exception_err(env, excp, PC);
 }
 
 void log_store32(CPUHexagonState *env, target_ulong addr,
@@ -2650,7 +2651,7 @@ void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
     if (ready_count > 1 &&
         env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
         env->gpr[HEX_REG_PC] = next_PC;
-        raise_exception(env, EXCP_YIELD, next_PC);
+        hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
         env->exec_ctr_tb = 0;
     }
     env->last_cpu = env->threadId;

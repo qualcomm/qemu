@@ -58,10 +58,6 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 
 #define TARGET_LONG_BITS 32
 
-/*
- * Hexagon processors have a strong memory model.
- */
-#define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL)
 #include "hw/registerfields.h"
 
 #define NUM_PREGS 4
@@ -531,6 +527,10 @@ static inline bool rev_implements_64b_hvx(CPUHexagonState *env)
     return (hex_cpu->rev_reg & 255) <= (v66_rev & 255);
 }
 
+G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
+                                            uint32_t exception,
+                                            uintptr_t pc);
+
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
@@ -591,6 +591,9 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
 #endif
 
     *flags = hex_flags;
+    if (*pc & PCALIGN_MASK) {
+        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
+    }
 }
 
 #ifndef CONFIG_USER_ONLY

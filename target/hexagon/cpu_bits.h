@@ -108,6 +108,9 @@ enum data_cache_state {
 
 #include "qemu/bitops.h"
 
+#define PCALIGN 4
+#define PCALIGN_MASK (PCALIGN - 1)
+
 static inline uint32_t parse_bits(uint32_t encoding)
 {
     /* The parse bits are [15:14] */

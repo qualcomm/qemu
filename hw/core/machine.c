@@ -17,6 +17,7 @@
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-machine.h"
+#include "qemu/madvise.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
@@ -265,8 +266,6 @@ GlobalProperty hw_compat_2_5[] = {
 const size_t hw_compat_2_5_len = G_N_ELEMENTS(hw_compat_2_5);
 
 GlobalProperty hw_compat_2_4[] = {
-    /* Optional because the 'scsi' property is Linux-only */
-    { "virtio-blk-device", "scsi", "true", .optional = true },
     { "e1000", "extra_mac_registers", "off" },
     { "virtio-pci", "x-disable-pcie", "on" },
     { "virtio-pci", "migrate-extra", "off" },
@@ -429,6 +428,10 @@ static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    if (!value && QEMU_MADV_DONTDUMP == QEMU_MADV_INVALID) {
+        error_setg(errp, "Dumping guest memory cannot be disabled on this host");
+        return;
+    }
     ms->dump_guest_core = value;
 }
 
@@ -443,6 +446,10 @@ static void machine_set_mem_merge(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    if (value && QEMU_MADV_MERGEABLE == QEMU_MADV_INVALID) {
+        error_setg(errp, "Memory merging is not supported on this host");
+        return;
+    }
     ms->mem_merge = value;
 }
 
@@ -1131,7 +1138,7 @@ static void machine_initfn(Object *obj)
     container_get(obj, "/peripheral-anon");
 
     ms->dump_guest_core = true;
-    ms->mem_merge = true;
+    ms->mem_merge = (QEMU_MADV_MERGEABLE != QEMU_MADV_INVALID);
     ms->enable_graphics = true;
     ms->kernel_cmdline = g_strdup("");
     ms->ram_size = mc->default_ram_size;
@@ -1218,7 +1225,7 @@ bool machine_mem_merge(MachineState *machine)
 
 bool machine_require_guest_memfd(MachineState *machine)
 {
-    return machine->require_guest_memfd;
+    return machine->cgs && machine->cgs->require_guest_memfd;
 }
 
 static char *cpu_slot_to_string(const CPUArchId *cpu)

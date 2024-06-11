@@ -202,6 +202,7 @@
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
 #define sextT0 .special = X86_SPECIAL_SExtT0,
 #define zextT0 .special = X86_SPECIAL_ZExtT0,
+#define op0_Mw .special = X86_SPECIAL_Op0_Mw,
 
 #define vex1 .vex_class = 1,
 #define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
@@ -1358,6 +1359,19 @@ static void decode_group11(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
     }
 }
 
+static void decode_90(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static X86OpEntry pause = X86_OP_ENTRY0(PAUSE, svm(PAUSE));
+    static X86OpEntry nop = X86_OP_ENTRY0(NOP);
+    static X86OpEntry xchg_ax = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v);
+
+    if (REX_B(s)) {
+        *entry = xchg_ax;
+    } else {
+        *entry = (s->prefix & PREFIX_REPZ) ? pause : nop;
+    }
+}
+
 static const X86OpEntry opcodes_root[256] = {
     [0x00] = X86_OP_ENTRY2(ADD, E,b, G,b, lock),
     [0x01] = X86_OP_ENTRY2(ADD, E,v, G,v, lock),
@@ -1440,7 +1454,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0x86] = X86_OP_ENTRY2(XCHG, E,b, G,b, xchg),
     [0x87] = X86_OP_ENTRY2(XCHG, E,v, G,v, xchg),
 
-    [0x90] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x90] = X86_OP_GROUP0(90),
     [0x91] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
     [0x92] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
     [0x93] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
@@ -1495,7 +1509,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xE7] = X86_OP_ENTRYrr(OUT,   0,v, I_unsigned,b), /* AX/EAX */
 
     [0xF1] = X86_OP_ENTRY0(INT1,   svm(ICEBP)),
-    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0)),
+    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0) svm(HLT)),
     [0xF5] = X86_OP_ENTRY0(CMC),
     [0xF6] = X86_OP_GROUP1(group3, E,b),
     [0xF7] = X86_OP_GROUP1(group3, E,v),
@@ -1576,9 +1590,10 @@ static const X86OpEntry opcodes_root[256] = {
     [0x89] = X86_OP_ENTRY3(MOV, E,v, G,v, None, None),
     [0x8A] = X86_OP_ENTRY3(MOV, G,b, E,b, None, None),
     [0x8B] = X86_OP_ENTRY3(MOV, G,v, E,v, None, None),
-    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None),
+    /* Missing in Table A-2: memory destination is always 16-bit.  */
+    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None, op0_Mw),
     [0x8D] = X86_OP_ENTRY3(LEA, G,v, M,v, None, None, noseg),
-    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,v, None, None),
+    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,w, None, None),
     [0x8F] = X86_OP_GROUPw(group1A, E,v),
 
     [0x98] = X86_OP_ENTRY1(CBW,    0,v), /* rAX */
@@ -2041,9 +2056,9 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
     case X86_FEAT_PCLMULQDQ:
         return (s->cpuid_ext_features & CPUID_EXT_PCLMULQDQ);
     case X86_FEAT_SSE:
-        return (s->cpuid_ext_features & CPUID_SSE);
+        return (s->cpuid_features & CPUID_SSE);
     case X86_FEAT_SSE2:
-        return (s->cpuid_ext_features & CPUID_SSE2);
+        return (s->cpuid_features & CPUID_SSE2);
     case X86_FEAT_SSE3:
         return (s->cpuid_ext_features & CPUID_EXT_SSE3);
     case X86_FEAT_SSSE3:
@@ -2514,6 +2529,13 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         s->override = -1;
         break;
 
+    case X86_SPECIAL_Op0_Mw:
+        assert(decode.op[0].unit == X86_OP_INT);
+        if (decode.op[0].has_ea) {
+            decode.op[0].ot = MO_16;
+        }
+        break;
+
     default:
         break;
     }
@@ -2530,7 +2552,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     /*
      * Checks that result in #GP or VMEXIT come second.  Intercepts are
-     * generally checked after non-memory exceptions (i.e. before all
+     * generally checked after non-memory exceptions (i.e. after all
      * exceptions if there is no memory operand).  Exceptions are
      * vm86 checks (INTn, IRET, PUSHF/POPF), RSM and XSETBV (!).
      *
