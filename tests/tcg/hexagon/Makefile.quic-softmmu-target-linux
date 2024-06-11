@@ -190,7 +190,18 @@ run-tlblocklock-test: tlblocklock
 		} | expect, \
 	"done")
 
-EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test
+MTTCG="-accel tcg,thread=multi"
+run-k0lock-syscfg-test: k0lock-syscfg
+	$(call run-test, $@, \
+		echo "starting qemu through 'expect'"; \
+		{ \
+		  echo "spawn timeout 5  $(QEMU) $(MTTCG) $(QEMU_OPTS) $<"; \
+		  echo 'expect "PASS"'; \
+		  echo 'send "quit\r"'; \
+		} | expect, \
+	"done")
+
+EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test run-k0lock-syscfg-test
 
 ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
 # hexagon-lldb starts qemu with an empty environment. To bypass that, we create

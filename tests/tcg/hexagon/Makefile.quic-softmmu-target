@@ -24,6 +24,7 @@ DOWNSTREAM_TESTS += \
 	badva \
 	tlblock \
 	k0lock \
+	k0lock-syscfg \
 	invalid_opcode \
 	invalid_insn_for_rev \
 	sys_atomics \
@@ -166,6 +167,7 @@ memcpy: memcpy.o
 inf-loop: inf-loop.o
 double_ex.o: double_ex.c
 double_ex: double_ex.o
+k0lock-syscfg: k0lock-syscfg.c thread_common.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o

@@ -275,8 +275,17 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
         } else {
-            gen_masked_reg_write(val, hex_g_sreg[rnum], reg_mask);
-            gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
+           /*
+            * SYSCFG can be updated by k0lock or tlblock.
+            * The helper will protect the immutable bits and do the
+            * RMW sequence with BQL held, the tcg RWM is not thread safe.
+            */
+            if (rnum == HEX_SREG_SYSCFG) {
+                gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
+            } else {
+                gen_masked_reg_write(val, hex_g_sreg[rnum], reg_mask);
+                gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
+            }
         }
     }
 }
