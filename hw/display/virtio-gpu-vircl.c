@@ -122,7 +122,7 @@ static void virgl_cmd_context_create(VirtIOGPU *g,
                                     cc.debug_name);
 
     if (cc.context_init) {
-#ifdef HAVE_VIRGL_CONTEXT_INIT
+#ifdef HAVE_VIRCL_CONTEXT_INIT
         vircl_renderer_context_create_with_flags(cc.hdr.ctx_id,
                                                  cc.context_init,
                                                  cc.nlen,
@@ -198,7 +198,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
         struct virgl_renderer_resource_info info;
         void *d3d_tex2d = NULL;
 
-#ifdef HAVE_VIRGL_D3D_INFO_EXT
+#ifdef HAVE_VIRCL_D3D_INFO_EXT
         struct virgl_renderer_resource_info_ext ext;
         memset(&ext, 0, sizeof(ext));
         ret = vircl_renderer_resource_get_info_ext(ss.resource_id, &ext);
@@ -440,7 +440,7 @@ static void virgl_cmd_get_capset(VirtIOGPU *g,
     g_free(resp);
 }
 
-#ifdef HAVE_VIRGL_RESOURCE_BLOB
+#ifdef HAVE_VIRCL_RESOURCE_BLOB
 
 static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
                                            struct virtio_gpu_ctrl_command *cmd)
@@ -595,7 +595,7 @@ static void virgl_cmd_resource_unmap_blob(VirtIOGPU *g,
     virtio_gpu_vircl_resource_unmap(g, res);
 }
 
-#endif /* HAVE_VIRGL_RESOURCE_BLOB */
+#endif /* HAVE_VIRCL_RESOURCE_BLOB */
 
 void virtio_gpu_vircl_process_cmd(VirtIOGPU *g,
                                       struct virtio_gpu_ctrl_command *cmd)
@@ -666,7 +666,7 @@ void virtio_gpu_vircl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_GET_EDID:
         virtio_gpu_get_edid(g, cmd);
         break;
-#ifdef HAVE_VIRGL_RESOURCE_BLOB
+#ifdef HAVE_VIRCL_RESOURCE_BLOB
     case VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB:
         virgl_cmd_resource_create_blob(g, cmd);
         break;
@@ -679,7 +679,7 @@ void virtio_gpu_vircl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_RESOURCE_UNMAP_BLOB:
         virgl_cmd_resource_unmap_blob(g, cmd);
         break;
-#endif /* HAVE_VIRGL_RESOURCE_BLOB */
+#endif /* HAVE_VIRCL_RESOURCE_BLOB */
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         break;
