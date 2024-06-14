@@ -64,6 +64,7 @@ TESTS += \
 	tlblock \
 	tlb-miss-tlblock \
 	k0lock \
+	k0lock-syscfg \
 	invalid_opcode \
 	invalid_insn_for_rev \
 	sys_atomics \
@@ -105,7 +106,6 @@ TESTS += \
 	semihost \
 	double_ex \
 	qfloat_test \
-	k0lock \
 	$()
 
 CFLAGS+=-G0 -O2
@@ -239,6 +239,7 @@ semihost.o: semihost.c strutils.h
 semihost: semihost.o
 double_ex.o: double_ex.c filename.h
 double_ex: double_ex.o
+k0lock-syscfg: k0lock-syscfg.c thread_common.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 
@@ -493,7 +494,19 @@ run-tlblocklock-test: tlblocklock
 		} | expect, \
 	"done")
 
-EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test
+MTTCG="-accel tcg,thread=multi"
+run-k0lock-syscfg-test: k0lock-syscfg
+	$(call run-test, $@, \
+		echo "starting qemu through 'expect'"; \
+		{ \
+		  echo "spawn timeout 5  $(QEMU) $(MTTCG) $(QEMU_OPTS) $<"; \
+		  echo 'expect "PASS"'; \
+		  echo 'send "quit\r"'; \
+		} | expect, \
+	"done")
+
+
+EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test run-k0lock-syscfg-test
 
 ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
 

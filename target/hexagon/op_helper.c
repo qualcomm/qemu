@@ -1779,7 +1779,7 @@ static void hex_k0_lock(CPUHexagonState *env)
 static void hex_k0_unlock(CPUHexagonState *env)
 {
     trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_unlock");
-    bql_lock();
+    BQL_LOCK_GUARD();
     print_thread_states("\tThread");
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
@@ -1790,10 +1790,10 @@ static void hex_k0_unlock(CPUHexagonState *env)
         (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_OWNER)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "thread %d attempted to unlock k0 without having the "
-                      "lock, k0_lock state = %d\n",
-                      env->threadId, ATOMIC_LOAD(env->k0_lock_state));
+                      "lock, k0_lock state = %d, syscfg:k0 = %d\n",
+                      env->threadId, ATOMIC_LOAD(env->k0_lock_state),
+                      GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg));
         g_assert (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_WAITING);
-        bql_unlock();
         return;
     }
 
@@ -1851,7 +1851,6 @@ static void hex_k0_unlock(CPUHexagonState *env)
     }
 
     print_thread_states("\tThread");
-    bql_unlock();
     trace_hexagon_k0_lock_info(env->threadId, "After hex_k0_unlock\n");
 }
 #endif
@@ -2250,6 +2249,14 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 {
     /* get old value and then store new value */
     uint32_t old;
+    uint32_t syscfg_read_only_mask = 0x80001c00;
+    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+
+    /* clear read-only bits if they are set in the new value. */
+    val &= ~syscfg_read_only_mask;
+    /* if read-only are currently set in syscfg keep them set. */
+    val |= (syscfg & syscfg_read_only_mask);
+
     ATOMIC_EXCHANGE(ARCH_GET_SYSTEM_REG_ADDR(env, HEX_SREG_SYSCFG), val, old);
 
     /* Check for change in MMU enable */
