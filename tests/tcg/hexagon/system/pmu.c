@@ -22,7 +22,7 @@
 #include <inttypes.h>
 #include <hexagon_standalone.h>
 #include "thread_common.h"
-#include "filename.h"
+
 
 #define TOLERANCE 0.1
 #define ERR (1 + TOLERANCE)
@@ -429,16 +429,18 @@ static void test_upmucnt(void)
     /* gpmucnt writes should be ignored. */
     toggle_ssr_pe(1);
     pmu_reset();
+
+    /* The compiler prevents this, so we write the word directly. */
     asm volatile(
         "r0 = #2\n"
-        "c20 = r0\n"
-        "c21 = r0\n"
-        "c22 = r0\n"
-        "c23 = r0\n"
-        "c24 = r0\n"
-        "c25 = r0\n"
-        "c26 = r0\n"
-        "c27 = r0\n"
+        ".word 0x6220c014\n" /* c20 = r0 */
+        ".word 0x6220c015\n" /* c21 = r0 */
+        ".word 0x6220c016\n" /* c22 = r0 */
+        ".word 0x6220c017\n" /* c23 = r0 */
+        ".word 0x6220c018\n" /* c24 = r0 */
+        ".word 0x6220c019\n" /* c25 = r0 */
+        ".word 0x6220c01a\n" /* c26 = r0 */
+        ".word 0x6220c01b\n" /* c27 = r0 */
         : : : "r0");
     for (int i = 0; i < NUM_PMU_CTRS; i++) {
         check_range(i, CREG, 0, 0);
@@ -527,6 +529,6 @@ int main()
     test_event_change();
     test_committed_pkt_any();
 
-    printf("%s : %s\n", ((err) ? "FAIL" : "PASS"), __FILENAME__);
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;
 }

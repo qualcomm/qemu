@@ -105,10 +105,8 @@ TESTS += \
 	semihost \
 	double_ex \
 	qfloat_test \
+	k0lock \
 	$()
-
-TESTS = k0lock
-
 
 CFLAGS+=-G0 -O2
 
