@@ -658,6 +658,11 @@ static void v79na_1_linux_config_init(MachineState *machine)
     v79na_1_config_init(machine);
 }
 
+static void v79m_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v79m_1_rev, &v79m_1);
+}
+
 static void v79na_1_linux_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -678,6 +683,17 @@ static void v79na_1_init(ObjectClass *oc, void *data)
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
     mc->default_cpus = 8;
+}
+
+static void v79m_1_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V79M_1";
+    mc->init = v79m_1_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V79;
+    mc->default_cpus = 4;
 }
 
 static void virt_init(ObjectClass *oc, void *data)
@@ -742,6 +758,10 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V79NA_1"),
         .parent = TYPE_MACHINE,
         .class_init = v79na_1_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V79M_1"),
+        .parent = TYPE_MACHINE,
+        .class_init = v79m_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V79_Linux"),
         .parent = TYPE_MACHINE,

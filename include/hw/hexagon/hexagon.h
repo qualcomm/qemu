@@ -71,6 +71,7 @@ typedef enum {
     v73m_rev = 0xcc73,
     v75_rev = 0x8c75,
     v79_rev = 0x8c79,
+    v79m_1_rev = 0xdc79,
 } Rev_t;
 #define HEXAGON_LATEST_REV v79
 #define HEXAGON_LATEST_REV_UPPER V79
