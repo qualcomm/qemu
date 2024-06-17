@@ -37,10 +37,10 @@ DEFAULT_EVENT_HANDLE(my_event_handle_trap0,       HANDLE_TRAP0_OFFSET)
 DEFAULT_EVENT_HANDLE(my_event_handle_trap1,       HANDLE_TRAP1_OFFSET)
 DEFAULT_EVENT_HANDLE(my_event_handle_int,         HANDLE_INT_OFFSET)
 
-void test_page_size(tlb_pgsize_t pgsize, uint32_t page_size_bits)
+void test_page_size(PageSize pgsize, uint32_t page_size_bits)
 {
 #if DEBUG
-    printf("Testing %s page size\n", pgsize_str[pgsize]);
+    printf("Testing %s page size\n", pgsize_str(pgsize));
 #endif
     uint32_t page_size = 1 << page_size_bits;
     uint32_t addr = (uint32_t)&data;
@@ -111,16 +111,16 @@ int main()
 {
     puts("Hexagon MMU page size test");
 
-    test_page_size(PGSIZE_4K,   12);
-    test_page_size(PGSIZE_16K,  14);
-    test_page_size(PGSIZE_64K,  16);
-    test_page_size(PGSIZE_256K, 18);
-    test_page_size(PGSIZE_1M,   20);
-    test_page_size(PGSIZE_4M,   22);
-    test_page_size(PGSIZE_16M,  24);
-    test_page_size(PGSIZE_64M,  26);
-    test_page_size(PGSIZE_256M, 28);
-    test_page_size(PGSIZE_1G,   30);
+    test_page_size(PAGE_4K,   12);
+    test_page_size(PAGE_16K,  14);
+    test_page_size(PAGE_64K,  16);
+    test_page_size(PAGE_256K, 18);
+    test_page_size(PAGE_1M,   20);
+    test_page_size(PAGE_4M,   22);
+    test_page_size(PAGE_16M,  24);
+    test_page_size(PAGE_64M,  26);
+    test_page_size(PAGE_256M, 28);
+    test_page_size(PAGE_1G,   30);
 
     printf("%s\n", ((err) ? "FAIL" : "PASS"));
     return err;

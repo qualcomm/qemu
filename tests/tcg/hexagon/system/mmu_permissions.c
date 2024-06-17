@@ -63,7 +63,7 @@ void test_permissions(void)
     data = 0xdeadbeef;
 
     add_trans(1, new_data_page, data_page,
-              PGSIZE_4K, data_perm, 0, 1, 1);
+              PAGE_4K, data_perm, 0, 1, 1);
     check32(tlbp(0, read_data_addr), 1);
 
     data_offset = TWO_MB;
@@ -71,7 +71,7 @@ void test_permissions(void)
     read_user_data_addr = data_addr + data_offset;
     data_perm = TLB_X | TLB_W | TLB_R;
     add_trans(2, new_data_page, data_page,
-              PGSIZE_4K, data_perm, 0, 1, 1);
+              PAGE_4K, data_perm, 0, 1, 1);
     check32(tlbp(0, read_user_data_addr), 2);
 
     data_offset = THREE_MB;
@@ -79,7 +79,7 @@ void test_permissions(void)
     write_data_addr = data_addr + data_offset;
     data_perm = TLB_X | TLB_R | TLB_U;
     add_trans(3, new_data_page, data_page,
-              PGSIZE_4K, data_perm, 0, 1, 1);
+              PAGE_4K, data_perm, 0, 1, 1);
     check32(tlbp(0, write_data_addr), 3);
 
     data_offset = FOUR_MB;
@@ -87,11 +87,11 @@ void test_permissions(void)
     write_user_data_addr = data_addr + data_offset;
     data_perm = TLB_X | TLB_R | TLB_W;
     add_trans(4, new_data_page, data_page,
-              PGSIZE_4K, data_perm, 0, 1, 1);
+              PAGE_4K, data_perm, 0, 1, 1);
     check32(tlbp(0, write_user_data_addr), 4);
 
     add_trans(5, new_func_page, func_page,
-              PGSIZE_4K, func_perm, 0, 1, 1);
+              PAGE_4K, func_perm, 0, 1, 1);
     check32(tlbp(0, exec_addr), 5);
 
     install_my_event_vectors();

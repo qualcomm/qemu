@@ -45,7 +45,7 @@ void test_multi_tlb(void)
     uint32_t new_addr = addr + offset;
     uint32_t new_page = page + offset;
     uint64_t entry =
-        create_mmu_entry(0, 0, 0, 1, new_page, 1, 1, 1, 0, 7, page, PGSIZE_4K);
+        create_mmu_entry(0, 0, 0, 1, new_page, 1, 1, 1, 0, 7, page, PAGE_4K);
     exception_vector expected_exceptions;
 
     install_my_event_vectors();

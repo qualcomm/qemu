@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdint.h>
+#include "crt0/hexagon_standalone.h"
 
 /*
  * Helpers for MMU tests
@@ -111,46 +112,25 @@ static const reg_field_t reg_field_info[] = {
     ((GET_FIELD((ENTRY), PTE_PPD) | \
      (GET_FIELD((ENTRY), PTE_PA35) << reg_field_info[PTE_PPD].width)))
 
+#define NUM_PGSIZE_TYPES (SHIFT_1G + 1)
 
-typedef enum {
-    PGSIZE_4K,
-    PGSIZE_16K,
-    PGSIZE_64K,
-    PGSIZE_256K,
-    PGSIZE_1M,
-    PGSIZE_4M,
-    PGSIZE_16M,
-    PGSIZE_64M,
-    PGSIZE_256M,
-    PGSIZE_1G,
-    NUM_PGSIZE_TYPES
-} tlb_pgsize_t;
-
-static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
-    "4K",
-    "16K",
-    "64K",
-    "256K",
-    "1M",
-    "4M",
-    "16M",
-    "64M",
-    "256M",
-    "1G"
-};
-
-static const uint16_t size_bits[] = {
-    0x01,    /*    PGSIZE_4K     */
-    0x02,    /*    PGSIZE_16K    */
-    0x04,    /*    PGSIZE_64K    */
-    0x08,    /*    PGSIZE_256K   */
-    0x10,    /*    PGSIZE_1M     */
-    0x20,    /*    PGSIZE_4M     */
-    0x40,    /*    PGSIZE_16M    */
-    0x80,    /*    PGSIZE_64M    */
-    0x100,   /*    PGSIZE_256M    */
-    0x200    /*    PGSIZE_1G    */
-};
+static const char *pgsize_str(PageSize pgsize)
+{
+    static const char *size_str[NUM_PGSIZE_TYPES] = {
+        "4K",
+        "16K",
+        "64K",
+        "256K",
+        "1M",
+        "4M",
+        "16M",
+        "64M",
+        "256M",
+        "1G"
+    };
+    assert(pgsize);
+    return size_str[__builtin_ctz(pgsize)];
+}
 
 static const uint64_t encmask_2_mask[] = {
     0x0fffLL,                           /* 4k,   0000 */
@@ -217,7 +197,7 @@ static void hex_dump_mmu_entry(uint64_t entry)
                 GET_FIELD(entry, PTE_C));
         printf(" PA:0x%09llx SZ:%s (0x%lx)",
                 PA,
-                pgsize_str[hex_tlb_pgsize(entry)],
+                pgsize_str(entry),
                 (unsigned long)hex_tlb_page_size(entry));
         printf("\n");
     } else {
@@ -229,7 +209,7 @@ static inline uint64_t create_mmu_entry(uint8_t G, uint8_t A0, uint8_t A1,
                                         uint8_t ASID, uint32_t VA,
                                         uint8_t X, int8_t W, uint8_t R,
                                         uint8_t U, uint8_t C, uint64_t PA,
-                                        tlb_pgsize_t SZ)
+                                        PageSize SZ)
 {
     uint64_t entry = 0;
     SET_FIELD(entry, PTE_V, 1);
@@ -245,7 +225,7 @@ static inline uint64_t create_mmu_entry(uint8_t G, uint8_t A0, uint8_t A1,
     SET_FIELD(entry, PTE_C, C);
     SET_FIELD(entry, PTE_PA35, (PA >> (TARGET_PAGE_BITS + 35)) & 1);
     SET_FIELD(entry, PTE_PPD, ((PA >> (TARGET_PAGE_BITS - 1))));
-    entry |= size_bits[SZ];
+    entry |= SZ;
     return entry;
 }
 
@@ -670,7 +650,7 @@ void my_event_handle_tlbmissrw_helper(uint32_t ssr)
     uint32_t PA = VA - (entry_num * ONE_MB);
 
     uint64_t entry =
-        create_mmu_entry(1, 0, 0, 0, VA, 0, 0, 0, 1, 0x3, PA, PGSIZE_4K);
+        create_mmu_entry(1, 0, 0, 0, VA, 0, 0, 0, 1, 0x3, PA, PAGE_4K);
     if (entry_num == TWO_MB_ENTRY) {
         SET_FIELD(entry, PTE_R, 1);
     }
@@ -702,7 +682,7 @@ void my_event_handle_tlbmissx_helper(uint32_t ssr)
     uint32_t PA = VA - (entry_num * ONE_MB);
 
     uint64_t entry =
-        create_mmu_entry(1, 0, 0, 0, VA, 0, 0, 0, 1, 0x3, PA, PGSIZE_4K);
+        create_mmu_entry(1, 0, 0, 0, VA, 0, 0, 0, 1, 0x3, PA, PAGE_4K);
 
     set_exception_vector_bit(my_exceptions, cause);
 
@@ -772,7 +752,7 @@ static inline void clear_overlapping_entry(unsigned int asid, uint32_t va)
 }
 
 static void add_trans(int index, uint32_t va, uint64_t pa,
-                      tlb_pgsize_t page_size, uint8_t xwru,
+                      PageSize page_size, uint8_t xwru,
                       unsigned int asid, uint8_t V, uint8_t G)
 {
     uint8_t X = (xwru & TLB_X) ? 1 : 0;
