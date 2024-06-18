@@ -755,19 +755,12 @@ static void add_trans(int index, uint32_t va, uint64_t pa,
                       PageSize page_size, uint8_t xwru,
                       unsigned int asid, uint8_t V, uint8_t G)
 {
-    uint8_t X = (xwru & TLB_X) ? 1 : 0;
-    uint8_t W = (xwru & TLB_W) ? 1 : 0;
-    uint8_t R = (xwru & TLB_R) ? 1 : 0;
-    uint8_t U = (xwru & TLB_U) ? 1 : 0;
-    uint64_t entry =
-            create_mmu_entry(G, 0, 0, asid, va, X, W, R, U, 0, pa, page_size);
-
     if (V) {
         clear_overlapping_entry(asid, va);
-    } else {
-        SET_FIELD(entry, PTE_V, 0);
     }
-    tlbw(entry, index);
+    assert(!add_translation_extended(index, (void *)va, pa, page_size,
+                                     xwru, 0, asid, 0,
+                                     ((V & 1) << 1) | (G & 1)));
 }
 
 #endif
