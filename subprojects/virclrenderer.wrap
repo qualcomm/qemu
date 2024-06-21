@@ -2,4 +2,4 @@
 directory = virclrenderer
 
 url = https://git.codelinaro.org/clo/vcl/virglrenderer
-revision = virclrenderer-0.10.4.6
+revision = virclrenderer-0.10.4.7
