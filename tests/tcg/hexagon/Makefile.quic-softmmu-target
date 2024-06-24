@@ -60,6 +60,7 @@ DOWNSTREAM_TESTS += \
 	qfloat_test \
 	vwctrl \
 	framelimit \
+	hsv39_tlb \
 	$()
 
 # We skip these tests for windows builds
@@ -203,6 +204,8 @@ vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
 framelimit: framelimit.o
 framelimit.o: framelimit.c mmu.h
+hsv39_tlb: hsv39_tlb.o
+hsv39_tlb.o: hsv39_tlb.c hsv39.h
 
 reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
 reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
@@ -215,6 +218,7 @@ pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
 swi swi2: EXTRA_TEST_CFLAGS=-mv81
+hsv39_tlb: EXTRA_TEST_CFLAGS=-mv81
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
@@ -282,3 +286,6 @@ run-invalid_insn_for_rev: run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev
 	@: # do nothing
 run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68: invalid_insn_for_rev
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
+
+run-hsv39_tlb:
+	@echo SKIPPED # feature not yet enabled in qemu
