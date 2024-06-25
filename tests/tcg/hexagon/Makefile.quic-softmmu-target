@@ -232,6 +232,7 @@ run-swi2: swi2
 run-thread_scheduling: thread_scheduling
 run-neg-float_excp: neg-float_excp
 run-neg-unaligned: neg-unaligned
+run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81NA_1
 
 run-neg-vtcm_error: neg-vtcm_error
 	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
@@ -286,6 +287,3 @@ run-invalid_insn_for_rev: run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev
 	@: # do nothing
 run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68: invalid_insn_for_rev
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
-
-run-hsv39_tlb:
-	@echo SKIPPED # feature not yet enabled in qemu

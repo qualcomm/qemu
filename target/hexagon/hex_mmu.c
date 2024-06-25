@@ -32,13 +32,20 @@
     ((uint64_t)fEXTRACTU_BITS(ENTRY, reg_field_info[FIELD].width, \
                               reg_field_info[FIELD].offset))
 
-/*
- * PPD (physical page descriptor) is formed by putting the PTE_PA35 field
- * in the MSB of the PPD
- */
-#define GET_PPD(ENTRY) \
-    ((GET_TLB_FIELD((ENTRY), PTE_PPD) | \
-     (GET_TLB_FIELD((ENTRY), PTE_PA35) << reg_field_info[PTE_PPD].width)))
+/* PPD (physical page descriptor) */
+static inline uint64_t GET_PPD(uint64_t entry)
+{
+    if (GET_TLB_FIELD(entry, PTE_HSV39)) {
+        int PA4543_shift = reg_field_info[PTE_PPD].width;
+        int PA4544_shift = PA4543_shift + reg_field_info[PTE_PA43].width;
+        return GET_TLB_FIELD(entry, PTE_PPD) |
+               (GET_TLB_FIELD(entry, PTE_PA43) << PA4543_shift) |
+               (GET_TLB_FIELD(entry, PTE_PA4544) << PA4544_shift);
+    } else {
+        return GET_TLB_FIELD(entry, PTE_PPD) |
+               (GET_TLB_FIELD(entry, PTE_PA35) << reg_field_info[PTE_PPD].width);
+    }
+}
 
 #define NO_ASID      (1 << 8)
 
@@ -53,6 +60,9 @@ typedef enum {
     PGSIZE_64M,
     PGSIZE_256M,
     PGSIZE_1G,
+    PGSIZE_4G,
+    PGSIZE_16G,
+    PGSIZE_64G,
     NUM_PGSIZE_TYPES
 } tlb_pgsize_t;
 
@@ -66,7 +76,10 @@ static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
     "16M",
     "64M",
     "256M",
-    "1G"
+    "1G",
+    "4G",
+    "16G",
+    "64G",
 };
 
 #define INVALID_MASK 0xffffffffLL
@@ -91,7 +104,7 @@ static inline int hex_tlb_pgsize(uint64_t entry)
         qemu_log_mask(CPU_LOG_MMU, "%s: Supplied TLB entry was 0!\n", __func__);
         return 0;
     }
-    int size = ctz64(entry);
+    int size = ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
     g_assert(size < NUM_PGSIZE_TYPES);
     return size;
 }
@@ -117,7 +130,8 @@ static inline uint64_t hex_tlb_phys_addr(uint64_t entry)
 
 static inline uint64_t hex_tlb_virt_addr(uint64_t entry)
 {
-    return GET_TLB_FIELD(entry, PTE_VPN) << TARGET_PAGE_BITS;
+    int shift = GET_TLB_FIELD(entry, PTE_HSV39) ? 20 : TARGET_PAGE_BITS;
+    return (uint64_t)GET_TLB_FIELD(entry, PTE_VPN) << shift;
 }
 
 static bool hex_dump_mmu_entry(FILE *f, uint64_t entry)
@@ -389,12 +403,11 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 }
 
 static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
-                                       uint32_t VA)
+                                       uint64_t VA, bool extended)
 {
     uint32_t not_found = 0x80000000;
     uint32_t idx = not_found;
     HexagonCPU *cpu = env_archcpu(env);
-    bool extended = false; /* for now, only support hsv32 entries */
     uint32_t init_tlb_reg = extended ? DMA_TLB_OFFSET : 0;
     uint32_t max_tlb_reg = extended
         ? DMA_TLB_OFFSET + cpu->dma_jtlb_size
@@ -414,10 +427,10 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
     }
 
     if (idx == not_found) {
-        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%08x => NOT FOUND\n",
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => NOT FOUND\n",
                       __func__, asid, VA);
     } else {
-        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%08x => %d\n",
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => %d\n",
                       __func__, asid, VA, idx);
     }
 
@@ -427,13 +440,12 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
 /* Called from tlbp instruction */
 uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
 {
-    return hex_tlb_lookup_by_asid(env, GET_SSR_FIELD(SSR_ASID, ssr), VA);
+    return hex_tlb_lookup_by_asid(env, GET_SSR_FIELD(SSR_ASID, ssr), VA, false);
 }
 
 uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr, uint64_t VA)
 {
-    /* TODO */
-    g_assert_not_reached();
+    return hex_tlb_lookup_by_asid(env, GET_SSR_FIELD(SSR_ASID, ssr), VA, true);
 }
 
 static bool hex_tlb_is_match(CPUHexagonState *env,
