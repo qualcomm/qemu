@@ -901,7 +901,7 @@ static void hexagon_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
 
 static bool get_physical_address(CPUHexagonState *env, hwaddr *phys,
-                                int *prot, int *size, int32_t *excp,
+                                int *prot, uint64_t *size, int32_t *excp,
                                 target_ulong address,
                                 MMUAccessType access_type, int mmu_idx)
 
@@ -935,7 +935,7 @@ static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     CPUHexagonState *env = &cpu->env;
     hwaddr phys_addr;
     int prot;
-    int page_size = 0;
+    uint64_t page_size = 0;
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
 
@@ -1035,7 +1035,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
     int slot = env->slot;
     hwaddr phys;
     int prot = 0;
-    int page_size = 0;
+    uint64_t page_size = 0;
     int32_t excp = 0;
     bool ret = 0;
 

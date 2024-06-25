@@ -575,7 +575,7 @@ void HELPER(data_cache_op)(CPUHexagonState *env, target_ulong RsV,
     if (hexagon_cpu_mmu_enabled(env)) {
         hwaddr phys;
         int prot;
-        int size;
+        uint64_t size;
         int32_t excp;
         /* Look for a match in the TLB */
         if (hex_tlb_find_match(env, RsV, MMU_DATA_LOAD, &phys, &prot, &size,
@@ -612,7 +612,7 @@ void HELPER(insn_cache_op)(CPUHexagonState *env, target_ulong RsV,
     if (hexagon_cpu_mmu_enabled(env)) {
         hwaddr phys;
         int prot;
-        int size;
+        uint64_t size;
         int32_t excp;
         /*
          * Look for a match in the TLB
@@ -2758,7 +2758,7 @@ void HELPER(check_vtcm_memcpy)(CPUHexagonState *env, uint32_t dst, uint32_t src,
  */
 static bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
                                MMUAccessType access_type,
-                               hwaddr *PA, int *prot, int *size,
+                               hwaddr *PA, int *prot, uint64_t *size,
                                int32_t *excp, int mmu_idx) {
     return true;
 }

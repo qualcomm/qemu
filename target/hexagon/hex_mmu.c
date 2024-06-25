@@ -96,9 +96,9 @@ static inline int hex_tlb_pgsize(uint64_t entry)
     return size;
 }
 
-static inline uint32_t hex_tlb_page_size(uint64_t entry)
+static inline uint64_t hex_tlb_page_size(uint64_t entry)
 {
-    return 1 << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize(GET_PPD(entry)));
+    return 1ull << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize(entry));
 }
 
 static inline uint64_t hex_tlb_phys_page_num(uint64_t entry)
@@ -137,7 +137,7 @@ static bool hex_dump_mmu_entry(FILE *f, uint64_t entry)
                 GET_TLB_FIELD(entry, PTE_X), GET_TLB_FIELD(entry, PTE_W),
                 GET_TLB_FIELD(entry, PTE_R), GET_TLB_FIELD(entry, PTE_U),
                 GET_TLB_FIELD(entry, PTE_C));
-        fprintf(f, " PA:0x%09" PRIx64 " SZ:%s (0x%x)", PA,
+        fprintf(f, " PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")", PA,
                 pgsize_str[hex_tlb_pgsize(entry)], hex_tlb_page_size(entry));
         fprintf(f, "\n");
         return true;
@@ -170,7 +170,7 @@ void dump_mmu(CPUHexagonState *env)
                 GET_TLB_FIELD(entry, PTE_X), GET_TLB_FIELD(entry, PTE_W),
                 GET_TLB_FIELD(entry, PTE_R), GET_TLB_FIELD(entry, PTE_U),
                 GET_TLB_FIELD(entry, PTE_C));
-            qemu_printf(" PA:0x%09" PRIx64 " SZ:%s (0x%x)", PA,
+            qemu_printf(" PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")", PA,
                         pgsize_str[hex_tlb_pgsize(entry)],
                         hex_tlb_page_size(entry));
             qemu_printf("\n");
@@ -268,7 +268,7 @@ void hex_mmu_mode_change(CPUHexagonState *env)
 }
 
 static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
-                                              target_ulong VA)
+                                              uint64_t VA)
 {
     if (GET_TLB_FIELD(entry, PTE_V)) {
         if (GET_TLB_FIELD(entry, PTE_G)) {
@@ -354,7 +354,7 @@ static inline void hex_tlb_entry_get_perm(CPUHexagonState *env, uint64_t entry,
 static inline bool hex_tlb_entry_match(CPUHexagonState *env, uint64_t entry,
                                        uint8_t asid, target_ulong VA,
                                        MMUAccessType access_type, hwaddr *PA,
-                                       int *prot, int *size, int32_t *excp,
+                                       int *prot, uint64_t *size, int32_t *excp,
                                        int mmu_idx)
 {
     if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
@@ -368,7 +368,7 @@ static inline bool hex_tlb_entry_match(CPUHexagonState *env, uint64_t entry,
 
 bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
                         MMUAccessType access_type, hwaddr *PA, int *prot,
-                        int *size, int32_t *excp, int mmu_idx)
+                        uint64_t *size, int32_t *excp, int mmu_idx)
 {
     *PA = 0;
     *prot = 0;

@@ -33,7 +33,7 @@ extern void hex_mmu_off(CPUHexagonState *env);
 extern void hex_mmu_mode_change(CPUHexagonState *env);
 extern bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
                                MMUAccessType access_type,
-                               hwaddr *PA, int *prot, int *size,
+                               hwaddr *PA, int *prot, uint64_t *size,
                                int32_t *excp, int mmu_idx);
 extern int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry, uint64_t index);
 extern void hex_tlb_lock(CPUHexagonState *env);

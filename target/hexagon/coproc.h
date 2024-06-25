@@ -40,7 +40,7 @@ typedef struct {
     uint16_t spare;
     uint32_t reg_usr;
     uint32_t subsystem_id;
-    int32_t page_size;
+    uint64_t page_size;
     int32_t arg1;
     int32_t arg2;
 } CoprocArgs;

@@ -86,7 +86,7 @@ void iic_flush_cache(processor_t * proc)
 int hex_get_page_size(thread_t *thread, size4u_t vaddr, int width)
 
 {
-    int size = 1024 * 1024;
+    uint64_t size = 1024 * 1024;
 #ifndef CONFIG_USER_ONLY
     hwaddr phys;
     int prot;
