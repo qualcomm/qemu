@@ -146,6 +146,11 @@ typedef  union {
     uint32_t corecfg_present;
     uint32_t coproc2_fp16_acc_exp;
     uint32_t AXIM2_secondary_base;
+    uint32_t AXIM_data_width;
+    uint32_t l1d_ways;
+    uint32_t l1i_ways;
+    uint32_t l2way_num;
+    uint32_t dma_jtlb_size;
   };
   uint32_t raw[HEXAGON_CFGSPACE_ENTRIES];
 } hexagon_config_table;

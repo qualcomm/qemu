@@ -122,6 +122,8 @@ static Property hexagon_cpu_properties[] = {
                        0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
     DEFINE_PROP_UINT32("num-tlbs", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
+    DEFINE_PROP_UINT32("jtlb-size", HexagonCPU, jtlb_size, MAX_TLB_ENTRIES),
+    DEFINE_PROP_UINT32("dma-jtlb-size", HexagonCPU, dma_jtlb_size, 0),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -750,9 +752,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     }
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->num_tlbs > MAX_TLB_ENTRIES) {
-        error_setg(errp, "Number of TLBs selected is invalid");
-        return;
+    if ((cpu->jtlb_size + cpu->dma_jtlb_size > cpu->num_tlbs) ||
+        (DMA_TLB_OFFSET + cpu->dma_jtlb_size >= cpu->num_tlbs)) {
+        error_report("Number of TLBs selected is invalid");
+        exit(1);
     }
 #endif
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,

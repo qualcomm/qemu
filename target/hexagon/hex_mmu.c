@@ -393,11 +393,15 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
 {
     uint32_t not_found = 0x80000000;
     uint32_t idx = not_found;
-    int i;
+    HexagonCPU *cpu = env_archcpu(env);
+    bool extended = false; /* for now, only support hsv32 entries */
+    uint32_t init_tlb_reg = extended ? DMA_TLB_OFFSET : 0;
+    uint32_t max_tlb_reg = extended
+        ? DMA_TLB_OFFSET + cpu->dma_jtlb_size
+        : cpu->jtlb_size;
 
     env->imprecise_exception = 0;
-    HexagonCPU *cpu = env_archcpu(env);
-    for (i = 0; i < cpu->num_tlbs; i++) {
+    for (uint32_t i = init_tlb_reg; i < max_tlb_reg; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
         if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
             if (idx != not_found) {

@@ -651,6 +651,7 @@ static hexagon_machine_config v81na_1 = {
         .reserved5 =            0x00000000,
         .coproc2_cvt_mpy_size = 0x00000000,
         .axi3_lowaddr =         0x000000e0,
+        .dma_jtlb_size =        0x00000040,
     },
 };
 

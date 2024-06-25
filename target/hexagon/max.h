@@ -39,7 +39,7 @@
 #define MAX_PRED 4
 
 #define PACKET_BYTES_MAX 16
-#define MAX_TLB_ENTRIES 320
+#define MAX_TLB_ENTRIES 1024
 #define DTLB_ENTRIES 16
 #define ITLB_ENTRIES 16
 #define MAX_N_GRANULES 4		/* Max of number of granules of all caches */
