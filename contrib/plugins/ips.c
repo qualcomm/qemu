@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <errno.h>
 #include <glib.h>
 #include <qemu-plugin.h>
 
