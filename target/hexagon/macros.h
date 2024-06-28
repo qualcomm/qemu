@@ -25,6 +25,7 @@
 #include "hex_regs.h"
 #include "reg_fields.h"
 #include "attribs.h"
+#include "qemu/error-report.h"
 
 #ifdef QEMU_GENERATE
 #define HEXAGON_REV_BYTE() (ctx->rev)
@@ -751,5 +752,22 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 /* Extended DMA TLB is in entries 512 512+QDSP6_DMAJTLB_SZ */
 #define DMA_TLB_OFFSET 512
 #define NUM_DMATLB_REGS(PROC) ((PROC)->arch_proc_options->QDSP6_DMAJTLB_SZ)
+
+/* Grabs the .tmp data, wherever it is, and clears the .tmp status */
+/* Used for vhist */
+static inline MMVector mmvec_vtmp_data(CPUHexagonState *thread)
+{
+	VRegMask vsel = thread->VRegs_updated_tmp;
+	if (vsel == 0) {
+        warn_report("[UNDEFINED] no .tmp load when implicitly required...");
+    }
+	thread->VRegs_updated_tmp = 0;
+	return thread->tmp_VRegs[fCL1_4(~fBREV_4(vsel))];
+}
+
+static inline int mmvec_current_veclogsize(CPUHexagonState *thread)
+{
+	return thread->t_veclogsize;
+}
 
 #endif

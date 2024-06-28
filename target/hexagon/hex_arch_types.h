@@ -61,4 +61,13 @@ typedef MMVector          mmvector_t;
 typedef MMVectorPair      mmvector_pair_t;
 typedef MMQReg            mmqret_t;
 
+
+/* Memop types for extensions */
+typedef enum {
+	EXT_DFL,
+	EXT_NEW,
+	EXT_TMP,
+	EXT_REMAP
+} VRegWriteType;
+
 #endif

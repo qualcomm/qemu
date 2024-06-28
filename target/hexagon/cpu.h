@@ -37,14 +37,6 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "coproc_rpc.h"
 #include "max.h"
 
-typedef enum {
-        RND_TO_NEAREST_EVEN,
-        RND_TO_ZERO,
-        RND_TOWARDS_NEG_INF,
-        RND_TOWARDS_POS_INF,
-	MAX_RND_MODES
-} qfrnd_mode_enum_t;
-
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
 typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
@@ -187,6 +179,8 @@ typedef struct arch_proc_opt {
     int QDSP6_VX_MEM_ENTRIES;
     int QDSP6_VX_VEC_SZ;
     int QDSP6_DMAJTLB_SZ;
+    int QDSP6_VX_IEEE_PRESENT;
+    int QDSP6_VX_BF_EN;
     int udma_dmwait_latency;
     int udma_dmresume_latency;
     int udma_dmstart_latency;
@@ -447,6 +441,7 @@ typedef struct CPUArchState {
     target_ulong next_PC;
     qfrnd_mode_enum_t qfrnd_mode;
     int qfcoproc_mode;
+    int t_veclogsize;
 } CPUHexagonState;
 #define mmvecx_t CPUHexagonState
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -111,17 +111,19 @@ typedef struct {
 #endif
 } VTCMStoreLog;
 
-/* Types of vector register assignment */
-typedef enum {
-    EXT_DFL,      /* Default */
-    EXT_NEW,      /* New - value used in the same packet */
-    EXT_TMP       /* Temp - value used but not stored to register */
-} VRegWriteType;
+#include "mmvec_qfloat_compliance.h"
+
+static inline MMVector mmvec_zero_vector(void)
+{
+	MMVector ret;
+	memset(&ret,0,sizeof(ret));
+	return ret;
+}
 
 static inline void set_extqfloat_rnd_mode(CPUHexagonState *thread, int rnd_mode)
 {
 #ifdef EXPERIMENTAL_QF
-       thread->qfrnd_mode = rnd_mode;
+    thread->qfrnd_mode = rnd_mode;
 #endif
 }
 static inline void set_extqfloat_coproc_mode(CPUHexagonState *thread, int mode)
@@ -131,6 +133,17 @@ static inline void set_extqfloat_coproc_mode(CPUHexagonState *thread, int mode)
 #endif
 }
 
+#define V_EXTENDED_DWORDVAL 0x0A0A0A0A0A0A0A0A
+#define V_EXTENDED_WORDVAL  0x0A0A0A0A
+#define V_EXTENDED_HWORDVAL 0x0A0A
+#define V_EXTENDED_BYTEVAL  0x0A
+
+#define DECL_EXT_ZREG(VAR) \
+	MMVector VAR;
+
+#define READ_EXT_ZREG(NUM, VAR, VTMP) \
+	VAR = thread->ZRegs[NUM]; 
+	
 #define SET_DEFAULT_EXTENDED(VAR) \
        VAR.ud_ext[0] = V_EXTENDED_DWORDVAL; \
        VAR.ud_ext[1] = V_EXTENDED_DWORDVAL; \
@@ -147,55 +160,81 @@ static inline void set_extqfloat_coproc_mode(CPUHexagonState *thread, int mode)
        SET_DEFAULT_EXTENDED(VAR.v[2]) \
        SET_DEFAULT_EXTENDED(VAR.v[3])
 
-#define MMVECX_LOG_MEM(VA,PA,WIDTH,DATA,SLOT,LOGTYPE,TYPE)
-#define MMVECX_LOG_MEM_LOAD(VA,PA,WIDTH,DATA,SLOT)
-#define MMVECX_LOG_MEM_STORE(VA,PA,WIDTH,DATA,SLOT)
-#define MMVECX_LOG_MEM_GATHER(VA,PA,WIDTH,DATA,SLOT)
-#define MMVECX_LOG_MEM_SCATTER(VA,PA,WIDTH,DATA,SLOT)
+#define DECL_EXT_VREG(VAR) \
+	MMVector VAR; \
+	memset(&VAR, 0, sizeof(MMVector)); \
+	SET_DEFAULT_EXTENDED(VAR)
 
-#define V_EXTENDED_DWORDVAL 0x0A0A0A0A0A0A0A0A
-#define V_EXTENDED_WORDVAL  0x0A0A0A0A
-#define V_EXTENDED_HWORDVAL 0x0A0A
-#define V_EXTENDED_BYTEVAL  0x0A
+#define WRITE_BASE_VREG(NUM, VAR, VNEW) \
+do { \
+	VRegMask regnum_mask = ((VRegMask)1)<<(NUM); \
+	thread->VRegs_updated |= ((VNEW != EXT_TMP) && (VNEW != EXT_REMAP)) ? regnum_mask : 0; \
+	thread->VRegs_select |= (VNEW==EXT_NEW) ? regnum_mask : 0; \
+    thread->VRegs_updated_tmp  |= ((VNEW==EXT_TMP) || (VNEW==EXT_REMAP)) ? regnum_mask : 0; \
+	thread->future_VRegs[NUM] = VAR; \
+    thread->tmp_VRegs[NUM] = ((VNEW==EXT_TMP) || (VNEW==EXT_REMAP)) ? VAR : thread->tmp_VRegs[NUM]; \
+} while (0);
+
+#define WRITE_EXT_VREG(NUM, VAR, VNEW) WRITE_BASE_VREG(NUM,VAR,VNEW)
+
+#define NEW_WRITTEN(NUM) ((thread->VRegs_select >> (NUM)) & 1)
+#define TMP_WRITTEN(NUM) (((thread->VRegs_updated_tmp >> (NUM)) & 1) && (thread->VRegs_updated_tmp != 0xFFFFFFFF))
+
+//This macro handles the read according to tmp, new, or just regular load
+#define READ_BASE_VREG(NUM, VAR, VTMP) \
+do {\
+	VAR = ((NEW_WRITTEN(NUM)) ? thread->future_VRegs[NUM] : thread->VRegs[NUM]); \
+	VAR = ((TMP_WRITTEN(NUM)) ? thread->tmp_VRegs[NUM] : VAR);   \
+	if (VTMP == EXT_TMP) {\
+		if (thread->VRegs_updated & ((VRegMask)1)<<(NUM)) {\
+			VAR = thread->future_VRegs[NUM];\
+			thread->VRegs_updated ^= ((VRegMask)1)<<(NUM);\
+		}\
+	}\
+} while (0);
+
+//This macro handles reading the entire vector register, which includes extended bits and vector.
+#define READ_EXT_VREG(NUM, VAR, VTMP) READ_BASE_VREG(NUM,VAR,VTMP)       
+    
+#define READ_ZREG(NUM) ({ DECL_EXT_ZREG(__tmpVR); READ_EXT_ZREG(NUM,__tmpVR, 0); __tmpVR; })
+#define READ_VREG(NUM) ({ DECL_EXT_VREG(__tmpVR); READ_EXT_VREG(NUM,__tmpVR, 0); __tmpVR; })
+#define WRITE_VREG(NUM,VAR) ({ WRITE_EXT_VREG(NUM, VAR, EXT_DFL); })
 
 static inline void set_extended_bits(MMVector *v, int i, int size, uint8_t val) {
-        if(size==32) {
-                v->ext[i] = val;
-        } else {
-                //For ext, bits are set as LRLR, so we need to shift them appropriately
-                //half precision indexes from 0 - 64 but vreg.ext only has 32 elements
-                // idx 0 and 1 will map to idx 0, 2-2 map to 1, etc...
-                if (i % 2 == 1) {
-                        //If odd idx, set upper two bits
-                        v->ext[i/2] = val << 2 | (v->ext[i/2] & 0x3);
-                } else {
-                        //If even idx, set lower two bits
-                        v->ext[i/2] = (v->ext[i/2] & 0xC) | val;
-                }
-        }
+	if(size==32) {
+		v->ext[i] = val;
+	} else {
+		//For ext, bits are set as LRLR, so we need to shift them appropriately
+		//half precision indexes from 0 - 64 but vreg.ext only has 32 elements
+		// idx 0 and 1 will map to idx 0, 2-2 map to 1, etc...
+		if (i % 2 == 1) {
+			//If odd idx, set upper two bits
+			v->ext[i/2] = val << 2 | (v->ext[i/2] & 0x3);
+		} else {
+			//If even idx, set lower two bits
+			v->ext[i/2] = (v->ext[i/2] & 0xC) | val;
+		}
+	}
 }
 
-static inline uint8_t get_extended_bits(CPUHexagonState *env, bool use_opt, MMVector *v, int i, int size) {
-        if (hexagon_rev_byte(env) < 0x79) {
-            /* extended bits were introduced in v79 */
-            return V_EXTENDED_BYTEVAL;
-        }
-        if(size==32) {
-                return v->ext[i];
-        } else {
-                //For ext, bits are set as LRLR, so we need to shift them appropriately
-                //half precision indexes from 0 - 64 but vreg.ext only has 32 elements
-                // idx 0 and 1 will map to idx 0, 2-2 map to 1, etc...
-                if (i % 2 == 1) {
-                        //If odd idx, return upper two bits
-                        return (v->ext[i/2] >> 2) & 0x3;
-                } else {
-                        //If even idx, return upper two bits
-                        return (v->ext[i/2] & 0x3);
-                }
-        }
+static inline uint8_t get_extended_bits(CPUHexagonState *thread, MMVector *v, int i, int size) {
+	if(size==32) {
+		return v->ext[i];
+	} else {
+		//For ext, bits are set as LRLR, so we need to shift them appropriately
+		//half precision indexes from 0 - 64 but vreg.ext only has 32 elements
+		// idx 0 and 1 will map to idx 0, 2-2 map to 1, etc...
+		if (i % 2 == 1) {
+			//If odd idx, return upper two bits
+			return (v->ext[i/2] >> 2) & 0x3;
+		} else {
+			//If even idx, return upper two bits
+			return (v->ext[i/2] & 0x3);
+		}
+	}
 }
 
-uint32_t get_usr_reg_fpsat_field(CPUHexagonState *thread);
+bool is_daz_mode(CPUHexagonState* thread);
+uint32_t get_usr_reg_fpsat_field(CPUHexagonState* thread);
 
 #endif

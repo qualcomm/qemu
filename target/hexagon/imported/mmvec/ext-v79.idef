@@ -1377,23 +1377,23 @@ ITERATOR_INSN_SHIFT_SLOT(16,vsub_qf16_mix,"Vd32.qf16=vsub(Vu32.qf16,Vv32.hf)","V
 
 // FP Convert QF32/W/UW to ieee SF 
 ITERATOR_INSN_SHIFT_SLOT(32,vconv_sf_qf32,"Vd32.sf=Vu32.qf32","Vector conversion of qf32 format to ieee SF",
-    VdV.sf[i] = fCONVERT_QF32_TO_SF(VuV.qf32[i],get_extended_bits(thread,0,&VuV,i,32))
+    VdV.sf[i] = fCONVERT_QF32_TO_SF(VuV.qf32[i],get_extended_bits(thread,&VuV,i,32))
 )
 
 // FP Convert QF16/H/UH to ieee HF 
 ITERATOR_INSN_SHIFT_SLOT(16,vconv_hf_qf16,"Vd32.hf=Vu32.qf16","Vector conversion of qf16 format to ieee HF",
-    VdV.hf[i] = fCONVERT_QF16_TO_HF(VuV.qf16[i],get_extended_bits(thread,0,&VuV,i,16))
+    VdV.hf[i] = fCONVERT_QF16_TO_HF(VuV.qf16[i],get_extended_bits(thread,&VuV,i,16))
 )
 
 // FP Convert double QF32 to two packed ieee HF in one vector
 ITERATOR_INSN_SHIFT_SLOT(32,vconv_hf_qf32,"Vd32.hf=Vuu32.qf32","Vector conversion of double qf32 to ieee HF",
-    VdV.hf[2*i]   = fCONVERT_QF32_TO_HF(VuuV.v[0].qf32[i], get_extended_bits(thread,0,&VuuV.v[0],i,32));
-    VdV.hf[2*i+1] = fCONVERT_QF32_TO_HF(VuuV.v[1].qf32[i], get_extended_bits(thread,0,&VuuV.v[1],i,32));
+    VdV.hf[2*i]   = fCONVERT_QF32_TO_HF(VuuV.v[0].qf32[i], get_extended_bits(thread,&VuuV.v[0],i,32));
+    VdV.hf[2*i+1] = fCONVERT_QF32_TO_HF(VuuV.v[1].qf32[i], get_extended_bits(thread,&VuuV.v[1],i,32));
 )
 
 // FP Convert IEEE FP32 to int word 
 ITERATOR_INSN_SHIFT_SLOT(32, vconv_w_sf,"Vd32.w=Vu32.sf","Vector conversion of sf32 format to int w",
-    VdV.w[i] = conv_w_sf(VuV.sf[i])) 
+    VdV.w[i] = fCONVERT_W_SF(VuV.sf[i])) 
 
 // FP Convert IEEE FP16 to int halfword 
 ITERATOR_INSN_SHIFT_SLOT(16, vconv_h_hf,"Vd32.h=Vu32.hf","Vector conversion of hf16 format to int hw",

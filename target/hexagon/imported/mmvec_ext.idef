@@ -30,3 +30,7 @@
 #define HEXAGON_REV 79
 #include "mmvec/ext-v79.idef"
 #undef HEXAGON_REV
+
+#define HEXAGON_REV 81
+#include "mmvec/ext-v81.idef"
+#undef HEXAGON_REV

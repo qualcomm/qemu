@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -82,11 +82,13 @@ static uint16_t roundPackToF8( bool sign, int_fast8_t exp, uint_fast8_t sig )
 
 uint_fast8_t countLeadingZeros8( uint8_t a )
 {
+    uint_fast8_t count;
     const uint_least8_t countLeadingZeros8[8] = {
         4, 3, 2, 2, 1, 1, 1, 1
     };
 
-    return countLeadingZeros8[a];
+    count = countLeadingZeros8[a];
+    return count;
 
 }
 
@@ -101,7 +103,6 @@ struct exp8_sig8 normSubnormalF8Sig( uint_fast8_t sig )
     return z;
 
 }
-
 
 uint32_t f8_to_f32( uint8_t a )
 {
@@ -192,8 +193,8 @@ uint8_t f16_to_f8( uint16_t a, uint32_t option )
     }
     else {
         // underflow case
-        if ((exp-15)<=(-8-3)) {
-          if ((exp == 4) && frac) result = packToF8UI( sign, 0, 1 ); //LOWEST VALUE IN FP8
+        if ((exp-15)<=(-11)) {
+          if ((exp-15 == -11) && frac) result = packToF8UI( sign, 0, 1 ); //LOWEST VALUE IN FP8
           //else if ((exp == 4) && (frac == 0)) return 0x00;
           else result = 0x00; 
         }
@@ -425,6 +426,7 @@ uint8_t fp_neg_8f(uint8_t op1)
 
     float result_f;
     //uint32_t result_f32;
+    uint8_t result;
 
     if (op1 == 0x80) return 0x80; // NaN/INF case 
     else if (op1 == 0x00) return 0x00; //pure zero
@@ -434,7 +436,8 @@ uint8_t fp_neg_8f(uint8_t op1)
     result_f = u_op1.f;
     u_op1.f = result_f;
     
-    return u_op1.ui;
+    result = u_op1.ui;
+    return result;
 }
 
 uint8_t fp_abs_8f(uint8_t op1)
@@ -443,6 +446,7 @@ uint8_t fp_abs_8f(uint8_t op1)
 
     float result_f;
     //uint32_t result_f32;
+    uint8_t result;
 
     if (op1 == 0x80) return 0x80;
     //else if (op1 == 0x00) return 0x00; 
@@ -451,12 +455,15 @@ uint8_t fp_abs_8f(uint8_t op1)
 
     result_f = u_op1.f;
     u_op1.f = result_f;
-    return u_op1.ui;
+    result = u_op1.ui;
+    return result;
 }
 
 uint8_t fp_max_8f(uint8_t op1,uint8_t op2)
 {
     union ui8_f8 u_rslt;
+
+    uint8_t result;
 
     if ((op1 == 0x80) | (op2 == 0x80)) return 0x80;
 
@@ -477,13 +484,17 @@ uint8_t fp_max_8f(uint8_t op1,uint8_t op2)
     }
 
     
-    return u_rslt.ui;
+    result = u_rslt.ui;
+
+    return result;
 
 }
 
 uint8_t fp_min_8f(uint8_t op1,uint8_t op2)
 {
     union ui8_f8 u_rslt;
+
+    uint8_t result;
 
     if ((op1 == 0x80) | (op2 == 0x80)) return 0x80;
 
@@ -502,7 +513,9 @@ uint8_t fp_min_8f(uint8_t op1,uint8_t op2)
         else u_rslt.ui = op1;
     }
 
-    return u_rslt.ui;
+    result = u_rslt.ui;
+
+    return result;
 
 }
 

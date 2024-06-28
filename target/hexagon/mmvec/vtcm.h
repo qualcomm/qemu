@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,55 +18,11 @@
 #ifndef _VTCM_H
 #define _VTCM_H
 
-
-
-
+#include "../hex_arch_types.h"
+#include <stdint.h>
 #include "../max.h"
 #include "macros_auto.h"
-
-
-#if 0
-
-#define POISON_STATE 128
-
-#define MAX_SYNC 8
-
-
-#define POISONED 1
-#define NEVER_KNOWABLE 2
-#define SYNCED 4
-#define GATHER_WRITE 8
-#define STORE_RELEASE 16
-#define LOAD_ACQUIRE 32
-#define SCATTER 64
-#define GATHER_READ 128
-#define SCATTER_OP 256
-
-
-typedef struct byte_list_t byte_list_t;
-typedef struct sync_list_t sync_list_t;
-
-struct byte_list_t {
-    paddr_t paddr;
-    size2u_t state;
- 
-     byte_list_t * next;
-     byte_list_t * previous;
-    
- 
-    paddr_t sync_paddr;
-
-
-} ;
-
-struct sync_list_t {
-    paddr_t paddr;  
-    size2u_t state;
-
-    sync_list_t * next;
-    sync_list_t * previous;
-};
-#endif 
+#include "../arch.h"
 
 typedef enum {
   POISON,
@@ -84,56 +40,12 @@ struct bytes_list_t {
 };
 
 typedef struct {
-#if 0
-    byte_list_t * bytes;
-    byte_list_t * first_byte;
-    byte_list_t * last_byte;
-    
-    sync_list_t * syncs;
-    sync_list_t * first_sync;
-    sync_list_t * last_sync;
-
-    size4u_t byte_count; 
-    size4u_t sync_count; 
-
-    paddr_t store_release_addr[POISON_STATE];    
-    size1u_t store_release_idx;
-#endif
-	
   	bytes_list_t *bytes[2];
   	bytes_list_t *first_byte[2];
   	bytes_list_t *last_byte[2];
     size4u_t byte_count[2]; 
   	scaga_callback_info_t scaga_info;
 } vtcm_state_t;
-
-#if 0
-int is_byte_poisoned(vtcm_state_t * vtcm_state, paddr_t paddr);
-byte_list_t * add_byte(vtcm_state_t * vtcm_state, paddr_t paddr);   
-sync_list_t * add_sync(vtcm_state_t * vtcm_state, paddr_t paddr, int type);
-
-
-void remove_byte(vtcm_state_t * vtcm_state, byte_list_t * entry);
-void remove_sync(vtcm_state_t * vtcm_state, sync_list_t * entry);
-
-
-byte_list_t * find_byte(vtcm_state_t * vtcm_state, paddr_t paddr);
-sync_list_t * find_sync(vtcm_state_t * vtcm_state, paddr_t paddr);
-
-
-
-void poison_byte(vtcm_state_t * vtcm_state, paddr_t paddr, paddr_t gather_paddr, int is_op) ;
-void poison_byte_never_knowable(vtcm_state_t * vtcm_state, paddr_t paddr) ;
-
-
-void set_sync_byte(vtcm_state_t * vtcm_state, paddr_t sync_paddr, int type) ;
-
-void clear_byte(vtcm_state_t * vtcm_state, paddr_t paddr) ;
-void clear_all_synced_bytes(vtcm_state_t * vtcm_state, paddr_t paddr, int type);
-
-void add_gather_store(vtcm_state_t * vtcm_state, paddr_t paddr, paddr_t final_paddr);
-void add_store_release(vtcm_state_t * vtcm_state, paddr_t paddr);
-#endif
 
 void vtcm_init_state(vtcm_state_t *vtcm_state);
 void vtcm_clear_state(vtcm_state_t *vtcm_state);

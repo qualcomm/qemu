@@ -1528,7 +1528,7 @@ ITERATOR_INSN_SHIFT_SLOT(32,vconv_hf_qf32,"Vd32.hf=Vuu32.qf32","Vector conversio
 
 // FP Convert IEEE FP32 to int word
 ITERATOR_INSN_SHIFT_SLOT(32, vconv_w_sf,"Vd32.w=Vu32.sf","Vector conversion of sf32 format to int w",
-    VdV.w[i] = conv_w_sf(VuV.sf[i]))
+    VdV.w[i] = fCONVERT_W_SF(VuV.sf[i]))
 
 // FP Convert IEEE FP16 to int halfword
 ITERATOR_INSN_SHIFT_SLOT(16, vconv_h_hf,"Vd32.h=Vu32.hf","Vector conversion of hf16 format to int hw",

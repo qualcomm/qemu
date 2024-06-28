@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,9 +27,9 @@
 
 struct exp8_sig8 { int_fast8_t exp; uint_fast8_t sig; };
 //struct exp8_sig8 { int_fast8_t exp; uint_fast32_t sig; };
+struct exp8_sig8 normSubnormalF8Sig( uint_fast8_t sig );
 
 uint_fast8_t countLeadingZeros8( uint8_t a );
-struct exp8_sig8 normSubnormalF8Sig( uint_fast8_t sig );
 
 union ui8_f8 { uint8_t ui; float  f; };
 

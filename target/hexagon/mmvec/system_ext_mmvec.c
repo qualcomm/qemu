@@ -248,6 +248,10 @@ void mem_vector_gather_finish(thread_t* thread, insn_t * insn)
 }
 #endif
 
+bool is_daz_mode(thread_t *thread) {
+	return GET_FIELD(USR_FPDAZ, thread->gpr[HEX_REG_USR]);
+}
+
 uint32_t get_usr_reg_fpsat_field(thread_t* thread) {
 	return GET_FIELD(USR_FPSAT, thread->gpr[HEX_REG_USR]);
 }

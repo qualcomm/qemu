@@ -725,6 +725,7 @@ static const arch_proc_opt_t arch_proc_opt_v68 = {
     .QDSP6_VX_CONTEXTS = VECTOR_UNIT_MAX,
     .QDSP6_VX_MEM_ENTRIES = 2048,
     .QDSP6_VX_VEC_SZ = 1024,
+    .QDSP6_VX_IEEE_PRESENT = 1,
 };
 
 static struct ProcessorState ProcessorStateV68 = {

@@ -54,24 +54,6 @@ typedef union {
 #endif
 } df_t;
 
-typedef union {
-	float f;
-	size4u_t i;
-#ifndef SLOWLARIS
-	struct {
-		size4u_t mant:23;
-		size4u_t exp:8;
-		size4u_t sign:1;
-	} x;
-#else
-	struct {
-		size4u_t sign:1;
-		size4u_t exp:8;
-		size4u_t mant:23;
-	} x;
-#endif
-} sf_t;
-
 typedef struct {
 	union {
 		size8u_t low;

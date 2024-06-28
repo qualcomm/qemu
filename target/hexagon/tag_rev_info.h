@@ -37,207 +37,6 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [L2_loadw_aq] = { .introduced = 0x68, .removed = 0x0 },
     [L4_loadd_aq] = { .introduced = 0x68, .removed = 0x0 },
     [L6_memcpy] = { .introduced = 0x0, .removed = 0x75 },
-    /* [LX_L16b_tmp] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_S16b_new] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absdiffl_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absdiffl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absdiffl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absdiffl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absl_uh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_absl_uw_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_add_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_add_wuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_add_wwh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_add_wwuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addl_uw_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addl_uw_w_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_addl_w_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_adduhhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_adduhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_and] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_andl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_andn] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_andnl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_assign] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_assign_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_h_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_uh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_uw_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_avgl_w_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_eq_and_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_eq_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_eq_or_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_eq_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_and_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_and_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_or_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_or_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_cmp_gt_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_conv_uw_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_conv_w_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_lut32r_huhh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_lut4r_huhh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_maxh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_maxl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_maxl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_maxuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_minh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_minl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_minl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_minuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_h_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_h_rt_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_h_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_uh_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_uh_rt_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpa_uh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpal_uwuh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpal_wh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpal_wuhh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_huhw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_hw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uhuw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uwhw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uwuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uwuh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uwuh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_uwuhuw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_whuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_whuh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_whuh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_whw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wuhh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wuhh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wuhh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpar_wuhw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mparh_uhhw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mps_uh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_huhw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_hw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uhuw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uwhw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uwuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uwuh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uwuh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_uwuhuw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_whuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_whuh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_whuh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_whw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wuhh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wuhh_hi] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wuhh_lo] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsr_wuhw_si] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpsrh_uhhw_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_narrow_l] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_narrow_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_unarrow_l] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_unarrow_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_uwide_l] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_uwide_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_wide_l] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_wide_l_mix] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_wide_rt] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpy_wide_rt_mix] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_h_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_h_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_h_sh_rnd_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_h_sh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_huh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyl_uh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_h_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_h_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_h_sh_rnd_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_h_sh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_huh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_l] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_mpyr_uh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_muxl_hwuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_muxl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgl_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgsl_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgsl_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgsl_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_navgsl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_h_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_h_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_huh_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_huh_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyl_whuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_h_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_h_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_huh_sh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_huh_sh_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_nmpyr_whuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_not] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_not_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_or] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_orl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_orn] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_ornl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_rsplat_tmp] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_rsplat_wide_tmp] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_l_h_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_l_uh_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_l_uw_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_l_w_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_r_h_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_r_uh_uh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_r_uw_uw] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_r_w_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shra_w_w_rnd_sat_s1] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_h] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_hwh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_hwh_rnd_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_hwh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uhuhh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uhuwh_rnd_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uhuwh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uhwh_rnd_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uhwh_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_uwuwh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_shrl_wwh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_ssplat_tmp] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_sub_wh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_sub_wuh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subh] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subl_uw_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subl_uw_w_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subl_w] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subl_w_sat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subuhhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_subuhsat] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_usplat_tmp] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_xor] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [LX_xorl_w] = { .introduced = 0x81, .removed = 0x0 }, */
     [M7_dcmpyiw] = { .introduced = 0x67, .removed = 0x0 },
     [M7_dcmpyiw_acc] = { .introduced = 0x67, .removed = 0x0 },
     [M7_dcmpyiwc] = { .introduced = 0x67, .removed = 0x0 },
@@ -424,10 +223,10 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_v6mpyvubs10_vxx] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vabs_f8] = { .introduced = 0x79, .removed = 0x0 },
     [V6_vabs_hf] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_vabs_qf16_hf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vabs_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vabs_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vabs_qf32_sf] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vabs_qf16_hf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vabs_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vabs_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vabs_qf32_sf] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vabs_sf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vadd_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vadd_hf_f8] = { .introduced = 0x79, .removed = 0x0 },
@@ -440,7 +239,7 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vadd_sf_bf] = { .introduced = 0x73, .removed = 0x0 },
     [V6_vadd_sf_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vadd_sf_sf] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_valign4] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_valign4] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vasrvuhubrndsat] = { .introduced = 0x69, .removed = 0x0 },
     [V6_vasrvuhubsat] = { .introduced = 0x69, .removed = 0x0 },
     [V6_vasrvwuhrndsat] = { .introduced = 0x69, .removed = 0x0 },
@@ -448,18 +247,18 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vassign_fp] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vassign_tmp] = { .introduced = 0x69, .removed = 0x0 },
     [V6_vcombine_tmp] = { .introduced = 0x69, .removed = 0x0 },
-    /* [V6_vconv_bf_qf32] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vconv_f8_qf16] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vconv_bf_qf32] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vconv_f8_qf16] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vconv_h_hf] = { .introduced = 0x73, .removed = 0x0 },
-    /* [V6_vconv_h_hf_rnd] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vconv_h_hf_rnd] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vconv_hf_h] = { .introduced = 0x73, .removed = 0x0 },
     [V6_vconv_hf_qf16] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vconv_hf_qf32] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_vconv_qf16_f8] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vconv_qf16_hf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vconv_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vconv_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vconv_qf32_sf] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vconv_qf16_f8] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vconv_qf16_hf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vconv_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vconv_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vconv_qf32_sf] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vconv_sf_qf32] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vconv_sf_w] = { .introduced = 0x73, .removed = 0x0 },
     [V6_vconv_w_sf] = { .introduced = 0x73, .removed = 0x0 },
@@ -482,14 +281,14 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vcvt_uh_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vdmpy_sf_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vdmpy_sf_hf_acc] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_veqhf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqhf_and] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqhf_or] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqhf_xor] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqsf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqsf_and] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqsf_or] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_veqsf_xor] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_veqhf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqhf_and] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqhf_or] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqhf_xor] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqsf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqsf_and] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqsf_or] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_veqsf_xor] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vfmax_f8] = { .introduced = 0x79, .removed = 0x0 },
     [V6_vfmax_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vfmax_sf] = { .introduced = 0x68, .removed = 0x0 },
@@ -511,10 +310,10 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vgtsf_and] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vgtsf_or] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vgtsf_xor] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_vilog2_hf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vilog2_qf16] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vilog2_qf32] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vilog2_sf] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vilog2_hf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vilog2_qf16] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vilog2_qf32] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vilog2_sf] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vmax_bf] = { .introduced = 0x73, .removed = 0x0 },
     [V6_vmax_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vmax_sf] = { .introduced = 0x68, .removed = 0x0 },
@@ -543,10 +342,10 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vmpy_sf_hf_acc] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vmpy_sf_sf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vmpyuhvs] = { .introduced = 0x69, .removed = 0x0 },
-    /* [V6_vneg_qf16_hf] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vneg_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vneg_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 }, */
-    /* [V6_vneg_qf32_sf] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vneg_qf16_hf] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vneg_qf16_qf16] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vneg_qf32_qf32] = { .introduced = 0x81, .removed = 0x0 },
+    [V6_vneg_qf32_sf] = { .introduced = 0x81, .removed = 0x0 },
     /* [V6_vrmpyzbb_rt] = { .introduced = 0x0, .removed = 0x75 }, */
     /* [V6_vrmpyzbb_rt_acc] = { .introduced = 0x0, .removed = 0x75 }, */
     /* [V6_vrmpyzbb_rx] = { .introduced = 0x0, .removed = 0x75 }, */
@@ -570,7 +369,7 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vsub_hf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vsub_hf_f8] = { .introduced = 0x79, .removed = 0x0 },
     [V6_vsub_hf_hf] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_vsub_hf_mix] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vsub_hf_mix] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vsub_qf16] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vsub_qf16_mix] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vsub_qf32] = { .introduced = 0x68, .removed = 0x0 },
@@ -578,7 +377,7 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vsub_sf] = { .introduced = 0x68, .removed = 0x0 },
     [V6_vsub_sf_bf] = { .introduced = 0x73, .removed = 0x0 },
     [V6_vsub_sf_hf] = { .introduced = 0x68, .removed = 0x0 },
-    /* [V6_vsub_sf_mix] = { .introduced = 0x81, .removed = 0x0 }, */
+    [V6_vsub_sf_mix] = { .introduced = 0x81, .removed = 0x0 },
     [V6_vsub_sf_sf] = { .introduced = 0x68, .removed = 0x0 },
     /* [V6_zLd_ai] = { .introduced = 0x0, .removed = 0x75 }, */
     /* [V6_zLd_pi] = { .introduced = 0x0, .removed = 0x75 }, */
@@ -589,7 +388,7 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     /* [V6_zextract] = { .introduced = 0x0, .removed = 0x75 }, */
     [Y2_dcfetchbo_nt] = { .introduced = 0x79, .removed = 0x0 },
     [Y2_dczeroa_nt] = { .introduced = 0x79, .removed = 0x0 },
-    /* [Y2_tlbpp] = { .introduced = 0x81, .removed = 0x0 }, */
+    [Y2_tlbpp] = { .introduced = 0x81, .removed = 0x0 },
     [Y6_diag] = { .introduced = 0x67, .removed = 0x0 },
     [Y6_diag0] = { .introduced = 0x67, .removed = 0x0 },
     [Y6_diag1] = { .introduced = 0x67, .removed = 0x0 },

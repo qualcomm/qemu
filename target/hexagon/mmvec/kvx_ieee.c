@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ uint32_t fp_mult_sf_sf (uint32_t op1, uint32_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("fp_mult_sf_sf");
     printf("Debug : op1 =0x%08x\n",op1);
@@ -142,7 +142,7 @@ uint32_t fp_mult_sf_sf (uint32_t op1, uint32_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -163,7 +163,7 @@ uint32_t fp_add_sf_sf (uint32_t op1, uint32_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("fp_add_sf_sf");
     printf("Debug : op1 =0x%08x\n",op1);
@@ -183,7 +183,7 @@ uint32_t fp_add_sf_sf (uint32_t op1, uint32_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -204,7 +204,7 @@ uint32_t fp_sub_sf_sf (uint32_t op1, uint32_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -223,7 +223,7 @@ uint32_t fp_sub_sf_sf (uint32_t op1, uint32_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -327,7 +327,7 @@ uint16_t fp_mult_hf_hf (uint16_t op1, uint16_t op2)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -350,7 +350,7 @@ uint16_t fp_mult_hf_hf (uint16_t op1, uint16_t op2)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -376,7 +376,7 @@ uint16_t fp_add_hf_hf (uint16_t op1, uint16_t op2)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -399,7 +399,7 @@ uint16_t fp_add_hf_hf (uint16_t op1, uint16_t op2)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -425,7 +425,7 @@ uint16_t fp_sub_hf_hf (uint16_t op1, uint16_t op2)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -448,7 +448,7 @@ uint16_t fp_sub_hf_hf (uint16_t op1, uint16_t op2)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -473,7 +473,7 @@ uint32_t fp_mult_sf_hf (uint16_t op1, uint16_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -495,7 +495,7 @@ uint32_t fp_mult_sf_hf (uint16_t op1, uint16_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -520,7 +520,7 @@ uint32_t fp_add_sf_hf (uint16_t op1, uint16_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -542,7 +542,7 @@ uint32_t fp_add_sf_hf (uint16_t op1, uint16_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -567,7 +567,7 @@ uint32_t fp_sub_sf_hf (uint16_t op1, uint16_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -589,7 +589,7 @@ uint32_t fp_sub_sf_hf (uint16_t op1, uint16_t op2)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -614,7 +614,7 @@ uint32_t fp_mult_sf_bf_acc (uint16_t op1, uint16_t op2, uint32_t acc)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%04x\n",op1);
     printf("Debug : op2 =0x%04x\n",op2);
@@ -640,7 +640,7 @@ uint32_t fp_mult_sf_bf_acc (uint16_t op1, uint16_t op2, uint32_t acc)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -720,7 +720,7 @@ uint16_t f16_to_uh( uint16_t op1)
        if((result % 2)) result--;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a      = %f\n",a);
     printf("Debug : a frac = %f\n",frac);
@@ -728,7 +728,7 @@ uint16_t f16_to_uh( uint16_t op1)
  
  end:      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : result =0x%x\n",result);
     #endif
@@ -786,7 +786,7 @@ int16_t f16_to_h( uint16_t op1)
        }
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a      = %f\n",a);
     printf("Debug : a frac = %f\n",frac);
@@ -794,7 +794,7 @@ int16_t f16_to_h( uint16_t op1)
  
  end:      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : result =0x%04x\n",result);
     #endif
@@ -853,7 +853,7 @@ uint8_t f16_to_ub( uint16_t op1)
        }
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a      = %f\n",a);
     printf("Debug : a frac = %f\n",frac);
@@ -861,7 +861,7 @@ uint8_t f16_to_ub( uint16_t op1)
  
  end:      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : result =0x%x\n",result);
     #endif
@@ -919,7 +919,7 @@ int8_t f16_to_b( uint16_t op1)
        }
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a      = %f\n",a);
     printf("Debug : a frac = %f\n",frac);
@@ -927,7 +927,7 @@ int8_t f16_to_b( uint16_t op1)
  
  end:      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : result =0x%04x\n",result);
     #endif
@@ -943,7 +943,7 @@ uint16_t uh_to_f16(uint16_t op1)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     #endif
@@ -954,7 +954,7 @@ uint16_t uh_to_f16(uint16_t op1)
     result = f32_to_f16(rslt);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : rslt = 0x%08x\n",rslt);
@@ -973,7 +973,7 @@ uint16_t h_to_f16 (int16_t op1)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     #endif
@@ -984,7 +984,7 @@ uint16_t h_to_f16 (int16_t op1)
     result = f32_to_f16(rslt);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : rslt = 0x%08x\n",rslt);
@@ -1003,7 +1003,7 @@ uint16_t ub_to_f16(uint8_t op1)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     #endif
@@ -1014,7 +1014,7 @@ uint16_t ub_to_f16(uint8_t op1)
     result = f32_to_f16(rslt);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : rslt = 0x%08x\n",rslt);
@@ -1033,7 +1033,7 @@ uint16_t b_to_f16 (int8_t op1)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     #endif
@@ -1044,7 +1044,7 @@ uint16_t b_to_f16 (int8_t op1)
     result = f32_to_f16(rslt);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : rslt = 0x%08x\n",rslt);
@@ -1079,7 +1079,7 @@ uint32_t fp_vdmpy (uint16_t op1_u,uint16_t op1_l,uint16_t op2_u,uint16_t op2_l)
     uint32_t result;
   
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1_u =0x%04x\n",op1_u);
     printf("Debug : op1_l =0x%04x\n",op1_l);
@@ -1118,7 +1118,7 @@ uint32_t fp_vdmpy (uint16_t op1_u,uint16_t op1_l,uint16_t op2_u,uint16_t op2_l)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : f_op1_u = %f\n",f_op1_u);
     printf("Debug : f_op1_l = %f\n",f_op1_l);
@@ -1131,7 +1131,7 @@ uint32_t fp_vdmpy (uint16_t op1_u,uint16_t op1_l,uint16_t op2_u,uint16_t op2_l)
 
 end:
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : result =0x%08x\n",result);
     #endif
@@ -1208,7 +1208,7 @@ uint32_t fp_vdmpy_acc_dumb  (uint32_t acc,uint16_t op1_u,uint16_t op1_l,uint16_t
     uint32_t result;
   
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1_u =0x%04x\n",op1_u);
     printf("Debug : op1_l =0x%04x\n",op1_l);
@@ -1246,7 +1246,7 @@ uint32_t fp_vdmpy_acc_dumb  (uint32_t acc,uint16_t op1_u,uint16_t op1_l,uint16_t
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
      
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : f_op1_u = %f\n",f_op1_u);
     printf("Debug : f_op1_l = %f\n",f_op1_l);
@@ -1276,7 +1276,7 @@ uint16_t fp_min_hf(uint16_t op1,uint16_t op2)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -1305,7 +1305,7 @@ uint16_t fp_min_hf(uint16_t op1,uint16_t op2)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -1327,7 +1327,7 @@ uint32_t fp_min_sf(uint32_t op1,uint32_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -1350,7 +1350,7 @@ uint32_t fp_min_sf(uint32_t op1,uint32_t op2)
     result = u_rslt.ui;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -1367,13 +1367,15 @@ uint16_t fp_min_bf(uint16_t op1,uint16_t op2)
     uint32_t op2_f32;
 
     uint32_t result_f32;
+    uint16_t result;
 
     op1_f32 = ((uint32_t)op1) << 16;
     op2_f32 = ((uint32_t)op2) << 16;
 
     result_f32 = fp_min_sf(op1_f32, op2_f32);
     result_f32 = result_f32 >> 16;
-    return result_f32 & 0xFFFF;
+    result = result_f32 & 0xFFFF;
+    return result;
 }
 
 
@@ -1391,7 +1393,7 @@ uint16_t fp_max_hf(uint16_t op1,uint16_t op2)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -1420,7 +1422,7 @@ uint16_t fp_max_hf(uint16_t op1,uint16_t op2)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -1442,7 +1444,7 @@ uint32_t fp_max_sf(uint32_t op1,uint32_t op2)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%08x\n",op1);
     printf("Debug : op2 =0x%08x\n",op2);
@@ -1465,7 +1467,7 @@ uint32_t fp_max_sf(uint32_t op1,uint32_t op2)
     result = u_rslt.ui;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -1482,13 +1484,15 @@ uint16_t fp_max_bf(uint16_t op1,uint16_t op2)
     uint32_t op2_f32;
 
     uint32_t result_f32;
+    uint16_t result;
 
     op1_f32 = ((uint32_t)op1) << 16;
     op2_f32 = ((uint32_t)op2) << 16;
 
     result_f32 = fp_max_sf(op1_f32, op2_f32);
     result_f32 = result_f32 >> 16;
-    return result_f32 & 0xFFFF;
+    result = result_f32 & 0xFFFF;
+    return result;
 }
 
 uint16_t fp_abs_bf(uint16_t op1)
@@ -1497,13 +1501,15 @@ uint16_t fp_abs_bf(uint16_t op1)
 
     float result_f;
     uint32_t result_f32;
+    uint16_t result;
 
     u_op1.ui = ((uint32_t)op1) << 16;
 
     result_f = fabs(u_op1.f);
     u_op1.f = result_f;
     result_f32 = u_op1.ui >> 16;
-    return result_f32 & 0xFFFF;
+    result = result_f32 & 0xFFFF;
+    return result;
 }
 
 uint16_t fp_neg_bf(uint16_t op1)
@@ -1512,13 +1518,15 @@ uint16_t fp_neg_bf(uint16_t op1)
 
     float result_f;
     uint32_t result_f32;
+    uint16_t result;
 
     u_op1.ui = ((uint32_t)op1) << 16;
 
     result_f = -(u_op1.f);
     u_op1.f = result_f;
     result_f32 = u_op1.ui >> 16;
-    return result_f32 & 0xFFFF;
+    result = result_f32 & 0xFFFF;
+    return result;
 }
 
 //float fmaf( float x, float y, float z );
@@ -1538,7 +1546,7 @@ uint16_t fp_mult_hf_hf_acc_dumb (uint16_t op1, uint16_t op2, uint16_t acc)
     uint16_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%04x\n",op1);
     printf("Debug : op2 =0x%04x\n",op2);
@@ -1566,7 +1574,7 @@ uint16_t fp_mult_hf_hf_acc_dumb (uint16_t op1, uint16_t op2, uint16_t acc)
     result = f32_to_f16(result_f32);
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);
@@ -1592,7 +1600,7 @@ uint32_t fp_mult_sf_hf_acc (uint16_t op1, uint16_t op2, uint32_t acc)
     uint32_t result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : op1 =0x%04x\n",op1);
     printf("Debug : op2 =0x%04x\n",op2);
@@ -1618,7 +1626,7 @@ uint32_t fp_mult_sf_hf_acc (uint16_t op1, uint16_t op2, uint32_t acc)
     result = isNaNF32UI(result) ? FP32_DEF_NAN : result;
 
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MMVEC_QF
 
     printf("Debug : a = %f\n",a);
     printf("Debug : b = %f\n",b);

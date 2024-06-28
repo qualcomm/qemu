@@ -36,8 +36,9 @@ void yyerror(YYLTYPE *locp,
              const char *s)
 {
     const char *code_ptr = c->input_buffer;
+    const char *inst = c->inst.name ? c->inst.name->str : "unknown";
 
-    fprintf(stderr, "WARNING (%s): '%s'\n", c->inst.name->str, s);
+    fprintf(stderr, "WARNING (%s): '%s'\n", inst, s);
 
     fprintf(stderr, "Problematic range: ");
     for (int i = locp->first_column; i < locp->last_column; i++) {

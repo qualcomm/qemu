@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,6 +68,18 @@
 #define fVLASTBYTE(ADDR,LOG2_ALIGNMENT) ( ADDR = ADDR | (LOG2_ALIGNMENT-1))
 #define fVELEM(WIDTH) ((fVECSIZE()*8)/WIDTH)
 #define fVECLOGSIZE() (MAX_VEC_SIZE_LOGBYTES)
+// TODO: #define fVECLOGSIZE() (mmvec_current_veclogsize(thread))
+#define fVAVGS(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V))>>1)
+#define fVAVGSRND(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V)+1)>>1)
+#define fVNAVGS(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))>>1)
+#define fVNAVGSSUB(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)-1)>>1)
+#define fVAVGU(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))>>1)
+#define fVAVGURND(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V)+1)>>1)
+#define fVNAVGU(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))>>1)
+#define fVNAVGUSUB(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V)-1)>>1)
+#define fVSADDSAT(WIDTH,U,V) ({size8s_t tmp5 = fSXTN(WIDTH, 2*WIDTH, U); size8s_t tmp6 = fSXTN(WIDTH, 2*WIDTH, V); size8s_t tmp7 = tmp5 + tmp6; fVSATN( WIDTH, tmp7); })
+#define fVUADDSAT(WIDTH,U,V) fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))
+#define fVROUND(VAL,SHAMT) ((VAL) + (((SHAMT)>0)?(1LL<<((SHAMT)-1)):0))
 #define fVBUF_IDX(EA) (((EA) >> fVECLOGSIZE()) & 0xFF)
 #define fREAD_VBUF(IDX,WIDX) READ_VBUF(IDX,WIDX)
 #define fLOG_VBUF(IDX,VAL,WIDX) LOG_VBUF(IDX,VAL,WIDX)
@@ -88,6 +100,15 @@
 #define CHECK_VTCM_PAGE(FLAG,BASE,LENGTH,OFFSET,ALIGNMENT) { int slot = insn->slot; paddr_t pa = thread->mem_access[slot].paddr+OFFSET; pa = pa & ~(ALIGNMENT-1); FLAG = (pa < (thread->mem_access[slot].paddr+LENGTH)); }
 #define COUNT_OUT_OF_BOUNDS(FLAG,SIZE) { if (!FLAG) { THREAD2STRUCT->vtcm_log.oob_access += SIZE; warn("Scatter/Gather out of bounds of region"); } }
 #define fLOG_SCATTER_OP(SIZE) { THREAD2STRUCT->vtcm_log.op = 1; THREAD2STRUCT->vtcm_log.op_size = SIZE; }
+/*
+ * We use our versions of these
+ #define fVLOG_VTCM_WORD_INCREMENT(EA,OFFSET,INC,IDX,ALIGNMENT,LEN) { int slot = insn->slot; int log_bank = 0; int log_byte =0; paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1)); paddr_t pa_high = thread->mem_access[slot].paddr+LEN; for(int i0 = 0; i0 < 4; i0++) { log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)); log_bank |= (log_byte<<i0); LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[4*IDX+i0],4*IDX+i0); } { LOG_VTCM_BANK(pa, log_bank, IDX); } }
+#define fVLOG_VTCM_HALFWORD_INCREMENT(EA,OFFSET,INC,IDX,ALIGNMENT,LEN) { int slot = insn->slot; int log_bank = 0; int log_byte = 0; paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1)); paddr_t pa_high = thread->mem_access[slot].paddr+LEN; for(int i0 = 0; i0 < 2; i0++) { log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)); log_bank |= (log_byte<<i0); LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[2*IDX+i0],2*IDX+i0); } { LOG_VTCM_BANK(pa, log_bank,IDX); } }
+#define fVLOG_VTCM_HALFWORD_INCREMENT_DV(EA,OFFSET,INC,IDX,IDX2,IDX_H,ALIGNMENT,LEN) { int slot = insn->slot; int log_bank = 0; int log_byte = 0; paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1)); paddr_t pa_high = thread->mem_access[slot].paddr+LEN; for(int i0 = 0; i0 < 2; i0++) { log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)); log_bank |= (log_byte<<i0); LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[2*IDX+i0],2*IDX+i0); } { LOG_VTCM_BANK(pa, log_bank,(2*IDX2+IDX_H));} }
+#define GATHER_FUNCTION(EA,OFFSET,IDX,LEN,ELEMENT_SIZE,BANK_IDX,QVAL) { int slot = insn->slot; int i0; paddr_t pa = thread->mem_access[slot].paddr+OFFSET; paddr_t pa_high = thread->mem_access[slot].paddr+LEN; int log_bank = 0; int log_byte = 0; for(i0 = 0; i0 < ELEMENT_SIZE; i0++) { log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL; log_bank |= (log_byte<<i0); size1u_t B = sim_mem_read1(thread->system_ptr, thread->threadId, thread->mem_access[slot].paddr+OFFSET+i0); THREAD2STRUCT->tmp_VRegs[0].ub[ELEMENT_SIZE*IDX+i0] = B; LOG_VTCM_BYTE(pa+i0,log_byte,B,ELEMENT_SIZE*IDX+i0); } LOG_VTCM_BANK(pa, log_bank,BANK_IDX); }
+#define SCATTER_FUNCTION(EA,OFFSET,IDX,LEN,ELEMENT_SIZE,BANK_IDX,QVAL,IN) { int slot = insn->slot; int i0; paddr_t pa = thread->mem_access[slot].paddr+OFFSET; paddr_t pa_high = thread->mem_access[slot].paddr+LEN; int log_bank = 0; int log_byte = 0; for(i0 = 0; i0 < ELEMENT_SIZE; i0++) { log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL; log_bank |= (log_byte<<i0); LOG_VTCM_BYTE(pa+i0,log_byte,IN.ub[ELEMENT_SIZE*IDX+i0],ELEMENT_SIZE*IDX+i0); } LOG_VTCM_BANK(pa, log_bank,BANK_IDX); }
+#define SCATTER_OP_WRITE_TO_MEM(TYPE) { for (int i = 0; i < mmvecx->vtcm_log.size; i+=sizeof(TYPE)) { if ( mmvecx->vtcm_log.mask.ub[i] != 0) { TYPE dst = 0; TYPE inc = 0; for(int j = 0; j < sizeof(TYPE); j++) { dst |= (sim_mem_read1(thread->system_ptr, thread->threadId, mmvecx->vtcm_log.pa[i+j]) << (8*j)); inc |= mmvecx->vtcm_log.data.ub[j+i] << (8*j); mmvecx->vtcm_log.mask.ub[j+i] = 0; mmvecx->vtcm_log.data.ub[j+i] = 0; mmvecx->vtcm_log.offsets.ub[j+i] = 0; } dst += inc; for(int j = 0; j < sizeof(TYPE); j++) { sim_mem_write1(thread->system_ptr,thread->threadId, mmvecx->vtcm_log.pa[i+j], (dst >> (8*j))& 0xFF ); } } } }
+*/
 #define fVLOG_VTCM_GATHER_WORD(EA,OFFSET,IDX,LEN) { GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 4, IDX, 1); }
 #define fVLOG_VTCM_GATHER_HALFWORD(EA,OFFSET,IDX,LEN) { GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, IDX, 1); }
 #define fVLOG_VTCM_GATHER_HALFWORD_DV(EA,OFFSET,IDX,IDX2,IDX_H,LEN) { GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), 1); }
@@ -146,6 +167,8 @@
 #else
 #define fSTOREMMVNQ(EA,SRC,MASK) fSTOREMMVNQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK)
 #endif
+#define fVUSUBSAT(WIDTH,U,V) fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))
+#define fVSSUBSAT(WIDTH,U,V) fVSATN( WIDTH, fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))
 #define fSTOREMMVU_AL(EA,ALIGNMENT,LEN,SRC) { size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1)); size4u_t size2; if (size1>LEN) size1 = LEN; size2 = LEN-size1; mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), 1, size2, &SRC.ub[size1], 0, 0, fUSE_LOOKUP_ADDRESS()); mem_store_vector_oddva(thread, insn, EA, EA, 0, size1, SRC.ub, 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr)); }
 #ifdef QEMU_GENERATE
 #define fSTOREMMVU(EA, SRC) \
@@ -163,22 +186,11 @@
 #define fTMPVDATA() mmvec_vtmp_data(thread)
 #define fVSATDW(U,V) fVSATW( ( ( ((long long)U)<<32 ) | fZXTN(32,64,V) ) )
 #define fVASL_SATHI(U,V) fVSATW(((U)<<1) | ((V)>>31))
-#define fVUADDSAT(WIDTH,U,V) fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))
-#define fVSADDSAT(WIDTH,U,V) ({size8s_t tmp5 = fSXTN(WIDTH, 2*WIDTH, U); size8s_t tmp6 = fSXTN(WIDTH, 2*WIDTH, V); size8s_t tmp7 = tmp5 + tmp6; fVSATN( WIDTH, tmp7); })
-#define fVUSUBSAT(WIDTH,U,V) fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))
-#define fVSSUBSAT(WIDTH,U,V) fVSATN( WIDTH, fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))
-#define fVAVGU(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))>>1)
-#define fVAVGURND(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V)+1)>>1)
-#define fVNAVGU(WIDTH,U,V) ((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))>>1)
 #define fVNAVGURNDSAT(WIDTH,U,V) fVSATUN(WIDTH,((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V)+1)>>1))
-#define fVAVGS(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V))>>1)
-#define fVAVGSRND(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V)+1)>>1)
-#define fVNAVGS(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))>>1)
 #define fVNAVGSRND(WIDTH,U,V) ((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1)
 #define fVNAVGSRNDSAT(WIDTH,U,V) fVSATN(WIDTH,((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1))
 #define fVNOROUND(VAL,SHAMT) VAL
 #define fVNOSAT(VAL) VAL
-#define fVROUND(VAL,SHAMT) ((VAL) + (((SHAMT)>0)?(1LL<<((SHAMT)-1)):0))
 #define fCARRY_FROM_ADD32(A,B,C) (((fZXTN(32,64,A)+fZXTN(32,64,B)+C) >> 32) & 1)
 #define fUARCH_NOTE_PUMP_4X() 
 #define fUARCH_NOTE_PUMP_2X() 
@@ -187,9 +199,10 @@
 #define fRNDSATQF(SIZE,V,U) do { uint64_t result = rnd_sat_extqf##SIZE(U,THREAD2STRUCT->qfrnd_mode); V.qf##SIZE[i] = (result >> (SIZE/8)) & QF##SIZE##_BITMASK; set_extended_bits(&V,i,SIZE,result & EXT##SIZE##_BITMASK); } while (0);
 #define fRNDSATQF32(A,B,C) rnd_sat_qf32(A,B,C)
 #define fPARSEQF16(A) parse_qf16(A)
-#define fPARSEQF_EXT(SIZE,A,IDX) parse_extqf##SIZE(A.qf##SIZE[IDX], get_extended_bits(thread,1,&A,IDX,SIZE),THREAD2STRUCT->qfcoproc_mode)
+#define fPARSEQF_EXT(SIZE,A,IDX) parse_extqf##SIZE(A.qf##SIZE[IDX], get_extended_bits(thread,&A,IDX,SIZE),THREAD2STRUCT->qfcoproc_mode)
 #define fRNDSATQF16(A,B,C) rnd_sat_qf16(A,B,C)
-#define fPARSESF(A) parse_sf(A)
+#define fPARSESF(A) parse_sf_daz(A,is_daz_mode(thread))
+#define fCONVERT_W_SF(A) conv_w_sf(A,is_daz_mode(thread))
 #define fRNDSATSF(A,B) rnd_sat_sf(A,B)
 #define fPARSEHF(A) parse_hf(A)
 #define fRNDSATHF(A,B) rnd_sat_hf(A,B)
@@ -205,9 +218,10 @@
 #define fNEGHF(A) negate_hf(A)
 #define fCMPGT_QF32(A,B) cmpgt_qf32(A,B)
 #define fCMPGT_QF16(A,B) cmpgt_qf16(A,B)
-#define fCMPGT_SF(A,B) cmpgt_sf(A,B)
-#define fCMPGT_HF(A,B) cmpgt_hf(A,B)
-#define fCMPGT_BF(A,B) cmpgt_sf(((int)A) << 16,((int)B) << 16)
+#define fCMPGT_SF(A,B) cmpgt_sf(A,B,true,is_daz_mode(thread))
+#define fCMPGT_HF(A,B) cmpgt_hf(A,B,true)
+#define fCMPEQ(FTYPE,A,B) cmpeq(A,B,FTYPE,is_daz_mode(thread))
+#define fCMPGT_BF(A,B) cmpgt_sf(((int)A) << 16,((int)B) << 16,false,false)
 #define fCMPGT_QF32_SF(A,B) cmpgt_qf32_sf(A,B)
 #define fCMPGT_QF16_HF(A,B) cmpgt_qf16_hf(A,B)
 #define fMAX_QF32(X,Y) max_qf32(X,Y)
@@ -224,12 +238,22 @@
 #define fMIN_HF(X,Y) min_hf(X,Y)
 #define fNEGLREQ(A) negate_LREQ(A)
 #define fRNDSATQF32_EXT(A,B,C) rnd_sat_extqf32(A,B,C)
-#define fTEST_IEEE_COMPLIANCE(SIZE,A,B) test_ieee_compliance(VdV.qf##SIZE[i],get_extended_bits(thread,1,&VdV,i,SIZE),THREAD2STRUCT->qfrnd_mode,A,B);
 #define fCONVERT_QF32_TO_SF(A,AEXT) conv_sf_extqf32(A,AEXT,THREAD2STRUCT->qfrnd_mode,THREAD2STRUCT->qfcoproc_mode)
 #define fCONVERT_QF32_TO_HF(A,AEXT) conv_hf_extqf32(A,AEXT,THREAD2STRUCT->qfrnd_mode,THREAD2STRUCT->qfcoproc_mode)
+#define fCONVERT_QF32_TO_BF(A,AEXT) conv_qf32_to_bf(A,AEXT,THREAD2STRUCT->qfrnd_mode,THREAD2STRUCT->qfcoproc_mode)
 #define fCONVERT_QF16_TO_HF(A,AEXT) conv_hf_extqf16(A,AEXT,THREAD2STRUCT->qfrnd_mode,THREAD2STRUCT->qfcoproc_mode)
+#define fCONVERT_F8_TO_QF16(V,PAIR_IDX,IDX,A) do { uint64_t result = conv_qf16_f8(A,THREAD2STRUCT->qfrnd_mode); V.v[PAIR_IDX].qf16[IDX] = (result >> 2) & QF16_BITMASK; set_extended_bits(&V.v[PAIR_IDX],IDX,16,result & EXT16_BITMASK); } while (0);
+#define fCONVERT_QF16_TO_F8(IDX,V,A) do { V.uh[IDX] = conv_qf16_to_f8(A.qf16[IDX],get_extended_bits(thread,&A,IDX,16),THREAD2STRUCT->qfrnd_mode, THREAD2STRUCT->qfcoproc_mode); } while (0);
+#define fQF_VILOG2(TYPE,A,AEXT) qf_vilog2(TYPE,A,AEXT);
 #define fCHECK_EFFECTIVE_SUB(SIZE,ASIGN,BSIGN,OP,SIG,EXP) if((ASIGN OP BSIGN) == 1 && (EXP > E_MIN_EXTQF##SIZE)) { EXP -= 1; }
-#define fQFADD(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_add(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else { INIT_UNFLOAT(r) int sub = is_unfloat_neg(A) ^ is_unfloat_neg(B); r.exp = get_unfloat_exp(A,B,sub,E_MIN_EXTQF##SIZE); fHIDE(double ) sig_a = ldexp(A.sig, A.exp-r.exp); fHIDE(double ) sig_b = ldexp(B.sig, B.exp-r.exp); fHIDE(double sig_low;) if(A.sign) sig_a = -sig_a; if(B.sign) sig_b = -sig_b; r.sig = sig_a + sig_b; if (A.exp > B.exp) { sig_low = (sig_a - r.sig) + sig_b; } else { sig_low = (sig_b - r.sig) + sig_a; } r.inexact = signum(sig_low); r.sign = (THREAD2STRUCT->qfrnd_mode == RND_TOWARDS_NEG_INF) ? (A.sign || B.sign) : (A.sign && B.sign); if(r.sign) { r.sig = -r.sig; r.inexact = -r.inexact; } r.is_zero = is_unfloat_zero(r); fRNDSATQF(SIZE,V,r) } } while(0);
-#define fQFMPY(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_mpy(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else{ INIT_UNFLOAT(r) r.exp = A.exp + B.exp; r.sig = A.sig * B.sig; if(A.sign ^ B.sign) r.sig = -r.sig; r.sign = (A.sign ^ B.sign) ^ is_double_neg(A.sig) ^ is_double_neg(B.sig) ^ (A.sig < 0 && B.sig < 0); if(r.sign) r.sig = -r.sig; r.is_zero = is_unfloat_zero(r); if(r.is_zero) { r.exp = E_MIN_EXTQF##SIZE; } fRNDSATQF(SIZE,V,r) } } while(0);
+#define fQFADD(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_add(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else { INIT_UNFLOAT(r) int sub = is_unfloat_neg(A) ^ is_unfloat_neg(B); r.exp = get_unfloat_exp(A,B,sub,E_MIN_EXTQF##SIZE); fHIDE(double ) sig_a = ldexp(A.sig, A.exp-r.exp); fHIDE(double ) sig_b = ldexp(B.sig, B.exp-r.exp); fHIDE(double sig_low;) if(A.sign) sig_a = -sig_a; if(B.sign) sig_b = -sig_b; r.sig = sig_a + sig_b; if (A.exp > B.exp) { sig_low = (sig_a - r.sig) + sig_b; } else { sig_low = (sig_b - r.sig) + sig_a; } r.inexact = signum(sig_low); r.sign = (THREAD2STRUCT->qfrnd_mode == RND_TOWARDS_NEG_INF) ? (A.sign || B.sign) : (A.sign && B.sign); if(r.sign) { r.sig = -r.sig; r.inexact = -r.inexact; } r.zero = is_unfloat_zero(r); fRNDSATQF(SIZE,V,r) } } while(0);
+#define fQFMPY(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_mpy(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else{ INIT_UNFLOAT(r) r.exp = A.exp + B.exp; r.sig = A.sig * B.sig; if(A.sign ^ B.sign) r.sig = -r.sig; r.sign = (A.sign ^ B.sign) ^ is_double_neg(A.sig) ^ is_double_neg(B.sig) ^ (A.sig < 0 && B.sig < 0); if(r.sign) r.sig = -r.sig; r.zero = is_unfloat_zero(r); if(r.zero) { r.exp = E_MIN_EXTQF##SIZE; } fRNDSATQF(SIZE,V,r) } } while(0);
+#define fCHECK_IEEE_RESOURCE(CODE) (thread->processor_ptr->arch_proc_options->QDSP6_VX_IEEE_PRESENT) ? CODE : 0
+#define fBF16_SUPPORTED() (thread->processor_ptr->arch_proc_options->QDSP6_VX_BF_EN)
+#define SET_VEXT(VDEST,IDX,SIZE,VAL) set_extended_bits(&VDEST,IDX,SIZE,VAL)
+#define GET_VEXT(VSRC,IDX,SIZE) get_extended_bits(thread,&VSRC,IDX,SIZE)
+#define GET_VEXT_PAIR(VSRC,PAIR_IDX,IDX,SIZE) get_extended_bits(thread,&VSRC.v[PAIR_IDX],IDX,SIZE)
+#define GET_AND_SET_VEXT(VDEST,VSRC,IDX,SIZE) set_extended_bits(&VDEST,IDX,SIZE,GET_VEXT(VSRC,IDX,SIZE))
+#define GET_AND_SET_VEXT_PAIR(VDEST,PAIR_IDX,VSRC,IDX,SIZE) set_extended_bits(&VDEST.v[PAIR_IDX],IDX,SIZE,GET_VEXT(VSRC,IDX,SIZE))
 
 #endif
