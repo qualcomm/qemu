@@ -893,7 +893,7 @@ ERST
     },
 
 SRST
-  ``stats``
+  ``info stats``
     Show runtime-collected statistics
 ERST
 

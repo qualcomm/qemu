@@ -14,7 +14,7 @@ variables:
     --enable-vhost-kernel --enable-vhost-net --enable-vhost-user
     --enable-vhost-crypto --enable-vhost-user-blk-server --enable-vhost-vdpa
 
-  QEMU_COMPILATION_OPTS: --enable-malloc-trim --enable-avx2 --enable-avx512f
+  QEMU_COMPILATION_OPTS: --enable-malloc-trim --enable-avx2
   QEMU_TARGETS_AND_ACCELERATORS_OPTS: --enable-plugins --enable-multiprocess
   QEMU_BLOCK_LAYER_SUPPORT_OPTS: >-
     --enable-coroutine-pool --enable-virtfs
