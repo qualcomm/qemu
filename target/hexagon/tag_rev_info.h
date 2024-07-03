@@ -198,6 +198,18 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [M8_mxswap_hf] = { .introduced = 0x68, .removed = 0x0 },
     [R6_release_at_vi] = { .introduced = 0x68, .removed = 0x0 },
     [R6_release_st_vi] = { .introduced = 0x68, .removed = 0x0 },
+    [S2_pstorerbf_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerbt_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerdf_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerdt_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerhf_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerht_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerif_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_pstorerit_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_storerb_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_storerd_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_storerh_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [S2_storeri_pi_nt] = { .introduced = 0x79, .removed = 0x0 },
     [S2_storew_rl_at_vi] = { .introduced = 0x68, .removed = 0x0 },
     [S2_storew_rl_st_vi] = { .introduced = 0x68, .removed = 0x0 },
     [S4_stored_rl_at_vi] = { .introduced = 0x68, .removed = 0x0 },
@@ -371,6 +383,8 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     /* [V6_zLd_pred_pi] = { .introduced = 0x0, .removed = 0x75 }, */
     /* [V6_zLd_pred_ppu] = { .introduced = 0x0, .removed = 0x75 }, */
     /* [V6_zextract] = { .introduced = 0x0, .removed = 0x75 }, */
+    [Y2_dcfetchbo_nt] = { .introduced = 0x79, .removed = 0x0 },
+    [Y2_dczeroa_nt] = { .introduced = 0x79, .removed = 0x0 },
     [Y6_diag] = { .introduced = 0x67, .removed = 0x0 },
     [Y6_diag0] = { .introduced = 0x67, .removed = 0x0 },
     [Y6_diag1] = { .introduced = 0x67, .removed = 0x0 },
