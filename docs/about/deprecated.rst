@@ -11,6 +11,19 @@ releases, the feature is liable to be removed. Deprecated features may also
 generate warnings on the console when QEMU starts up, or if activated via a
 monitor command, however, this is not a mandatory requirement.
 
+As a special exception to this general timeframe, rather than have an
+indefinite lifetime, versioned machine types are only intended to be
+supported for a period of 6 years, equivalent to 18 QEMU releases. All
+versioned machine types will be automatically marked deprecated after an
+initial 3 years (9 QEMU releases) has passed, and will then be deleted after
+a further 3 year period has passed. It is recommended that a deprecated
+machine type is only used for incoming migrations and restore of saved state,
+for pre-existing VM deployments. They should be scheduled for updating to a
+newer machine type during an appropriate service window. Newly deployed VMs
+should exclusively use a non-deprecated machine type, with use of the most
+recent version highly recommended. Non-versioned machine types follow the
+general feature deprecation policy.
+
 Prior to the 2.10.0 release there was no official policy on how
 long features would be deprecated prior to their removal, nor
 any documented list of which features were deprecated. Thus
@@ -256,6 +269,14 @@ images are not available, OpenWRT dropped support in 2019, U-Boot in
 2017, Linux also is dropping support in 2024. It is time to let go of
 this ancient hardware and focus on newer CPUs and platforms.
 
+Arm ``tacoma-bmc`` machine (since 9.1)
+''''''''''''''''''''''''''''''''''''''''
+
+The ``tacoma-bmc`` machine was a board including an AST2600 SoC based
+BMC and a witherspoon like OpenPOWER system. It was used for bring up
+of the AST2600 SoC in labs.  It can be easily replaced by the
+``rainier-bmc`` machine which is a real product.
+
 Backend options
 ---------------
 
@@ -361,6 +382,12 @@ recommending to switch to their stable counterparts:
 - "Zve32f" should be replaced with "zve32f"
 - "Zve64f" should be replaced with "zve64f"
 - "Zve64d" should be replaced with "zve64d"
+
+``-device sd-card,spec_version=1`` (since 9.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SD physical layer specification v2.00 supersedes the v1.10 one.
+v2.00 is the default since QEMU 3.0.0.
 
 Block device options
 ''''''''''''''''''''
