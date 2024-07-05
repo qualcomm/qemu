@@ -131,12 +131,15 @@ MXCVT_RS(M8_cvt_rs_ub_sc1, "cvt.ub=acc(Rs32):sc1", COPROC_UB4,     RsV, SUBCHANN
 MXCVT_RS(M8_cvt_rs_uh_2x1, "cvt.uh=acc(Rs32):2x1", COPROC_UH,      RsV, SUBCHANNEL0, fMX_NONE)
 MXCVT_RS(M8_cvt_rs_uh_2x2, "cvt.uh=acc(Rs32):2x2", COPROC_UH_UH,   RsV, SUBCHANNEL0, fMX_NONE)
 MXCVT_RS(M8_cvt_rs_hf,     "cvt.hf=acc(Rs32)",     COPROC_FP16,    RsV, SUBCHANNEL0, fMX_COPROC_FLT)
+MXCVT_RS(M8_cvt_rs_f8,     "cvt.f8=acc(Rs32)",     COPROC_FP8,     RsV, SUBCHANNEL0, fMX_COPROC_FLT)
 
 MXST(M8_mxmem,          "mxmem(Rs32,Rt32)=cvt",          FORMAT_SM, COPROC_UB,    RsV, RtV, OLD_INDEX0)
 MXST(M8_mxmem_deep,     "mxmem(Rs32,Rt32):deep=cvt",     FORMAT_SM, COPROC_UB,    RsV, RtV, OLD_INDEX1)
 MXST(M8_mxmem_cm,       "mxmem(Rs32,Rt32):cm=cvt",       FORMAT_DM, COPROC_UB,    RsV, RtV, OLD_INDEX0)
 MXST(M8_mxmem_2x2,      "mxmem(Rs32,Rt32):2x2=cvt",      FORMAT_SM, COPROC_UH_UH, RsV, RtV, OLD_INDEX0)
 MXST(M8_mxmem_cm_deep,  "mxmem(Rs32,Rt32):cm:deep=cvt",  FORMAT_DM, COPROC_UB,    RsV, RtV, OLD_INDEX1)
+MXST(M8_mxmem_f8,        "mxmem(Rs32,Rt32).f8=cvt",      FORMAT_SM, COPROC_FP8,   RsV, RtV, OLD_INDEX0)
+MXST(M8_mxmem_deep_f8,   "mxmem(Rs32,Rt32):deep.f8=cvt", FORMAT_SM, COPROC_FP8,   RsV, RtV, OLD_INDEX1) // generic byte that behaves kind of like FP
 
 /// MISC INSNS ////
 

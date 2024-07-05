@@ -53,7 +53,7 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [M7_wcmpyrw_rnd] = { .introduced = 0x67, .removed = 0x0 },
     [M7_wcmpyrwc] = { .introduced = 0x67, .removed = 0x0 },
     [M7_wcmpyrwc_rnd] = { .introduced = 0x67, .removed = 0x0 },
-    /* [M8_cvt_rs_f8] = { .introduced = 0x81, .removed = 0x0 }, */
+    [M8_cvt_rs_f8] = { .introduced = 0x81, .removed = 0x0 },
     [M8_cvt_rs_hf] = { .introduced = 0x73, .removed = 0x0 },
     [M8_cvt_rs_ub] = { .introduced = 0x73, .removed = 0x0 },
     [M8_cvt_rs_ub_sc0] = { .introduced = 0x73, .removed = 0x0 },
@@ -115,9 +115,9 @@ const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [M8_mxmem_cm] = { .introduced = 0x73, .removed = 0x0 },
     [M8_mxmem_cm_deep] = { .introduced = 0x79, .removed = 0x0 },
     [M8_mxmem_deep] = { .introduced = 0x79, .removed = 0x0 },
-    /* [M8_mxmem_deep_f8] = { .introduced = 0x81, .removed = 0x0 }, */
+    [M8_mxmem_deep_f8] = { .introduced = 0x81, .removed = 0x0 },
     [M8_mxmem_dm_act_ub] = { .introduced = 0x68, .removed = 0x0 },
-    /* [M8_mxmem_f8] = { .introduced = 0x81, .removed = 0x0 }, */
+    [M8_mxmem_f8] = { .introduced = 0x81, .removed = 0x0 },
     [M8_mxmem_sm_act_f8] = { .introduced = 0x79, .removed = 0x0 },
     [M8_mxmem_sm_act_hf] = { .introduced = 0x68, .removed = 0x0 },
     [M8_mxmem_sm_act_ub] = { .introduced = 0x68, .removed = 0x0 },

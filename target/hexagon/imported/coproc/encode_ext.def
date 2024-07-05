@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -123,6 +123,7 @@ DEF_ENC32(M8_cvt_rs_ub,"10100110111sssssPP010111--010000")
 DEF_ENC32(M8_cvt_rs_uh_2x1,"10100110111sssssPP011000--010000")
 DEF_ENC32(M8_cvt_rs_uh_2x2,"10100110111sssssPP011001--010000")
 DEF_ENC32(M8_cvt_rs_hf,"10100110111sssssPP011010--010000")
+DEF_ENC32(M8_cvt_rs_f8,"10100110111sssssPP011011--010000")
 DEF_ENC32(M8_cvt_rs_ub_sc0,"10100110111sssssPP011100--010000")
 DEF_ENC32(M8_cvt_rs_ub_sc1,"10100110111sssssPP011101--010000")
 DEF_ENC32(M8_mxclracc,"10100110111-----PP0-------010001")
@@ -135,6 +136,8 @@ DEF_ENC32(M8_mxmem_cm,"10100110111sssssPP0ttttt--011001")
 DEF_ENC32(M8_mxmem_2x2,"10100110111sssssPP0ttttt--011010")
 DEF_ENC32(M8_mxmem_deep,"10100110111sssssPP0ttttt--011011")
 DEF_ENC32(M8_mxmem_cm_deep,"10100110111sssssPP0ttttt--011100")
+DEF_ENC32(M8_mxmem_f8,"10100110111sssssPP0ttttt--011101")
+DEF_ENC32(M8_mxmem_deep_f8,"10100110111sssssPP0ttttt--011110")
 DEF_ENC32(M8_mxcvtl_sat_hf,"10100110111sssssPP1ttttt--000000")
 DEF_ENC32(M8_mxcvtl_sat_pos_hf,"10100110111sssssPP1ttttt--000001")
 DEF_ENC32(M8_mxcvtb_sat_uh,"10100110111sssssPP1ttttt--000010")

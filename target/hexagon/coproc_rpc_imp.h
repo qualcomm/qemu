@@ -40,7 +40,7 @@
 #include <utility>
 #include <csignal>
 
-#define RPC_VERSION 6
+#define RPC_VERSION 0x8100
 #define GS_Process_Server_Port "GS_Process_Server_Port"
 #define GS_Process_Server_Port_Len 22
 #define DECIMAL_PORT_NUM_STR_LEN 20
