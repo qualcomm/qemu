@@ -1372,18 +1372,19 @@ def read_common_files():
     read_semantics_file(sys.argv[1])
     read_overrides_file(sys.argv[2])
     read_overrides_file(sys.argv[3])
+    read_overrides_file(sys.argv[4])
     ## Whether or not idef-parser is enabled is
     ## determined by the number of arguments to
     ## this script:
     ##
-    ##   4 args. -> not enabled,
-    ##   5 args. -> idef-parser enabled.
+    ##   5 args. -> not enabled,
+    ##   6 args. -> idef-parser enabled.
     ##
-    ## The 5:th arg. then holds a list of the successfully
+    ## The 6:th arg. then holds a list of the successfully
     ## parsed instructions.
-    is_idef_parser_enabled = len(sys.argv) > 5
+    is_idef_parser_enabled = len(sys.argv) > 6
     if is_idef_parser_enabled:
-        read_idef_parser_enabled_file(sys.argv[4])
+        read_idef_parser_enabled_file(sys.argv[5])
     calculate_attribs()
     init_registers()
     return is_idef_parser_enabled
