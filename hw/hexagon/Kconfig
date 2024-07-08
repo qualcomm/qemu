@@ -4,3 +4,4 @@ config HEX_DSP
     depends on HEXAGON && TCG
     imply PTIMER
     select L2VIC  # Vector PIC
+    select PL011

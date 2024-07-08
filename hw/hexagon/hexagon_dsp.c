@@ -15,6 +15,9 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/timer/qct-qtimer.h"
+#include "hw/intc/l2vic.h"
+#include "hw/char/pl011.h"
 #include "hw/loader.h"
 #include "hw/timer/qct-qtimer.h"
 #include "qapi/error.h"
@@ -88,6 +91,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, sram);
 
+    HexagonCPU *cpu_0 = NULL;
     Error **errp = NULL;
 
     for (int i = 0; i < machine->smp.cpus; i++) {
@@ -133,12 +137,71 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
         if (i == 0) {
             hexagon_init_bootstrap(machine, cpu);
+            cpu_0 = cpu;
         }
 
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
             return;
         }
     }
+
+    HexagonCPU *cpu = cpu_0;
+    DeviceState *dev;
+    dev = sysbus_create_varargs(
+        "l2vic", m_cfg->l2vic_base,
+        /* IRQ#, Evnt#,CauseCode */
+        qdev_get_gpio_in(DEVICE(cpu), 0), /* IRQ 0, 16, 0xc0 */
+        qdev_get_gpio_in(DEVICE(cpu), 1), /* IRQ 1, 17, 0xc1 */
+        qdev_get_gpio_in(DEVICE(cpu), 2), /* IRQ 2, 18, 0xc2  VIC0 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 3), /* IRQ 3, 19, 0xc3  VIC1 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 4), /* IRQ 4, 20, 0xc4  VIC2 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 5), /* IRQ 5, 21, 0xc5  VIC3 interface */
+        qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
+        qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
+        NULL);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base);
+
+    /* for linux dts you must add 32 to these values */
+    pl011_create(0x10000000, qdev_get_gpio_in(dev, 15), serial_hd(0));
+
+    /*
+     * This is tightly with the IRQ selected must match the value below
+     * or the interrupts will not be seen
+     */
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                                     2, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views",
+                                     1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid",
+                                     0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+
+    unsigned QTMR0_IRQ = /* FIXME syscfg_is_linux */ 2;
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0,
+                    0xfab20000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(dev, QTMR0_IRQ));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(dev, 4));
+
+    hexagon_config_table *config_table = &m_cfg->cfgtable;
+
+    config_table->l2tcm_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2tcm_base);
+    config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
+    config_table->vtcm_base = HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.vtcm_base);
+    config_table->l2cfg_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2cfg_base);
+    config_table->fastl2vic_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.fastl2vic_base);
+
+    rom_add_blob_fixed_as("config_table.rom", config_table,
+                          sizeof(*config_table), m_cfg->cfgbase,
+                          &address_space_memory);
 }
 
 static void init_mc(MachineClass *mc)
