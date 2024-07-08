@@ -84,6 +84,7 @@
                 'HMX_bias_load2_rate_1T_TM01.elf',
                 'hmx_matmult_cvt_u8xs8_hvx_convdw_v68_dma_4T_TM0F.elf',
                 'hmx_matmult_hfxhf_act_random_wgt_random_1T_TM01.elf',
+                'HMX_mpy_f8xf8_act_random_wgt_1p0000_cvt_d32_TM01.elf',
                 ],
         'prog-args': [],
         'qemu-args': ['-M', 'virt_coproc', '-cpu', 'any,sched-limit=on',],
