@@ -27,6 +27,7 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
+#include "hw/char/pl011.h"
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -375,6 +376,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         NULL);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base);
 
+    /* for linux dts you must add 32 to these values */
+    pl011_create(0x10000000, qdev_get_gpio_in(dev, 15), serial_hd(0));
+
     /*
      * This is tightly with the IRQ selected must match the value below
      * or the interrupts will not be seen
@@ -498,7 +502,7 @@ static void v68n_h2_init(ObjectClass *oc, void *data)
     mc->desc = "Hexagon H2 V68G_1024";
     init_mc(mc);
 
-    mc->default_cpus = 4;
+    mc->default_cpus = 6;
 }
 
 

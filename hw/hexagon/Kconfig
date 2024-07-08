@@ -2,3 +2,4 @@ config HEX_DSP
     bool
     select L2VIC  # Vector PIC
     select QTIMER
+    select PL011
