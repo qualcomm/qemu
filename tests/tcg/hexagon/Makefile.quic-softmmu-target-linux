@@ -24,6 +24,7 @@ qtimer_test: qtimer_test.o
 qtimer: qtimer.o thread_common.o
 ieee_fp: ieee_fp.o
 coproc: coproc.o
+coproc.o: coproc.c coproc_ref.h
 coproc_conv.o: coproc_conv.c coproc_common.h coproc_conv_asm.h \
 	       coproc_input_dat.h coproc_ref_output_dat.h util.h \
 	       vtcm_common.h

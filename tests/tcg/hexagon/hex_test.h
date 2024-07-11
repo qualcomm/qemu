@@ -148,4 +148,6 @@ const uint64_t DF_one_hh =           0x3ff001ff80000000ULL;     /* 1.00048... */
 const uint64_t DF_small_neg =        0xbd731f7500000000ULL;
 const uint64_t DF_large_pos =        0x7f80000000000001ULL;
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 #endif

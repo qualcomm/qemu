@@ -23,6 +23,7 @@
 
 static int err;
 #include "../hex_test.h"
+#include "coproc_ref.h"
 
 #define __HVXDBL__ 1
 #include <hexagon_standalone.h>
@@ -83,16 +84,19 @@ int main()
 {
     assert((uintptr_t)activations % 2048 == 0);
     assert((uintptr_t)output % 2048 == 0);
-    memset(activations, 0, sizeof(activations));
-    activations[0] = 10;
+    for (int i = 0; i < ARRAY_SIZE(activations); i++) {
+        activations[i] = i % 2;
+    }
 
     assert((uintptr_t)weights % 128 == 0);
-    memset(weights, 0, sizeof(weights));
-    weights[0] = 10;
+    for (int i = 0; i < ARRAY_SIZE(weights); i++) {
+        weights[i] = i;
+    }
 
     assert((uintptr_t)bias % 256 == 0);
-    memset(bias, 0, sizeof(bias));
-    bias[0] = 24 << 10;
+    for (int i = 0; i < ARRAY_SIZE(bias); i++) {
+        bias[i] = i << 10;
+    }
 
     unsigned dY = 0;
     unsigned dW = 0;
@@ -148,7 +152,9 @@ int main()
     do_mxmem_after_cm_sat_ub((uintptr_t)output_vtcm, spatialMask);
 
     memcpy(output, output_vtcm, sizeof(output));
-    check32(output[0], 100);
+    for (int i = 0; i < ARRAY_SIZE(output); i++) {
+        check32(output[i], reference[i]);
+    }
 
     puts(err ? "FAIL" : "PASS");
     return err;
