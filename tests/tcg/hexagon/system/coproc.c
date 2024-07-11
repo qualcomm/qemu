@@ -29,9 +29,10 @@ static int err;
 #include <hexagon_standalone.h>
 
 uint8_t activations[2048] __attribute__((aligned(2048)));
-uint8_t output[2048] __attribute__((aligned(2048)));
 int32_t bias[64] __attribute__((aligned(256)));
 int8_t weights[128] __attribute__((aligned(128)));
+
+#define OUTPUT_SZ 2048
 
 uint8_t *vtcm;
 uint8_t *va_vtcm = (uint8_t *)0xf0000000;
@@ -80,10 +81,19 @@ void do_mxmem_after_cm_sat_ub(uintptr_t output_vtcm, unsigned spatialMask)
                  : "r"(output_vtcm), "r"(spatialMask));
 }
 
+void do_cvt_and_mxmem_f8(uintptr_t output_vtcm, unsigned spatialMask)
+{
+    asm volatile("r0 = #0\n"
+                 "cvt.f8 = acc(r0)\n"
+                 "mxmem(%0,%1).f8 = cvt\n"
+                 :
+                 : "r"(output_vtcm), "r"(spatialMask)
+                 : "r0");
+}
+
 int main()
 {
     assert((uintptr_t)activations % 2048 == 0);
-    assert((uintptr_t)output % 2048 == 0);
     for (int i = 0; i < ARRAY_SIZE(activations); i++) {
         activations[i] = i % 2;
     }
@@ -133,7 +143,7 @@ int main()
 
     uint8_t *activations_vtcm = va_vtcm;
     uint8_t *output_vtcm = activations_vtcm + sizeof(activations);
-    uint8_t *bias_vtcm = output_vtcm + sizeof(output);
+    uint8_t *bias_vtcm = output_vtcm + OUTPUT_SZ;
     uint8_t *weights_vtcm = bias_vtcm + sizeof(bias);
 
     assert((uintptr_t)activations_vtcm % 2048 == 0);
@@ -149,11 +159,18 @@ int main()
     do_bias_mxmem2((uintptr_t)bias_vtcm);
     do_activation_weight((uintptr_t)activations_vtcm, activations_range,
                          (uintptr_t)weights_vtcm, weights_range);
-    do_mxmem_after_cm_sat_ub((uintptr_t)output_vtcm, spatialMask);
 
-    memcpy(output, output_vtcm, sizeof(output));
-    for (int i = 0; i < ARRAY_SIZE(output); i++) {
-        check32(output[i], reference[i]);
+    memset(output_vtcm, 0, OUTPUT_SZ);
+    do_mxmem_after_cm_sat_ub((uintptr_t)output_vtcm, spatialMask);
+    for (int i = 0; i < OUTPUT_SZ; i++) {
+        check32(output_vtcm[i], reference[i]);
+    }
+
+    do_mxclracc();
+    memset(output_vtcm, 0, OUTPUT_SZ);
+    do_cvt_and_mxmem_f8((uintptr_t)output_vtcm, spatialMask);
+    for (int i = 0; i < OUTPUT_SZ; i++) {
+        check32(output_vtcm[i], f8_reference[i]);
     }
 
     puts(err ? "FAIL" : "PASS");

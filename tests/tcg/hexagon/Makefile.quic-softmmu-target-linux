@@ -44,7 +44,7 @@ neg-float_excp: float_excp.o
 
 hvx_nocoproc.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp
-coproc.o: EXTRA_TEST_CFLAGS= -mhmx
+coproc.o: EXTRA_TEST_CFLAGS= -mhmx -mv81
 coproc_conv.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
