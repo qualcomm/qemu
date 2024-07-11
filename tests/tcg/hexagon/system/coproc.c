@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2022-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2022-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,16 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int err;
+#include "../hex_test.h"
+
 #define __HVXDBL__ 1
-#if !defined(__linux__)
-#include "hexagon_standalone.h"
-#endif
-
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#include "hexagon_protos.h"
-#pragma clang diagnostic pop
+#include <hexagon_standalone.h>
 
 uint8_t activations[2048] __attribute__((aligned(2048)));
 uint8_t output[2048] __attribute__((aligned(2048)));
@@ -41,10 +36,8 @@ uint8_t *vtcm;
 uint8_t *va_vtcm = (uint8_t *)0xf0000000;
 
 uint8_t *get_vtcm_base()
-
 {
     unsigned char *vtcm_base = NULL;
-#if !defined(__linux__)
     asm volatile("r1 = cfgbase\n"
                  "r1 = asl(r1, #5)\n"
                  "r2 = #0x38\n"
@@ -53,56 +46,37 @@ uint8_t *get_vtcm_base()
                  : "=r"(vtcm_base)
                  :
                  : "r1", "r2");
-#else
-    abort();
-#endif
-
     return vtcm_base;
 }
 
-#define asm_mxclracc() __asm__ __volatile__("    mxclracc\n"  : : : );
 void do_mxclracc()
-
 {
-    asm_mxclracc();
+    asm volatile("mxclracc\n");
 }
 
-#define asm_bias_mxmem2()                          \
-    __asm__ __volatile__("    r0 = %0\n"           \
-                         "    bias = mxmem2(r0)\n" \
-                         :                         \
-                         : "r"(bias_vtcm)          \
-                         : "r0");
 void do_bias_mxmem2(uintptr_t bias_vtcm)
-
 {
-    asm_bias_mxmem2();
+    asm volatile("bias = mxmem2(%0)\n" : : "r"(bias_vtcm));
 }
 
-#define asm_activation_weight()                                           \
-    __asm__ __volatile__("{    activation.ub = mxmem(%0,%1):cm\n"         \
-                         "    weight.b = mxmem(%2,%3)\n}"                 \
-                         :                                                \
-                         : "r"(activations_vtcm), "r"(activations_range), \
-                           "r"(weights_vtcm), "r"(weights_range));
 void do_activation_weight(uintptr_t activations_vtcm,
                           unsigned activations_range, uintptr_t weights_vtcm,
                           unsigned weights_range)
-
 {
-    asm_activation_weight();
+   asm volatile("{\n"
+                "    activation.ub = mxmem(%0,%1):cm\n"
+                "    weight.b = mxmem(%2,%3)\n"
+                "}\n"
+                :
+                : "r"(activations_vtcm), "r"(activations_range),
+                  "r"(weights_vtcm), "r"(weights_range));
 }
 
-#define asm_mxmem_after_cm_sat_ub()                                 \
-    __asm__ __volatile__("    r0 = %0\n"                            \
-                         "    r1 = %1\n"                            \
-                         "    mxmem(r0,r1):after:cm:sat.ub = acc\n" \
-                         :                                          \
-                         : "r"(output_vtcm), "r"(spatialMask));
 void do_mxmem_after_cm_sat_ub(uintptr_t output_vtcm, unsigned spatialMask)
-
 {
-    asm_mxmem_after_cm_sat_ub();
+    asm volatile("mxmem(%0,%1):after:cm:sat.ub = acc\n"
+                 :
+                 : "r"(output_vtcm), "r"(spatialMask));
 }
 
 int main()
@@ -126,7 +100,6 @@ int main()
     unsigned spatialMask = 0xe0;
     unsigned activations_range = dY | spatialMask | channelStop;
     unsigned weights_range = dW;
-#if !defined(__linux__)
     unsigned vtcmPageSize = 4 * 1024 * 1024;
     unsigned pageSizeEnum = 32;
     unsigned perms = 7;
@@ -134,16 +107,13 @@ int main()
     unsigned asid = 0;
     unsigned aa = 0;
     unsigned vg = 3;
-#endif
 
     vtcm = get_vtcm_base();
-#if !defined(__linux__)
     add_translation_extended(1, va_vtcm, (uint64_t)vtcm, pageSizeEnum, perms,
                              cachability, asid, aa, vg);
     add_translation_extended(2, va_vtcm + vtcmPageSize,
                              (uint64_t)(vtcm + vtcmPageSize), pageSizeEnum,
                              perms, cachability, asid, aa, vg);
-#endif
     printf("vtcm at  %p\n", vtcm);
 
     /* acquire coproc */
@@ -178,13 +148,8 @@ int main()
     do_mxmem_after_cm_sat_ub((uintptr_t)output_vtcm, spatialMask);
 
     memcpy(output, output_vtcm, sizeof(output));
+    check32(output[0], 100);
 
-    printf("output = %hhd, expected %hhd\n", output[0], (uint8_t)100);
-    if (output[0] == (uint8_t)100) {
-        printf("PASS\n");
-    } else {
-        printf("FAIL\n");
-    }
-
-    return output[0] != 100;
+    puts(err ? "FAIL" : "PASS");
+    return err;
 }
