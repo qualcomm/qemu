@@ -128,9 +128,9 @@ int main()
                  : "r6");
 
     uint8_t *activations_vtcm = va_vtcm;
-    uint8_t *output_vtcm = va_vtcm + sizeof(activations);
-    uint8_t *bias_vtcm = va_vtcm + sizeof(output);
-    uint8_t *weights_vtcm = va_vtcm + sizeof(bias);
+    uint8_t *output_vtcm = activations_vtcm + sizeof(activations);
+    uint8_t *bias_vtcm = output_vtcm + sizeof(output);
+    uint8_t *weights_vtcm = bias_vtcm + sizeof(bias);
 
     assert((uintptr_t)activations_vtcm % 2048 == 0);
     assert((uintptr_t)output_vtcm % 2048 == 0);
