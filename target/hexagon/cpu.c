@@ -1144,6 +1144,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
 #if !defined(CONFIG_USER_ONLY)
     .tlb_fill = hexagon_tlb_fill,
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
+    .cpu_exec_halt = hexagon_cpu_has_work,
     .do_interrupt = hexagon_cpu_do_interrupt,
     .do_unaligned_access = hexagon_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
