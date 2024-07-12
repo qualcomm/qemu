@@ -1,3 +1,7 @@
+config HEX_VIRT
+    depends on HEX_DSP
+    select VIRTIO_MMIO
+
 config HEX_DSP
     bool
     default y

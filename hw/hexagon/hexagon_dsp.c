@@ -146,8 +146,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     }
 
     HexagonCPU *cpu = cpu_0;
-    DeviceState *dev;
-    dev = sysbus_create_varargs(
+    DeviceState *l2vic_dev;
+    l2vic_dev = sysbus_create_varargs(
         "l2vic", m_cfg->l2vic_base,
         /* IRQ#, Evnt#,CauseCode */
         qdev_get_gpio_in(DEVICE(cpu), 0), /* IRQ 0, 16, 0xc0 */
@@ -159,10 +159,21 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
         qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
         NULL);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1, m_cfg->cfgtable.fastl2vic_base);
 
     /* for linux dts you must add 32 to these values */
-    pl011_create(0x10000000, qdev_get_gpio_in(dev, 15), serial_hd(0));
+    pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15), serial_hd(0));
+
+    /* TODO: We should confine these virtios to `virt` machines. */
+    /*
+     * TODO: We can/should create an array of these which
+     * can be populated at the cmdline.
+     */
+    sysbus_create_simple("virtio-mmio", 0x11000000,
+            qdev_get_gpio_in(l2vic_dev, 18));
+
+    sysbus_create_simple("virtio-mmio", 0x12000000,
+            qdev_get_gpio_in(l2vic_dev, 19));
 
     /*
      * This is tightly with the IRQ selected must match the value below
@@ -184,9 +195,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                     0xfab20000);
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
-                       qdev_get_gpio_in(dev, QTMR0_IRQ));
+                       qdev_get_gpio_in(l2vic_dev, QTMR0_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
-                       qdev_get_gpio_in(dev, 4));
+                       qdev_get_gpio_in(l2vic_dev, 4));
 
     hexagon_config_table *config_table = &m_cfg->cfgtable;
 
