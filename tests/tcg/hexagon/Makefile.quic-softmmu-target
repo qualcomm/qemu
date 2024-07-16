@@ -226,13 +226,13 @@ run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
 run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
-run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81NA_1
+run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81QA_1
 run-swi: swi
 run-swi2: swi2
 run-thread_scheduling: thread_scheduling
 run-neg-float_excp: neg-float_excp
 run-neg-unaligned: neg-unaligned
-run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81NA_1
+run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81QA_1
 
 run-neg-vtcm_error: neg-vtcm_error
 	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
