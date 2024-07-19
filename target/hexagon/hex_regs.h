@@ -54,6 +54,7 @@ enum {
     HEX_REG_R30              = 30,
     HEX_REG_LR               = 31,
     HEX_REG_R31              = 31,
+    HEX_REG_CREGS_START      = 32,
     HEX_REG_SA0              = 32,
     HEX_REG_LC0              = 33,
     HEX_REG_SA1              = 34,

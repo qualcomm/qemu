@@ -33,7 +33,11 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     }
 
     if (n < TOTAL_PER_THREAD_REGS) {
-        return gdb_get_regl(mem_buf, env->gpr[n]);
+        if (n < HEX_REG_CREGS_START) {
+            return gdb_get_regl(mem_buf, env->gpr[n]);
+        } else {
+            return gdb_get_regl(mem_buf, hexagon_creg_read(env, n));
+        }
     }
 
     n -= TOTAL_PER_THREAD_REGS;
@@ -71,7 +75,7 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     CPUHexagonState *env = &cpu->env;
 
     if (n < NUM_SREGS) {
-        return gdb_get_regl(mem_buf, ARCH_GET_SYSTEM_REG(env, n));
+        return gdb_get_regl(mem_buf, hexagon_sreg_read(env, n));
     }
     n -= NUM_SREGS;
 

@@ -2155,9 +2155,8 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
         hexagon_read_timer(env, &low, &high);
         return high;
     default:
-        g_assert_not_reached();
+        return env->gpr[reg];
     }
-    return 0;
 }
 
 uint32_t HELPER(creg_read)(CPUHexagonState *env, uint32_t reg)
@@ -2199,6 +2198,11 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 {
     BQL_LOCK_GUARD();
+    return sreg_read(env, reg);
+}
+
+uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg)
+{
     return sreg_read(env, reg);
 }
 
@@ -2741,8 +2745,23 @@ static bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
     return true;
 }
 #endif
+
+uint32_t hexagon_creg_read(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert(reg >= HEX_REG_CREGS_START && reg < TOTAL_PER_THREAD_REGS);
+#ifndef CONFIG_USER_ONLY
+    return creg_read(env, reg);
+#else
+    if (reg == HEX_REG_UPCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_REG_UPCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    } else {
+        return 0;
+    }
+#endif
+}
+
 #include "mmvec/kvx_ieee.h"
 #include "mmvec/kvx_fp8.h"
 #include "helper_funcs_generated.c.inc"
-
-
