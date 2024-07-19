@@ -302,6 +302,13 @@ Process 1 stopped
 ->  0x0: { jump 0x44 }
 :::
 
+**Note:** due to a known issue in QEMU's gdbstub, we currently do not support
+register writes through LLDB for some control registers (like upcycle and pc),
+as well as some system registers(syscfg, vid, vid1, imask, pcycle, ccr, and the
+pmu registers). Also, for those system, control, and guest registers that we do
+support, note that no immutability check is performed. That is, QEMU will not
+stop you from writing to register fields that are not writable.
+
 ### Plug-ins
 
 QEMU plug-ins allow you to add new functionality to QEMU. You can

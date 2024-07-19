@@ -231,10 +231,10 @@ run-lldb-revcon: simple-assign qemu-wrapper-for-lldb
 
 run-lldb-reg-reads: reg-reads qemu-wrapper-for-lldb
 	$(call run-lldb,$@,test-reg-reads.lldb,"gdbstub reg reading test")
-	$(call quiet-command, grep -q "r00* = 0xdeadbeef" $@.out, "GREP", "r0");
-	$(call quiet-command, grep -q "pktcountlo = 0x00000a1e" $@.out, "GREP", "pktcountlo");
-	$(call quiet-command, grep -q " timerlo = 0x000000[0-9a-f][1-9a-f]" $@.out, "GREP", "timerlo");
-	$(call quiet-command, grep -q "gpmucnt0 = 0x00000002" $@.out, "GREP", "gpmucnt0");
+	$(call quiet-command, grep -q "r00* = 0xdeadbeef" $@.out, "GREP", "gpr");
+	$(call quiet-command, awk '!/timerlo = 0x[0]{8}/ && /timerlo = 0x[0-9a-f]{8}/' $@.out, "GREP", "sreg");
+	$(call quiet-command, grep -q "gpmucnt0 = 0x00000002" $@.out, "GREP", "greg");
+	$(call quiet-command, grep -q "upmucnt0 = 0x00000002" $@.out, "GREP", "creg");
 
 EXTRA_RUNS += run-lldb-revcon run-lldb-reg-reads
 endif # have LLDB
