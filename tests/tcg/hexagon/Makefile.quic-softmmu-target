@@ -86,9 +86,9 @@ DOWNSTREAM_CC=hexagon-clang
 DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static -Werror
 DOWNSTREAM_LDFLAGS=
 
-$(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign: BUILD_WITH_DOWNSTREAM_CC=yes
+$(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign reg-reads: BUILD_WITH_DOWNSTREAM_CC=yes
 
-inf-loop k0locklock tlblocklock simple-assign:
+inf-loop k0locklock tlblocklock simple-assign reg-reads:
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
 hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@ 
@@ -121,6 +121,8 @@ swi_wait.o: swi_wait.c util.h thread_common.h
 swi_wait: swi_wait.o util.o thread_common.o
 qfloat_test: qfloat_test.o
 simple-assign: simple-assign.o
+reg-reads: reg-reads.o
+reg-reads.o: reg-reads.c timer.h pmu.h
 wait: wait.o
 hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
@@ -151,6 +153,7 @@ thread_scheduling: thread_scheduling.o thread_common.o
 rev: rev.o
 rev.o: EXTRA_TEST_CFLAGS=-mv73
 pmu: pmu.o thread_common.o
+pmu.o: pmu.c pmu.h
 start.o: start.c mmu.h
 start: start.o thread_common.o
 single_step: single_step.o single_step_asm.o thread_common.o
@@ -167,6 +170,8 @@ tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
 
+reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
+reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 hvx_ext-0x75.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv75

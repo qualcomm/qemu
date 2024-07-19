@@ -1,0 +1,3 @@
+# Read at least one of each reg type: gpr, control, system, and guest
+breakpoint set --name end_of_preparation -C 'reg read r0 c18 timerlo gpmucnt0' --auto-continue true
+run
