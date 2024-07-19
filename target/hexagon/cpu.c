@@ -174,7 +174,6 @@ const char * const hexagon_sregnames[] = {
     "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
     "pcycle6t",   "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",
     "rgdr3",      "commit7t",   "commit8t",   "pcycle7t",   "pcycle8t",
-    "s85",
 };
 
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
