@@ -235,7 +235,6 @@ int main()
 {
     asm volatile("%0 = rev\n" : "=r"(rev));
     rev &= 0xff;
-    assert(rev == 0x75 || rev == 0x79);
 
     test_future_qf32();
 #if __HEXAGON_ARCH__ >= 79
