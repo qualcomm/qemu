@@ -1684,7 +1684,14 @@ EXTINSN(V6_get_qfext,"Vd32=vgetqfext(Vu32.x,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_C
 { fHIDE(int i;) fVFOREACH(8, i) { VdV.ub[i] = fGETQFEXT_BIT(VuV,i) ? fGETUBYTE(i % 4, RtV) : 0; } })
 
 EXTINSN(V6_set_qfext,"Vd32.x=vsetqfext(Vu32,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX,A_HVX_FLT,A_XQFLOAT,A_NOTE_MPY_RESOURCE),"Load extended bits of Vreg using QReg",
-{ fHIDE(int i;) fVFOREACH(8, i) { fSETQFEXT_BIT(VdV,i,((VuV.ub[i] & fGETUBYTE(i % 4, RtV)) != 0) ? 1 : 0); } })
+{
+	fHIDE(int i;)
+	fVFOREACH(8, i) {
+		/* Not explicitly stated at the spec, but this insn should clear the main bits. */
+		VdV.ub[i] = 0;
+		fSETQFEXT_BIT(VdV,i,((VuV.ub[i] & fGETUBYTE(i % 4, RtV)) != 0) ? 1 : 0);
+	}
+})
 
 EXTINSN(V6_vmerge_qf,"Vd32=vmerge(Vu32.x,Vv32.w)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT,A_XQFLOAT,A_NOTE_SHIFT_RESOURCE),"Merge 32 bit word and 4 bit extended bits",
 { fHIDE(int i;) fVFOREACH(32, i) { VdV.uw[i] = VvV.uw[i]; SET_VEXT(VdV,i,32,GET_VEXT(VuV,i,32)); } })
