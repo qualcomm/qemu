@@ -28,6 +28,7 @@ NAMES += hwprofile
 NAMES += cache
 NAMES += drcov
 NAMES += ips
+NAMES += stoptrigger
 
 # quic-specific:
 NAMES += actprofile
