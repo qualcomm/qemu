@@ -1862,7 +1862,20 @@ EXTINSN(V6_vdelta,"Vd32=vdelta(Vu32,Vv32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_
 { fHIDE(int offset;) fHIDE(int k;) for (offset=fVBYTES(); (offset>>=1)>0; ) { for (k = 0; k<fVBYTES(); k++) { VdV.ub[k] = (VvV.ub[k]&offset) ? VuV.ub[k^offset] : VuV.ub[k]; } for (k = 0; k<fVBYTES(); k++) { VuV.ub[k] = VdV.ub[k]; } } })
 
 EXTINSN(V6_vrdelta,"Vd32=vrdelta(Vu32,Vv32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Forward Benes Butterfly network ",
-{ fHIDE(int offset;) fHIDE(int k;) for (offset=1; offset<fVBYTES(); offset<<=1){ for (k = 0; k<fVBYTES(); k++) { VdV.ub[k] = (VvV.ub[k]&offset) ? VuV.ub[k^offset] : VuV.ub[k]; } for (k = 0; k<fVBYTES(); k++) { VuV.ub[k] = VdV.ub[k]; } } })
+{
+    fHIDE(int offset;)
+    fHIDE(int k;)
+    fHIDE(mmvector_t tmp;)
+    tmp = VuV;
+    for (offset=1; offset<fVBYTES(); offset<<=1){
+        for (k = 0; k<fVBYTES(); k++) {
+            VdV.ub[k] = (VvV.ub[k]&offset) ? tmp.ub[k^offset] : tmp.ub[k];
+        }
+        for (k = 0; k<fVBYTES(); k++) {
+            tmp.ub[k] = VdV.ub[k];
+        }
+    }
+})
 
 EXTINSN(V6_vcl0w,"Vd32.uw=vcl0(Vu32.uw)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_NOTE_SHIFT_RESOURCE),"Count Leading Zeros in word",
 { fHIDE(int i;) fVFOREACH(32, i) { VdV.uw[i]=fCL1_4(~VuV.uw[i]); } })
