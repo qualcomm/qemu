@@ -60,6 +60,7 @@ DOWNSTREAM_TESTS += \
 	qfloat_test \
 	vwctrl \
 	hvx-multi-0x79 \
+	hvx_misc-0x79 \
 	$()
 
 # We skip these tests for windows builds
@@ -93,6 +94,8 @@ inf-loop k0locklock tlblocklock simple-assign reg-reads:
 hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@ 
 hvx-multi-0x79.o: hvx-multi.c ../hvx_misc.h
+	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
+hvx_misc-0x79.o: ../hvx_misc.c ../hvx_misc.h
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
 
 mmu.h: ../hex_test.h
@@ -129,6 +132,7 @@ hvx_64b: hvx_64b.o
 hvx_ext-0x75: hvx_ext-0x75.o
 hvx_ext-0x79: hvx_ext-0x79.o
 hvx-multi-0x79: hvx-multi-0x79.o
+hvx_misc-0x79: hvx_misc-0x79.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
 pendalot.o: pendalot.c cfgtable.h
@@ -177,6 +181,7 @@ hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 hvx_ext-0x75.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv75
 hvx_ext-0x79.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv79
 hvx-multi-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
+hvx_misc-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
@@ -187,6 +192,7 @@ run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
 run-hvx_ext-0x75: QEMU_EXTRA_OPTS=-M V75NA_1024
 run-hvx_ext-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
 run-hvx-multi-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
+run-hvx_misc-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
 run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc

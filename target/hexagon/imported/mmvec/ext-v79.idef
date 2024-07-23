@@ -2196,14 +2196,16 @@ EXTINSN(V6_vdelta, "Vd32=vdelta(Vu32,Vv32)",    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_
 EXTINSN(V6_vrdelta, "Vd32=vrdelta(Vu32,Vv32)",  ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),
 "Forward Benes Butterfly network ",
 {
-	fHIDE(int offset;)
+    fHIDE(int offset;)
     fHIDE(int k;)
+    fHIDE(mmvector_t tmp;)
+    tmp = VuV;
     for (offset=1; offset<fVBYTES(); offset<<=1){
         for (k = 0; k<fVBYTES(); k++) {
-            VdV.ub[k] = (VvV.ub[k]&offset) ? VuV.ub[k^offset] : VuV.ub[k];
+            VdV.ub[k] = (VvV.ub[k]&offset) ? tmp.ub[k^offset] : tmp.ub[k];
         }
         for (k = 0; k<fVBYTES(); k++) {
-            VuV.ub[k] = VdV.ub[k];
+            tmp.ub[k] = VdV.ub[k];
         }
     }
 })

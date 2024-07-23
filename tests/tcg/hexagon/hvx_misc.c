@@ -773,6 +773,29 @@ static void test_vcombine(void)
     check_output_w(__LINE__, BUFSIZE);
 }
 
+static void test_vrdelta(void)
+{
+    uint32_t Vu_val = 0xdeadbeef;
+    uint32_t Vv_val = 0xff11ff11;
+    asm volatile (
+        "v1 = vsplat(%0)\n"
+        "v2 = vsplat(%1)\n"
+        "v3 = vrdelta(v1, v2)\n"
+        "vmem(%2) = v3\n"
+        "vmem(%3) = v1\n"
+        :
+        : "r"(Vu_val), "r"(Vv_val), "r"(&output[0]), "r"(&output[1])
+        : "v1", "v2", "v3", "memory"
+    );
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = 0xefdeadbe; /* Result reference from sim */
+        expect[1].uw[i] = 0xdeadbeef; /* Vu should not be changed */
+    }
+
+    check_output_w(__LINE__, 2);
+}
+
 void test_store_new()
 {
     asm volatile(
@@ -848,6 +871,8 @@ int main()
     test_vcombine();
 
     test_store_new();
+
+    test_vrdelta();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
