@@ -17,6 +17,8 @@
 
 # -*- Mode: makefile -*-
 
+CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
+
 DOWNSTREAM_TESTS += \
 	mmu_multi_tlb \
 	mmu_permissions \
@@ -33,8 +35,6 @@ DOWNSTREAM_TESTS += \
 	swi2 \
 	swi_wait \
 	hvx_64b \
-	hvx_ext-0x75 \
-	hvx_ext-0x79 \
 	neg-unaligned \
 	neg-vtcm_error \
 	pendalot \
@@ -59,8 +59,6 @@ DOWNSTREAM_TESTS += \
 	double_ex \
 	qfloat_test \
 	vwctrl \
-	hvx-multi-0x79 \
-	hvx_misc-0x79 \
 	$()
 
 # We skip these tests for windows builds
@@ -91,12 +89,43 @@ $(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign reg-reads: BUI
 
 inf-loop k0locklock tlblocklock simple-assign reg-reads:
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
-hvx_ext-0x75.o hvx_ext-0x79.o: hvx_ext.c ../hvx_misc.h
-	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@ 
-hvx-multi-0x79.o: hvx-multi.c ../hvx_misc.h
-	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
-hvx_misc-0x79.o: ../hvx_misc.c ../hvx_misc.h
-	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) -c $< -o $@
+
+# Args: cutoff_cpu_rev, test_name, dependency_list
+define test_comp_for_each_cpu
+@for cpu in $(CPU_LIST); do \
+    if test "$${cpu##v}" -ge $1; then \
+        $(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) -mhvx -m$$cpu $3 \
+		-o $2-$$cpu $(DOWNSTREAM_LDFLAGS) || exit 1; \
+    fi; \
+done && touch $2; #So that make won't rebuild this everytime
+endef
+
+# Args: cutoff_cpu_rev, test_name
+define test_for_each_cpu
+@for cpu in $(CPU_LIST); do \
+    if test "$${cpu##v}" -ge $1; then \
+        echo "TEST $2 on $$cpu"; \
+        timeout -s KILL --foreground $(TIMEOUT) $(QEMU) $(QEMU_BASE_MACHINE) \
+		-cpu $$cpu $(OVERRIDE_OPTS) -kernel $2-$$cpu || exit 1; \
+    fi; \
+done;
+endef
+
+hvx_ext-sys: hvx_ext.c ../hvx_misc.h
+	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
+hvx-multi-sys: hvx-multi.c ../hvx_misc.h
+	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
+hvx_misc-sys: ../hvx_misc.c ../hvx_misc.h
+	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
+
+run-hvx_ext-sys: hvx_ext-sys
+	$(call test_for_each_cpu, 75, $<)
+run-hvx-multi-sys: hvx-multi-sys
+	$(call test_for_each_cpu, 75, $<)
+run-hvx_misc-sys: hvx_misc-sys
+	$(call test_for_each_cpu, 75, $<)
+
+EXTRA_RUNS += run-hvx_ext-sys run-hvx-multi-sys run-hvx_misc-sys
 
 mmu.h: ../hex_test.h
 invalid_opcode.h: mmu.h
@@ -129,10 +158,6 @@ reg-reads.o: reg-reads.c timer.h pmu.h
 wait: wait.o
 hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
-hvx_ext-0x75: hvx_ext-0x75.o
-hvx_ext-0x79: hvx_ext-0x79.o
-hvx-multi-0x79: hvx-multi-0x79.o
-hvx_misc-0x79: hvx_misc-0x79.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
 pendalot.o: pendalot.c cfgtable.h
@@ -178,10 +203,6 @@ reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
 reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
-hvx_ext-0x75.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv75
-hvx_ext-0x79.o: EXTRA_TEST_CFLAGS= -O2 -mhvx -mv79
-hvx-multi-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
-hvx_misc-0x79.o: EXTRA_TEST_CFLAGS=-mv79 -mhvx
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
@@ -189,10 +210,6 @@ vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
-run-hvx_ext-0x75: QEMU_EXTRA_OPTS=-M V75NA_1024
-run-hvx_ext-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
-run-hvx-multi-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
-run-hvx_misc-0x79: QEMU_EXTRA_OPTS=-M V79NA_1
 run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
