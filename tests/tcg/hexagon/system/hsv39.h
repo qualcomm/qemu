@@ -39,7 +39,7 @@ static inline uint32_t tlbp64(uint32_t asid, uint64_t VA)
     return ret;
 }
 
-static void add_hsv39_tlb_entry(int index, uint64_t va, uint64_t pa,
+static TLBEntry64 add_hsv39_tlb_entry(int index, uint64_t va, uint64_t pa,
 					            HSV39_PageSize page_size,
 					            uint32_t xwru, uint32_t asid,
 					            bool G, bool V)
@@ -52,6 +52,7 @@ static void add_hsv39_tlb_entry(int index, uint64_t va, uint64_t pa,
         remove_hsv39_trans(lookup_index);
     }
     hsv39_write_tlb_entry(entry.raw, index);
+    return entry;
 }
 
 static inline uint64_t page_start64(uint64_t addr, uint64_t page_size)
