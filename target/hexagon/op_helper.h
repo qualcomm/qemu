@@ -24,8 +24,6 @@
 
 #define CPU_MMU_INDEX(ENV) cpu_mmu_index(env_cpu(ENV), false)
 
-void cancel_slot(CPUHexagonState *env, uint32_t slot);
-
 /* Misc functions */
 void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
                   uint32_t slot, target_ulong vaddr, int size, uintptr_t ra);

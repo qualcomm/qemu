@@ -2032,7 +2032,7 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
     }
 }
 
-void cancel_slot(CPUHexagonState *env, uint32_t slot)
+static void cancel_slot(CPUHexagonState *env, uint32_t slot)
 {
 #ifdef CONFIG_USER_ONLY
     HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
