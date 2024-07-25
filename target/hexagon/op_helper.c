@@ -2402,11 +2402,7 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
     } else if (!handle_pmu_sreg_write(env, reg, val)) {
-        if (reg >= HEX_SREG_GLB_START) {
-            ARCH_SET_SYSTEM_REG(env, reg, val);
-        } else {
-            ARCH_SET_SYSTEM_REG(env, reg, val);
-        }
+        ARCH_SET_SYSTEM_REG(env, reg, val);
     }
 }
 
