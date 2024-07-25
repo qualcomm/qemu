@@ -1706,7 +1706,6 @@ endif
 if not gnutls_crypto.found()
   if (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
     gcrypt = dependency('libgcrypt', version: '>=1.8',
-                        method: 'config-tool',
                         required: get_option('gcrypt'))
     # Debian has removed -lgpg-error from libgcrypt-config
     # as it "spreads unnecessary dependencies" which in
@@ -1989,6 +1988,7 @@ endif
 tasn1 = not_found
 if gnutls.found()
   tasn1 = dependency('libtasn1',
+                     required: false,
                      method: 'pkg-config')
 endif
 keyutils = not_found
@@ -3353,6 +3353,7 @@ if have_block
   trace_events_subdirs += [
     'authz',
     'block',
+    'chardev',
     'io',
     'nbd',
     'scsi',
@@ -3364,7 +3365,6 @@ if have_system
     'audio',
     'backends',
     'backends/tpm',
-    'chardev',
     'ebpf',
     'hw/9pfs',
     'hw/acpi',
