@@ -1865,7 +1865,20 @@ EXTINSN(V6_vassign_tmp,"Vd32.tmp=Vu32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_REMAP,A_C
 { fHIDE(int i;) fVFOREACH(32, i) { VdV.w[i]=VuV.w[i]; GET_AND_SET_VEXT(VdV,VuV,i,32); } })
 
 EXTINSN(V6_vdelta,"Vd32=vdelta(Vu32,Vv32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Reverse Benes Butterfly network ",
-{ fHIDE(int offset;) fHIDE(int k;) for (offset=fVBYTES(); (offset>>=1)>0; ) { for (k = 0; k<fVBYTES(); k++) { VdV.ub[k] = (VvV.ub[k]&offset) ? VuV.ub[k^offset] : VuV.ub[k]; } for (k = 0; k<fVBYTES(); k++) { VuV.ub[k] = VdV.ub[k]; } } })
+{
+    fHIDE(int offset;)
+    fHIDE(int k;)
+    fHIDE(mmvector_t tmp;)
+    tmp = VuV;
+    for (offset=fVBYTES(); (offset>>=1)>0; ) {
+        for (k = 0; k<fVBYTES(); k++) {
+            VdV.ub[k] = (VvV.ub[k]&offset) ? tmp.ub[k^offset] : tmp.ub[k];
+        }
+        for (k = 0; k<fVBYTES(); k++) {
+            tmp.ub[k] = VdV.ub[k];
+        }
+    }
+})
 
 EXTINSN(V6_vrdelta,"Vd32=vrdelta(Vu32,Vv32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Forward Benes Butterfly network ",
 {
