@@ -800,6 +800,30 @@ static void test_vdelta(void)
     TEST_VDELTA("vdelta", 0xadbeefde);
 }
 
+#if __HEXAGON_ARCH__ >= 81
+static void test_valign4(void)
+{
+    uint32_t Vu_val = 0x00000010;
+    uint32_t Vv_val = 0x00008380;
+    asm volatile (
+        "v0 = vsplat(%0)\n"
+        "v1 = vsplat(%1)\n"
+        "r0 = #0\n"
+        "v2 = valign4(v0, v1, r0)\n"
+        "vmem(%2) = v2\n"
+        :
+        : "r"(Vu_val), "r"(Vv_val), "r"(&output[0])
+        : "r0", "v0", "v1", "v2", "memory"
+    );
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = Vu_val;
+    }
+
+    check_output_w(__LINE__, 1);
+}
+#endif
+
 void test_store_new()
 {
     asm volatile(
@@ -877,6 +901,10 @@ int main()
     test_store_new();
 
     test_vdelta();
+
+#if __HEXAGON_ARCH__ >= 81
+    test_valign4();
+#endif
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

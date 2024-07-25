@@ -475,7 +475,13 @@ EXTINSN(V6_vlalignbi,"Vd32=vlalign(Vu32,Vv32,#u3)",ATTRIBS(A_EXTENSION,A_CVI,A_C
 { unsigned shift = fVBYTES() - uiV; fHIDE(int i;) for(i = 0; i < fVBYTES(); i++) { VdV.ub[i] = (i+shift>=fVBYTES()) ? VuV.ub[i+shift-fVBYTES()] : VvV.ub[i+shift]; } })
 
 EXTINSN(V6_valign4,"Vd32=valign4(Vu32,Vv32,Rt8)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_NOTE_ANY_RESOURCE,A_NOTE_RT8),"In-lane align two vectors by Rt8 as control",
-{ fHIDE(int i;) fVFOREACH(32, i) { unsigned shift = 8 * (RtV & 0x3); VdV.uw[i] = (VuV.uw[i] << shift) | (VvV.uw[i] >> (32-shift)); } })
+{
+    fHIDE(int i;)
+    fVFOREACH(32, i) {
+        unsigned shift = 8 * (RtV & 0x3);
+        VdV.uw[i] = shift ? (VuV.uw[i] << shift) | (VvV.uw[i] >> (32-shift)) : VuV.uw[i];
+    }
+})
 
 EXTINSN(V6_vror,"Vd32=vror(Vu32,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Align Two vectors by Rt32 as control",
 { fHIDE(int k;) for (k=0;k<fVBYTES();k++) { VdV.ub[k] = VuV.ub[(k+RtV)&(fVBYTES()-1)]; } })
