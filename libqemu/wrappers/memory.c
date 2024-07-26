@@ -24,6 +24,7 @@
 #include "memory.h"
 #include "exec/ramblock.h"
 #include "exec/address-spaces.h"
+#include "iommu_translate_cb.h"
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
@@ -272,3 +273,59 @@ void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb)
 {
     ml->map = cb;
 }
+
+IOMMUMemoryRegion *libqemu_iommu_memory_region_new(void)
+{
+    return g_new0(IOMMUMemoryRegion, 1);
+}
+
+void libqemu_iommu_memory_region_init(IOMMUMemoryRegion *mr, Object *owner,
+                                      const char *name, uint64_t size)
+{
+    memory_region_init_iommu(mr, sizeof(IOMMUMemoryRegion),
+                             TYPE_LIBQEMU_IOMMU_MEMORY_REGION, owner, name,
+                             size);
+}
+
+static int libqemu_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
+{
+    return 0;
+}
+
+void libqemu_iommu_unmap(IOMMUMemoryRegion *mr, IOMMUTLBEntry *te)
+{
+    IOMMUTLBEvent event;
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry = *te;
+    event.entry.perm = IOMMU_NONE;
+
+    IOMMUNotifier *iommu_notifier;
+
+    assert(memory_region_is_iommu(MEMORY_REGION(mr)));
+
+    IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
+        memory_region_notify_iommu_one(iommu_notifier, &event);
+    }
+}
+
+static void libqemu_iommu_memory_region_class_init(ObjectClass *klass,
+                                                   void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = libqemu_iommu_translate_cb;
+    imrc->attrs_to_index = libqemu_attrs_to_index;
+}
+
+static const TypeInfo libqemu_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_LIBQEMU_IOMMU_MEMORY_REGION,
+    .class_init = libqemu_iommu_memory_region_class_init,
+};
+
+static void libqemu_register_types(void)
+{
+    type_register(&libqemu_iommu_memory_region_info);
+}
+
+type_init(libqemu_register_types)

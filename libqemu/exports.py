@@ -81,6 +81,8 @@ PrivateInclude('exec/memory.h')
 
 ExportedType('QemuMemoryRegion', 'MemoryRegion')
 ExportedType('QemuMemoryRegionOps', 'MemoryRegionOps')
+ExportedType('QemuIOMMUMemoryRegion', 'IOMMUMemoryRegion')
+ExportedType('QemuIOMMUTLBEntry', 'IOMMUTLBEntry')
 
 ExportedFct('memory_region_new', 'MemoryRegion *', [], priv = 'libqemu_memory_region_new')
 
@@ -94,6 +96,22 @@ ExportedFct('memory_region_init_io', 'void',
 ExportedFct('memory_region_init_ram_ptr', 'void',
         [ 'MemoryRegion *', 'Object *', 'const char *', 'uint64_t', 'void *' ],
         iothread_locked = True)
+
+ExportedFct('iommu_memory_region_new', 'IOMMUMemoryRegion *',
+        [], priv = 'libqemu_iommu_memory_region_new',
+        iothread_locked = True)
+
+ExportedFct('iommu_memory_region_init', 'void',
+        [ 'IOMMUMemoryRegion *', 'Object *', 'const char *', 'uint64_t'],
+        priv = 'libqemu_iommu_memory_region_init',
+        iothread_locked = True)
+
+ExportedFct('iommu_unmap', 'void',
+        [ 'IOMMUMemoryRegion *', 'IOMMUTLBEntry *', ],
+        priv = 'libqemu_iommu_unmap')
+
+ExportedFct('memory_region_iommu_get_min_page_size', 'uint64_t',
+        [ 'IOMMUMemoryRegion *'])
 
 ExportedFct('memory_region_init_alias', 'void',
         [ 'MemoryRegion *', 'Object *', 'const char *', 'MemoryRegion *', 'hwaddr', 'uint64_t' ])
@@ -337,6 +355,10 @@ ExportedFct('set_cpu_end_of_loop_cb', 'void', [ 'LibQemuCpuEndOfLoopFn', 'void *
         priv = 'libqemu_set_cpu_end_of_loop_cb')
 ExportedFct('set_cpu_kick_cb', 'void', [ 'LibQemuCpuKickFn', 'void *' ],
         priv = 'libqemu_set_cpu_kick_cb')
+ExportedFct('set_iommu_translate_cb', 'void',
+        [ 'LibQemuIOMMUTranslateFn', 'void *' ],
+        priv = 'libqemu_set_iommu_translate_cb')
+
 ExportedFct('enable_opengl', 'void', [], priv = 'libqemu_enable_opengl')
 
 PrivateInclude('qemu/coroutine.h')

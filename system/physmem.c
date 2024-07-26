@@ -3184,6 +3184,7 @@ flatview_extend_translation(FlatView *fv, hwaddr addr,
 
 enum ListenerDirection { Forward, Reverse };
 
+#ifdef CONFIG_LIBQEMU
 /*
  * This will require a change to the memory listener callbacks:
  * while it currently uses "self" as first argument for the callbacks, this new
@@ -3213,7 +3214,7 @@ enum ListenerDirection { Forward, Reverse };
             abort();                                                    \
         }                                                               \
     } while (0)
-
+#endif
 /* Map a physical memory region into a host virtual address.
  * May map a subset of the requested range, given by and returned in *plen.
  * May return NULL if resources needed to perform the mapping are exhausted.
@@ -3235,8 +3236,9 @@ void *address_space_map(AddressSpace *as,
     if (len == 0) {
         return NULL;
     }
-
+#ifdef CONFIG_LIBQEMU
     MEMORY_LISTENER_CALL(as, map, Reverse, addr, len);
+#endif
 
     l = len;
     RCU_READ_LOCK_GUARD();
@@ -3341,11 +3343,14 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     Int128 diff;
 
     assert(len > 0);
+
+#ifdef CONFIG_LIBQEMU
     /*
      *  Dummy read to make sure that systemc TLM DMI access is granted early.
      */
     uint64_t dummy_buf;
     address_space_read(as,  addr, MEMTXATTRS_UNSPECIFIED, &dummy_buf, sizeof(dummy_buf));
+#endif
 
     l = len;
     cache->fv = address_space_get_flatview(as);

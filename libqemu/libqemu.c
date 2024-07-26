@@ -25,10 +25,13 @@
 #include "tcg/tcg.h"
 
 #include "callbacks.h"
+#include "memory.h"
+#include "exec/memory.h"
 #include "ctors.h"
 #include "fill.h"
 #include "libqemu.h"
 #include "wrappers/libqemu.h"
+#include "wrappers/iommu_translate_cb.h"
 
 /* The QEMU main function */
 int main(int argc, const char *const argv[], char **envp);
@@ -51,6 +54,11 @@ struct LibQemuContext {
         LibQemuCpuKickFn cb;
         void *opaque;
     } cpu_kick_cb;
+
+    struct {
+        LibQemuIOMMUTranslateFn cb;
+        void *opaque;
+    } iommu_translate_cb;
 };
 
 /* Since QEMU has a implicit state, there is no use in returning an explicit
@@ -161,6 +169,25 @@ void libqemu_cpu_kick_cb(CPUState *cpu)
     if (cb) {
         cb((QemuObject *)cpu, opaque);
     }
+}
+
+void libqemu_set_iommu_translate_cb(LibQemuIOMMUTranslateFn cb, void *opaque)
+{
+    context.iommu_translate_cb.cb = cb;
+    context.iommu_translate_cb.opaque = opaque;
+}
+/* Not in header file due to IOMMUAccessFlags enum */
+
+IOMMUTLBEntry libqemu_iommu_translate_cb(IOMMUMemoryRegion *mr, hwaddr addr,
+                                         IOMMUAccessFlags flag, int iommu_idx)
+{
+    LibQemuIOMMUTranslateFn cb = context.iommu_translate_cb.cb;
+    void *opaque = context.iommu_translate_cb.opaque;
+
+    if (likely(cb)) {
+        return cb(mr, opaque, addr, flag, iommu_idx);
+    }
+    g_assert_not_reached();
 }
 
 void libqemu_enable_opengl(void)
