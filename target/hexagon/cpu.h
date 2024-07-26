@@ -303,12 +303,6 @@ typedef struct PMUState {
     uint32_t hvx_packets;
 } PMUState;
 
-#define ATOMIC_LOAD(VAR) (__atomic_load_n(&(VAR), __ATOMIC_SEQ_CST), (VAR))
-#define ATOMIC_STORE(VAR, VAL)                              \
-    {                                                       \
-        __atomic_store_n(&(VAR), (VAL), __ATOMIC_SEQ_CST);  \
-        smp_mb(); /* multiple hw threads access this VAR */ \
-    }
 #define ATOMIC_EXCHANGE(VAR_ADDR, NEW, OLD)                             \
     {                                                                   \
         OLD = __atomic_exchange_n((VAR_ADDR), (NEW), __ATOMIC_SEQ_CST); \

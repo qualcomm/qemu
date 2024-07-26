@@ -1701,7 +1701,7 @@ static void print_thread(const char *str, CPUState *cs)
     CPUHexagonState *thread = &cpu->env;
     bool is_stopped = cpu_is_stopped(cs);
     int exe_mode = get_exe_mode(thread);
-    hex_lock_state_t lock_state = ATOMIC_LOAD(thread->k0_lock_state);
+    hex_lock_state_t lock_state = thread->k0_lock_state;
     HEX_DEBUG_LOG("%s: threadId = %d: %s, exe_mode = %s, k0_lock_state = %s\n",
            str,
            thread->threadId,
@@ -1743,16 +1743,16 @@ static void hex_k0_lock(CPUHexagonState *env)
 
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
-        if (ATOMIC_LOAD(env->k0_lock_state) == HEX_LOCK_QUEUED) {
+        if (env->k0_lock_state == HEX_LOCK_QUEUED) {
             env->next_PC += 4;
             env->k0_lock_count++;
-            ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_OWNER);
+            env->k0_lock_state = HEX_LOCK_OWNER;
             SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
             trace_hexagon_k0_lock_info(env->threadId,
                                        "queued thread waiting gets lock\n");
             return;
         }
-        if (ATOMIC_LOAD(env->k0_lock_state) == HEX_LOCK_OWNER) {
+        if (env->k0_lock_state == HEX_LOCK_OWNER) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Double k0lock at PC: 0x%x, thread may hang\n",
                           env->next_PC);
@@ -1762,14 +1762,14 @@ static void hex_k0_lock(CPUHexagonState *env)
             return;
         }
         trace_hexagon_k0_lock_info(env->threadId, "Waiting for k0lock");
-        ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_WAITING);
+        env->k0_lock_state = HEX_LOCK_WAITING;
         CPUState *cs = env_cpu(env);
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {
         trace_hexagon_k0_lock_info(env->threadId, "Acquired k0lock");
         env->next_PC += 4;
         env->k0_lock_count++;
-        ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_OWNER);
+        env->k0_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
     }
 
@@ -1788,19 +1788,19 @@ static void hex_k0_unlock(CPUHexagonState *env)
     /* Nothing to do if the k0 isn't locked by this thread */
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
     if ((GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg) == 0) ||
-        (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_OWNER)) {
+        (env->k0_lock_state != HEX_LOCK_OWNER)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "thread %d attempted to unlock k0 without having the "
                       "lock, k0_lock state = %d, syscfg:k0 = %d\n",
-                      env->threadId, ATOMIC_LOAD(env->k0_lock_state),
+                      env->threadId, env->k0_lock_state,
                       GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg));
-        g_assert (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_WAITING);
+        g_assert(env->k0_lock_state != HEX_LOCK_WAITING);
         return;
     }
 
     trace_hexagon_k0_lock_info(env->threadId, "Unlocking k0lock");
     env->k0_lock_count--;
-    ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_UNLOCKED);
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
     SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 0);
 
     /* Look for a thread to unlock */
@@ -1824,7 +1824,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
          *         thread higher than this thread is ahead of unlock_thread
          *         thread must be lower then unlock thread
          */
-        if (ATOMIC_LOAD(thread->k0_lock_state) == HEX_LOCK_WAITING) {
+        if (thread->k0_lock_state == HEX_LOCK_WAITING) {
             if (!unlock_thread) {
                 unlock_thread = thread;
             } else if (unlock_thread->threadId > this_threadId) {
@@ -1846,7 +1846,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
         cs = env_cpu(unlock_thread);
         print_thread("\tWaiting thread found", cs);
         trace_hexagon_k0_lock_info(unlock_thread->threadId, "Will get the next k0lock");
-        ATOMIC_STORE(unlock_thread->k0_lock_state, HEX_LOCK_QUEUED);
+        unlock_thread->k0_lock_state = HEX_LOCK_QUEUED;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
         cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
     }
@@ -2252,7 +2252,8 @@ static void check_all_pmu_events(CPUHexagonState *env)
 
 static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 {
-    /* get old value and then store new value */
+    g_assert(bql_locked());
+
     uint32_t old;
     uint32_t syscfg_read_only_mask = 0x80001c00;
     uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
@@ -2626,8 +2627,8 @@ static uint32_t get_ready_count(CPUHexagonState *env)
         CPUHexagonState *thread_env = &cpu->env;
         const bool running =
             (get_exe_mode(thread_env) == HEX_EXE_MODE_RUN) &&
-            (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_WAITING) &&
-            (ATOMIC_LOAD(env->tlb_lock_state) != HEX_LOCK_WAITING);
+            (env->k0_lock_state != HEX_LOCK_WAITING) &&
+            (env->tlb_lock_state != HEX_LOCK_WAITING);
         if (running) {
             ready_count += 1;
         }

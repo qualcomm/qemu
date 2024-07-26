@@ -168,11 +168,11 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num)
 
 static void clear_pending_locks(CPUHexagonState *env)
 {
-    if (ATOMIC_LOAD(env->k0_lock_state) == HEX_LOCK_WAITING) {
-        ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_UNLOCKED);
+    if (env->k0_lock_state == HEX_LOCK_WAITING) {
+        env->k0_lock_state = HEX_LOCK_UNLOCKED;
     }
-    if (ATOMIC_LOAD(env->tlb_lock_state) == HEX_LOCK_WAITING) {
-        ATOMIC_STORE(env->tlb_lock_state, HEX_LOCK_UNLOCKED);
+    if (env->tlb_lock_state == HEX_LOCK_WAITING) {
+        env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     }
 }
 

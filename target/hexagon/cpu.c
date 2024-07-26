@@ -664,9 +664,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->greg[HEX_GREG_GPMUCNT6] = INVALID_REG_VAL;
     env->greg[HEX_GREG_GPMUCNT7] = INVALID_REG_VAL;
 
-    ATOMIC_STORE(env->k0_lock_state, HEX_LOCK_UNLOCKED);
-    ATOMIC_STORE(env->tlb_lock_state, HEX_LOCK_UNLOCKED);
-    ATOMIC_STORE(env->ss_pending, false);
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->tlb_lock_state = HEX_LOCK_UNLOCKED;
+    env->ss_pending = false;
 
     hex_mmu_reset(env);
     hexagon_cpu_soft_reset(env);

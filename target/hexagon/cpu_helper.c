@@ -353,8 +353,8 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
     g_assert(bql_locked());
 
     if (qemu_loglevel_mask(LOG_GUEST_ERROR) &&
-        (ATOMIC_LOAD(env->k0_lock_state) != HEX_LOCK_UNLOCKED ||
-         ATOMIC_LOAD(env->tlb_lock_state) != HEX_LOCK_UNLOCKED)) {
+        (env->k0_lock_state != HEX_LOCK_UNLOCKED ||
+         env->tlb_lock_state != HEX_LOCK_UNLOCKED)) {
         qemu_log("WARNING: executing wait() with acquired lock"
                  "may lead to deadlock\n");
     }

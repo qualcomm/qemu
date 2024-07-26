@@ -1195,7 +1195,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_DEBUG:
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
-        ATOMIC_STORE(env->ss_pending, false);
+        env->ss_pending = false;
         break;
 
     case HEX_EVENT_PRECISE:
