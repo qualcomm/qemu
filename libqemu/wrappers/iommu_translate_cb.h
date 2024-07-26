@@ -1,7 +1,8 @@
+
 /*
  * libqemu
  *
- * Copyright (c) 2021 Luc Michel <luc.michel@greensocs.com>
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,21 +18,5 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIBQEMU_WRAPPERS_LIBQEMU_H
-#define _LIBQEMU_WRAPPERS_LIBQEMU_H
-
-#include <stdbool.h>
-
-typedef struct QemuObject QemuObject;
-
-typedef void (*LibQemuCpuEndOfLoopFn)(QemuObject *cpu, void *opaque);
-typedef void (*LibQemuCpuKickFn)(QemuObject *cpu, void *opaque);
-
-void libqemu_set_cpu_end_of_loop_cb(LibQemuCpuEndOfLoopFn cb, void *opaque);
-void libqemu_set_cpu_kick_cb(LibQemuCpuKickFn cb, void *opaque);
-void libqemu_set_iommu_translate_cb(LibQemuIOMMUTranslateFn cb, void *opaque);
-
-void libqemu_enable_opengl(void);
-void libqemu_set_autostart(int);
-
-#endif
+IOMMUTLBEntry libqemu_iommu_translate_cb(IOMMUMemoryRegion *mr, hwaddr addr,
+                                         IOMMUAccessFlags flag, int iommu_idx);

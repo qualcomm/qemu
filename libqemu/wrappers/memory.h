@@ -25,6 +25,8 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
+typedef struct IOMMUMemoryRegion IOMMUMemoryRegion;
+typedef struct IOMMUTLBEntry IOMMUTLBEntry;
 typedef struct Object Object;
 typedef struct AddressSpace AddressSpace;
 typedef struct MemoryListener MemoryListener;
@@ -71,5 +73,14 @@ typedef void (*LibQemuMlMapCb)(void *opaque, hwaddr addr, hwaddr len);
 MemoryListener *libqemu_memory_listener_new(void *opaque, const char *name);
 void libqemu_memory_listener_free(MemoryListener *ml);
 void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb);
+IOMMUMemoryRegion *libqemu_iommu_memory_region_new(void);
+typedef IOMMUTLBEntry (*LibQemuIOMMUTranslateFn)(IOMMUMemoryRegion *mr,
+                                                 void *opaque, hwaddr addr,
+                                                 int flag, int iommu_idx);
+void libqemu_iommu_memory_region_init(IOMMUMemoryRegion *mr, Object *owner,
+                                      const char *name, uint64_t size);
+void libqemu_iommu_unmap(IOMMUMemoryRegion *mr, IOMMUTLBEntry *te);
+
+#define TYPE_LIBQEMU_IOMMU_MEMORY_REGION "libqemu-iommu-memory-region"
 
 #endif
