@@ -2263,7 +2263,9 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     /* if read-only are currently set in syscfg keep them set. */
     val |= (syscfg & syscfg_read_only_mask);
 
-    ATOMIC_EXCHANGE(ARCH_GET_SYSTEM_REG_ADDR(env, HEX_SREG_SYSCFG), val, old);
+    uint32_t tmp = val;
+    old = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_SYSCFG, tmp);
 
     /* Check for change in MMU enable */
     target_ulong old_mmu_enable = GET_SYSCFG_FIELD(SYSCFG_MMUEN, old);
