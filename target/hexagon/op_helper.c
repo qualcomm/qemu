@@ -19,9 +19,10 @@
 #include "qemu/log.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/probe.h"
+#include "qemu/main-loop.h"
+#include "cpu.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
-#include "cpu.h"
 #include "internal.h"
 #include "macros.h"
 #include "sys_macros.h"
@@ -1451,25 +1452,69 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
     g_assert_not_reached();
 }
 
+static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
+                                                 uint32_t reg, uint32_t val)
+
+{
+    g_assert(bql_locked());
+    arch_set_system_reg(env, reg, val);
+}
+
+static inline QEMU_ALWAYS_INLINE void
+sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
+
+{
+    g_assert(bql_locked());
+    arch_set_system_reg_masked(env, reg, val);
+}
+
 void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    sreg_write(env, reg, val);
 }
 
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
+{
+    BQL_LOCK_GUARD();
+    sreg_write(env, reg, extract64(val, 0, 32));
+    sreg_write(env, reg + 1, extract64(val, 32, 32));
+}
+
+void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    BQL_LOCK_GUARD();
+    sreg_write_masked(env, reg, val);
+}
+
+void HELPER(sreg_write_pair_masked)(CPUHexagonState *env, uint32_t reg,
+                                    uint64_t val)
 
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    sreg_write_masked(env, reg, extract64(val, 0, 32));
+    sreg_write_masked(env, reg + 1, extract64(val, 32, 32));
+}
+
+static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
+                                                    uint32_t reg)
+{
+    g_assert(bql_locked());
+    return arch_get_system_reg(env, reg);
 }
 
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    return sreg_read(env, reg);
 }
 
 uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+
+    return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
+        sreg_read(env, reg + 1));
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
