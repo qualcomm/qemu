@@ -1000,7 +1000,7 @@ uint32_t HELPER(conv_sf2uw)(CPUHexagonState *env, float32 RsV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV)) {
+    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV) && !float32_is_zero(RsV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {
@@ -1030,7 +1030,7 @@ uint64_t HELPER(conv_sf2ud)(CPUHexagonState *env, float32 RsV)
     uint64_t RddV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV)) {
+    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV) && !float32_is_zero(RsV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RddV = 0;
     } else {
@@ -1060,7 +1060,7 @@ uint32_t HELPER(conv_df2uw)(CPUHexagonState *env, float64 RssV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV) && !float64_is_zero(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {
@@ -1090,7 +1090,7 @@ uint64_t HELPER(conv_df2ud)(CPUHexagonState *env, float64 RssV)
     uint64_t RddV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV) && !float64_is_zero(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RddV = 0;
     } else {
@@ -1120,7 +1120,7 @@ uint32_t HELPER(conv_sf2uw_chop)(CPUHexagonState *env, float32 RsV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV)) {
+    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV) && !float32_is_zero(RsV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {
@@ -1150,7 +1150,7 @@ uint64_t HELPER(conv_sf2ud_chop)(CPUHexagonState *env, float32 RsV)
     uint64_t RddV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV)) {
+    if (float32_is_neg(RsV) && !float32_is_any_nan(RsV) && !float32_is_zero(RsV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RddV = 0;
     } else {
@@ -1180,7 +1180,7 @@ uint32_t HELPER(conv_df2uw_chop)(CPUHexagonState *env, float64 RssV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV) && !float64_is_zero(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {
@@ -1210,7 +1210,7 @@ uint64_t HELPER(conv_df2ud_chop)(CPUHexagonState *env, float64 RssV)
     uint64_t RddV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV) && !float64_is_zero(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RddV = 0;
     } else {
