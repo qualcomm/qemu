@@ -168,6 +168,7 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num)
 
 static void clear_pending_locks(CPUHexagonState *env)
 {
+    g_assert(bql_locked());
     if (env->k0_lock_state == HEX_LOCK_WAITING) {
         env->k0_lock_state = HEX_LOCK_UNLOCKED;
     }

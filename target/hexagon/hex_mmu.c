@@ -498,6 +498,7 @@ int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry, uint64_t index)
 
 static inline void print_thread(const char *str, CPUState *cs)
 {
+    g_assert(bql_locked());
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *thread = &cpu->env;
     bool is_stopped = cpu_is_stopped(cs);
