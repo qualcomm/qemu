@@ -61,6 +61,8 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 
 static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
+    DEFINE_PROP_LINK("tlb", HexagonCPU, tlb, TYPE_HEXAGON_TLB,
+                     HexagonTLBState *),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
         TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
