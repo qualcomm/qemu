@@ -53,51 +53,86 @@ typedef enum {
 
 typedef  union {
   struct {
-    uint32_t l2tcm_base; /* Base address of L2TCM space */
-    uint32_t reserved; /* Reserved */
-    uint32_t subsystem_base; /* Base address of subsystem space */
-    uint32_t etm_base; /* Base address of ETM space */
-    uint32_t l2cfg_base; /* Base address of L2 configuration space */
+    /* Base address of L2TCM space */
+    uint32_t l2tcm_base;
+    uint32_t reserved;
+    /* Base address of subsystem space */
+    uint32_t subsystem_base;
+    /* Base address of ETM space */
+    uint32_t etm_base;
+    /* Base address of L2 configuration space */
+    uint32_t l2cfg_base;
     uint32_t reserved2;
-    uint32_t l1s0_base; /* Base address of L1S */
-    uint32_t axi2_lowaddr; /* Base address of AXI2 */
-    uint32_t streamer_base; /* Base address of streamer base */
-    uint32_t clade_base; /* Base address of Clade */
-    uint32_t fastl2vic_base; /* Base address of fast L2VIC */
-    uint32_t jtlb_size_entries; /* Number of entries in JTLB */
-    uint32_t coproc_present; /* Coprocessor type */
-    uint32_t ext_contexts; /* Number of extension execution contexts available */
-    uint32_t vtcm_base; /* Base address of Hexagon Vector Tightly Coupled Memory (VTCM) */
-    uint32_t vtcm_size_kb; /* Size of VTCM (in KB) */
-    uint32_t l2tag_size; /* L2 tag size */
-    uint32_t l2ecomem_size; /* Amount of physical L2 memory in released version */
-    uint32_t thread_enable_mask; /* Hardware threads available on the core */
-    uint32_t eccreg_base; /* Base address of the ECC registers */
-    uint32_t l2line_size; /* L2 line size */
-    uint32_t tiny_core; /* Small Core processor (also implies audio extension) */
-    uint32_t l2itcm_size; /* Size of L2TCM */
-    uint32_t l2itcm_base; /* Base address of L2-ITCM */
-    uint32_t clade2_base; /* Base address of Clade2 */
-    uint32_t dtm_present; /* DTM is present */
-    uint32_t dma_version; /* Version of the DMA */
-    uint32_t hvx_vec_log_length; /* Native HVX vector length in log of bytes */
-    uint32_t core_id; /* Core ID of the multi-core */
-    uint32_t core_count; /* Number of multi-core cores */
+    /* Base address of L1S */
+    uint32_t l1s0_base;
+    /* Base address of AXI2 */
+    uint32_t axi2_lowaddr;
+    /* Base address of streamer base */
+    uint32_t streamer_base;
+    /* Base address of Clade */
+    uint32_t clade_base;
+    /* Base address of fast L2VIC */
+    uint32_t fastl2vic_base;
+    /* Number of entries in JTLB */
+    uint32_t jtlb_size_entries;
+    /* Coprocessor type */
+    uint32_t coproc_present;
+    /* Number of extension execution contexts available */
+    uint32_t ext_contexts;
+    /* Base address of Hexagon Vector Tightly Coupled Memory (VTCM) */
+    uint32_t vtcm_base;
+    /* Size of VTCM (in KB) */
+    uint32_t vtcm_size_kb;
+    /* L2 tag size */
+    uint32_t l2tag_size;
+    /* Amount of physical L2 memory in released version */
+    uint32_t l2ecomem_size;
+    /* Hardware threads available on the core */
+    uint32_t thread_enable_mask;
+    /* Base address of the ECC registers */
+    uint32_t eccreg_base;
+    /* L2 line size */
+    uint32_t l2line_size;
+    /* Small Core processor (also implies audio extension) */
+    uint32_t tiny_core;
+    /* Size of L2TCM */
+    uint32_t l2itcm_size;
+    /* Base address of L2-ITCM */
+    uint32_t l2itcm_base;
+    /* Base address of Clade2 */
+    uint32_t clade2_base;
+    /* DTM is present */
+    uint32_t dtm_present;
+    /* Version of the DMA */
+    uint32_t dma_version;
+    /* Native HVX vector length in log of bytes */
+    uint32_t hvx_vec_log_length;
+    /* Core ID of the multi-core */
+    uint32_t core_id;
+    /* Number of multi-core cores */
+    uint32_t core_count;
     uint32_t coproc2_reg0;
     uint32_t coproc2_reg1;
-    uint32_t v2x_mode; /* Supported HVX vector length, see HexagonVecLenSupported */
+    /* Supported HVX vector length */
+    uint32_t v2x_mode;
     uint32_t coproc2_reg2;
     uint32_t coproc2_reg3;
     uint32_t coproc2_reg4;
     uint32_t coproc2_reg5;
     uint32_t coproc2_reg6;
     uint32_t coproc2_reg7;
-    uint32_t acd_preset; /* Voltage droop mitigation technique parameter */
-    uint32_t mnd_preset; /* Voltage droop mitigation technique parameter */
-    uint32_t l1d_size_kb; /* L1 data cache size (in KB) */
-    uint32_t l1i_size_kb; /* L1 instruction cache size in (KB) */
-    uint32_t l1d_write_policy; /* L1 data cache write policy: see HexagonL1WritePolicy */
-    uint32_t vtcm_bank_width; /* VTCM bank width  */
+    /* Voltage droop mitigation technique parameter */
+    uint32_t acd_preset;
+    /* Voltage droop mitigation technique parameter */
+    uint32_t mnd_preset;
+    /* L1 data cache size (in KB) */
+    uint32_t l1d_size_kb;
+    /* L1 instruction cache size in (KB) */
+    uint32_t l1i_size_kb;
+    /* L1 data cache write policy: see HexagonL1WritePolicy */
+    uint32_t l1d_write_policy;
+    /* VTCM bank width  */
+    uint32_t vtcm_bank_width;
     uint32_t reserved3;
     uint32_t reserved4;
     uint32_t reserved5;
@@ -114,11 +149,16 @@ typedef  union {
 } hexagon_config_table;
 
 typedef struct {
-    uint32_t cfgbase; /* Base address of config table */
-    uint32_t l2tcm_size; /* Size of L2 TCM */
-    uint32_t l2vic_base; /* Base address of L2VIC */
-    uint32_t l2vic_size; /* Size of L2VIC region */
-    uint32_t csr_base; /* QTimer csr base */
+    /* Base address of config table */
+    uint32_t cfgbase;
+    /* Size of L2 TCM */
+    uint32_t l2tcm_size;
+    /* Base address of L2VIC */
+    uint32_t l2vic_base;
+    /* Size of L2VIC region */
+    uint32_t l2vic_size;
+    /* QTimer csr base */
+    uint32_t csr_base;
     uint32_t qtmr_rg0;
     uint32_t qtmr_rg1;
     hexagon_config_table cfgtable;
