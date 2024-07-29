@@ -1,7 +1,7 @@
 /*
  * Hexagon Baseboard System emulation.
  *
- * Copyright (c) 2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,37 +29,6 @@ struct hexagon_board_boot_info {
     uint32_t kernel_elf_flags;
 };
 
-enum {
-    HEXAGON_LPDDR,
-    HEXAGON_IOMEM,
-    HEXAGON_CONFIG_TABLE,
-    HEXAGON_VTCM,
-    HEXAGON_L2CFG,
-    HEXAGON_FASTL2VIC,
-    HEXAGON_TCM,
-    HEXAGON_L2VIC,
-    HEXAGON_CSR1,
-    HEXAGON_QTMR_RG0,
-    HEXAGON_QTMR_RG1,
-    HEXAGON_CSR2,
-    HEXAGON_QTMR2,
-};
-
-typedef enum {
-  HEXAGON_COPROC_HVX = 0x01,
-  HEXAGON_COPROC_RESERVED = 0x02,
-} HexagonCoprocPresent;
-
-typedef enum {
-  HEXAGON_HVX_VEC_LEN_V2X_1 = 0x01,
-  HEXAGON_HVX_VEC_LEN_V2X_2 = 0x02,
-} HexagonVecLenSupported;
-
-typedef enum {
-  HEXAGON_L1_WRITE_THROUGH = 0x01,
-  HEXAGON_L1_WRITE_BACK    = 0x02,
-} HexagonL1WritePolicy;
-
 typedef enum {
     unknown_rev = 0,
     v66_rev = 0xa666,
@@ -80,24 +49,7 @@ typedef enum {
  */
 #define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 
-#define HEXAGON_DEFAULT_L2_TAG_SIZE (1024)
-#define HEXAGON_DEFAULT_TLB_ENTRIES (128)
-#define HEXAGON_DEFAULT_HVX_CONTEXTS (4)
-
-#define HEXAGON_V65_L2_LINE_SIZE_BYTES (0x40)
-#define HEXAGON_V66_L2_LINE_SIZE_BYTES (0x40)
-#define HEXAGON_V67h_3072_L2_LINE_SIZE_BYTES (0x40)
-#define HEXAGON_V67_L2_LINE_SIZE_BYTES (HEXAGON_V67h_3072_L2_LINE_SIZE_BYTES)
-#define HEXAGON_V68n_1024_L2_LINE_SIZE_BYTES (0x80)
-
-#define HEXAGON_DEFAULT_L1D_SIZE_KB (10)
-#define HEXAGON_DEFAULT_L1I_SIZE_KB (20)
-#define HEXAGON_DEFAULT_L1D_WRITE_POLICY (HEXAGON_L1_WRITE_BACK)
 #define HEXAGON_CFGSPACE_ENTRIES (128)
-
-/* TODO: make this default per-arch?
- */
-#define HEXAGON_HVX_DEFAULT_VEC_LOG_LEN_BYTES (7)
 
 typedef  union {
   struct {
