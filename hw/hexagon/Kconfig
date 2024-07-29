@@ -1,7 +1,3 @@
-config HEX_VIRT
-    depends on HEX_DSP
-    select VIRTIO_MMIO
-
 config HEX_DSP
     bool
     default y
@@ -9,3 +5,10 @@ config HEX_DSP
     imply PTIMER
     select L2VIC  # Vector PIC
     select PL011
+
+config HEX_VIRT
+    depends on HEX_DSP && FDT
+    select DEVICE_TREE
+    select VIRTIO_MMIO
+    select VIRTIO_RNG
+    select PL031
