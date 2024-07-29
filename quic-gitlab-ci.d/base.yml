@@ -50,7 +50,7 @@ variables:
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # AArch64
   AARCH64_CONFIG_OPTS: >-
-    --enable-fdt --enable-slirp --enable-sdl --enable-pixman
+    --enable-fdt --enable-slirp --enable-sdl --enable-gtk --enable-pixman
     --enable-install-blobs --disable-png --disable-debug-info
     --disable-debug-tcg --gdb=aarch64-linux-gnu-gdb
 

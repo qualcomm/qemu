@@ -935,18 +935,16 @@ have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
 
 # When bumping glib minimum version, please check also whether to increase
 # the _WIN32_WINNT setting in osdep.h according to the value from glib
-glib_req_ver = '>=2.66.0'
+glib_req_ver = '>=2.56.0'
 glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
-                    method: 'pkg-config', fallback: ['glib', 'libglib_dep'],
-		    default_options: ['werror=false', 'default_library=static',
-				      'tests=false'])
+                    method: 'pkg-config')
 glib_cflags = []
 if enable_modules
   gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
+                       method: 'pkg-config')
 elif get_option('plugins')
   gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
+                       method: 'pkg-config')
 else
   gmodule = not_found
 endif
@@ -962,7 +960,7 @@ endif
 # problems on multi-arch where people try to build
 # 32-bit QEMU while pointing at 64-bit glib headers
 
-if glib_pc.type_name() != 'internal' and not cc.compiles('''
+if not cc.compiles('''
   #include <glib.h>
   #include <unistd.h>
 
@@ -978,6 +976,20 @@ if glib_pc.type_name() != 'internal' and not cc.compiles('''
         to the right pkg-config files for your build target.''')
 endif
 
+# Silence clang warnings triggered by glib < 2.57.2
+if not cc.compiles('''
+  #include <glib.h>
+  typedef struct Foo {
+    int i;
+  } Foo;
+  static void foo_free(Foo *f)
+  {
+    g_free(f);
+  }
+  G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
+  int main(void) { return 0; }''', dependencies: glib_pc, args: ['-Wunused-function', '-Werror'])
+  glib_cflags += cc.get_supported_arguments('-Wno-unused-function')
+endif
 glib = declare_dependency(dependencies: [glib_pc, gmodule],
                           compile_args: glib_cflags,
                           version: glib_pc.version())
@@ -988,9 +1000,7 @@ glib = declare_dependency(dependencies: [glib_pc, gmodule],
 glib_has_gslice = glib.version().version_compare('<2.75.3')
 
 # override glib dep to include the above refinements
-if glib_pc.type_name() != 'internal'
 meson.override_dependency('glib-2.0', glib)
-endif
 
 # The path to glib.h is added to all compilation commands.
 add_project_dependencies(glib.partial_dependency(compile_args: true, includes: true),
@@ -1002,7 +1012,7 @@ gdbus_codegen_error = '@0@ requires gdbus-codegen, please install libgio'
 if not get_option('gio').auto() or have_system
   gio = dependency('gio-2.0', required: get_option('gio'),
                    method: 'pkg-config')
-  if glib_pc.type_name() != 'internal' and gio.found() and not cc.links('''
+  if gio.found() and not cc.links('''
     #include <gio/gio.h>
     int main(void)
     {
@@ -1452,7 +1462,7 @@ if have_system and get_option('curses').allowed()
       # the system libc does not work.
       # However, without adding glib to the dependencies -L/usr/local/lib will not be
       # included in the command line and libiconv will not be found.
-      if glib_pc.type_name() != 'internal' and cc.links('''
+      if cc.links('''
         #include <iconv.h>
         int main(void) {
           iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
@@ -1587,7 +1597,7 @@ endif
 
 hv_balloon = false
 if get_option('hv_balloon').allowed() and have_system
-  if glib_pc.type_name() != 'internal' and cc.links('''
+  if cc.links('''
     #include <string.h>
     #include <gmodule.h>
     int main(void) {
