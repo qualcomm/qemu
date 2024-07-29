@@ -21,7 +21,7 @@ import sys
 import re
 import string
 import hex_common
-
+from textwrap import dedent
 
 ##
 ## Generate the TCG code to call the helper
@@ -51,13 +51,17 @@ def gen_tcg_func(f, tag, regs, imms):
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
 
     if "A_PRIV" in hex_common.attribdict[tag]:
-        f.write("#ifdef CONFIG_USER_ONLY\n")
-        f.write("    gen_exception_end_tb(ctx, " "HEX_CAUSE_PRIV_USER_NO_SINSN);\n")
-        f.write("#else\n")
+        f.write(dedent("""\
+            #ifdef CONFIG_USER_ONLY
+                gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
+            #else
+            """))
     if "A_GUEST" in hex_common.attribdict[tag]:
-        f.write("#ifdef CONFIG_USER_ONLY\n")
-        f.write("    gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);\n")
-        f.write("#else\n")
+        f.write(dedent("""\
+            #ifdef CONFIG_USER_ONLY
+                gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
+            #else
+            """))
     if hex_common.need_ea(tag):
         f.write("    TCGv EA G_GNUC_UNUSED = tcg_temp_new();\n")
 
