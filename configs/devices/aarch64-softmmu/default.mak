@@ -3,7 +3,7 @@
 # We support all the 32 bit boards so need all their config
 include ../arm-softmmu/default.mak
 
-CONFIG_QTIMER=y
+CONFIG_DRAGON=y
 
 # These are selected by default when TCG is enabled, uncomment them to
 # keep out of the build.
