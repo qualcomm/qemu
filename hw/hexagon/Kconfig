@@ -1,16 +1,15 @@
-config HEX_DSP
+config DRAGON
     bool
     default y
-    depends on HEXAGON && TCG
+    depends on TCG
     imply PTIMER
     select L2VIC  # Vector PIC
-    select QTIMER
     select ARM_COMPATIBLE_SEMIHOSTING
 
 config HEX_VIRT
     bool
     default y
-    depends on HEX_DSP && FDT
+    depends on DRAGON && FDT
     select DEVICE_TREE
     select VIRTIO_MMIO
     select PL011

@@ -1,0 +1,1 @@
+obj-$(CONFIG_DRAGON) += hexagon_testboard.o
