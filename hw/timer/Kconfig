@@ -56,7 +56,3 @@ config STELLARIS_GPTM
 
 config AVR_TIMER16
     bool
-
-config QTIMER
-    bool
-    select PTIMER

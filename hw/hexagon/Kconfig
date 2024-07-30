@@ -1,5 +1,5 @@
-config HEX_DSP
+config DRAGON
     bool
+    imply PTIMER
     select L2VIC  # Vector PIC
-    select QTIMER
     select PL011
