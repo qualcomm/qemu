@@ -1015,23 +1015,6 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-#ifdef CONFIG_USER_ONLY
-    switch (access_type) {
-    case MMU_INST_FETCH:
-        cs->exception_index = HEX_EVENT_PRECISE;
-        env->cause_code = HEX_CAUSE_FETCH_NO_UPAGE;
-        break;
-    case MMU_DATA_LOAD:
-        cs->exception_index = HEX_EVENT_PRECISE;
-        env->cause_code = HEX_CAUSE_PRIV_NO_UREAD;
-        break;
-    case MMU_DATA_STORE:
-        cs->exception_index = HEX_EVENT_PRECISE;
-        env->cause_code = HEX_CAUSE_PRIV_NO_UWRITE;
-        break;
-    }
-    cpu_loop_exit_restore(cs, retaddr);
-#else
     int slot = env->slot;
     hwaddr phys;
     int prot = 0;
@@ -1066,7 +1049,6 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
     raise_tlbmiss_exception(cs, address, slot, access_type);
     do_raise_exception(env, cs->exception_index,
                        env->gpr[HEX_REG_PC], retaddr);
-#endif
 }
 #endif
 
