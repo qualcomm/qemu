@@ -55,6 +55,14 @@
 #include "hw/misc/wdog.h"
 #include "hw/misc/unimp.h"
 #include "qemu/datadir.h"
+#include "hw/hexagon/cmd-db.h"
+
+#if defined(__unix__) || defined(__APPLE__)
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 static bool syscfg_is_linux;
 
@@ -737,30 +745,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0,
                     (SA8775P_cdsp0.cfgtable.subsystem_base << 16) + 0x4000);
 
-    g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                         "cmd_db_header_8775.bin");
-    if (!cmd_db_header) {
-        error_report("Failed to find cmd_db_header_8775.bin");
-        exit(1);
-    }
-    ssize_t size = load_image_targphys(cmd_db_header, 0x0C3F0000,
-                                       UINT64_MAX, &error_fatal);
-    if (size == -1) {
-        error_report("could not load command database header: '%s'",
-                     cmd_db_header);
-        exit(1);
-    }
-
-    g_autofree char *cmd_db = qemu_find_file(QEMU_FILE_TYPE_BIOS, "cmd_db_8775.bin");
-    if (!cmd_db) {
-        error_report("Failed to find cmd_db_8775.bin");
-        exit(1);
-    }
-    size = load_image_targphys(cmd_db, 0x80860000, UINT64_MAX, &error_fatal);
-    if (size == -1) {
-        error_report("could not load command database: '%s'", cmd_db);
-        exit(1);
-    }
+    hexagon_load_cmd_db(0x0C3F0000, 0x80860000);
 
     physical_memory_write(0x90900000, sa8775p_smem_data,
         sizeof(sa8775p_smem_data));
