@@ -564,6 +564,16 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 
 #define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 
+#ifndef CONFIG_USER_ONLY
+static void mmu_reset(CPUHexagonState *env)
+{
+    CPUState *cs = env_cpu(env);
+    if (cs->cpu_index == 0) {
+        memset(env->hex_tlb, 0, sizeof(*env->hex_tlb));
+    }
+}
+#endif
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -668,7 +678,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->ss_pending = false;
 
-    hex_mmu_reset(env);
+    mmu_reset(env);
     hexagon_cpu_soft_reset(env);
     ARCH_SET_THREAD_REG(env, HEX_REG_PC, cpu->boot_addr);
 #endif

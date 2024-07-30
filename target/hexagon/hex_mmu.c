@@ -242,14 +242,6 @@ void hex_mmu_realize(CPUHexagonState *env)
     }
 }
 
-void hex_mmu_reset(CPUHexagonState *env)
-{
-    CPUState *cs = env_cpu(env);
-    if (cs->cpu_index == 0) {
-        memset(env->hex_tlb, 0, sizeof(CPUHexagonTLBContext));
-    }
-}
-
 void hex_mmu_on(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
