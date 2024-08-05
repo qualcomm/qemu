@@ -56,6 +56,7 @@ MemTxResult libqemu_memory_region_dispatch_read(MemoryRegion *mr, hwaddr addr, u
                                                 unsigned int size, MemTxAttrs attrs);
 MemTxResult libqemu_memory_region_dispatch_write(MemoryRegion *mr, hwaddr addr, uint64_t data,
                                                 unsigned int size, MemTxAttrs attrs);
+void libqemu_memory_region_set_fd(MemoryRegion *mr, int fd);
 
 void libqemu_cpu_do_io(void);
 
