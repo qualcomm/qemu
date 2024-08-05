@@ -47,6 +47,7 @@ set(QEMU_CONF_ARGS
     --disable-werror
     --disable-capstone
     --enable-kvm
+    --enable-vhost-user
 )
 
 if (GS_ENABLE_VIRCLRENDERER)

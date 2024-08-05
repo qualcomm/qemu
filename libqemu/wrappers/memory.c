@@ -22,6 +22,7 @@
 #include "hw/core/cpu.h"
 
 #include "memory.h"
+#include "exec/ramblock.h"
 #include "exec/address-spaces.h"
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
@@ -67,6 +68,17 @@ MemTxResult libqemu_memory_region_dispatch_write(MemoryRegion *mr, hwaddr addr, 
 {
     MemOp op = size_memop(size);
     return memory_region_dispatch_write(mr, addr, data, op, attrs);
+}
+
+void libqemu_memory_region_set_fd(MemoryRegion *mr, int fd)
+{
+    RCU_READ_LOCK_GUARD();
+    while (mr->alias) {
+        mr = mr->alias;
+    }
+    if (mr->ram_block) {
+        mr->ram_block->fd = fd;
+    }
 }
 
 static MemTxResult libqemu_read_generic_cb(void *opaque,
