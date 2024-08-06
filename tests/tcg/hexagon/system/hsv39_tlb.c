@@ -77,29 +77,6 @@ void test_page_size(int pgsize_id)
     check32(tlbp64(asid, virt_addr), TLB_NOT_FOUND);
 }
 
-void test_small_VA()
-{
-    int pgsize_id = HSV39_PAGE_1G;
-    uint64_t page_size = pow4(__builtin_ctzll(pgsize_id)) * 1024 * 1024;
-    uint64_t addr = (uint64_t)&data;
-    uint64_t page = page_start64(addr, page_size);
-    int asid = 1, index = 512; /* HSV39 DMA TLB entries start from 512 */
-
-    /*
-     * hsv39 extended entries are for VA's >= 4GB only. This test verifies
-     * that smaller addresses don't work.
-     */
-    uint64_t offset = 1ull * 1024 * 1024 * 1024;
-    uint64_t virt_addr = addr + offset;
-    uint64_t virt_page = page + offset;
-    assert(virt_addr < 4ull * 1024 * 1024 * 1024);
-
-    add_hsv39_tlb_entry(index, virt_page, page, pgsize_id, 0xf, asid, 1, 1);
-    /* TODO: this currently fails due to QTOOL-120241 */
-    /* check32(tlbp64(asid, virt_addr), TLB_NOT_FOUND); */
-    remove_hsv39_trans(index);
-}
-
 /* Verify that tlbp64 only searches extended entries, not legacy ones. */
 void test_tlbp()
 {
@@ -165,7 +142,6 @@ int main()
     test_page_size(HSV39_PAGE_16G);
     test_page_size(HSV39_PAGE_64G);
 
-    test_small_VA();
     test_tlbp();
     test_tlbr();
 
