@@ -138,7 +138,7 @@ endforeach()
 
 ExternalProject_Add(qemu
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/configure
+    CONFIGURE_COMMAND ${CONFIGURE_ENVIRONMENT_VARIABLE} ${CMAKE_CURRENT_SOURCE_DIR}/configure
         '--extra-ldflags=${ldflags}'
         '--extra-cflags=${cflags}'
         '--extra-cxxflags=${cxxflags}'
