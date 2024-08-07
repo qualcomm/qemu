@@ -61,5 +61,8 @@ void gen_set_half_i64(int N, TCGv_i64 result, TCGv src);
 void probe_noshuf_load(TCGv va, int s, int mi);
 
 extern const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS];
+#ifndef CONFIG_USER_ONLY
+extern const target_ulong sreg_immut_masks[NUM_SREGS];
+#endif
 
 #endif

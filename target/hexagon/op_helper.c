@@ -50,6 +50,7 @@
 #include "translate.h"
 #include "coproc.h"
 #include "trace.h"
+#include "genptr.h"
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -2427,6 +2428,18 @@ void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
     sreg_write(env, reg, val);
 }
 
+void hexagon_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    BQL_LOCK_GUARD();
+    const target_ulong reg_mask = sreg_immut_masks[reg];
+    uint32_t old = ARCH_GET_SYSTEM_REG(env, reg);
+    uint32_t new = (val & ~reg_mask) | (old & reg_mask);
+    if (reg == HEX_SREG_CCR) {
+        HELPER(check_ccr_write)(env, new, old);
+    }
+    sreg_write(env, reg, new);
+}
+
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
 
 {
@@ -2759,6 +2772,12 @@ uint32_t hexagon_creg_read(CPUHexagonState *env, uint32_t reg)
         return 0;
     }
 #endif
+}
+
+void hexagon_creg_write(CPUHexagonState *env, int n, uint32_t val)
+{
+    const target_ulong reg_mask = reg_immut_masks[n];
+    env->gpr[n] = (val & ~reg_mask) | (env->gpr[n] & reg_mask);
 }
 
 #include "mmvec/kvx_ieee.h"

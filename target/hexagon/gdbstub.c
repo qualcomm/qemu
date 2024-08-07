@@ -65,7 +65,11 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     }
 
     if (n < TOTAL_PER_THREAD_REGS) {
-        env->gpr[n] = ldtul_p(mem_buf);
+        if (n < HEX_REG_CREGS_START) {
+            env->gpr[n] = ldtul_p(mem_buf);
+        } else {
+            hexagon_creg_write(env, n, ldtul_p(mem_buf));
+        }
         return sizeof(target_ulong);
     }
     n -= TOTAL_PER_THREAD_REGS;
@@ -108,12 +112,12 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     CPUHexagonState *env = &cpu->env;
 
     if (n < NUM_SREGS) {
-        ARCH_SET_SYSTEM_REG(env, n, ldtul_p(mem_buf));
+        hexagon_sreg_write(env, n, ldtul_p(mem_buf));
         return sizeof(target_ulong);
     }
     n -= NUM_SREGS;
 
-    if (n < NUM_GREGS) {
+    if (n < NUM_GREGS && hexagon_greg_writable(n, false)) {
         return env->greg[n] = ldtul_p(mem_buf);
     }
     n -= NUM_GREGS;

@@ -85,9 +85,9 @@ DOWNSTREAM_CC=hexagon-clang
 DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static -Werror
 DOWNSTREAM_LDFLAGS=
 
-$(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign reg-reads: BUILD_WITH_DOWNSTREAM_CC=yes
+$(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign reg-reads reg-writes: BUILD_WITH_DOWNSTREAM_CC=yes
 
-inf-loop k0locklock tlblocklock simple-assign reg-reads:
+inf-loop k0locklock tlblocklock simple-assign reg-reads reg-writes:
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
 
 # Args: cutoff_cpu_rev, test_name, dependency_list
@@ -155,6 +155,8 @@ qfloat_test: qfloat_test.o
 simple-assign: simple-assign.o
 reg-reads: reg-reads.o
 reg-reads.o: reg-reads.c timer.h pmu.h
+reg-writes: reg-writes.o
+reg-writes.o: reg-writes.c
 wait: wait.o
 hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
@@ -201,6 +203,8 @@ vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
 
 reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
 reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
+reg-writes.o: EXTRA_TEST_CFLAGS=-O0 -g
+reg-writes: EXTRA_TEST_CFLAGS=-O0 -g
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx

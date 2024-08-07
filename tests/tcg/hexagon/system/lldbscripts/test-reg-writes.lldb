@@ -1,0 +1,10 @@
+# Write to at least one of each reg type: gpr, control, system, and guest
+breakpoint set --name end_of_preparation
+breakpoint command add 1
+reg write r10 0x12345678
+reg write g0 0x12345678
+reg write upcyclelo 0x12345678
+reg write imask 0x12345678
+continue
+DONE
+run

@@ -632,8 +632,11 @@ HexagonCPU *hexagon_find_lowest_prio_thread(HexagonCPU *threads[],
 
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
 uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
+bool hexagon_greg_writable(int rnum, bool pair);
 #endif
 uint32_t hexagon_creg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_creg_write(CPUHexagonState *env, int n, uint32_t val);
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);

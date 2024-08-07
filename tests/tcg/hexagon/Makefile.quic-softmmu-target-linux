@@ -223,8 +223,8 @@ run-lldb = $(call run-and-check-pass, $1, \
 	     --source $(HEXAGON_SYSTEM_SRC)/lldbscripts/$2 \
 	     $< -- $(filter-out -kernel,$(QEMU_OPTS)), $3)
 
-run-lldb-revcon run-lldb-reg-reads: export LLDB_HEXAGON_USE_QEMU = 1
-run-lldb-revcon run-lldb-reg-reads: export LLDB_HEXAGON_QEMU_PATH = qemu-wrapper-for-lldb
+run-lldb-revcon run-lldb-reg-reads run-lldb-reg-writes: export LLDB_HEXAGON_USE_QEMU = 1
+run-lldb-revcon run-lldb-reg-reads run-lldb-reg-writes: export LLDB_HEXAGON_QEMU_PATH = qemu-wrapper-for-lldb
 
 run-lldb-revcon: simple-assign qemu-wrapper-for-lldb
 	$(call run-lldb,$@,test-revcon.lldb,"basic qemu revcon test")
@@ -236,5 +236,8 @@ run-lldb-reg-reads: reg-reads qemu-wrapper-for-lldb
 	$(call quiet-command, grep -q "gpmucnt0 = 0x00000002" $@.out, "GREP", "greg");
 	$(call quiet-command, grep -q "upmucnt0 = 0x00000002" $@.out, "GREP", "creg");
 
-EXTRA_RUNS += run-lldb-revcon run-lldb-reg-reads
+run-lldb-reg-writes: reg-writes qemu-wrapper-for-lldb
+	$(call run-lldb,$@,test-reg-writes.lldb,"gdbstub reg writing test")
+
+EXTRA_RUNS += run-lldb-revcon run-lldb-reg-reads run-lldb-reg-writes
 endif # have LLDB

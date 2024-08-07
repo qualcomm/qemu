@@ -184,7 +184,7 @@ TCGv get_result_pred(DisasContext *ctx, int pnum)
 }
 
 #ifndef CONFIG_USER_ONLY
-static bool greg_writable(int rnum, bool pair)
+bool hexagon_greg_writable(int rnum, bool pair)
 {
     if (pair) {
         if (rnum < HEX_GREG_G3) {
@@ -230,7 +230,7 @@ static void gen_log_greg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
     gen_log_greg_write(ctx, rnum + 1, val32);
 }
 
-static const target_ulong sreg_immut_masks[NUM_SREGS] = {
+const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_STID] = 0xff00ff00,
     [HEX_SREG_ELR] = 0x00000003,
     [HEX_SREG_SSR] = 0x00008000,
