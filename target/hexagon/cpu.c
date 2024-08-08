@@ -126,15 +126,13 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
+    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true),
     DEFINE_PROP_BOOL("paranoid-commit-state", HexagonCPU, paranoid_commit_state,
                      false),
     DEFINE_PROP_UINT32("l2line-size", HexagonCPU, l2line_size, 0x80),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_END_OF_LIST()
 };
-
-static Property hexagon_short_circuit_property =
-    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true);
 
 const char * const hexagon_regnames[] = {
 #ifdef CONFIG_USER_ONLY
@@ -887,7 +885,6 @@ static void hexagon_cpu_init(Object *obj)
     HexagonCPU *cpu = HEXAGON_CPU(obj);
     qdev_init_gpio_in(DEVICE(cpu), hexagon_cpu_set_irq, 8);
 #endif
-    qdev_property_add_static(DEVICE(obj), &hexagon_short_circuit_property);
 }
 
 

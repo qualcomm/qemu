@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,6 +42,12 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     n -= TOTAL_PER_THREAD_REGS;
 
+    if (n < NUM_PREGS) {
+        return gdb_get_reg8(mem_buf, env->pred[n]);
+    }
+
+    n -= NUM_PREGS;
+
     g_assert_not_reached();
     return 0;
 }
@@ -83,6 +89,15 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         return gdb_get_regl(mem_buf, hexagon_greg_read(env, n));
     }
     n -= NUM_GREGS;
+
+    n -= TOTAL_PER_THREAD_REGS;
+
+    if (n < NUM_PREGS) {
+        env->pred[n] = ldtul_p(mem_buf) & 0xff;
+        return sizeof(uint8_t);
+    }
+
+    n -= NUM_PREGS;
 
     g_assert_not_reached();
 }
