@@ -184,7 +184,7 @@ TCGv get_result_pred(DisasContext *ctx, int pnum)
 }
 
 #ifndef CONFIG_USER_ONLY
-bool hexagon_greg_writable(int rnum, bool pair)
+static bool hexagon_greg_writable(int rnum, bool pair)
 {
     if (pair) {
         if (rnum < HEX_GREG_G3) {

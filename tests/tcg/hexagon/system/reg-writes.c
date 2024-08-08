@@ -17,38 +17,49 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <assert.h>
+#include <stdlib.h>
 #define SETVAL 0x12345678
 
-#define SSR_CE_BIT 23
-static void set_ssr_ce(void)
+void failed(void)
 {
-    asm volatile("r2 = ssr\n\t"
-                 "r2 = setbit(r2, #%0)\n\t"
-                 "ssr = r2\n\t"
-                 : : "i"(SSR_CE_BIT));
+    puts("FAIL");
+    exit(1);
+    __builtin_trap();
 }
 
-void end_of_preparation(void)
+void passed(void)
 {
-    uint32_t r10, g0, upcyclelo, imask;
+    puts("PASS");
+    exit(0);
+    __builtin_trap();
+}
+
+/* naked to avoid having codegen alter the regs we want to test */
+void __attribute__((naked, noreturn)) finalize(void)
+{
     asm volatile(
-        "%0 = r10\n"
-        "%1 = g0\n"
-        "%2 = upcyclelo\n"
-        "%3 = imask\n"
-        : "=r"(r10), "=r"(g0), "=r"(upcyclelo), "=r"(imask)
+        "r0 = r10\n"
+        "p0 = cmp.eq(r0, #%0)\n"
+        "if (!p0) call #failed\n"
+
+        "r0 = g0\n"
+        "p0 = cmp.eq(r0, #%0)\n"
+        "if (!p0) call #failed\n"
+
+        "r0 = imask\n"
+        "p0 = cmp.eq(r0, #%0)\n"
+        "if (!p0) call #failed\n"
+
+        "call #passed\n"
+        ".word 0x6fffdffc\n" /* invalid packet to cause an abort */
+        :
+        : "i"(SETVAL)
+        : "r0", "p0"
     );
-    assert(r10 == SETVAL);
-    assert(g0 == SETVAL);
-    assert(upcyclelo > 0x1200 && upcyclelo < 0x1400);
-    assert(imask == (SETVAL & 0xffff));
 }
 
 int main()
 {
-    set_ssr_ce();
-    end_of_preparation();
-    puts("PASS");
+    failed(); /* should never reach here as lldb will change PC */
     return 0;
 }
