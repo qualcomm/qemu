@@ -24,8 +24,12 @@ class QURTTests(QemuSystemTest):
               '8ba5191ba01df3603831aeead163d90206837c13788a35480bb7e0160e353f04')
 
     QURT_MACHINES = {
-        "nspv68": "V68N_1024",
         "nspv79NA_1": "V79NA_1",
+        "nspv81QA_1": "SA8775P_CDSP0",
+    }
+
+    QURT_CPUS = {
+        "nspv81QA_1": "v81",
     }
 
     def check(self):
@@ -36,6 +40,8 @@ class QURTTests(QemuSystemTest):
         print(f'# RUNNING {arch_name}')
         try:
             self.set_vm_arg('-M', self.QURT_MACHINES[arch_name])
+            if arch_name in self.QURT_CPUS:
+                self.set_vm_arg('-cpu', self.QURT_CPUS[arch_name])
         except KeyError:
             self.fail(f'UNKNOWN arch {arch_name}')
         test_dir = f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/{arch_name}/'
