@@ -69,6 +69,7 @@ HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
 HEX_TESTS += scalar
 HEX_TESTS += upcycle
+HEX_TESTS += pmpyw
 
 TESTS += $(HEX_TESTS)
 
