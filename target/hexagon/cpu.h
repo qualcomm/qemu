@@ -45,6 +45,7 @@
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
+#define MAX_TLB_ENTRIES 1024
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 #ifndef CONFIG_USER_ONLY
@@ -184,6 +185,7 @@ struct ArchCPU {
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool short_circuit;
+    uint32_t num_tlbs;
 };
 
 #include "cpu_bits.h"
