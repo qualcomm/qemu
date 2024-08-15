@@ -122,9 +122,9 @@ int desc_tracker_cycle(processor_t *proc, int dmanum)
 
 // https://jira-dc.qualcomm.com/jira/browse/QTOOL-116102
 // Issue with LTO on some version of clang, at least to versions
-// 10 and 11.0.0.  Once the builders use 16 and above we can remove this.
+// 10, 11.0.0 and 14.  Once the builders use 16 and above we can remove this.
 #ifdef __clang__
-#if __clang_major__ <= 11
+#if __clang_major__ <= 14
 #pragma clang optimize off
 #endif
 #endif
@@ -138,7 +138,7 @@ void desc_tracker_init(processor_t * proc, int dmanum)
 	object_pool_init( &tracker->pool, (char *)&tracker->entry_storage, sizeof(tracker->entry_storage[0]), DESC_TABLESIZE);
 }
 #ifdef __clang__
-#if __clang_major__ <= 11
+#if __clang_major__ <= 14
 #pragma clang optimize on
 #endif
 #endif
