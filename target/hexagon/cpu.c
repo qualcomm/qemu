@@ -27,6 +27,13 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
+#include "cpu_helper.h"
+#include "hex_mmu.h"
+
+#ifndef CONFIG_USER_ONLY
+#include "sys_macros.h"
+#include "accel/tcg/cpu-ldst.h"
+#endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
 static void hexagon_v67_cpu_init(Object *obj) { }
@@ -272,6 +279,13 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 
+#ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+                           cpu_mmu_index(env_cpu(env), false));
+#else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+#endif
+
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
 
@@ -289,6 +303,7 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
 
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -304,6 +319,12 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     /* Default NaN value: sign bit set, all frac bits set */
     set_float_default_nan_pattern(0b11111111, &env->fp_status);
 #ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+
+    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->threadId = cs->cpu_index;
@@ -342,6 +363,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
 
     qemu_init_vcpu(cs);
+
     cpu_reset(cs);
     mcc->parent_realize(dev, errp);
 }
