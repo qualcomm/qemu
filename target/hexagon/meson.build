@@ -264,6 +264,10 @@ hexagon_ss.add(files(
     'mmvec/system_ext_mmvec.c',
 ))
 
+hexagon_softmmu_ss.add(files(
+    'hex_mmu.c',
+ ))
+
 #
 # Step 4.5
 # We use flex/bison based idef-parser to generate TCG code for a lot
