@@ -433,8 +433,7 @@ static void decode_assembler_count_fpops(Packet *pkt)
     }
 }
 
-static void
-apply_extender(Packet *pkt, int i, uint32_t extender)
+static int apply_extender(Packet *pkt, int i, uint32_t extender)
 {
     int immed_num = pkt->insn[i].which_extended;
     uint32_t base_immed = pkt->insn[i].immed[immed_num];
@@ -443,24 +442,29 @@ apply_extender(Packet *pkt, int i, uint32_t extender)
         qemu_log_mask(LOG_GUEST_ERROR,
                      "Instruction cannot have extender: opcode 0x%x\n",
                      pkt->insn[i].opcode);
+        return 0;
     }
 
     if (immed_num < 0) {
-        return;
+        return 0;
     }
 
     pkt->insn[i].immed[immed_num] = extender | fZXTN(6, 32, base_immed);
+    return 1;
 }
 
-static void decode_apply_extenders(Packet *packet)
+static int decode_apply_extenders(Packet *packet)
 {
     int i;
     for (i = 0; i < packet->num_insns; i++) {
         if (GET_ATTRIB(packet->insn[i].opcode, A_IT_EXTENDER)) {
             packet->insn[i + 1].extension_valid = true;
-            apply_extender(packet, i + 1, packet->insn[i].immed[0]);
+            if (!apply_extender(packet, i + 1, packet->insn[i].immed[0])) {
+                return 0;
+            }
         }
     }
+    return 1;
 }
 
 static void decode_remove_extenders(Packet *packet)
@@ -827,7 +831,9 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
         }
     }
 
-    decode_apply_extenders(pkt);
+    if (!decode_apply_extenders(pkt)) {
+        return 0;
+    }
     if (!disas_only) {
         decode_remove_extenders(pkt);
         if (!decode_set_slot_number(pkt)) {

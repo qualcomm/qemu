@@ -25,15 +25,12 @@ CFLAGS += -fno-unroll-loops -fno-stack-protector
 HEX_SRC=$(SRC_PATH)/tests/tcg/hexagon
 VPATH += $(HEX_SRC)
 
-invalid_immext: $(HEX_SRC)/invalid_immext.S
-	$(CC) -static -mv69 -mhvx -mhvx-ieee-fp -nostdlib $^ -o $@
 invalid_vhist: $(HEX_SRC)/invalid_vhist.S
 	$(CC) -static -mv69 -mhvx -nostdlib $^ -o $@
 %: $(HEX_SRC)/%.S $(HEX_SRC)/crt.S
 	$(CC) -static -mv69 -nostdlib $^ -o $@
 
 HEX_TESTS = first
-HEX_TESTS += invalid_immext
 HEX_TESTS += invalid_vhist
 HEX_TESTS += hex_sigsegv
 HEX_TESTS += misc
@@ -130,6 +127,7 @@ run-guestcheck:
 HEX_TESTS += invalid-slots
 HEX_TESTS += unaligned_pc
 HEX_TESTS += multiple-writes
+HEX_TESTS += invalid_immext
 
 run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
 	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
@@ -139,6 +137,9 @@ run-invalid-slots: invalid-slots
 
 run-multiple-writes: multiple-writes
 	$(call run-and-check-exception, 0x1d, $@, $(QEMU) $(QEMU_OPTS) $<)
+
+run-invalid_immext: invalid_immext
+	$(call run-and-check-exception, 0x15, $@, $(QEMU) $(QEMU_OPTS) $<)
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
