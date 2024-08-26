@@ -27,6 +27,7 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "cpu_helper.h"
+#include "hex_mmu.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "sys_macros.h"
@@ -276,6 +277,18 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
 
+
+#ifndef CONFIG_USER_ONLY
+static void mmu_reset(CPUHexagonState *env)
+{
+    CPUState *cs = env_cpu(env);
+    if (cs->cpu_index == 0) {
+        memset(env->hex_tlb, 0, sizeof(*env->hex_tlb));
+    }
+}
+#endif
+
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -301,6 +314,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
 
+    mmu_reset(env);
     arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
@@ -333,6 +347,14 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    if (cpu->num_tlbs > MAX_TLB_ENTRIES) {
+        error_setg(errp, "Number of TLBs selected is invalid");
+        return;
+    }
+#endif
+
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
@@ -344,9 +366,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #endif
 
     qemu_init_vcpu(cs);
-    cpu_reset(cs);
 #ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
+    hex_mmu_realize(env);
+#endif
+    cpu_reset(cs);
+#ifndef CONFIG_USER_ONLY
     if (cs->cpu_index == 0) {
         env->g_sreg = g_new0(target_ulong, NUM_SREGS);
     } else {
