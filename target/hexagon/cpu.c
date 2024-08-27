@@ -92,6 +92,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
     DEFINE_PROP_STRING("cmdline", HexagonCPU, cmdline),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
+    DEFINE_PROP_BOOL("enable-semihosting", HexagonCPU, enable_semihosting, true),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
                      false),
     DEFINE_PROP_UINT32("thread-count", HexagonCPU, cluster_thread_count,

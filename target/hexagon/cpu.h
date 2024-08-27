@@ -447,6 +447,7 @@ struct ArchCPU {
     gchar *coproc_path;
     gchar *cmdline;
     bool vp_mode;
+    bool enable_semihosting;
     L2VicInterface *l2vic;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
