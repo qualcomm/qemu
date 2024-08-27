@@ -27,6 +27,10 @@
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "sys_macros.h"
+#endif
+
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -334,6 +338,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"));
 
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
+                             hexagon_sys_gdb_write_register,
+                             gdb_find_static_feature("hexagon-sys.xml"));
+#endif
+
     qemu_init_vcpu(cs);
     cpu_reset(cs);
     mcc->parent_realize(dev, errp);
@@ -389,6 +399,13 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
     cc->tcg_ops = &hexagon_tcg_ops;
 }
 
+#ifndef CONFIG_USER_ONLY
+uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+#endif
+
 static void hexagon_cpu_class_base_init(ObjectClass *c, const void *data)
 {
     HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
@@ -403,7 +420,7 @@ static void hexagon_cpu_class_base_init(ObjectClass *c, const void *data)
         .parent = TYPE_HEXAGON_CPU,            \
         .class_data = &(const HexagonCPUDef) { \
             .hex_version = version,            \
-        }                                      \
+        }
     }
 
 static const TypeInfo hexagon_cpu_type_infos[] = {

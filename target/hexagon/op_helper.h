@@ -23,5 +23,6 @@ void log_store64(CPUHexagonState *env, target_ulong addr,
                  int64_t val, uint32_t width, int slot);
 void log_store32(CPUHexagonState *env, target_ulong addr,
                  target_ulong val, uint32_t width, int slot);
+uint32_t sreg_read(CPUHexagonState *env, uint32_t reg);
 
 #endif
