@@ -137,6 +137,16 @@ static void sim_handle_trap0(CPUHexagonState *env)
     target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
+    HexagonCPU *cpu = env_archcpu(env);
+
+    if (!cpu->enable_semihosting) {
+        static gsize warn_emitted;
+        if (g_once_init_enter(&warn_emitted)) {
+            qemu_log_mask(LOG_UNIMP, "tried to use semihosting, but it's disabled\n");
+            g_once_init_leave(&warn_emitted, 1);
+        }
+        return;
+    }
 
     if (!is_hexagon_specific_swi_flag(what_swi)) {
         if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
@@ -206,7 +216,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
         if (ret == -1) {
             err = errno;
-            HexagonCPU *cpu = env_archcpu(env);
             if (cpu->usefs && g_strrstr(filename, ".so") != NULL
                 && errno == ENOENT) {
                 /*
@@ -243,7 +252,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
         target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
-        HexagonCPU *cpu = env_archcpu(env);
         if (!cpu->vp_mode) {
             hexagon_dump_json(env);
             exit(ret);
