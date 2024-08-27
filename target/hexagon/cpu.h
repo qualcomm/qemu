@@ -244,6 +244,7 @@ struct ArchCPU {
     CPUHexagonState env;
     HexagonCPUConfig cfg;
 #ifndef CONFIG_USER_ONLY
+    bool enable_semihosting;
     HexagonHVXContextState *hvx_ctx[HVX_CONTEXTS_MAX];
     HexagonHMXContextState *hmx_ctx;
     HexagonTLBState *tlb;

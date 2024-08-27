@@ -69,6 +69,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb, TYPE_HEXAGON_TLB,
                      HexagonTLBState *),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
+    DEFINE_PROP_BOOL("enable-semihosting", HexagonCPU, enable_semihosting,
+                     true),
     DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
                      TYPE_HEX_L2VIC_INTERFACE, HexL2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,

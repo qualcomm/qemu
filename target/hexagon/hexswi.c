@@ -415,7 +415,20 @@ static void sim_handle_trap0(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
     uintptr_t retaddr = 0;
 
+    HexagonCPU *cpu = env_archcpu(env);
+
     g_assert(bql_locked());
+
+    if (!cpu->enable_semihosting) {
+        static gsize warn_emitted;
+        if (g_once_init_enter(&warn_emitted)) {
+            qemu_log_mask(LOG_UNIMP,
+                          "tried to use semihosting, but it's disabled\n");
+            g_once_init_leave(&warn_emitted, 1);
+        }
+        return;
+    }
+
     init_semihosting_guestfds();
 
     what_swi = env->gpr[HEX_REG_R00];
