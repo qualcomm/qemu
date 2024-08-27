@@ -475,6 +475,7 @@ struct ArchCPU {
     gchar *coproc_path;
     uint64_t config_table_addr;
     bool vp_mode;
+    bool enable_semihosting;
     uint32_t boot_addr;
     uint32_t boot_evb;
     uint32_t l2vic_base_addr;
