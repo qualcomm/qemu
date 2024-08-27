@@ -99,6 +99,7 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
                        0xffffffffULL),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
+    DEFINE_PROP_BOOL("enable-semihosting", HexagonCPU, enable_semihosting, true),
     DEFINE_PROP_UINT32("start-evb", HexagonCPU, boot_evb, 0x0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,

@@ -123,6 +123,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
     HEX_DEBUG_LOG("%s:%d: tid %d, what_swi 0x%x, swi_info 0x%x\n",
                   __func__, __LINE__, env->threadId, what_swi, swi_info);
+
     switch (what_swi) {
     case SYS_HEAPINFO:
     {
@@ -1017,11 +1018,19 @@ static int sim_handle_trap(CPUHexagonState *env)
 
     int retval = 0;
     target_ulong what_swi = ARCH_GET_THREAD_REG(env, HEX_REG_R00);
+    HexagonCPU *cpu = env_archcpu(env);
 
-    retval = sim_handle_trap_functional(env);
-
-    if (!retval) {
-        qemu_log_mask(LOG_GUEST_ERROR, "unknown swi request: 0x%x\n", what_swi);
+    if (cpu->enable_semihosting) {
+        retval = sim_handle_trap_functional(env);
+        if (!retval) {
+            qemu_log_mask(LOG_GUEST_ERROR, "unknown swi request: 0x%x\n", what_swi);
+        }
+    } else {
+        static gsize warn_emitted;
+        if (g_once_init_enter(&warn_emitted)) {
+            qemu_log_mask(LOG_UNIMP, "tried to use semihosting, but it's disabled\n");
+            g_once_init_leave(&warn_emitted, 1);
+        }
     }
 
     return retval;
