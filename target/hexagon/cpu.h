@@ -47,6 +47,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
 #define MAX_TLB_ENTRIES 1024
+#define VECTOR_UNIT_MAX 8
 
 #ifndef CONFIG_USER_ONLY
 #define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0
@@ -184,6 +185,7 @@ struct ArchCPU {
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
     uint32_t l2vic_base_addr;
+    uint32_t hvx_contexts;
 #endif
 };
 
@@ -200,6 +202,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
 uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
 void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
+void hexagon_cpu_soft_reset(CPUHexagonState *env);
 #endif
 
 typedef HexagonCPU ArchCPU;
