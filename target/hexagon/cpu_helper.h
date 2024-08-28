@@ -35,15 +35,28 @@ static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
     g_assert_not_reached();
 }
 
+void arch_set_system_reg_slow(CPUHexagonState *env, uint32_t reg, uint32_t val);
+
 static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
 {
-    g_assert_not_reached();
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        arch_set_system_reg_slow(env, reg, val);
+    }
 }
+
+uint32_t arch_get_system_reg_slow(CPUHexagonState *env, uint32_t reg);
 
 static inline uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    }
+    return arch_get_system_reg_slow(env, reg);
 }
 
 #endif

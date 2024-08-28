@@ -37,6 +37,29 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
     g_assert_not_reached();
 }
 
+uint32_t arch_get_system_reg_slow(CPUHexagonState *env, uint32_t reg)
+{
+    if (reg == HEX_SREG_PCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_SREG_PCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    }
+
+    HexagonCPU *cpu = env_archcpu(env);
+    return cpu->globalregs ?
+           hexagon_globalreg_read(cpu->globalregs, reg,
+                                  env->threadId) : 0;
+}
+
+void arch_set_system_reg_slow(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        hexagon_globalreg_write(cpu->globalregs, reg, val,
+                                env->threadId);
+    }
+}
+
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
     g_assert_not_reached();
