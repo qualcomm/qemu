@@ -26,20 +26,21 @@ static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
 {
     g_assert(reg < TOTAL_PER_THREAD_REGS);
-    g_assert_not_reached();
+    env->gpr[reg] = val;
 }
 
 static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
 {
     g_assert(reg < TOTAL_PER_THREAD_REGS);
-    g_assert_not_reached();
+    return env->gpr[reg];
 }
 
-static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
-                                       uint32_t val)
-{
-    g_assert_not_reached();
-}
+#ifndef CONFIG_USER_ONLY
+void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
+                        uint32_t val);
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                uint32_t val);
+#endif
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);
 
