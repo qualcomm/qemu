@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
+#include "exec/cpu-interrupt.h"
 #include "internal.h"
 #include "macros.h"
 #include "sys_macros.h"
@@ -35,6 +36,7 @@
 #include "cpu_helper.h"
 #include "translate.h"
 #ifndef CONFIG_USER_ONLY
+#include "hex_interrupts.h"
 #include "hexswi.h"
 #endif
 
@@ -1402,12 +1404,14 @@ void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hex_raise_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
 void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hex_clear_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
 void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
