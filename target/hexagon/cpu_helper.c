@@ -73,6 +73,22 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
     }
 }
 
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                 uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+#ifndef CONFIG_USER_ONLY
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write_masked(cpu, reg, val);
+        }
+#endif
+    }
+}
+
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
     g_assert_not_reached();
