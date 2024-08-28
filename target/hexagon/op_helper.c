@@ -1533,12 +1533,14 @@ void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hex_raise_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
 void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hex_clear_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
 void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
