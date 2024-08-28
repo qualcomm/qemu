@@ -14,6 +14,9 @@
 #else
 #include "hw/boards.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon_globalreg.h"
+#include "hex_interrupts.h"
+#include "hex_mmu.h"
 #endif
 #include "exec/cpu-interrupt.h"
 #include "exec/target_page.h"
@@ -73,7 +76,35 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
-    g_assert_not_reached();
+    g_assert(bql_locked());
+
+    bool old_EX = GET_SSR_FIELD(SSR_EX, old);
+    bool old_UM = GET_SSR_FIELD(SSR_UM, old);
+    bool old_GM = GET_SSR_FIELD(SSR_GM, old);
+    bool old_IE = GET_SSR_FIELD(SSR_IE, old);
+    bool new_EX = GET_SSR_FIELD(SSR_EX, new);
+    bool new_UM = GET_SSR_FIELD(SSR_UM, new);
+    bool new_GM = GET_SSR_FIELD(SSR_GM, new);
+    bool new_IE = GET_SSR_FIELD(SSR_IE, new);
+
+    if ((old_EX != new_EX) ||
+        (old_UM != new_UM) ||
+        (old_GM != new_GM)) {
+        hex_mmu_mode_change(env);
+    }
+
+    uint8_t old_asid = GET_SSR_FIELD(SSR_ASID, old);
+    uint8_t new_asid = GET_SSR_FIELD(SSR_ASID, new);
+    if (new_asid != old_asid) {
+        CPUState *cs = env_cpu(env);
+        tlb_flush(cs);
+    }
+
+    /* See if the interrupts have been enabled or we have exited EX mode */
+    if ((new_IE && !old_IE) ||
+        (!new_EX && old_EX)) {
+        hex_interrupt_update(env);
+    }
 }
 
 void clear_wait_mode(CPUHexagonState *env)
