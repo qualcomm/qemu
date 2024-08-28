@@ -15,27 +15,33 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t);
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t);
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t);
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old);
+int get_cpu_mode(CPUHexagonState *env);
 int get_exe_mode(CPUHexagonState *env);
 void clear_wait_mode(CPUHexagonState *env);
 void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause);
 void hexagon_start_threads(CPUHexagonState *env, uint32_t mask);
 void hexagon_stop_thread(CPUHexagonState *env);
 void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC);
+void hexagon_resume_threads(CPUHexagonState *env, uint32_t mask);
 
 static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
 {
     g_assert(reg < TOTAL_PER_THREAD_REGS);
-    g_assert_not_reached();
+    env->gpr[reg] = val;
 }
 
 static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
 {
     g_assert(reg < TOTAL_PER_THREAD_REGS);
-    g_assert_not_reached();
+    return env->gpr[reg];
 }
 
-void arch_set_system_reg_slow(CPUHexagonState *env, uint32_t reg, uint32_t val);
+#ifndef CONFIG_USER_ONLY
+void arch_set_system_reg_slow(CPUHexagonState *env, uint32_t reg,
+                              uint32_t val);
+void arch_set_system_reg_masked_slow(CPUHexagonState *env, uint32_t reg,
+                                     uint32_t val);
 
 static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
@@ -45,6 +51,17 @@ static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
         env->t_sreg[reg] = val;
     } else {
         arch_set_system_reg_slow(env, reg, val);
+    }
+}
+
+static inline void arch_set_system_reg_masked(CPUHexagonState *env,
+                                              uint32_t reg, uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        arch_set_system_reg_masked_slow(env, reg, val);
     }
 }
 
@@ -58,5 +75,6 @@ static inline uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
     }
     return arch_get_system_reg_slow(env, reg);
 }
+#endif
 
 #endif

@@ -60,6 +60,15 @@ void arch_set_system_reg_slow(CPUHexagonState *env, uint32_t reg, uint32_t val)
     }
 }
 
+void arch_set_system_reg_masked_slow(CPUHexagonState *env, uint32_t reg,
+                                     uint32_t val)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
+    }
+}
+
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
     g_assert_not_reached();
