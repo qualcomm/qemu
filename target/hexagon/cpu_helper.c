@@ -39,7 +39,38 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    if (reg == HEX_SREG_PCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_SREG_PCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    }
+
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    } else {
+#ifndef CONFIG_USER_ONLY
+        HexagonCPU *cpu = env_archcpu(env);
+        return cpu->globalregs ? hexagon_globalreg_read(cpu, reg) : 0;
+#else
+        return 0;
+#endif
+    }
+}
+
+void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+#ifndef CONFIG_USER_ONLY
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write(cpu, reg, val);
+        }
+#endif
+    }
 }
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
