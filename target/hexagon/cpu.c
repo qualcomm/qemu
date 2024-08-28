@@ -32,6 +32,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "sys_macros.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "qemu/main-loop.h"
 #endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
@@ -303,6 +304,23 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
 
+#ifndef CONFIG_USER_ONLY
+void hexagon_cpu_soft_reset(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    arch_set_system_reg(env, HEX_SREG_SSR, 0);
+    hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
+
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+        arch_set_thread_reg(env, HEX_REG_PC, evb);
+    } else {
+        arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
+    }
+}
+#endif
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -324,6 +342,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
 
     arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
+    hexagon_cpu_soft_reset(env);
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->threadId = cs->cpu_index;
