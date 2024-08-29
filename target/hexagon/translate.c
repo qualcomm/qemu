@@ -57,6 +57,7 @@ TCGv_i64 hex_store_val64[STORES_MAX];
 TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
+TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
@@ -785,6 +786,7 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 }
 
+static const int PCYCLES_PER_PACKET = 3;
 static void update_exec_counters(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -804,6 +806,7 @@ static void update_exec_counters(DisasContext *ctx)
     }
 
     ctx->num_packets++;
+    ctx->num_cycles += PCYCLES_PER_PACKET;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
 }
@@ -946,11 +949,13 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 
     ctx->mem_idx = FIELD_EX32(hex_flags, TB_FLAGS, MMU_INDEX);
     ctx->num_packets = 0;
+    ctx->num_cycles = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
+    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1077,6 +1082,8 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
+    hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
+            offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,
