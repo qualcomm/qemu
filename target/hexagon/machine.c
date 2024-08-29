@@ -35,7 +35,6 @@ const VMStateInfo vmstate_info_hex_tlb_ptr = {
     .put  = put_hex_tlb_ptr,
 };
 
-
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
     .version_id = 0,
@@ -56,6 +55,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINTTL(env.wait_next_pc, HexagonCPU),
         VMSTATE_POINTER(env.hex_tlb, HexagonCPU, 0,
                         vmstate_info_hex_tlb_ptr, CPUHexagonTLBContext *),
+        VMSTATE_UINT64(env.t_cycle_count, HexagonCPU),
 
         VMSTATE_END_OF_LIST()
     },
