@@ -91,17 +91,30 @@ void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    uint64_t cycles = 0;
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        cycles += thread_env->t_cycle_count;
+    }
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = env_archcpu(env);
+    return (cpu->globalregs ? hexagon_globalreg_get_pcycle_base(cpu) : 0) +
+           cycles;
+#else
+    return cycles;
+#endif
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return hexagon_get_sys_pcycle_count(env) >> 32;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return extract64(hexagon_get_sys_pcycle_count(env), 0, 32);
 }
 
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,
@@ -118,7 +131,19 @@ void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env,
 
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        hexagon_globalreg_set_pcycle_base(cpu, cycles);
+    }
+#endif
+
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        thread_env->t_cycle_count = 0;
+    }
 }
 
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)

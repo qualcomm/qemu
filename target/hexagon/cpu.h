@@ -28,6 +28,7 @@
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-common.h"
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
 #include "hw/registerfields.h"
@@ -37,6 +38,7 @@
 #endif
 
 #ifndef CONFIG_USER_ONLY
+#include "reg_fields.h"
 typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #endif
 
@@ -200,6 +202,7 @@ struct ArchCPU {
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
+FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
