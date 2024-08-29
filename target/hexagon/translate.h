@@ -84,6 +84,8 @@ typedef struct DisasContext {
     TCGv pred_written;
     TCGv branch_taken;
     TCGv dczero_addr;
+    bool pcycle_enabled;
+    uint32_t num_cycles;
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
