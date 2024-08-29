@@ -75,17 +75,28 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    uint64_t cycles = 0;
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        cycles += thread_env->t_cycle_count;
+    }
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = env_archcpu(env);
+    return (cpu->globalregs ? hexagon_globalreg_get_pcycle_base(cpu) : 0) + cycles;
+#else
+    return cycles;
+#endif
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return hexagon_get_sys_pcycle_count(env) >> 32;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return extract64(hexagon_get_sys_pcycle_count(env), 0, 32);
 }
 
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,
