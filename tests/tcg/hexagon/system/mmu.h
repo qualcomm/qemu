@@ -280,9 +280,9 @@ static inline void enter_user_mode(void)
 static inline void enter_kernel_mode(void)
 {
     asm volatile ("r0 = ssr\n\t"
-                  "r0 = setbit(r0, #17) // EX\n\t"
+                  "r0 = clrbit(r0, #17) // EX\n\t"
                   "r0 = clrbit(r0, #16) // UM\n\t"
-                  "r0 = setbit(r0, #19) // GM\n\t"
+                  "r0 = clrbit(r0, #19) // GM\n\t"
                   "ssr = r0\n\t" : : : "r0");
 }
 
