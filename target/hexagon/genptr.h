@@ -65,4 +65,6 @@ extern const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS];
 extern const target_ulong sreg_immut_masks[NUM_SREGS];
 #endif
 
+void gen_framecheck(DisasContext *ctx, TCGv addr, TCGv ea);
+
 #endif

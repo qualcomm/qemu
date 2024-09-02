@@ -1644,7 +1644,7 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
 {
     /*
      * Per section 7.3.1 of the V67 Programmer's Reference,
-     * stack limit exception isn't raised in monotor mode.
+     * stack limit exception isn't raised in monitor mode.
      */
     if (sys_in_monitor_mode(env)) {
         return;

@@ -995,27 +995,33 @@ static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
     tcg_gen_qemu_ld_i64(frame, EA, ctx->mem_idx, MO_TEUQ | MO_ALIGN);
 }
 
-#ifndef CONFIG_HEXAGON_IDEF_PARSER
-/* Stack overflow check */
-static void gen_framecheck(TCGv EA, int framesize)
+
+void gen_framecheck(DisasContext *ctx, TCGv addr, TCGv ea)
 {
-    /* Not modelled in linux-user mode */
-    /* Placeholder for system mode */
 #ifndef CONFIG_USER_ONLY
-    /* FIXME - Implement framecheck */
+    TCGLabel *ok = gen_new_label();
+    tcg_gen_brcond_tl(TCG_COND_GEU, addr, hex_gpr[HEX_REG_FRAMELIMIT], ok);
+    gen_helper_raise_stack_overflow(tcg_env, tcg_constant_i32(ctx->insn->slot), ea);
+    gen_set_label(ok);
 #endif
 }
 
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
 static void gen_allocframe(DisasContext *ctx, TCGv r29, int framesize)
 {
     TCGv r30 = tcg_temp_new();
+    TCGv new_r29 = tcg_temp_new();
     TCGv_i64 frame;
     tcg_gen_addi_tl(r30, r29, -8);
     frame = gen_frame_scramble();
     gen_store8(tcg_env, r30, frame, ctx->insn->slot);
+    tcg_gen_subi_tl(new_r29, r30, framesize);
     gen_log_reg_write(ctx, HEX_REG_FP, r30);
-    gen_framecheck(r30, framesize);
-    tcg_gen_subi_tl(r29, r30, framesize);
+    /* Not modelled in linux-user mode */
+#ifndef CONFIG_USER_ONLY
+    gen_framecheck(ctx, new_r29, hex_gpr[HEX_REG_PC]);
+#endif
+    tcg_gen_mov_tl(r29, new_r29);
 }
 
 static void gen_deallocframe(DisasContext *ctx, TCGv_i64 r31_30, TCGv r30)

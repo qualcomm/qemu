@@ -59,6 +59,7 @@ DOWNSTREAM_TESTS += \
 	double_ex \
 	qfloat_test \
 	vwctrl \
+	framelimit \
 	$()
 
 # We skip these tests for windows builds
@@ -200,6 +201,8 @@ k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
+framelimit: framelimit.o
+framelimit.o: framelimit.c mmu.h
 
 reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
 reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
@@ -221,7 +224,6 @@ run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
 run-swi: swi
 run-swi2: swi2
 run-thread_scheduling: thread_scheduling
-run-neg-framelimit: neg-framelimit
 run-neg-float_excp: neg-float_excp
 run-neg-unaligned: neg-unaligned
 

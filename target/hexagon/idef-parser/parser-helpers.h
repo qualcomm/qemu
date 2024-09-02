@@ -350,4 +350,6 @@ void assert_signedness(Context *c,
                        YYLTYPE *locp,
                        HexSignedness signedness);
 
+void gen_framecheck(Context *c, YYLTYPE *locp, HexValue *addr, HexValue *ea);
+
 #endif /* PARSER_HELPERS_h */

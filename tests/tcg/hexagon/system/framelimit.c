@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,55 +17,94 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "mmu.h"
 
-#define ELTS 512
-struct bar {
-    int el_0[ELTS];
-};
+bool framelimit_exception_found;
 
-int foo(int x, struct bar *B)
+#define MIN_ALLOC_SIZE 8
+#define STACK_SIZE 0x1000
+#define OVERFLOW_SIZE (STACK_SIZE + MIN_ALLOC_SIZE)
+
+uint32_t get_stack_ptr(void)
 {
-    B->el_0[x % ELTS] = x * 12;
-    if (x > -1) {
-        return foo((x + 1) * B->el_0[x % ELTS], B);
-    }
-    return (x + 1) * x;
-}
-
-unsigned int get_stack_ptr(void)
-{
-    unsigned int retval;
-    asm("%0 = r29\n" : "=r"(retval));
+    uint32_t retval;
+    asm volatile("%0 = r29\n" : "=r"(retval));
     return retval;
 }
 
-void set_framelimit(unsigned int x)
+void set_framelimit(uint32_t x)
 {
-    asm volatile("r10 = %0\n\t"
-                 "framelimit = r10\n\t"
-                 :: "r"(x) : "r10");
+    asm volatile("framelimit = %0\n" : : "r"(x));
 }
 
-void enter_user_mode(void)
+#define HEX_CAUSE_STACK_LIMIT 0x27
+#define HEX_CAUSE_PRIV_USER_NO_SINS 0x1b
+void check_for_framelimit_error_helper(uint32_t ssr)
 {
-    asm volatile ("r0 = ssr\n\t"
-                  "r0 = clrbit(r0, #17) // EX\n\t"
-                  "r0 = setbit(r0, #16) // UM\n\t"
-                  "r0 = clrbit(r0, #19) // GM\n\t"
-                  "ssr = r0\n\t" : : : "r0");
+    uint32_t cause = GET_FIELD(ssr, SSR_CAUSE);
+    switch (cause) {
+    case HEX_CAUSE_STACK_LIMIT:
+        framelimit_exception_found = true;
+        inc_elr(4); /* don't try to allocframe again */
+        break;
+    case HEX_CAUSE_PRIV_USER_NO_SINS:
+        enter_kernel_mode();
+        break;
+    default:
+        do_coredump();
+        break;
+    }
 }
 
-int main(int argc, const char *argv[])
+/* Set up the event handlers */
+MY_EVENT_HANDLE(my_event_handle_error, check_for_framelimit_error_helper)
+
+DEFAULT_EVENT_HANDLE(my_event_handle_nmi,         HANDLE_NMI_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_tlbmissrw,   HANDLE_TLBMISSRW_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_tlbmissx,    HANDLE_TLBMISSX_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_reset,       HANDLE_RESET_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_rsvd,        HANDLE_RSVD_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_trap0,       HANDLE_TRAP0_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_trap1,       HANDLE_TRAP1_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_int,         HANDLE_INT_OFFSET)
+
+void test_framelimit(bool overflow, bool user_mode)
 {
-    struct bar B;
-    memset(&B, 0x0f, sizeof(B));
+    framelimit_exception_found = false;
+    if (user_mode) {
+        enter_user_mode();
+    }
+    set_framelimit(get_stack_ptr() - STACK_SIZE);
+    if (overflow) {
+        asm volatile("allocframe(#%0)\n" : : "i"(OVERFLOW_SIZE));
+        if (!user_mode) {
+            /*
+             * In user mode we should have triggered an exception and, thus,
+             * the stack was not updated.
+             */
+            asm volatile("deallocframe\n");
+        }
+    } else {
+        asm volatile("allocframe(#%0)\n"
+                     "deallocframe\n"
+                     : : "i"(MIN_ALLOC_SIZE));
+    }
+    set_framelimit(0);
+    enter_kernel_mode();
+    check32(framelimit_exception_found, overflow && user_mode);
+}
 
-    printf("Testing FRAMELIMIT\n");
+int main()
+{
+    puts("Testing FRAMELIMIT");
+    install_my_event_vectors();
 
-    unsigned int sp = get_stack_ptr();
-    printf("stack pointer = 0x%x\n", sp);
-    set_framelimit(sp + 0x1000);
-    enter_user_mode();
+    test_framelimit(true, false);
+    test_framelimit(false, true);
+    test_framelimit(true, true);
 
-    return foo(2, &B);
+    puts(err ? "FAIL" : "PASS");
+    return err;
 }

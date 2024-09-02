@@ -91,20 +91,7 @@
 #define fPOW2_ROUNDUP(VAL) (fPOW2_HELP_ROUNDUP((VAL) - 1) + 1)
 
 #ifdef QEMU_GENERATE
-#ifdef FIXME
-/* FIXME - Need to enable this check */
-#define fFRAMECHECK(ADDR, EA) \
-    do { \
-        TCGLabel *ok = gen_new_label(); \
-        tcg_gen_brcond_tl(TCG_COND_GEU, ADDR, hex_gpr[HEX_REG_FRAMELIMIT], \
-                          ok); \
-        gen_helper_raise_stack_overflow(tcg_env, \
-                                        tcg_constant_i32(insn->slot), EA); \
-        gen_set_label(ok); \
-    } while (0)
-#else
-#define fFRAMECHECK(ADDR, EA)
-#endif
+#define fFRAMECHECK(ADDR, EA) gen_framecheck(ctx, ADDR, EA)
 #endif
 
 #define fTRAP(TRAPTYPE, IMM) \
