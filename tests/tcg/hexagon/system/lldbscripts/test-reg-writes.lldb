@@ -5,6 +5,10 @@ breakpoint command add 1
 reg write r10 0x12345678
 reg write g0 0x12345678
 reg write imask 0x12345678
+reg write p3 0x12
+reg write p2 0x34
+reg write p1 0x56
+reg write p0 0x78
 reg write pc `(void(*)())finalize`
 continue
 DONE

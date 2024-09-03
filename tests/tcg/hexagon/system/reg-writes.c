@@ -38,6 +38,10 @@ void passed(void)
 void __attribute__((naked, noreturn)) finalize(void)
 {
     asm volatile(
+        "r0 = p3:0\n"
+        "p0 = cmp.eq(r0, #%0)\n"
+        "if (!p0) call #failed\n"
+
         "r0 = r10\n"
         "p0 = cmp.eq(r0, #%0)\n"
         "if (!p0) call #failed\n"
