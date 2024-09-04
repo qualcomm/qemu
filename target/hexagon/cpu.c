@@ -33,6 +33,8 @@
 #include "sys_macros.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "qemu/main-loop.h"
+#include "hex_interrupts.h"
+#include "hexswi.h"
 #endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
