@@ -328,7 +328,32 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
                                        uint32_t VA)
 {
-    g_assert_not_reached();
+    uint32_t not_found = 0x80000000;
+    uint32_t idx = not_found;
+    int i;
+
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
+        uint64_t entry = env->hex_tlb->entries[i];
+        if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
+            if (idx != not_found) {
+                env->cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+                break;
+            }
+            idx = i;
+        }
+    }
+
+    if (idx == not_found) {
+        qemu_log_mask(CPU_LOG_MMU,
+                      "%s: 0x%" PRIx32 ", 0x%08" PRIx32 " => NOT FOUND\n",
+                      __func__, asid, VA);
+    } else {
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%" PRIx32 ", 0x%08" PRIx32 " => %d\n",
+                      __func__, asid, VA, idx);
+    }
+
+    return idx;
 }
 
 /* Called from tlbp instruction */
@@ -430,7 +455,8 @@ static inline void print_thread_states(const char *str)
 
 void hex_tlb_lock(CPUHexagonState *env)
 {
-    qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lock: %d\n", env->threadId);
+    qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lock: " TARGET_FMT_ld "\n",
+                  env->threadId);
     BQL_LOCK_GUARD();
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
