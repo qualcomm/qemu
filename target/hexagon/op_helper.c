@@ -35,6 +35,12 @@
 #include "op_helper.h"
 #include "cpu_helper.h"
 #include "translate.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/hexagon/hexagon_globalreg.h"
+#include "hex_mmu.h"
+#include "hex_interrupts.h"
+#include "hexswi.h"
+#endif
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
