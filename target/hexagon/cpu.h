@@ -258,5 +258,10 @@ typedef HexagonCPU ArchCPU;
 void hexagon_translate_init(void);
 void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
                             int *max_insns, vaddr pc, void *host_pc);
+#ifndef CONFIG_USER_ONLY
+void hexagon_cpu_do_interrupt(CPUState *cpu);
+void register_trap_exception(CPUHexagonState *env, int type, int imm,
+                             target_ulong PC);
+#endif
 
 #endif /* HEXAGON_CPU_H */
