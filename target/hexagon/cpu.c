@@ -69,6 +69,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
         0xffffffffULL),
+    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -399,6 +400,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->next_PC = 0;
     env->wait_next_pc = 0;
     env->cause_code = HEX_EVENT_NONE;
+    arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
 #endif
     env->cause_code = HEX_EVENT_NONE;
 }
