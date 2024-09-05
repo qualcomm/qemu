@@ -1493,6 +1493,46 @@ void HELPER(stop)(CPUHexagonState *env)
     hexagon_stop_thread(env);
 }
 
+static void set_wait_mode(CPUHexagonState *env)
+{
+    g_assert(bql_locked());
+
+    const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
+    thread_wait_mask |= 0x1 << env->threadId;
+    SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
+}
+
+static void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
+{
+    g_assert(bql_locked());
+
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR) &&
+        (env->k0_lock_state != HEX_LOCK_UNLOCKED ||
+         env->tlb_lock_state != HEX_LOCK_UNLOCKED)) {
+        qemu_log("WARNING: executing wait() with acquired lock"
+                 "may lead to deadlock\n");
+    }
+    g_assert(get_exe_mode(env) != HEX_EXE_MODE_WAIT);
+
+    CPUState *cs = env_cpu(env);
+    /*
+     * The addtion of cpu_has_work is borrowed from arm's wfi helper
+     * and is critical for our stability
+     */
+    if ((cs->exception_index != HEX_EVENT_NONE) ||
+        (cpu_has_work(cs))) {
+        qemu_log_mask(CPU_LOG_INT,
+            "%s: thread %d skipping WAIT mode, have some work\n",
+            __func__, env->threadId);
+        return;
+    }
+    set_wait_mode(env);
+    env->wait_next_pc = PC + 4;
+
+    cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+}
+
 void HELPER(wait)(CPUHexagonState *env, target_ulong PC)
 {
     BQL_LOCK_GUARD();
@@ -1504,7 +1544,8 @@ void HELPER(wait)(CPUHexagonState *env, target_ulong PC)
 
 void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hexagon_resume_threads(env, mask);
 }
 
 uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
