@@ -196,6 +196,7 @@ struct ArchCPU {
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
     uint32_t l2vic_base_addr;
+    uint32_t boot_addr;
 #endif
 };
 
