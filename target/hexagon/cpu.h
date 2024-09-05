@@ -194,6 +194,7 @@ struct ArchCPU {
 #ifndef CONFIG_USER_ONLY
     struct HexagonTLBState *tlb;
     uint32_t l2vic_base_addr;
+    uint32_t boot_addr;
 #endif
 };
 
