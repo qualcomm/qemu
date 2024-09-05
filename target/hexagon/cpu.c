@@ -19,6 +19,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "internal.h"
+#include "exec/cputlb.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -531,6 +532,24 @@ static void find_qemu_subpage(vaddr *addr, hwaddr *phys, int page_size)
     *phys += offset;
 }
 
+static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    hwaddr phys_addr;
+    int prot;
+    int page_size = 0;
+    int32_t excp = 0;
+    int mmu_idx = MMU_KERNEL_IDX;
+
+    if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
+                             addr, 0, mmu_idx)) {
+        find_qemu_subpage(&addr, &phys_addr, page_size);
+        return phys_addr;
+    }
+
+    return -1;
+}
+
 
 #define INVALID_BADVA 0xbadabada
 
@@ -636,6 +655,13 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC], retaddr);
 }
 
+#include "hw/core/sysemu-cpu-ops.h"
+
+static const struct SysemuCPUOps hexagon_sysemu_ops = {
+    .has_work = hexagon_cpu_has_work,
+    .get_phys_page_debug = hexagon_cpu_get_phys_page_debug,
+};
+
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUHexagonState *env = cpu_env(cs);
@@ -678,6 +704,8 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .pointer_wrap = hexagon_pointer_wrap,
     .cpu_exec_reset = cpu_reset,
     .tlb_fill = hexagon_tlb_fill,
+    .cpu_exec_halt = hexagon_cpu_has_work,
+    .do_interrupt = hexagon_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };
 
@@ -705,9 +733,12 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
     cc->gdb_core_xml_file = "hexagon-core.xml";
     cc->disas_set_info = hexagon_cpu_disas_set_info;
 #ifndef CONFIG_USER_ONLY
+    cc->sysemu_ops = &hexagon_sysemu_ops;
     dc->vmsd = &vmstate_hexagon_cpu;
 #endif
+#ifdef CONFIG_TCG
     cc->tcg_ops = &hexagon_tcg_ops;
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
