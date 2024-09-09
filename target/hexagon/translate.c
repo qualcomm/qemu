@@ -436,6 +436,28 @@ static bool sreg_write_ends_tb(int reg_num)
            reg_num == HEX_SREG_BESTWAIT ||
            reg_num == HEX_SREG_SCHEDCFG;
 }
+
+static bool pkt_may_do_io(Packet *pkt)
+{
+    return pkt->pkt_has_scalar_store_s0 ||
+           pkt->pkt_has_scalar_store_s1 ||
+           pkt->pkt_has_load_s0 ||
+           pkt->pkt_has_load_s1 ||
+           check_for_opcode(pkt, Y2_ciad) ||
+           check_for_opcode(pkt, Y2_wait) ||
+           check_for_opcode(pkt, J2_pause) ||
+           check_for_opcode(pkt, Y2_k0lock) ||
+           check_for_opcode(pkt, Y2_tlblock) ||
+           check_for_opcode(pkt, Y2_stop) ||
+           check_for_opcode(pkt, Y2_tfrscrr) ||
+           check_for_opcode(pkt, Y2_tfrsrcr) ||
+           check_for_opcode(pkt, Y4_tfrscpp) ||
+           check_for_opcode(pkt, Y4_tfrspcp) ||
+           check_for_opcode(pkt, A2_tfrcrr) ||
+           check_for_opcode(pkt, A2_tfrrcr) ||
+           check_for_opcode(pkt, A4_tfrcpp) ||
+           check_for_opcode(pkt, A4_tfrpcp);
+}
 #endif
 
 static bool pkt_ends_tb(Packet *pkt)
@@ -501,29 +523,6 @@ static bool pkt_ends_tb(Packet *pkt)
     return false;
 }
 
-#ifndef CONFIG_USER_ONLY
-static bool pkt_may_do_io(Packet *pkt)
-{
-    return pkt->pkt_has_scalar_store_s0 ||
-           pkt->pkt_has_scalar_store_s1 ||
-           pkt->pkt_has_load_s0 ||
-           pkt->pkt_has_load_s1 ||
-           check_for_opcode(pkt, Y2_ciad) ||
-           check_for_opcode(pkt, Y2_wait) ||
-           check_for_opcode(pkt, J2_pause) ||
-           check_for_opcode(pkt, Y2_k0lock) ||
-           check_for_opcode(pkt, Y2_tlblock) ||
-           check_for_opcode(pkt, Y2_stop) ||
-           check_for_opcode(pkt, Y2_tfrscrr) ||
-           check_for_opcode(pkt, Y2_tfrsrcr) ||
-           check_for_opcode(pkt, Y4_tfrscpp) ||
-           check_for_opcode(pkt, Y4_tfrspcp) ||
-           check_for_opcode(pkt, A2_tfrcrr) ||
-           check_for_opcode(pkt, A2_tfrrcr) ||
-           check_for_opcode(pkt, A4_tfrcpp) ||
-           check_for_opcode(pkt, A4_tfrpcp);
-}
-#endif
 
 #ifndef CONFIG_USER_ONLY
 
