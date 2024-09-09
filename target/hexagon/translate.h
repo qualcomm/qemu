@@ -359,7 +359,6 @@ extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_new_value_usr;
-extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_store_addr[STORES_MAX];
 extern TCGv hex_store_width[STORES_MAX];
 extern TCGv hex_store_val32[STORES_MAX];
@@ -370,9 +369,7 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_VRegs_updated;
 #ifndef CONFIG_USER_ONLY
 extern TCGv hex_greg[NUM_GREGS];
-extern TCGv hex_greg_written[NUM_GREGS];
 extern TCGv hex_t_sreg[NUM_SREGS];
-extern TCGv hex_t_sreg_written[NUM_SREGS];
 extern TCGv_ptr hex_g_sreg_ptr;
 extern TCGv hex_g_sreg[NUM_SREGS];
 #endif
@@ -405,5 +402,14 @@ FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES, 2, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED,     3, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED,     4, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,        5, 2)
+
+#define DEBUG_MARK_REG_WRITTEN(RTYPE, RNUM) \
+    do { \
+        if (HEX_DEBUG) { \
+            /* Do this so HELPER(debug_commit_end) will know */ \
+            tcg_gen_st_tl(tcg_constant_tl(1), tcg_env, \
+                          offsetof(CPUHexagonState, RTYPE##_written[RNUM])); \
+        } \
+    } while (0)
 
 #endif

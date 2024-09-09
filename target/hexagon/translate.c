@@ -55,7 +55,6 @@ TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
 TCGv hex_next_PC;
 TCGv hex_new_value_usr;
-TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -68,10 +67,6 @@ TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
 TCGv_ptr hex_g_sreg_ptr;
 TCGv hex_g_sreg[NUM_SREGS];
-#if HEX_DEBUG
-TCGv hex_greg_written[NUM_GREGS];
-TCGv hex_t_sreg_written[NUM_SREGS];
-#endif
 TCGv hex_slot;
 TCGv hex_imprecise_exception;
 TCGv hex_cause_code;
@@ -1183,10 +1178,7 @@ static void gen_sreg_writes(DisasContext *ctx)
         }
         if (reg_num < HEX_SREG_GLB_START) {
             tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
-            if (HEX_DEBUG) {
-                /* Do this so HELPER(debug_commit_end) will know */
-                tcg_gen_movi_tl(hex_t_sreg_written[reg_num], 1);
-            }
+            DEBUG_MARK_REG_WRITTEN(t_sreg, reg_num);
         }
     }
 }
@@ -1815,7 +1807,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 }
 
 #define NAME_LEN               64
-static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
 static char store_val32_names[STORES_MAX][NAME_LEN];
@@ -1834,24 +1825,12 @@ void hexagon_translate_init(void)
         hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),
             hexagon_regnames[i]);
-
-        if (HEX_DEBUG) {
-            snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
-                     hexagon_regnames[i]);
-            hex_reg_written[i] = tcg_global_mem_new(tcg_env,
-                offsetof(CPUHexagonState, reg_written[i]),
-                reg_written_names[i]);
-        }
     }
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < NUM_GREGS; i++) {
             hex_greg[i] = tcg_global_mem_new(tcg_env,
                 offsetof(CPUHexagonState, greg[i]),
                 hexagon_gregnames[i]);
-#if HEX_DEBUG
-            hex_greg_written[i] = tcg_global_mem_new(tcg_env,
-                offsetof(CPUHexagonState, greg_written[i]), "greg_written");
-#endif
     }
     hex_g_sreg_ptr = tcg_global_mem_new_ptr(tcg_env,
             offsetof(CPUHexagonState, g_sreg), "hex_g_sreg_ptr");
@@ -1860,10 +1839,6 @@ void hexagon_translate_init(void)
             hex_t_sreg[i] = tcg_global_mem_new(tcg_env,
                 offsetof(CPUHexagonState, t_sreg[i]),
                 hexagon_sregnames[i]);
-#if HEX_DEBUG
-            hex_t_sreg_written[i] = tcg_global_mem_new(tcg_env,
-                offsetof(CPUHexagonState, t_sreg_written[i]), "sreg_written");
-#endif
         } else {
             hex_g_sreg[i] = tcg_global_mem_new(hex_g_sreg_ptr,
                 i * sizeof(target_ulong),

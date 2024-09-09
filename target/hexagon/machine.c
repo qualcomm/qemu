@@ -187,7 +187,6 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINTTL_ARRAY(env.t_sreg_written, HexagonCPU, NUM_SREGS),
         VMSTATE_UINTTL_ARRAY(env.greg, HexagonCPU, NUM_GREGS),
         VMSTATE_UINTTL_ARRAY(env.greg_written, HexagonCPU, NUM_GREGS),
-        VMSTATE_UINTTL_ARRAY(env.reg_written, HexagonCPU, TOTAL_PER_THREAD_REGS),
 
         VMSTATE_VARRAY_UINT32(env.g_sreg, HexagonCPU, vmstate_num_g_sreg, 0,
                               vmstate_info_uint32, uint32_t),

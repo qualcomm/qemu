@@ -136,10 +136,7 @@ static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
 static inline void gen_log_greg_write(DisasContext *ctx, int rnum, TCGv val)
 {
     tcg_gen_mov_tl(ctx->greg_new_value[rnum], val);
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        tcg_gen_movi_tl(hex_greg_written[rnum], 1);
-    }
+    DEBUG_MARK_REG_WRITTEN(greg, rnum);
 }
 #endif
 
@@ -150,10 +147,7 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
     if (reg_mask != IMMUTABLE) {
         gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
-        if (HEX_DEBUG) {
-            /* Do this so HELPER(debug_commit_end) will know */
-            tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-        }
+        DEBUG_MARK_REG_WRITTEN(reg, rnum);
     }
 }
 
