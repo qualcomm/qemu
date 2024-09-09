@@ -558,6 +558,10 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+#ifndef CONFIG_USER_ONLY
+    ctx->greg_log_idx = 0;
+    ctx->sreg_log_idx = 0;
+#endif
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -590,6 +594,25 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < NUM_SREGS; i++) {
+        ctx->t_sreg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->sreg_log_idx; i++) {
+        int reg_num = ctx->sreg_log[i];
+        if (reg_num < HEX_SREG_GLB_START) {
+            ctx->t_sreg_new_value[reg_num] = tcg_temp_new();
+            tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num], hex_t_sreg[reg_num]);
+        }
+    }
+    for (i = 0; i < NUM_GREGS; i++) {
+        ctx->greg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->greg_log_idx; i++) {
+        int reg_num = ctx->greg_log[i];
+        ctx->greg_new_value[reg_num] = tcg_temp_new();
+    }
+#endif
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
@@ -749,6 +772,59 @@ static void gen_reg_writes(DisasContext *ctx)
         tcg_gen_mov_tl(hex_gpr[HEX_REG_USR], hex_new_value_usr);
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void gen_greg_writes(DisasContext *ctx)
+{
+    int i;
+
+    for (i = 0; i < ctx->greg_log_idx; i++) {
+        int reg_num = ctx->greg_log[i];
+
+        tcg_gen_mov_tl(hex_greg[reg_num], ctx->greg_new_value[reg_num]);
+    }
+}
+
+
+static void gen_sreg_writes(DisasContext *ctx)
+{
+    int i;
+
+    TCGv old_reg = tcg_temp_new();
+    for (i = 0; i < ctx->sreg_log_idx; i++) {
+        int reg_num = ctx->sreg_log[i];
+
+        if (reg_num == HEX_SREG_SSR) {
+            tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
+            tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
+            gen_helper_modify_ssr(tcg_env, ctx->t_sreg_new_value[reg_num],
+                                  old_reg);
+            /* This can change processor state, so end the TB */
+            ctx->base.is_jmp = DISAS_NORETURN;
+        } else if ((reg_num == HEX_SREG_STID) ||
+                   (reg_num == HEX_SREG_IMASK) ||
+                   (reg_num == HEX_SREG_IPENDAD)) {
+            if (reg_num < HEX_SREG_GLB_START) {
+                tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
+                tcg_gen_mov_tl(hex_t_sreg[reg_num],
+                               ctx->t_sreg_new_value[reg_num]);
+            }
+            /* This can change the interrupt state, so end the TB */
+            gen_helper_pending_interrupt(tcg_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        } else if ((reg_num == HEX_SREG_BESTWAIT) ||
+                   (reg_num == HEX_SREG_SCHEDCFG)) {
+            /* This can trigger resched interrupt, so end the TB */
+            gen_helper_resched(tcg_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        }
+
+        if (reg_num < HEX_SREG_GLB_START) {
+            tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
+        }
+    }
+}
+#endif
 
 static void gen_pred_writes(DisasContext *ctx)
 {
@@ -1050,6 +1126,10 @@ static void gen_commit_packet(DisasContext *ctx)
     process_store_log(ctx);
 
     gen_reg_writes(ctx);
+#if !defined(CONFIG_USER_ONLY)
+    gen_greg_writes(ctx);
+    gen_sreg_writes(ctx);
+#endif
     gen_pred_writes(ctx);
     if (pkt->pkt_has_hvx) {
         gen_commit_hvx(ctx);
@@ -1261,6 +1341,10 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
+#ifndef CONFIG_USER_ONLY
+    hex_cause_code = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, cause_code), "cause_code");
+#endif
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,
