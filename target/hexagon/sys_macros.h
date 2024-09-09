@@ -231,4 +231,6 @@
 
 #endif
 
+#define NUM_TLB_REGS(x) (env_archcpu(env)->num_tlbs)
+
 #endif
