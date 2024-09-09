@@ -840,11 +840,11 @@ static void process_store_log(DisasContext *ctx)
      *  the memory accesses overlap.
      */
     Packet *pkt = ctx->pkt;
-    if (pkt->pkt_has_store_s1) {
+    if (pkt->pkt_has_scalar_store_s1) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 1);
     }
-    if (pkt->pkt_has_store_s0) {
+    if (pkt->pkt_has_scalar_store_s0) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 0);
     }
@@ -971,8 +971,8 @@ static void gen_commit_packet(DisasContext *ctx)
      * involved in committing the packet.
      */
     Packet *pkt = ctx->pkt;
-    bool has_store_s0 = pkt->pkt_has_store_s0;
-    bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
+    bool has_store_s0 = pkt->pkt_has_scalar_store_s0;
+    bool has_store_s1 = (pkt->pkt_has_scalar_store_s1 && !ctx->s1_store_processed);
     bool has_hvx_store = pkt_has_hvx_store(pkt);
     if (pkt->pkt_has_dczeroa) {
         /*
@@ -1046,9 +1046,9 @@ static void gen_commit_packet(DisasContext *ctx)
     update_exec_counters(ctx);
     if (HEX_DEBUG) {
         TCGv has_st0 =
-            tcg_constant_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
+            tcg_constant_tl(pkt->pkt_has_scalar_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
-            tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
+            tcg_constant_tl(pkt->pkt_has_scalar_store_s1 && !pkt->pkt_has_dczeroa);
 
         /* Handy place to set a breakpoint at the end of execution */
         gen_helper_debug_commit_end(tcg_env, tcg_constant_tl(ctx->pkt->pc),
