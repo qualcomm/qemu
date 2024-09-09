@@ -162,10 +162,10 @@
     hex_tlbw(env, (INDEX), (VALUE))
 #define fTLBW_EXTENDED(INDEX, VALUE) \
     hex_tlbw(env, (INDEX), (VALUE))
-#define fTLB_ENTRY_OVERLAP(VALUE, INDEX) \
-    (hex_tlb_check_overlap(env, VALUE, INDEX) != -2)
-#define fTLB_ENTRY_OVERLAP_IDX(VALUE, INDEX) \
-    hex_tlb_check_overlap(env, VALUE, INDEX)
+#define fTLB_ENTRY_OVERLAP(VALUE) \
+    (hex_tlb_check_overlap(env, VALUE, -1) != -2)
+#define fTLB_ENTRY_OVERLAP_IDX(VALUE) \
+    hex_tlb_check_overlap(env, VALUE, -1)
 #define fTLBR(INDEX) \
     (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
 #define fTLBR_EXTENDED(INDEX) \
@@ -231,5 +231,7 @@
 #endif
 
 #endif
+
+#define NUM_TLB_REGS(x) (env_archcpu(env)->num_tlbs)
 
 #endif
