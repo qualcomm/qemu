@@ -586,6 +586,10 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+#ifndef CONFIG_USER_ONLY
+    ctx->greg_log_idx = 0;
+    ctx->sreg_log_idx = 0;
+#endif
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -618,6 +622,25 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < NUM_SREGS; i++) {
+        ctx->t_sreg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->sreg_log_idx; i++) {
+        int reg_num = ctx->sreg_log[i];
+        if (reg_num < HEX_SREG_GLB_START) {
+            ctx->t_sreg_new_value[reg_num] = tcg_temp_new();
+            tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num], hex_t_sreg[reg_num]);
+        }
+    }
+    for (i = 0; i < NUM_GREGS; i++) {
+        ctx->greg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->greg_log_idx; i++) {
+        int reg_num = ctx->greg_log[i];
+        ctx->greg_new_value[reg_num] = tcg_temp_new();
+    }
+#endif
 
     if (HEX_DEBUG) {
         /* Handy place to set a breakpoint before the packet executes */
