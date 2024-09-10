@@ -313,7 +313,12 @@ static bool need_slot_cancelled(Packet *pkt)
 #ifndef CONFIG_USER_ONLY
 static bool sreg_write_to_global(int reg_num)
 {
-    return reg_num >= HEX_SREG_GLB_START;
+    return reg_num == HEX_SREG_SSR ||
+           reg_num == HEX_SREG_STID ||
+           reg_num == HEX_SREG_IMASK ||
+           reg_num == HEX_SREG_IPENDAD ||
+           reg_num == HEX_SREG_BESTWAIT ||
+           reg_num == HEX_SREG_SCHEDCFG;
 }
 
 static bool has_sreg_write_to_global(Packet const *pkt)
