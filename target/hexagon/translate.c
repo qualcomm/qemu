@@ -767,10 +767,6 @@ static void gen_set_new_pred_value(DisasContext *ctx, int num, TCGv val)
 static void gen_paranoid_start_packet(DisasContext *ctx)
 {
     int i;
-    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-        ctx->new_value[i] = tcg_temp_new();
-        tcg_gen_movi_tl(ctx->new_value[i], PARANOID_VALUE);
-    }
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < HEX_SREG_GLB_START; i++) {
         if (ctx->t_sreg_new_value[i]) {

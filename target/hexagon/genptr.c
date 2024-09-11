@@ -115,7 +115,8 @@ TCGv get_result_gpr(DisasContext *ctx, int rnum)
         } else {
             if (ctx->new_value[rnum] == NULL) {
                 ctx->new_value[rnum] = tcg_temp_new();
-                tcg_gen_movi_tl(ctx->new_value[rnum], 0);
+                tcg_gen_movi_tl(ctx->new_value[rnum],
+                        ctx->paranoid_commit_state ? PARANOID_VALUE : 0);
             }
             return ctx->new_value[rnum];
         }
