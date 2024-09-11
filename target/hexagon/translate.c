@@ -1348,6 +1348,34 @@ void hexagon_translate_init(void)
 
     opcode_init();
 
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < NUM_GREGS; i++) {
+            hex_greg[i] = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, greg[i]),
+                hexagon_gregnames[i]);
+#if HEX_DEBUG
+            hex_greg_written[i] = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, greg_written[i]), "greg_written");
+#endif
+    }
+    hex_g_sreg_ptr = tcg_global_mem_new_ptr(tcg_env,
+            offsetof(CPUHexagonState, g_sreg), "hex_g_sreg_ptr");
+    for (i = 0; i < NUM_SREGS; i++) {
+        if (i < HEX_SREG_GLB_START) {
+            hex_t_sreg[i] = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, t_sreg[i]),
+                hexagon_sregnames[i]);
+#if HEX_DEBUG
+            hex_t_sreg_written[i] = tcg_global_mem_new(tcg_env,
+                offsetof(CPUHexagonState, t_sreg_written[i]), "sreg_written");
+#endif
+        } else {
+            hex_g_sreg[i] = tcg_global_mem_new(hex_g_sreg_ptr,
+                i * sizeof(target_ulong),
+                hexagon_sregnames[i]);
+        }
+    }
+#endif
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),
