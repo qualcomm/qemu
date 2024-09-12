@@ -88,6 +88,7 @@ typedef struct DisasContext {
     bool pkt_ends_tb;
     bool need_next_pc;
     uint32_t num_cycles;
+    bool paranoid_commit_state;
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
