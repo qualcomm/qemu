@@ -768,6 +768,65 @@ static void gen_set_new_pred_value(DisasContext *ctx, int num, TCGv val)
     tcg_gen_mov_tl(ctx->new_pred_value[num], val);
 }
 
+static void gen_paranoid_start_packet(DisasContext *ctx)
+{
+    int i;
+    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
+        ctx->new_value[i] = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->new_value[i], PARANOID_VALUE);
+    }
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < HEX_SREG_GLB_START; i++) {
+        if (ctx->t_sreg_new_value[i]) {
+            tcg_gen_movi_tl(ctx->t_sreg_new_value[i], PARANOID_VALUE);
+        }
+    }
+    for (i = 0; i < NUM_GREGS; i++) {
+        if (ctx->greg_new_value[i]) {
+            tcg_gen_movi_tl(ctx->greg_new_value[i], PARANOID_VALUE);
+        }
+    }
+#endif
+    for (i = 0; i < NUM_PREGS; i++) {
+        gen_set_new_pred_value(ctx, i, tcg_constant_tl(PARANOID_VALUE));
+    }
+    for (i = 0; i < STORES_MAX; i++) {
+        tcg_gen_movi_tl(hex_store_addr[i], PARANOID_VALUE);
+    }
+    for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, future_VRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+    for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, tmp_VRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+    for (i = 0; i < NUM_QREGS; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, future_QRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, sizeof(MMQReg), sizeof(MMQReg),
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VuuV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VvvV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VxxV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, vtmp),
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, qtmp), sizeof(MMQReg),
+                         sizeof(MMQReg), tcg_constant_tl(PARANOID_VALUE));
+    for (i = 0; i < VSTORES_MAX; i++) {
+        tcg_gen_movi_tl(hex_vstore_addr[i], PARANOID_VALUE);
+    }
+}
+
 static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -819,7 +878,6 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
 
     analyze_packet(ctx);
 
-
     /*
      * pregs_written is used both in the analyze phase as well as the code
      * gen phase, so clear it again.
@@ -846,64 +904,7 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 #endif
     if (ctx->paranoid_commit_state) {
-        for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-            ctx->new_value[i] = tcg_temp_new();
-            tcg_gen_movi_tl(ctx->new_value[i], PARANOID_VALUE);
-        }
-    #ifndef CONFIG_USER_ONLY
-        for (i = 0; i < HEX_SREG_GLB_START; i++) {
-            if (ctx->t_sreg_new_value[i]) {
-                tcg_gen_movi_tl(ctx->t_sreg_new_value[i], PARANOID_VALUE);
-            }
-        }
-        for (i = 0; i < NUM_GREGS; i++) {
-            if (ctx->greg_new_value[i]) {
-                tcg_gen_movi_tl(ctx->greg_new_value[i], PARANOID_VALUE);
-            }
-        }
-    #endif
-        for (i = 0; i < NUM_PREGS; i++) {
-            gen_set_new_pred_value(ctx, i, tcg_constant_tl(PARANOID_VALUE));
-        }
-        for (i = 0; i < STORES_MAX; i++) {
-            tcg_gen_movi_tl(hex_store_addr[i], PARANOID_VALUE);
-        }
-        for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
-            intptr_t offset = offsetof(CPUHexagonState, future_VRegs[i]);
-            tcg_gen_gvec_dup_i32(MO_32, offset,
-                                 VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
-                                 tcg_constant_tl(PARANOID_VALUE));
-        }
-        for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
-            intptr_t offset = offsetof(CPUHexagonState, tmp_VRegs[i]);
-            tcg_gen_gvec_dup_i32(MO_32, offset,
-                                 VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
-                                 tcg_constant_tl(PARANOID_VALUE));
-        }
-        for (i = 0; i < NUM_QREGS; i++) {
-            intptr_t offset = offsetof(CPUHexagonState, future_QRegs[i]);
-            tcg_gen_gvec_dup_i32(MO_32, offset,
-                                 sizeof(MMQReg), sizeof(MMQReg),
-                                 tcg_constant_tl(PARANOID_VALUE));
-        }
-        tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VuuV),
-                             sizeof(MMVectorPair), sizeof(MMVectorPair),
-                             tcg_constant_tl(PARANOID_VALUE));
-        tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VvvV),
-                             sizeof(MMVectorPair), sizeof(MMVectorPair),
-                             tcg_constant_tl(PARANOID_VALUE));
-        tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VxxV),
-                             sizeof(MMVectorPair), sizeof(MMVectorPair),
-                             tcg_constant_tl(PARANOID_VALUE));
-        tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, vtmp),
-                             VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
-                             tcg_constant_tl(PARANOID_VALUE));
-        tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, qtmp),
-                             sizeof(MMQReg), sizeof(MMQReg),
-                             tcg_constant_tl(PARANOID_VALUE));
-        for (i = 0; i < VSTORES_MAX; i++) {
-            tcg_gen_movi_tl(hex_vstore_addr[i], PARANOID_VALUE);
-        }
+        gen_paranoid_start_packet(ctx);
     }
 
     if (!bitmap_empty(ctx->wreg_mult_gprs, NUM_GPREGS)) {
