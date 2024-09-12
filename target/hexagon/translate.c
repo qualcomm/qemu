@@ -567,6 +567,78 @@ static void analyze_packet(DisasContext *ctx)
     ctx->need_commit = need_commit(ctx);
 }
 
+static void gen_set_new_pred_value(DisasContext *ctx, int num, TCGv val)
+{
+    if (!ctx->new_pred_value[num]) {
+        ctx->new_pred_value[num] = tcg_temp_new();
+    }
+    tcg_gen_mov_tl(ctx->new_pred_value[num], val);
+}
+
+static void gen_paranoid_start_packet(DisasContext *ctx)
+{
+    int i;
+    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
+        ctx->new_value[i] = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->new_value[i], PARANOID_VALUE);
+    }
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < HEX_SREG_GLB_START; i++) {
+        if (ctx->t_sreg_new_value[i]) {
+            tcg_gen_movi_tl(ctx->t_sreg_new_value[i], PARANOID_VALUE);
+        }
+    }
+    for (i = 0; i < NUM_GREGS; i++) {
+        if (ctx->greg_new_value[i]) {
+            tcg_gen_movi_tl(ctx->greg_new_value[i], PARANOID_VALUE);
+        }
+    }
+#endif
+    for (i = 0; i < NUM_PREGS; i++) {
+        gen_set_new_pred_value(ctx, i, tcg_constant_tl(PARANOID_VALUE));
+    }
+    for (i = 0; i < STORES_MAX; i++) {
+        tcg_gen_movi_tl(hex_store_addr[i], PARANOID_VALUE);
+    }
+#if 0
+    for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, future_VRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+    for (i = 0; i < VECTOR_TEMPS_MAX; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, tmp_VRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+#endif
+    for (i = 0; i < NUM_QREGS; i++) {
+        intptr_t offset = offsetof(CPUHexagonState, future_QRegs[i]);
+        tcg_gen_gvec_dup_i32(MO_32, offset, sizeof(MMQReg), sizeof(MMQReg),
+                             tcg_constant_tl(PARANOID_VALUE));
+    }
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VuuV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VvvV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, VxxV),
+                         sizeof(MMVectorPair), sizeof(MMVectorPair),
+                         tcg_constant_tl(PARANOID_VALUE));
+#if 0
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, vtmp),
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE,
+                         tcg_constant_tl(PARANOID_VALUE));
+#endif
+    tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUHexagonState, qtmp), sizeof(MMQReg),
+                         sizeof(MMQReg), tcg_constant_tl(PARANOID_VALUE));
+    for (i = 0; i < VSTORES_MAX; i++) {
+        tcg_gen_movi_tl(hex_vstore_addr[i], PARANOID_VALUE);
+    }
+}
+
+
 static void gen_start_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -621,6 +693,7 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < NUM_SREGS; i++) {
         ctx->t_sreg_new_value[i] = NULL;
@@ -640,6 +713,10 @@ static void gen_start_packet(DisasContext *ctx)
         ctx->greg_new_value[reg_num] = tcg_temp_new();
     }
 #endif
+    if (ctx->paranoid_commit_state) {
+        gen_paranoid_start_packet(ctx);
+    }
+
 
     if (HEX_DEBUG) {
         /* Handy place to set a breakpoint before the packet executes */
@@ -1237,6 +1314,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->num_cycles = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
+    ctx->paranoid_commit_state = false;
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
