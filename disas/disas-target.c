@@ -8,13 +8,16 @@
 #include "disas/capstone.h"
 #include "exec/translator.h"
 #include "disas-internal.h"
+#include "hw/core/cpu.h"
 
 
 static int translator_read_memory(bfd_vma memaddr, bfd_byte *myaddr,
                                   int length, struct disassemble_info *info)
 {
     const DisasContextBase *db = info->application_data;
-    return translator_st(db, myaddr, memaddr, length) ? 0 : EIO;
+    CPUDebug *s = container_of(info, CPUDebug, info);
+    CPUArchState *env = cpu_env(s->cpu);
+    return translator_st_with_fallback(db, myaddr, memaddr, length, env) ? 0 : EIO;
 }
 
 void target_disas(FILE *out, CPUState *cpu, const struct DisasContextBase *db)
