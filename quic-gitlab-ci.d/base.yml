@@ -424,7 +424,7 @@ mac_hexagon_and_coproc_build:
 
 san-hexagon_build:
   extends: .base-build
-  variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --enable-sanitizers" }
+  variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --enable-asan --enable-ubsan" }
 san-hexagon_and_coproc_build:
   needs: [san-hexagon_build, coproc_build]
   variables: { BUILDDIR: san-hexagon_build }
