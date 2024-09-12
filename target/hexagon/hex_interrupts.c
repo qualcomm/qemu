@@ -190,7 +190,7 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
 
     set_ipend_bit(env, int_num, 0);
     set_iad_bit(env, int_num, 1);
-    set_ssr_ex_cause(env, 1, HEX_EVENT_INT0 | int_num);
+    set_ssr_ex_cause(env, 1, HEX_CAUSE_INT0 | int_num);
     cs->exception_index = HEX_EVENT_INT0 + int_num;
     env->cause_code = HEX_EVENT_INT0 + int_num;
     clear_pending_locks(env);
