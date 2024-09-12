@@ -495,7 +495,7 @@ class Hvx:
     def gen_clear_extended(self, f):
         if self.is_written() and not self.is_qfloat():
             f.write(code_fmt(f"""\
-                gen_mmvec_ext_init({self.hvx_off()}, {str(self.is_pair()).lower()});\n
+                gen_mmvec_ext_init({self.hvx_off()}, {str(self.is_pair()).lower()});
             """))
 
 #
@@ -1166,7 +1166,7 @@ class GuestRegister(Register):
             """))
         else:
             f.write(code_fmt(f"""\
-                check_greg_impl(insn->regno[{regno}], {str(self.is_pair()).lower()});\n
+                check_greg_impl(insn->regno[{regno}], {str(self.is_pair()).lower()});
             """))
 
 class GuestDest(GuestRegister, Single, Dest):
@@ -1196,7 +1196,7 @@ class GuestSource(GuestRegister, Single, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];\n
+            // const int {self.reg_num} = insn->regno[{regno}];
         """))
 
 class GuestPairDest(GuestRegister, Pair, Dest):
@@ -1226,7 +1226,7 @@ class GuestPairSource(GuestRegister, Pair, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];\n
+            // const int {self.reg_num} = insn->regno[{regno}];
         """))
 
 class SystemDest(Register, Single, Dest):
@@ -1254,7 +1254,7 @@ class SystemSource(Register, Single, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];\n
+            // const int {self.reg_num} = insn->regno[{regno}];
         """))
 
 class SystemPairDest(Register, Pair, Dest):
@@ -1282,7 +1282,7 @@ class SystemPairSource(Register, Pair, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];\n
+            // const int {self.reg_num} = insn->regno[{regno}];
         """))
 
 
