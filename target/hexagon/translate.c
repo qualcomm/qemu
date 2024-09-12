@@ -1660,7 +1660,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->zero64 = tcg_constant_i64(0);
     ctx->ones = tcg_constant_tl(0xff);
     ctx->ones64 = tcg_constant_i64(0xff);
-    ctx->pcycle_enabled = false;
+    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->hvx_coproc_enabled = false;
     ctx->hvx_64b_mode = false;
     ctx->paranoid_commit_state = hex_cpu->paranoid_commit_state;
@@ -1683,11 +1683,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     }
     ctx->hvx_check_emitted = false;
     ctx->coproc_check_emitted = false;
-    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
     ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
 #endif
-    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->hvx_coproc_enabled = FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_64b_mode = FIELD_EX32(hex_flags, TB_FLAGS, HVX_64B_MODE);
     ctx->branch_cond = TCG_COND_NEVER;
