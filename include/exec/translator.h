@@ -254,12 +254,14 @@ void translator_fake_ld(DisasContextBase *db, const void *data, size_t len);
  * @len: length
  *
  * Copy @len bytes from @addr into @dest.
- * All bytes must have been read during translation.
+ * All bytes must have been read during translation. The _with_fallback
+ * variant do the read in case this assumption is not met.
  * Return true on success or false on failure.
  */
 bool translator_st(const DisasContextBase *db, void *dest,
                    vaddr addr, size_t len);
-
+bool translator_st_with_fallback(const DisasContextBase *db, void *dest,
+                                 vaddr addr, size_t len, CPUArchState *env);
 /**
  * translator_st_len
  * @db: disassembly context

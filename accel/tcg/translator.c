@@ -365,10 +365,22 @@ size_t translator_st_len(const DisasContextBase *db)
     return db->fake_insn ? db->record_len : db->tb->size;
 }
 
-bool translator_st(const DisasContextBase *db, void *dest,
-                   vaddr addr, size_t len)
+bool translator_st_with_fallback(const DisasContextBase *db, void *dest,
+                                 vaddr addr, size_t len, CPUArchState *env)
 {
     size_t offset, offset_end;
+
+    /* If page is not loaded, fallback to reading it now. */
+    if (unlikely(tb_page_addr0(db->tb) == -1)) {
+        if (!env) {
+            /* not possible to retrieve the page in this case */
+            return false;
+        }
+        unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
+        unsigned char *host_addr = probe_read(env, addr, len, mmu_idx, 0);
+        memcpy(dest, host_addr, len);
+        return true;
+    }
 
     if (addr < db->pc_first) {
         return false;
@@ -413,6 +425,12 @@ bool translator_st(const DisasContextBase *db, void *dest,
         return true;
     }
     return false;
+}
+
+bool translator_st(const DisasContextBase *db, void *dest,
+                   vaddr addr, size_t len)
+{
+    return translator_st_with_fallback(db, dest, addr, len, NULL);
 }
 
 uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
