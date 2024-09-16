@@ -198,6 +198,12 @@ variables:
   extends: .after-build
   script:
     - $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild
+    - |
+      if test "${CHECK_FUNCTIONAL}" == true; then
+          $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild \
+                        --print-errorlogs --setup thorough \
+                        --suite func --suite func-quick --suite func-thorough
+      fi
   artifacts:
     when: on_failure
     paths: [ "*_build" ]
@@ -336,6 +342,7 @@ hexagon_check-tcg-MTTCG:
   variables: { OVERRIDE_OPTS: "-accel tcg,thread=multi" }
 hexagon_check:
   needs: [hexagon_and_coproc_build]
+  variables: { CHECK_FUNCTIONAL: "true" }
   extends: .base-check
 hexagon_qurt-tests:
   extends: .base-qurt-tests
@@ -440,6 +447,7 @@ san-hexagon_check-tcg:
   extends: .base-check-tcg
 san-hexagon_check:
   needs: [san-hexagon_and_coproc_build]
+  variables: { CHECK_FUNCTIONAL: "true" }
   extends: .base-check
 san-hexagon_qurt-tests:
   extends: .base-qurt-tests
@@ -478,6 +486,7 @@ no-idef-parser-hexagon_check-tcg:
     - if: $CI_PIPELINE_SOURCE == "web"
 no-idef-parser-hexagon_check:
   needs: [no-idef-parser-hexagon_and_coproc_build]
+  variables: { CHECK_FUNCTIONAL: "true" }
   extends: .base-check
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"

@@ -147,6 +147,10 @@ tests_x86_64_system_thorough = [
   'virtio_gpu',
 ]
 
+tests_hexagon_system_thorough = [
+  'hexagon_minivm',
+]
+
 precache_all = []
 foreach speed : ['quick', 'thorough']
   foreach dir : target_dirs
