@@ -441,7 +441,7 @@ static void l2vic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = l2vic_reset;
+    device_class_set_legacy_reset(dc, l2vic_reset);
     dc->vmsd = &vmstate_l2vic;
 }
 
