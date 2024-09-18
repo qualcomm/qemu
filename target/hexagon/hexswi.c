@@ -104,6 +104,8 @@
 #define SYS_EXEC            0x185
 #define SYS_FTRUNC          0x186
 
+#define BUFSIZE 2048
+
 static const int DIR_INDEX_OFFSET = 0x0b000;
 
 static int MapError(int ERR)
@@ -228,54 +230,49 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     case SYS_WRITE:
     {
         HEX_DEBUG_LOG("%s:%d: SYS_WRITE\n", __func__, __LINE__);
-        char *buf;
+        char buf[BUFSIZE];
         int fd;
         target_ulong bufaddr;
         int count;
-        int retval;
+        int retval = 0;
+        int write_size;
 
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &bufaddr);
         DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
 
-        int malloc_count = (count) ? count : 1;
-        buf = g_malloc(malloc_count);
-        if (buf == NULL) {
-            CPUState *cs = env_cpu(env);
-            cpu_abort(cs,
-                "Error: %s couldn't allocate "
-                "temporybuffer (%d bytes)",
-                __func__, count);
+        rcu_read_lock();
+        for (int to_write = count; to_write > 0; to_write -= write_size) {
+            write_size = to_write < BUFSIZE ? to_write : BUFSIZE;
+            for (int i = 0; i < write_size; i++) {
+                DEBUG_MEMORY_READ(bufaddr++, 1, &buf[i]);
+            }
+            int this_retval = write(fd, buf, write_size);
+            if (this_retval == -1) {
+                retval = -1;
+                break;
+            }
+            retval += this_retval;
         }
 
-        rcu_read_lock();
-        for (int i = 0; i < count; i++) {
-            DEBUG_MEMORY_READ(bufaddr + i, 1, &buf[i]);
-        }
-        retval = 0;
-        if (count) {
-            retval = write(fd, buf, count);
-        }
-        if (retval == count) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
-        } else if (retval == -1) {
+       if (retval == -1) {
             ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
             ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
         } else {
             ARCH_SET_THREAD_REG(env, HEX_REG_R00, count - retval);
         }
         rcu_read_unlock();
-        free(buf);
     }
     break;
 
     case SYS_READ:
     {
         int fd;
-        char *buf;
+        char buf[BUFSIZE];
         size4u_t bufaddr;
         int count;
-        int retval;
+        int retval = 0;
+        int read_size;
 
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &bufaddr);
@@ -288,31 +285,25 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
  */
         hexagon_touch_memory(env, bufaddr, count);
 
-        int malloc_count = (count) ? count : 1;
-        buf = g_malloc(malloc_count);
-        if (buf == NULL) {
-            CPUState *cs = env_cpu(env);
-            cpu_abort(cs,
-                "Error: %s couldn't allocate "
-                "temporybuffer (%d bytes)",
-                __func__, count);
-        }
-
-        retval = 0;
-        if (count) {
-            retval = read(fd, buf, count);
-            for (int i = 0; i < retval; i++) {
-                DEBUG_MEMORY_WRITE(bufaddr + i, 1, buf[i]);
+        for (int to_read = count; to_read > 0; to_read -= read_size) {
+            read_size = to_read < BUFSIZE ? to_read : BUFSIZE;
+            int this_retval = read(fd, buf, read_size);
+            if (this_retval == -1) {
+                retval = -1;
+                break;
+            }
+            retval += this_retval;
+            for (int i = 0; i < this_retval; i++) {
+                DEBUG_MEMORY_WRITE(bufaddr++, 1, buf[i]);
             }
         }
-        if (retval == count) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
-        } else if (retval == -1) {
+
+        if (retval == -1) {
+            ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
             ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
         } else {
             ARCH_SET_THREAD_REG(env, HEX_REG_R00, count - retval);
         }
-        free(buf);
     }
     break;
 
@@ -598,24 +589,28 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     break;
     case SYS_GETCWD:
     {
-        char *cwdPtr;
+        char cwdPtr[PATH_MAX];
         size4u_t BufferAddr;
         size4u_t BufferSize;
 
         DEBUG_MEMORY_READ(swi_info, 4, &BufferAddr);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &BufferSize);
 
-        cwdPtr = malloc(BufferSize);
-        if (!cwdPtr || !getcwd(cwdPtr, BufferSize)) {
+        if (!getcwd(cwdPtr, PATH_MAX)) {
             ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
             ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
         } else {
-            for (int i = 0; i < BufferSize; i++) {
-                DEBUG_MEMORY_WRITE(BufferAddr + i, 1, (size8u_t)cwdPtr[i]);
+            size_t cwd_size = strlen(cwdPtr);
+            if (cwd_size > BufferSize) {
+                ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ERANGE));
+                ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+            } else {
+                for (int i = 0; i < cwd_size; i++) {
+                    DEBUG_MEMORY_WRITE(BufferAddr + i, 1, (size8u_t)cwdPtr[i]);
+                }
+                ARCH_SET_THREAD_REG(env, HEX_REG_R00, BufferAddr);
             }
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, BufferAddr);
         }
-        free(cwdPtr);
         break;
     }
 
