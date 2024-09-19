@@ -201,8 +201,7 @@ variables:
     - |
       if test "${CHECK_FUNCTIONAL}" == true; then
           $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild \
-                        --print-errorlogs --setup thorough \
-                        --suite func --suite func-quick --suite func-thorough
+                        --print-errorlogs --suite func --suite func-quick
       fi
   artifacts:
     when: on_failure
@@ -217,12 +216,18 @@ variables:
     - qemu-qurt-tests/run_tests.sh $builddir/qemu-system-hexagon nspv68
     - qemu-qurt-tests/run_tests.sh $builddir/qemu-system-hexagon nspv79NA_1
 
-.base-sival-tests:
+.base-functional-test:
   extends: .after-build
   script:
-    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-sival-tests.git
-    - qemu-sival-tests/run_tests.sh $builddir/qemu-system-hexagon
+    - test -n "$TEST_CASE"
+    - QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
+      $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild
+        --print-errorlogs --suite func --suite func-quick --suite func-thorough
+        $TEST_CASE
+
+.base-sival-tests:
+  extends: .base-functional-test
+  variables: {TEST_CASE: func-hexagon-hexagon_sival}
 
 # The idea behind this job template is to simulate the default install
 # structure from qpm, allowing future jobs that execute qemu-system-hexagon to

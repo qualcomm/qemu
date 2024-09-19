@@ -144,9 +144,19 @@ tests_x86_64_system_thorough = [
   'virtio_gpu',
 ]
 
-tests_hexagon_system_thorough = [
+# QUIC-specific
+test_timeouts += {
+  'hexagon_sival': 240,
+}
+
+tests_hexagon_system_quick = [
   'hexagon_minivm',
 ]
+
+tests_hexagon_system_thorough = [
+  'hexagon_sival',
+]
+# end of QUIC-specific
 
 precache_all = []
 foreach speed : ['quick', 'thorough']
