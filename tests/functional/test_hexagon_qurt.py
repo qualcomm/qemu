@@ -7,11 +7,11 @@
 import os
 import re
 import tempfile
-import glob
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from unittest import skipUnless
 from qemu_test.utils import archive_extract
+from hexagon.utils import run_tests, HexagonCheckError
 
 class QURTTests(QemuSystemTest):
 
@@ -28,20 +28,9 @@ class QURTTests(QemuSystemTest):
         "nspv79NA_1": "V79NA_1",
     }
 
-    def get_testdir(self, arch_name):
-        return f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/{arch_name}/'
-
-    def list_test_cases(self, arch_name):
-        return glob.glob(f'{self.get_testdir(arch_name)}/*.pbn')
-
-    def read_skip_file(self, arch_name):
-        skip = set()
-        with open(f'{self.get_testdir(arch_name)}/SKIP') as f:
-            for line in f.readlines():
-                line = line.strip()
-                if not line.startswith("#"):
-                    skip.add(line)
-        return skip
+    def check(self):
+        if self.vm.exitcode() != 0:
+            raise HexagonCheckError(self.vm.get_log() or '')
 
     def run_tests_for_arch(self, arch_name):
         print(f'# RUNNING {arch_name}')
@@ -49,28 +38,16 @@ class QURTTests(QemuSystemTest):
             self.set_vm_arg('-M', self.QURT_MACHINES[arch_name])
         except KeyError:
             self.fail(f'UNKNOWN arch {arch_name}')
-
-        skip = self.read_skip_file(arch_name)
-        for test_bin_path in self.list_test_cases(arch_name):
-            test_name = os.path.basename(test_bin_path)
-            if test_name in skip:
-                print(f'#   SKIP {test_name}')
-                continue
-            print(f'#   Testing {test_name}')
-            self.vm.launch()
-            self.vm.wait(timeout=self.QURT_TIMEOUT_SEC)
-            if self.vm.exitcode() != 0:
-                err_msg = '\n----------\n' + (self.vm.get_log() or '') + '\n----------\n'
-                err_msg += f'FAILED: {test_name}: exit code {vm.exitcode()}'
-                self.fail(err_msg)
+        test_dir = f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/{arch_name}/'
+        return run_tests(self, test_dir, self.QURT_TIMEOUT_SEC, self.check)
 
     @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_qurt(self):
         file_path = self.ASSET_TARBALL.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.add_args('-m', '4G', '-no-reboot')
-        self.run_tests_for_arch("nspv68")
-        self.run_tests_for_arch("nspv79NA_1")
+        results = [self.run_tests_for_arch(a) for a in self.QURT_MACHINES.keys()]
+        self.assertTrue(all(results))
 
 if __name__ == '__main__':
     QemuSystemTest.main()
