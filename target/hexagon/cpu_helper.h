@@ -83,8 +83,11 @@ void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
 int hexagon_read_memory_locked(CPUHexagonState *env,
                                             target_ulong vaddr, int size,
                                             void *retptr);
+
+# define HEX_MEM_READ  (1 << 0)
+# define HEX_MEM_WRITE (1 << 1)
 void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
-                                 uint32_t length);
+                          uint32_t length, int mode);
 
 void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC);
 void hexagon_resume_threads(CPUHexagonState *env, uint32_t mask);

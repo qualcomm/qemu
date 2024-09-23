@@ -283,7 +283,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
  * faults this function will be restarted but the file pointer
  * will be wrong.
  */
-        hexagon_touch_memory(env, bufaddr, count);
+        hexagon_touch_memory(env, bufaddr, count, HEX_MEM_WRITE);
 
         for (int to_read = count; to_read > 0; to_read -= read_size) {
             read_size = to_read < BUFSIZE ? to_read : BUFSIZE;

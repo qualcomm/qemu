@@ -300,16 +300,22 @@ static inline uint32_t page_start(uint32_t addr)
 }
 
 void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
-    uint32_t length)
+                          uint32_t length, int mode)
 {
-    unsigned int warm;
-    uint32_t first_page = page_start(start_addr);
-    uint32_t last_page = page_start(start_addr + length - 1);
+    unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    uint32_t pagelen = TARGET_PAGE_SIZE;
+    uint32_t addr = page_start(start_addr);
 
-    for (uint32_t page = first_page;
-         page <= last_page;
-         page += TARGET_PAGE_SIZE) {
-        DEBUG_MEMORY_READ(page, 1, &warm);
+    while (length > 0) {
+        uint32_t cur_len = MIN(length, pagelen);
+        if (mode & HEX_MEM_READ) {
+            probe_read(env, addr, cur_len, mmu_idx, CPU_MEMOP_PC(env));
+        }
+        if (mode & HEX_MEM_WRITE) {
+            probe_write(env, addr, cur_len, mmu_idx, CPU_MEMOP_PC(env));
+        }
+        length -= cur_len;
+        addr += cur_len;
     }
 }
 

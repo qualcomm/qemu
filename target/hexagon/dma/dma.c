@@ -1495,8 +1495,8 @@ static void preload_buffers(dma_t *dma, uint32_t new)
             uint32_t length = get_dma_desc_length(&desc0);
             uint32_t dst_va = (uint32_t)(desc0.dst);
             uint32_t src_va = (uint32_t)(desc0.src);
-            hexagon_touch_memory(env, dst_va, length);
-            hexagon_touch_memory(env, src_va, length);
+            hexagon_touch_memory(env, dst_va, length, HEX_MEM_READ | HEX_MEM_WRITE);
+            hexagon_touch_memory(env, src_va, length, HEX_MEM_READ | HEX_MEM_WRITE);
             desc_addr = desc0.next;
         }
     } else if (dma_type == 1) {
@@ -1507,8 +1507,8 @@ static void preload_buffers(dma_t *dma, uint32_t new)
                             get_dma_desc_roiheight(&desc1);
             uint32_t dst_va = (uint32_t)(desc1.dst);
             uint32_t src_va = (uint32_t)(desc1.src);
-            hexagon_touch_memory(env, dst_va, size);
-            hexagon_touch_memory(env, src_va, size);
+            hexagon_touch_memory(env, dst_va, size, HEX_MEM_READ | HEX_MEM_WRITE);
+            hexagon_touch_memory(env, src_va, size, HEX_MEM_READ | HEX_MEM_WRITE);
             desc_addr = desc1.next;
         }
 
