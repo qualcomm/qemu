@@ -2767,7 +2767,7 @@ static bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 }
 #endif
 
-uint32_t hexagon_creg_read(CPUHexagonState *env, uint32_t reg)
+uint32_t hexagon_creg_read_debug(CPUHexagonState *env, uint32_t reg)
 {
     g_assert(reg >= HEX_REG_CREGS_START && reg < TOTAL_PER_THREAD_REGS);
 #ifndef CONFIG_USER_ONLY

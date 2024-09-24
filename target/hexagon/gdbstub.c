@@ -36,7 +36,7 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         if (n < HEX_REG_CREGS_START) {
             return gdb_get_regl(mem_buf, env->gpr[n]);
         } else {
-            return gdb_get_regl(mem_buf, hexagon_creg_read(env, n));
+            return gdb_get_regl(mem_buf, hexagon_creg_read_debug(env, n));
         }
     }
 

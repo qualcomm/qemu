@@ -634,7 +634,7 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
 uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
 void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
 #endif
-uint32_t hexagon_creg_read(CPUHexagonState *env, uint32_t reg);
+uint32_t hexagon_creg_read_debug(CPUHexagonState *env, uint32_t reg);
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);
