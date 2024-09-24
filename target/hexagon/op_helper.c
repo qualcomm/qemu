@@ -21,6 +21,7 @@
 #include "accel/tcg/probe.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
+#include "qemu/timer.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 #include "exec/cpu-interrupt.h"
@@ -2019,6 +2020,33 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
     hex_interrupt_update(env);
+}
+#endif
+
+#ifdef CONFIG_USER_ONLY
+uint32_t HELPER(creg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    /* These are handled directly by gen_read_ctrl_reg(). */
+    g_assert(reg != HEX_REG_UPCYCLELO && reg != HEX_REG_UPCYCLEHI);
+
+    if (reg == HEX_REG_UTIMERHI) {
+        return cpu_get_host_ticks() >> 32;
+    } else if (reg == HEX_REG_UTIMERLO) {
+        return extract32(cpu_get_host_ticks(), 0, 32);
+    }
+    return 0;
+}
+
+uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    if (reg == HEX_REG_UPCYCLELO) {
+        /* Pretend SSR[CE] is always set. */
+        return env->t_cycle_count;
+    }
+    if (reg == HEX_REG_UTIMERLO) {
+        return cpu_get_host_ticks();
+    }
+    return 0;
 }
 #endif
 
