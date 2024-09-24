@@ -202,6 +202,8 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
     }
 }
 
+#endif
+
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
     uint64_t cycles = 0;
@@ -260,6 +262,8 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
         thread_env->t_cycle_count = 0;
     }
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void set_wait_mode(CPUHexagonState *env)
 {
