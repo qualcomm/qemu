@@ -67,6 +67,7 @@ HEX_TESTS += reg_mut
 HEX_TESTS += scalar
 HEX_TESTS += upcycle
 HEX_TESTS += pmpyw
+HEX_TESTS += utimer
 
 TESTS += $(HEX_TESTS)
 
@@ -189,6 +190,7 @@ preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
 unaligned_pc: unaligned_pc.c
+utimer: utimer.c hex_test.h
 
 # This test has to be compiled for the -mv67t target
 usr: usr.c hex_test.h
