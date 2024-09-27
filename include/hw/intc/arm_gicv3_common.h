@@ -34,7 +34,7 @@
  * Note that this does not include LPIs. When implemented, these should be
  * dealt with separately.
  */
-#define GICV3_MAXIRQ 1020
+#define GICV3_MAXIRQ 2100
 #define GICV3_MAXSPI (GICV3_MAXIRQ - GIC_INTERNAL)
 
 #define GICV3_LPI_INTID_START 8192
