@@ -50,6 +50,7 @@ tests_arm_system_thorough = [
   'arm_canona1100',
   'arm_integratorcp',
   'arm_raspi2',
+  'arm_vexpress',
 ]
 
 tests_arm_linuxuser_thorough = [
@@ -92,7 +93,7 @@ tests_mips64el_system_thorough = [
   'mips64el_malta',
 ]
 
-tests_or1k_system_quick = [
+tests_or1k_system_thorough = [
   'or1k_sim',
 ]
 
@@ -105,11 +106,13 @@ tests_ppc_system_thorough = [
   'ppc_40p',
   'ppc_amiga',
   'ppc_bamboo',
+  'ppc_mac',
   'ppc_mpc8544ds',
   'ppc_virtex_ml507',
 ]
 
 tests_ppc64_system_thorough = [
+  'ppc64_e500',
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
@@ -122,6 +125,14 @@ tests_rx_system_thorough = [
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',
+]
+
+tests_sh4_system_thorough = [
+  'sh4_r2d',
+]
+
+tests_sparc_system_thorough = [
+  'sparc_sun4m',
 ]
 
 tests_sparc64_system_thorough = [
@@ -159,6 +170,10 @@ tests_hexagon_system_thorough = [
   'hexagon_qurt',
 ]
 # end of QUIC-specific
+
+tests_xtensa_system_thorough = [
+  'xtensa_lx60',
+]
 
 precache_all = []
 foreach speed : ['quick', 'thorough']

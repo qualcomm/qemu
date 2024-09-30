@@ -94,11 +94,4 @@ mkdir "$TMP/asm"
 > "$TMP/asm/bitsperlong.h"
 
 generate_syscall_nr hexagon 32 "$output/linux-user/hexagon/syscall_nr.h"
-generate_syscall_nr arm64 64 "$output/linux-user/aarch64/syscall_nr.h"
-generate_syscall_nr openrisc 32 "$output/linux-user/openrisc/syscall_nr.h"
-
-generate_syscall_nr riscv 32 "$output/linux-user/riscv/syscall32_nr.h"
-generate_syscall_nr riscv 64 "$output/linux-user/riscv/syscall64_nr.h"
-generate_syscall_nr hexagon 32 "$output/linux-user/hexagon/syscall_nr.h"
-generate_syscall_nr loongarch 64 "$output/linux-user/loongarch64/syscall_nr.h"
 rm -fr "$TMP"
