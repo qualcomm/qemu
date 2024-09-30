@@ -38,7 +38,6 @@ gen_vdso = generator(gen_vdso_exe, output: '@BASENAME@.c.inc',
 subdir('aarch64')
 subdir('alpha')
 subdir('arm')
-subdir('hexagon')
 subdir('hppa')
 subdir('i386')
 subdir('loongarch64')
