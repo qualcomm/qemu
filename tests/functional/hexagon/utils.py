@@ -36,6 +36,8 @@ def run_tests(test, dirname, timeout, check):
     success, fail = 0, 0
     timeout_scale, timeout = scale_timeout(timeout)
     print(f'# Per-test timeout: {timeout:.2f}s (scale: {timeout_scale:.2f})')
+    # Some qurt tests will output unicode characters
+    test.vm.set_encoding("ISO-8859-1")
     for test_bin in list_test_cases(dirname):
         test_name = os.path.basename(test_bin)
         if test_name in skip:

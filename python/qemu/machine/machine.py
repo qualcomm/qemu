@@ -154,6 +154,7 @@ class QEMUMachine:
         self._args = list(args)
         self._wrapper = wrapper
         self._qmp_timer = qmp_timer
+        self.encoding = None
 
         self._name = name or f"{id(self):x}"
         self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
@@ -282,13 +283,17 @@ class QEMUMachine:
             return None
         return self._subp.pid
 
+    def set_encoding(self, encoding):
+        self.encoding = encoding
+
     def _load_io_log(self) -> None:
         # Assume that the output encoding of QEMU's terminal output is
         # defined by our locale. If indeterminate, allow open() to fall
         # back to the platform default.
-        _, encoding = locale.getlocale()
+        if self.encoding is None:
+            _, self.encoding = locale.getlocale()
         if self._qemu_log_path is not None:
-            with open(self._qemu_log_path, "r", encoding=encoding) as iolog:
+            with open(self._qemu_log_path, "r", encoding=self.encoding) as iolog:
                 self._iolog = iolog.read()
 
     @property
