@@ -51,7 +51,8 @@ def run_tests(test, dirname, timeout, check):
         except HexagonCheckError as e:
             fail += 1
             err_msg = f'FAILED (exit code {test.vm.exitcode()})\n' + \
-                      '----------\n' + str(e) + '\n----------'
+                      '----------\n' + str(test.vm) + '\n----------\n' + \
+                      str(e) + '\n----------'
             print(textwrap.indent(err_msg, "#     ", lambda _: True))
     if fail > 0:
         print(f'# FAIL:  {fail}')

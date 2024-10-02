@@ -333,6 +333,9 @@ class QEMUMachine:
         """Returns path to the QEMU binary"""
         return self._binary
 
+    def __str__(self) -> str:
+        return " ".join(self._qemu_full_args)
+
     def _pre_launch(self) -> None:
         if self._qmp_set:
             sock = None
