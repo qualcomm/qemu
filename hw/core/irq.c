@@ -34,8 +34,8 @@ void qemu_set_irq(qemu_irq irq, int level)
     irq->handler(irq->opaque, irq->n, level);
 }
 
-static void qemu_init_irq_fields(IRQState *irq, qemu_irq_handler handler,
-                                 void *opaque, int n)
+static void init_irq_fields(IRQState *irq, qemu_irq_handler handler,
+                            void *opaque, int n)
 {
     irq->handler = handler;
     irq->opaque = opaque;
@@ -46,7 +46,7 @@ void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
                    int n)
 {
     object_initialize(irq, sizeof(*irq), TYPE_IRQ);
-    qemu_init_irq_fields(irq, handler, opaque, n);
+    init_irq_fields(irq, handler, opaque, n);
 }
 
 qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
@@ -73,7 +73,7 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
 qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
 {
     IRQState *irq = IRQ(object_new(TYPE_IRQ));
-    qemu_init_irq_fields(irq, handler, opaque, n);
+    init_irq_fields(irq, handler, opaque, n);
     return irq;
 }
 
