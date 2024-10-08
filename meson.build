@@ -3071,7 +3071,6 @@ config_target_mak = {}
 disassemblers = {
   'alpha' : ['CONFIG_ALPHA_DIS'],
   'avr' : ['CONFIG_AVR_DIS'],
-  'cris' : ['CONFIG_CRIS_DIS'],
   'hexagon' : ['CONFIG_HEXAGON_DIS'],
   'hppa' : ['CONFIG_HPPA_DIS'],
   'i386' : ['CONFIG_I386_DIS'],
