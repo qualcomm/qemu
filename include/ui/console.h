@@ -357,6 +357,7 @@ void dpy_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx);
 int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 
 bool console_has_gl(QemuConsole *con);
+bool console_has_valid_surface(QemuConsole *con);
 
 typedef uint32_t console_ch_t;
 
