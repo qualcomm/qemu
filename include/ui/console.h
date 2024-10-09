@@ -319,6 +319,14 @@ void qemu_console_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx);
 int qemu_console_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 
 bool qemu_console_has_gl(QemuConsole *con);
+bool qemu_console_has_valid_surface(QemuConsole *con);
+
+typedef uint32_t console_ch_t;
+
+static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
+{
+    *dest = ch;
+}
 
 enum {
     GRAPHIC_FLAGS_NONE     = 0,
