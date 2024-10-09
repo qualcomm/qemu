@@ -1452,6 +1452,19 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
     }
 }
 
+/* Reset scanout on any placeholder surfaces */
+static
+void virtio_gpu_virgl_reset_scanout_placeholders(VirtIOGPU *g)
+{
+    int i;
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        if (!qemu_console_has_valid_surface(g->parent_obj.scanout[i].con)) {
+            qemu_console_set_surface(g->parent_obj.scanout[i].con, NULL);
+            qemu_console_gl_scanout_disable(g->parent_obj.scanout[i].con);
+        }
+    }
+}
+
 static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
 {
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
@@ -1486,6 +1499,9 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
     int ret;
     uint32_t flags = 0;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+
+    /* Ensure called on io thread before init */
+    virtio_gpu_virgl_reset_scanout_placeholders(g);
 
 #if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
     VIRGL_RENDERER_CALLBACKS_VERSION >= 4
