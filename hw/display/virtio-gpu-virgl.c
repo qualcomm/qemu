@@ -1417,6 +1417,19 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
     }
 }
 
+/* Reset scanout on any placeholder surfaces */
+static
+void virtio_gpu_virgl_reset_scanout_placeholders(VirtIOGPU *g)
+{
+    int i;
+    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        if (!console_has_valid_surface(g->parent_obj.scanout[i].con)) {
+            dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
+            dpy_gl_scanout_disable(g->parent_obj.scanout[i].con);
+        }
+    }
+}
+
 static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
 {
     struct virtio_gpu_simple_resource *res, *tmp;
@@ -1445,6 +1458,9 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
     int ret;
     uint32_t flags = 0;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+
+    /* Ensure called on io thread before init */
+    virtio_gpu_virgl_reset_scanout_placeholders(g);
 
 #if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
     VIRGL_RENDERER_CALLBACKS_VERSION >= 4
