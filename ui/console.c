@@ -619,6 +619,11 @@ bool console_has_gl(QemuConsole *con)
     return con->gl != NULL;
 }
 
+bool console_has_valid_surface(QemuConsole *con)
+{
+    return !is_placeholder(con->surface);
+}
+
 static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl)
 {
     if (dcl->ops->dpy_has_dmabuf) {
