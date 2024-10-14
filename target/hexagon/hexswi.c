@@ -655,7 +655,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         if (dir) {
             errno = 0;
             host_dir_entry = readdir(dir);
-            if (host_dir_entry == NULL && errno != 0) {
+            if (host_dir_entry == NULL) {
                 ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
             }
         } else
