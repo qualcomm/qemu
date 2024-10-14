@@ -18,7 +18,7 @@
 #ifndef HEXAGON_MMU_H
 #define HEXAGON_MMU_H
 
-#define NUM_TLB_ENTRIES   192
+#define NUM_TLB_ENTRIES   256
 struct CPUHexagonTLBContext {
     uint64_t entries[NUM_TLB_ENTRIES];
 };
