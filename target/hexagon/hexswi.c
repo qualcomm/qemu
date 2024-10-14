@@ -134,24 +134,40 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     case SYS_GET_CMDLINE:
     {
         HEX_DEBUG_LOG("%s:%d: SYS_GET_CMDLINE\n", __func__, __LINE__);
+#ifdef CONFIG_LIBQEMU
+        HexagonCPU *cpu = env_archcpu(env);
+#endif
         target_ulong bufptr;
         target_ulong bufsize;
         int i;
+        const char *cmdline;
+
+        if (env->cmdline) {
+            cmdline = env->cmdline;
+        }
+#ifdef CONFIG_LIBQEMU
+        else if (cpu->cmdline) {
+            cmdline = cpu->cmdline;
+        }
+#endif
+        else {
+            cmdline = NULL;
+        }
 
         DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &bufsize);
 
         const target_ulong to_copy =
-            (env->cmdline != NULL) ?
-                ((bufsize <= (unsigned int)strlen(env->cmdline)) ?
+            (cmdline != NULL) ?
+                ((bufsize <= (unsigned int)strlen(cmdline)) ?
                      (bufsize - 1) :
-                     strlen(env->cmdline)) :
+                     strlen(cmdline)) :
                 0;
 
         HEX_DEBUG_LOG("\tcmdline '%s' len to copy %d buf max %d\n",
-            env->cmdline, to_copy, bufsize);
+            cmdline, to_copy, bufsize);
         for (i = 0; i < (int) to_copy; i++) {
-            DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) env->cmdline[i]);
+            DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) cmdline[i]);
         }
       DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) 0);
       ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);

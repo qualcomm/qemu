@@ -457,6 +457,9 @@ struct ArchCPU {
     bool cacheop_exceptions;
     gchar *usefs;
     gchar *coproc_path;
+#ifdef CONFIG_LIBQEMU
+    gchar *cmdline;
+#endif
     uint64_t config_table_addr;
     bool vp_mode;
     bool enable_semihosting;
