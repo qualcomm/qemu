@@ -102,6 +102,13 @@ if(GS_ENABLE_TSAN)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-tsan)
 endif()
 
+if(QEMU_ENABLE_USB_REDIRECT)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
+        --enable-usb-redir
+        --enable-libusb
+     )
+endif()
+
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE)
 message(STATUS "Build type : ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
