@@ -23,12 +23,16 @@
 
 typedef CPUHexagonState hex_memop_pc_guard;
 
+/* "quick" str comparison */
+#define STREQ(ST1, ST2) (ST1 == ST2 || !strcmp(ST1, ST2))
+
 static inline hex_memop_pc_guard *set_hex_memop_pc(CPUHexagonState *env,
                                                     const char *filename,
                                                     int line, uintptr_t pc,
                                                     bool allow_reset)
 {
-    if (!allow_reset && env->memop_pc.set) {
+    if (!allow_reset && env->memop_pc.set &&
+        (line != env->memop_pc.line || !STREQ(filename, env->memop_pc.filename))) {
         printf("ERROR: trying to set memop pc at file '%s' line %d\n",
                filename, line);
         printf("but it was already set from '%s' line %d.\n",
