@@ -3651,22 +3651,6 @@ uint32_t cxl_extent_group_list_delete_front(CXLDCExtentGroupList *list)
 }
 
 /*
- * CXL r3.1 Table 8-168: Add Dynamic Capacity Response Input Payload
- * CXL r3.1 Table 8-170: Release Dynamic Capacity Input Payload
- */
-typedef struct CXLUpdateDCExtentListInPl {
-    uint32_t num_entries_updated;
-    uint8_t flags;
-    uint8_t rsvd[3];
-    /* CXL r3.1 Table 8-169: Updated Extent */
-    struct {
-        uint64_t start_dpa;
-        uint64_t len;
-        uint8_t rsvd[8];
-    } QEMU_PACKED updated_entries[];
-} QEMU_PACKED CXLUpdateDCExtentListInPl;
-
-/*
  * For the extents in the extent list to operate, check whether they are valid
  * 1. The extent should be in the range of a valid DC region;
  * 2. The extent should not cross multiple regions;
