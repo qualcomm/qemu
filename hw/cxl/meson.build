@@ -13,3 +13,5 @@ system_ss.add(when: 'CONFIG_CXL',
 stub_ss.add(files(
                    'cxl-host-stubs.c',
                ))
+
+subdir('mhsld')
