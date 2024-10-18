@@ -818,6 +818,7 @@ static void cxl_destroy_dc_regions(CXLType3Dev *ct3d)
 {
     CXLDCExtent *ent, *ent_next;
     CXLDCExtentGroup *group, *group_next;
+    CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     int i;
     CXLDCRegion *region;
 
@@ -836,6 +837,10 @@ static void cxl_destroy_dc_regions(CXLType3Dev *ct3d)
     for (i = 0; i < ct3d->dc.num_regions; i++) {
         region = &ct3d->dc.regions[i];
         g_free(region->blk_bitmap);
+        if (cvc->mhd_release_extent) {
+            cvc->mhd_release_extent(&ct3d->parent_obj, region->base,
+                                    region->len);
+        }
     }
 }
 
@@ -2352,6 +2357,7 @@ static void qmp_cxl_process_dynamic_capacity_prescriptive(const char *path,
 {
     Object *obj;
     CXLType3Dev *dcd;
+    CXLType3Class *cvc;
     uint32_t num_extents = 0;
     CxlDynamicCapacityExtentList *list;
     CXLDCExtentGroup *group = NULL;
@@ -2367,6 +2373,7 @@ static void qmp_cxl_process_dynamic_capacity_prescriptive(const char *path,
     }
 
     dcd = CXL_TYPE3(obj);
+    cvc = CXL_TYPE3_GET_CLASS(dcd);
     if (!dcd->dc.num_regions) {
         error_setg(errp, "No dynamic capacity support from the device");
         return;
@@ -2437,6 +2444,13 @@ static void qmp_cxl_process_dynamic_capacity_prescriptive(const char *path,
         }
         list = list->next;
         num_extents++;
+    }
+
+    /* If this is an MHD, attempt to reserve the extents */
+    if (type == DC_EVENT_ADD_CAPACITY && cvc->mhd_reserve_extents &&
+        !cvc->mhd_reserve_extents(&dcd->parent_obj, records, rid)) {
+        error_setg(errp, "mhsld is enabled and extent reservation failed");
+        return;
     }
 
     /* Create extent list for event being passed to host */
@@ -2547,6 +2561,9 @@ static void ct3_class_init(ObjectClass *oc, const void *data)
     cvc->set_cacheline = set_cacheline;
     cvc->mhd_get_info = NULL;
     cvc->mhd_access_valid = NULL;
+    cvc->mhd_reserve_extents = NULL;
+    cvc->mhd_reclaim_extents = NULL;
+    cvc->mhd_release_extent = NULL;
 }
 
 static const TypeInfo ct3d_info = {

@@ -3749,6 +3749,7 @@ static CXLRetCode cmd_dcd_add_dyn_cap_rsp(const struct cxl_cmd *cmd,
 {
     CXLUpdateDCExtentListInPl *in = (void *)payload_in;
     CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+    CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     CXLDCExtentList *extent_list = &ct3d->dc.extents;
     uint32_t i, num;
     uint64_t dpa, len;
@@ -3794,6 +3795,12 @@ static CXLRetCode cmd_dcd_add_dyn_cap_rsp(const struct cxl_cmd *cmd,
         ct3d->dc.nr_extents_accepted += 1;
         ct3_set_region_block_backed(ct3d, dpa, len);
     }
+
+    if (cvc->mhd_reclaim_extents) {
+        cvc->mhd_reclaim_extents(&ct3d->parent_obj, &ct3d->dc.extents_pending,
+                                 in);
+    }
+
     /* Remove the first extent group in the pending list */
     num = cxl_extent_group_list_delete_front(&ct3d->dc.extents_pending);
     ct3d->dc.total_extent_count -= num;
@@ -3828,6 +3835,7 @@ static CXLRetCode cxl_dc_extent_release_dry_run(CXLType3Dev *ct3d,
         uint32_t *updated_list_size)
 {
     CXLDCExtent *ent, *ent_next;
+    CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     uint64_t dpa, len;
     uint32_t i;
     int cnt_delta = 0;
@@ -3844,6 +3852,13 @@ static CXLRetCode cxl_dc_extent_release_dry_run(CXLType3Dev *ct3d,
 
         /* Check if the DPA range is not fully backed with valid extents */
         if (!ct3_test_region_block_backed(ct3d, dpa, len)) {
+            ret = CXL_MBOX_INVALID_PA;
+            goto free_and_exit;
+        }
+
+        /* In an MHD, check that this DPA range belongs to this host */
+        if (cvc->mhd_access_valid &&
+            !cvc->mhd_access_valid(&ct3d->parent_obj, dpa, len)) {
             ret = CXL_MBOX_INVALID_PA;
             goto free_and_exit;
         }
@@ -3920,9 +3935,11 @@ static CXLRetCode cmd_dcd_release_dyn_cap(const struct cxl_cmd *cmd,
 {
     CXLUpdateDCExtentListInPl *in = (void *)payload_in;
     CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+    CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     CXLDCExtentList updated_list;
     CXLDCExtent *ent, *ent_next;
-    uint32_t updated_list_size;
+    uint32_t updated_list_size, i;
+    uint64_t dpa, len;
     CXLRetCode ret;
 
     if (len_in < sizeof(*in)) {
@@ -3947,6 +3964,16 @@ static CXLRetCode cmd_dcd_release_dyn_cap(const struct cxl_cmd *cmd,
                                         &updated_list_size);
     if (ret != CXL_MBOX_SUCCESS) {
         return ret;
+    }
+
+    /* Updated_entries contains the released extents. Free those in the MHD */
+    if (cvc->mhd_release_extent) {
+        for (i = 0; cvc->mhd_release_extent && i < in->num_entries_updated;
+             i++) {
+            dpa = in->updated_entries[i].start_dpa;
+            len = in->updated_entries[i].len;
+            cvc->mhd_release_extent(&ct3d->parent_obj, dpa, len);
+        }
     }
 
     /*
