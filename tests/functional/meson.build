@@ -190,6 +190,7 @@ tests_x86_64_system_thorough = [
 test_timeouts += {
   'hexagon_sival': 240,
   'hexagon_qurt': 1200,
+  'hexagon_minivm': 180,
 }
 
 tests_hexagon_system_quick = [
