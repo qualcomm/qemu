@@ -73,7 +73,8 @@ if have_block
     'test-blockjob-txn': [testblock],
     'test-block-backend': [testblock],
     'test-write-threshold': [testblock],
-    'test-crypto-hash': [crypto],
+    # QUIC: disabled due to QTOOL-124090
+    # 'test-crypto-hash': [crypto],
     'test-crypto-hmac': [crypto],
     'test-crypto-cipher': [crypto],
     'test-crypto-akcipher': [crypto],
@@ -88,7 +89,8 @@ if have_block
     'test-io-channel-command': ['io-channel-helpers.c', io],
     'test-io-channel-buffer': ['io-channel-helpers.c', io],
     'test-io-channel-null': [io],
-    'test-crypto-ivgen': [io],
+    # QUIC: disabled due to QTOOL-124090
+    # 'test-crypto-ivgen': [io],
     'test-crypto-afsplit': [io],
     'test-crypto-block': [io],
     'test-timed-average': [],

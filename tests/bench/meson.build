@@ -22,7 +22,8 @@ benchs = {}
 if have_block
   benchs += {
      'bufferiszero-bench': [],
-     'benchmark-crypto-hash': [crypto],
+     # QUIC: disabled due to QTOOL-124090
+     # 'benchmark-crypto-hash': [crypto],
      'benchmark-crypto-hmac': [crypto],
      'benchmark-crypto-cipher': [crypto],
      'benchmark-crypto-akcipher': [crypto],

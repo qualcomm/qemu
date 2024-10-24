@@ -29,6 +29,7 @@ static const char *get_coproc_relative_install_path(void)
      */
     char *path = get_relocated_path(CONFIG_BINDIR "/../../QEMUCoprocPlugin/");
     if (stat(path, &st) || !S_ISDIR(st.st_mode)) {
+	free(path);
         return NULL;
     }
     return path;
