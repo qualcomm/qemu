@@ -64,7 +64,8 @@ variables:
 
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
-  HEX_COPROC_SHA: eae409c9a5e70b56eaa82bc0e536fbf140a28201
+  HEX_COPROC_SHA: a980aa28005d8757041b478aaeecf688f8c978bf
+  HEX_COPROC_VERSION: 6
 
   HEX_INSTALL_PREFIX: "Tools"
   HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
@@ -93,6 +94,7 @@ variables:
       make -C $repo/hexagon/coprocs -j
       mkdir -p $HEX_COPROC_DIR
       mv $repo/hexagon/coprocs/$HEX_COPROC_BIN $HEX_COPROC_DIR/
+      mv $repo/hexagon/coprocs/$HEX_COPROC_BIN.$HEX_COPROC_VERSION $HEX_COPROC_DIR/
       if test -f $repo/docs/RELEASE-NOTES.txt
       then
         cp $repo/docs/RELEASE-NOTES.txt $HEX_COPROC_DIR/
