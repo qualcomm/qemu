@@ -4,15 +4,31 @@
 [*                                                               *]
 [*===============================================================*]
 
-QEMU-hexagon 8.0.50.0 Release Notes
+QEMU-hexagon 10.2.0 Release Notes
 
 ----------------------------------------------------------------------
 
 The user guide for QEMU-hexagon is published in CreatePoint: Qualcomm®
 Hexagon QEMU (80-N2040-52).
 
-In this release: support for Hexagon arch v75, HVX, DMA, COPROC.
+In this release: support for Hexagon arch v81, HVX, DMA, COPROC.
 
-MTTCG mode enables concurrent usage of host cores for each guest Hexagon
-vCPU thread.  Turn this mode on using `-accel tcg,thread=multi`.
+Main changes in this release:
+
+- Updated upstream base to 9.1.50.
+- Added support for v81 (Scalar, HVX, DMA, and coproc).
+- Honored framelimit on allocframe
+- Modernized many tests and enable some to use the upstream toolchain
+- Added functional tests
+
+Main bug fixes:
+
+- Fixed control reg names in '-d in_asm' output
+- Fixed PC alignment check
+- V68 H2 init was calling v66g_1024_init instead of v68n_1024_init
+- Protected read-only bits of syscfg
+- gdb-xml: fixed system and guest order
+- Fixed reading and writing of sys/ctrl regs through LLDB
+- Fixed undetected "multiple writes to same reg"
+- Throw 'invalid packet' on immext without extendable instruction
 
