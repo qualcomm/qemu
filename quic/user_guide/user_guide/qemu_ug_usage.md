@@ -225,6 +225,21 @@ might show more consistency.
         - 6
         - No
 
+      * - V79M_1
+        - 4
+        - No
+
+      * - V79NA_1
+        - 8
+        - Yes
+
+      * - V79_Linux
+        - 8
+        - Yes
+
+      * - V81QA_1
+        - 12
+        - Yes
    ```
 
 - `-monitor [none|stdio]`
