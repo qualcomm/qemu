@@ -107,5 +107,6 @@ of this VM interface.
 Hexagon Features
 ================
 .. toctree::
+   hexagon/emulation
    hexagon/cdsp
 
