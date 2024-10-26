@@ -110,8 +110,17 @@ tests_avr_system_thorough = [
   'avr_mega2560',
 ]
 
+
 tests_hppa_system_quick = [
   'hppa_seabios',
+]
+
+test_timeouts += {
+  'hexagon_minivm': 180,
+}
+
+tests_hexagon_system_quick = [
+  'hexagon_minivm',
 ]
 
 tests_i386_system_thorough = [
