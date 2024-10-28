@@ -478,8 +478,8 @@ struct ArchCPU {
     uint32_t num_coproc_instance;
     uint32_t subsystem_id;
     uint32_t num_tlbs;
-    uint32_t jtlb_size;
-    uint32_t dma_jtlb_size;
+    uint32_t jtlb_entries;
+    uint32_t dma_jtlb_entries;
 #endif
     uint32_t rev_reg;
     bool lldb_compat;

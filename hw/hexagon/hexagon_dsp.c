@@ -329,10 +329,10 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0);
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
-        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-size",
+        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
-        qdev_prop_set_uint32(DEVICE(cpu), "dma-jtlb-size",
-                             m_cfg->cfgtable.dma_jtlb_size);
+        qdev_prop_set_uint32(DEVICE(cpu), "dma-jtlb-entries",
+                             m_cfg->cfgtable.dma_jtlb_entries);
 
         HEX_DEBUG_LOG("%s: first cpu at 0x%p, env %p\n",
                 __func__, cpu, env);

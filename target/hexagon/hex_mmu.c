@@ -410,8 +410,8 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
     HexagonCPU *cpu = env_archcpu(env);
     uint32_t init_tlb_reg = extended ? DMA_TLB_OFFSET : 0;
     uint32_t max_tlb_reg = extended
-        ? DMA_TLB_OFFSET + cpu->dma_jtlb_size
-        : cpu->jtlb_size;
+        ? DMA_TLB_OFFSET + cpu->dma_jtlb_entries
+        : cpu->jtlb_entries;
 
     env->imprecise_exception = 0;
     for (uint32_t i = init_tlb_reg; i < max_tlb_reg; i++) {

@@ -121,8 +121,8 @@ static Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
                        0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
-    DEFINE_PROP_UINT32("jtlb-size", HexagonCPU, jtlb_size, MAX_TLB_ENTRIES),
-    DEFINE_PROP_UINT32("dma-jtlb-size", HexagonCPU, dma_jtlb_size, 0),
+    DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, jtlb_entries, MAX_TLB_ENTRIES),
+    DEFINE_PROP_UINT32("dma-jtlb-entries", HexagonCPU, dma_jtlb_entries, 0),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -753,17 +753,17 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     /*
-     * 0    jtlb_size   DMA_TLB_OFFSET    dma_jtlb_size
-     * v        v             v                 v
-     * |********|.............|+++++++++++++++++|
+     * 0    jtlb_entries   DMA_TLB_OFFSET    dma_jtlb_entries
+     * v         v             v                    v
+     * |*********|.............|++++++++++++++++++++|
      *
      * Where '*' are jtlb entries and '+' are dma jtlb entries.
      */
-    if (cpu->dma_jtlb_size && DMA_TLB_OFFSET < cpu->jtlb_size) {
+    if (cpu->dma_jtlb_entries && DMA_TLB_OFFSET < cpu->jtlb_entries) {
         error_report("Number of TLBs selected is invalid");
         exit(1);
     }
-    cpu->num_tlbs = DMA_TLB_OFFSET + cpu->dma_jtlb_size;
+    cpu->num_tlbs = DMA_TLB_OFFSET + cpu->dma_jtlb_entries;
 #endif
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,

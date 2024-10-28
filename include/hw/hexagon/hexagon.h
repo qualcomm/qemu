@@ -150,7 +150,7 @@ typedef  union {
     uint32_t l1d_ways;
     uint32_t l1i_ways;
     uint32_t l2way_num;
-    uint32_t dma_jtlb_size;
+    uint32_t dma_jtlb_entries;
   };
   uint32_t raw[HEXAGON_CFGSPACE_ENTRIES];
 } hexagon_config_table;
