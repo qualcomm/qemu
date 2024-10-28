@@ -296,8 +296,8 @@ class RemoteRPC {
         try {
             int coproc_version = client->call("get_rpc_version").template as<int>();
             if (coproc_version != RPC_VERSION) {
-                std::cout << "FATAL: coproc RPC version is "
-                          << coproc_version << " and this QEMU requires "
+                std::cout << std::hex << "FATAL: coproc RPC version is 0x"
+                          << coproc_version << " and this QEMU requires 0x"
                           << RPC_VERSION << "." << std::endl;
                 exit(1);
             }
