@@ -197,7 +197,7 @@ variables:
 .base-check:
   extends: .after-build
   script:
-    - $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild
+    - $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild --verbose
   artifacts:
     when: on_failure
     paths: [ "*_build" ]
@@ -208,7 +208,7 @@ variables:
   script:
     - test -n "$TEST_CASE"
     - QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
-      $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild
+      $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild --verbose
         --print-errorlogs --suite func --suite func-quick --suite func-thorough
         $TEST_CASE
 
