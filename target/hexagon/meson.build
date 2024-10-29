@@ -260,6 +260,7 @@ hexagon_softmmu_ss.add(files(
     'hex_interrupts.c',
     'hexswi.c',
     'machine.c',
+    'monitor.c',
 ))
 
 hexagon_softmmu_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
