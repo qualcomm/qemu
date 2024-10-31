@@ -189,6 +189,10 @@ might show more consistency.
         - 6
         - Yes
 
+      * - SA8797P_NSP0
+        - 12
+        - Yes
+
       * - V66G_1024
         - 4
         - Yes

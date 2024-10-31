@@ -569,6 +569,24 @@ static void SA8540P_cdsp0_init(ObjectClass *oc, void *data)
     mc->max_cpus = 6;
 }
 
+static void SA8797P_nsp0_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81_rev, &SA8797P_nsp0);
+}
+
+static void SA8797P_nsp0_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    init_mc(mc);
+    mc->desc = "SA8797P NSP0";
+    mc->init = SA8797P_nsp0_config_init;
+    mc->is_default = false;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
+    mc->default_cpus = 12;
+    mc->max_cpus = 12;
+}
+
 static void v73na_1024_linux_config_init(MachineState *machine)
 {
     syscfg_is_linux = true;
@@ -812,6 +830,10 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("SA8775P_CDSP0"),
         .parent = TYPE_MACHINE,
         .class_init = SA8775P_cdsp0_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("SA8797P_NSP0"),
+        .parent = TYPE_MACHINE,
+        .class_init = SA8797P_nsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("virt"),
         .parent = TYPE_MACHINE,
