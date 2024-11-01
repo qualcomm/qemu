@@ -282,7 +282,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0, 0);
         memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
                                    vtcm_addr);
-        memory_region_add_subregion(address_space, m_cfg->cfgtable.vtcm_base,
+        memory_region_add_subregion(address_space,
+                                    m_cfg->cfgtable.vtcm_base << 16,
                                     vtcm);
     }
 
@@ -296,7 +297,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         MemoryRegion *tcm = g_new(MemoryRegion, 1);
         memory_region_init_ram(tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
                                &error_fatal);
-        memory_region_add_subregion(address_space, m_cfg->cfgtable.l2tcm_base,
+        memory_region_add_subregion(address_space,
+                                    m_cfg->cfgtable.l2tcm_base << 16,
                                     tcm);
     }
 
@@ -314,7 +316,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
-                             m_cfg->cfgtable.vtcm_base);
+                             m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
                              m_cfg->cfgtable.vtcm_size_kb);
         qdev_prop_set_uint32(DEVICE(cpu), "l2line-size",
@@ -377,7 +379,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
         qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
         NULL);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base << 16);
 
     /* for linux dts you must add 32 to these values */
     pl011_create(0x10000000, qdev_get_gpio_in(dev, 15), serial_hd(0));
@@ -408,14 +410,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     hexagon_config_table *config_table = &m_cfg->cfgtable;
 
-    config_table->l2tcm_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2tcm_base);
     config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
-    config_table->vtcm_base = HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.vtcm_base);
-    config_table->l2cfg_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2cfg_base);
-    config_table->fastl2vic_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.fastl2vic_base);
 
     rom_add_blob_fixed_as("config_table.rom", config_table,
                           sizeof(*config_table), m_cfg->cfgbase,
@@ -433,6 +428,19 @@ static void init_mc(MachineClass *mc)
     mc->no_sdcard = 1;
     mc->is_default = false;
     mc->max_cpus = THREADS_MAX;
+}
+
+static void machcfg_disable_coproc(hexagon_machine_config *cfg)
+{
+    cfg->cfgtable.coproc2_reg0 = 0;
+    cfg->cfgtable.coproc2_reg1 = 0;
+    cfg->cfgtable.coproc2_reg2 = 0;
+    cfg->cfgtable.coproc2_reg3 = 0;
+    cfg->cfgtable.coproc2_reg4 = 0;
+    cfg->cfgtable.coproc2_reg5 = 0;
+    cfg->cfgtable.coproc2_reg6 = 0;
+    cfg->cfgtable.coproc2_reg7 = 0;
+    cfg->cfgtable.coproc2_cvt_mpy_size = 0;
 }
 
 /* ----------------------------------------------------------------- */
@@ -634,6 +642,9 @@ static void v75na_1024_config_init(MachineState *machine)
 
 static void virt_nocoproc_config_init(MachineState *machine)
 {
+    hexagon_machine_config v75na_1024_nocoproc;
+    memcpy(&v75na_1024_nocoproc, &v75na_1024, sizeof(v75na_1024));
+    machcfg_disable_coproc(&v75na_1024_nocoproc);
     hexagon_common_init(machine, unknown_rev, &v75na_1024_nocoproc);
 }
 
