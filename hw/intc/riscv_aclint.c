@@ -297,7 +297,7 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(s->hartid_base + i);
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
-        CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
+        CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         riscv_aclint_mtimer_callback *cb =
             g_new0(riscv_aclint_mtimer_callback,1);
 

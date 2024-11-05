@@ -667,6 +667,7 @@ uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask, uint64_t value)
     env->mip = (env->mip & ~mask) | (value & mask);
 
 #ifdef CONFIG_LIBQEMU
+    RISCVCPU *cpu = env_archcpu(env);
     libqemu_cpu_riscv_mip_update_cb(CPU(cpu), env->mip);
 #endif
 

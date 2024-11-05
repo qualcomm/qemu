@@ -1178,9 +1178,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+#ifdef CONFIG_LIBQEMU
+    CPURISCVState *env = &cpu->env;
     if (cpu->cfg.hartid != -1) {
         env->mhartid = cpu->cfg.hartid;
     }
+#endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
