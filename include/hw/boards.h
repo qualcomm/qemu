@@ -314,6 +314,8 @@ struct MachineClass {
     int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
     ram_addr_t (*fixup_ram_size)(ram_addr_t size);
     uint64_t smbios_memory_device_size;
+    bool (*create_default_memdev)(MachineState *ms, const char *path,
+                                  Error **errp);
 };
 
 /**
@@ -821,14 +823,5 @@ extern const size_t hw_compat_2_5_len;
 
 extern GlobalProperty hw_compat_2_4[];
 extern const size_t hw_compat_2_4_len;
-
-extern GlobalProperty hw_compat_2_3[];
-extern const size_t hw_compat_2_3_len;
-
-extern GlobalProperty hw_compat_2_2[];
-extern const size_t hw_compat_2_2_len;
-
-extern GlobalProperty hw_compat_2_1[];
-extern const size_t hw_compat_2_1_len;
 
 #endif
