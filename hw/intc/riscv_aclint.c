@@ -305,7 +305,7 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
             continue;
         }
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
-        CPURISCVState *env = cpu->env_ptr;
+        CPURISCVState *env = cpu_env(cpu);
         riscv_aclint_mtimer_callback *cb =
             g_new0(riscv_aclint_mtimer_callback, 1);
 
