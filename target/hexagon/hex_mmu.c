@@ -95,7 +95,10 @@ size8u_t encmask_2_mask[] = {
     0x3ffffffLL,                        /* 64m,  0111 */
     0xfffffffLL,                        /* 256m, 1000 */
     0x3fffffffLL,                       /* 1g,   1001 */
-    INVALID_MASK,                       /* RSVD, 0111 */
+    0xffffffffLL,                      /* 4g,   1010 */
+    0x3ffffffffLL,                     /* 16g,  1011 */
+    0xfffffffffLL,                     /* 64g,  1100 */
+    INVALID_MASK,                      /* RSVD, 0111 */
 };
 
 static inline int hex_tlb_pgsize(uint64_t entry)
@@ -235,6 +238,9 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
 
         tlb_flush(cs);
     }
+    uint64_t VA = hex_tlb_virt_addr(value);
+    uint64_t PA = hex_tlb_phys_addr(value);
+    trace_hexagon_tlbw(env->threadId, myidx, VA, PA);
     env->hex_tlb->entries[myidx] = (value);
     hex_log_tlbw(myidx, value);
 }
