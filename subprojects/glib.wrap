@@ -2,3 +2,4 @@
 url = https://gitlab.gnome.org/GNOME/glib/
 revision = 2.72.1
 depth = 1
+diff_files = glib.quic.patch

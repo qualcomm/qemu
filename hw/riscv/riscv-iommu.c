@@ -183,8 +183,25 @@ static void riscv_iommu_pri(RISCVIOMMUState *s,
     }
 }
 
-/* Portable implementation of pext_u64, bit-mask extraction. */
-static uint64_t _pext_u64(uint64_t val, uint64_t ext)
+/*
+ * Discards all bits from 'val' whose matching bits in the same
+ * positions in the mask 'ext' are zeros, and packs the remaining
+ * bits from 'val' contiguously at the least-significant end of the
+ * result, keeping the same bit order as 'val' and filling any
+ * other bits at the most-significant end of the result with zeros.
+ *
+ * For example, for the following 'val' and 'ext', the return 'ret'
+ * will be:
+ *
+ * val = a b c d e f g h
+ * ext = 1 0 1 0 0 1 1 0
+ * ret = 0 0 0 0 a c f g
+ *
+ * This function, taken from the riscv-iommu 1.0 spec, section 2.3.3
+ * "Process to translate addresses of MSIs", is similar to bit manip
+ * function PEXT (Parallel bits extract) from x86.
+ */
+static uint64_t riscv_iommu_pext_u64(uint64_t val, uint64_t ext)
 {
     uint64_t ret = 0;
     uint64_t rot = 1;
@@ -528,7 +545,7 @@ static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
     int cause;
 
     /* Interrupt File Number */
-    intn = _pext_u64(PPN_DOWN(gpa), ctx->msi_addr_mask);
+    intn = riscv_iommu_pext_u64(PPN_DOWN(gpa), ctx->msi_addr_mask);
     if (intn >= 256) {
         /* Interrupt file number out of range */
         res = MEMTX_ACCESS_ERROR;
@@ -803,7 +820,7 @@ static bool riscv_iommu_validate_process_ctx(RISCVIOMMUState *s,
     }
 
     if (ctx->tc & RISCV_IOMMU_DC_TC_SXL) {
-        if (mode == RISCV_IOMMU_CAP_SV32 &&
+        if (mode == RISCV_IOMMU_DC_FSC_IOSATP_MODE_SV32 &&
             !(s->cap & RISCV_IOMMU_CAP_SV32)) {
                 return false;
         }
@@ -846,7 +863,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
     /* Device Context format: 0: extended (64 bytes) | 1: base (32 bytes) */
     const int dc_fmt = !s->enable_msi;
     const size_t dc_len = sizeof(dc) >> dc_fmt;
-    unsigned depth;
+    int depth;
     uint64_t de;
 
     switch (mode) {

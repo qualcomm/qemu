@@ -1,0 +1,24 @@
+diff --git a/glib/meson.build b/glib/meson.build
+index 93fa504..3c3f9d7 100644
+--- a/glib/meson.build
++++ b/glib/meson.build
+@@ -378,6 +378,7 @@ libglib = library('glib-2.0',
+   dependencies : [pcre, thread_dep, librt] + libintl_deps + libiconv + platform_deps + [gnulib_libm_dependency, libm] + [libsysprof_capture_dep],
+   c_args : glib_c_args,
+   objc_args : glib_c_args,
++  pic: true,
+ )
+ 
+ libglib_dep = declare_dependency(
+diff --git a/gmodule/meson.build b/gmodule/meson.build
+index f0e7e12..b858917 100644
+--- a/gmodule/meson.build
++++ b/gmodule/meson.build
+@@ -87,6 +87,7 @@ libgmodule = library('gmodule-2.0',
+   dependencies : [libdl_dep, libglib_dep],
+   c_args : ['-DG_LOG_DOMAIN="GModule"'] + glib_hidden_visibility_args,
+   link_args : [glib_link_flags],
++  pic: true,
+ )
+ 
+ supported_var = 'gmodule_supported=@0@'.format(g_module_impl != '0')
