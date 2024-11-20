@@ -32,7 +32,7 @@ class QURTTests(QemuSystemTest):
         "nspv81QA_1": "v81",
     }
 
-    def check(self):
+    def check(self, _):
         if self.vm.exitcode() != 0:
             raise HexagonCheckError(self.vm.get_log() or '')
 

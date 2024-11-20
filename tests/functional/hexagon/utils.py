@@ -48,7 +48,7 @@ def run_tests(test, dirname, timeout, check):
         test.vm.launch()
         test.vm.wait(timeout=timeout)
         try:
-            check()
+            check(test_name)
             success += 1
         except HexagonCheckError as e:
             fail += 1
