@@ -637,8 +637,8 @@ static void qemu_chardev_set_replay(Chardev *chr, Error **errp)
     }
 }
 
-static Chardev *__qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
-                                         bool replay, Error **errp)
+static Chardev *do_qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
+                                          bool replay, Error **errp)
 {
     const ChardevClass *cc;
     Chardev *base = NULL, *chr = NULL;
@@ -716,12 +716,12 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
                                 Error **errp)
 {
     /* XXX: should this really not record/replay? */
-    return __qemu_chr_new_from_opts(opts, context, false, errp);
+    return do_qemu_chr_new_from_opts(opts, context, false, errp);
 }
 
-static Chardev *__qemu_chr_new(const char *label, const char *filename,
-                               bool permit_mux_mon, GMainContext *context,
-                               bool replay)
+static Chardev *qemu_chr_new_from_name(const char *label, const char *filename,
+                                       bool permit_mux_mon,
+                                       GMainContext *context, bool replay)
 {
     const char *p;
     Chardev *chr;
@@ -730,7 +730,7 @@ static Chardev *__qemu_chr_new(const char *label, const char *filename,
 
     if (strstart(filename, "chardev:", &p)) {
         chr = qemu_chr_find(p);
-        if (replay) {
+        if (replay && chr) {
             qemu_chardev_set_replay(chr, &err);
             if (err) {
                 error_report_err(err);
@@ -744,7 +744,7 @@ static Chardev *__qemu_chr_new(const char *label, const char *filename,
     if (!opts)
         return NULL;
 
-    chr = __qemu_chr_new_from_opts(opts, context, replay, &err);
+    chr = do_qemu_chr_new_from_opts(opts, context, replay, &err);
     if (!chr) {
         error_report_err(err);
         goto out;
@@ -769,7 +769,8 @@ out:
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
                                bool permit_mux_mon, GMainContext *context)
 {
-    return __qemu_chr_new(label, filename, permit_mux_mon, context, false);
+    return qemu_chr_new_from_name(label, filename, permit_mux_mon, context,
+                                  false);
 }
 
 static Chardev *qemu_chr_new_permit_mux_mon(const char *label,
@@ -777,7 +778,8 @@ static Chardev *qemu_chr_new_permit_mux_mon(const char *label,
                                           bool permit_mux_mon,
                                           GMainContext *context)
 {
-    return __qemu_chr_new(label, filename, permit_mux_mon, context, true);
+    return qemu_chr_new_from_name(label, filename, permit_mux_mon, context,
+                                  true);
 }
 
 Chardev *qemu_chr_new(const char *label, const char *filename,
