@@ -1003,15 +1003,8 @@ glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
 		    default_options: ['werror=false', 'default_library=static',
 				      'tests=false'])
 glib_cflags = []
-if enable_modules
-  gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
-elif get_option('plugins')
-  gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
-                       method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
-else
-  gmodule = not_found
-endif
+gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
+		     method: 'pkg-config', fallback: ['glib', 'libgmodule_dep'])
 
 # This workaround is required due to a bug in pkg-config file for glib as it
 # doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
