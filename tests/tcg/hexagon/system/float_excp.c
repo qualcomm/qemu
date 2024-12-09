@@ -25,7 +25,7 @@
 #define FPTRAP_CAUSE_BADFLOAT 0xbf
 
 static bool fp_exception_found;
-static uint32_t exception_elr, pre_exception_pc;
+static uint32_t exception_elr, pre_exception_pc, buffer = 0xdeaddead;
 
 void set_usr_fp_exception_bits(void)
 {
@@ -84,8 +84,11 @@ void gen_sfrecipa_exception(void)
     int RsV = 0x3f800000;
     int RtV = 0x00000000;
     asm volatile("%0 = pc\n\t"
-                 "R2,P0 = sfrecipa(%1, %2)\n\t"
-                 : "=r"(pre_exception_pc)
+                 "{\n\t"
+                 "   R2,P0 = sfrecipa(%2, %3)\n\t"
+                 "   %1 = #0xbeefbeef\n\t"
+                 "}\n\t"
+                 : "=r"(pre_exception_pc), "=r"(buffer)
                  : "r"(RsV), "r"(RtV)
                  : "r2", "p0");
 }
@@ -144,7 +147,7 @@ int main(int argc, char *argv[])
     gen_sfrecipa_exception();
     check32(fp_exception_found, true);
     /*
-     * ELR should have been the next PC after the failing instruction. See
+     * ELR should have been the next PC after the failing packet. See
      * section 5.10 of the System-Level spec:
      *
      * Floating point exceptions establish the exception point after the packet
@@ -152,7 +155,9 @@ int main(int argc, char *argv[])
      * exception commits, and all register values are updated. Program flow
      * resumes at the exception handler.
      */
-    check32(exception_elr, pre_exception_pc + 8);
+    check32(exception_elr, pre_exception_pc + 12);
+    /* Also make sure the failing packet was commited */
+    check32(buffer, 0xbeefbeef);
 
 out:
     printf("%s\n", ((err) ? "FAIL" : "PASS"));

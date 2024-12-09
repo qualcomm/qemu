@@ -47,6 +47,7 @@ DEFAULT_EVENT_HANDLE(my_event_handle_rsvd,        HANDLE_RSVD_OFFSET)
 DEFAULT_EVENT_HANDLE(my_event_handle_trap0,       HANDLE_TRAP0_OFFSET)
 DEFAULT_EVENT_HANDLE(my_event_handle_trap1,       HANDLE_TRAP1_OFFSET)
 DEFAULT_EVENT_HANDLE(my_event_handle_int,         HANDLE_INT_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_fperror,     HANDLE_FPERROR_OFFSET)
 
 static void test_data_cache_ops(void)
 {
