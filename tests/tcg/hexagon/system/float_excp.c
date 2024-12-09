@@ -25,6 +25,7 @@
 #define FPTRAP_CAUSE_BADFLOAT 0xbf
 
 static bool fp_exception_found;
+static uint32_t exception_elr, pre_exception_pc;
 
 void set_usr_fp_exception_bits(void)
 {
@@ -82,8 +83,11 @@ void gen_sfrecipa_exception(void)
     /* Force a divide-by-zero exception */
     int RsV = 0x3f800000;
     int RtV = 0x00000000;
-    asm volatile("R2,P0 = sfrecipa(%0, %1)\n\t"
-                 : : "r"(RsV), "r"(RtV) : "r2", "p0");
+    asm volatile("%0 = pc\n\t"
+                 "R2,P0 = sfrecipa(%1, %2)\n\t"
+                 : "=r"(pre_exception_pc)
+                 : "r"(RsV), "r"(RtV)
+                 : "r2", "p0");
 }
 
 void check_fp_exception_helper(uint32_t ssr)
@@ -92,6 +96,7 @@ void check_fp_exception_helper(uint32_t ssr)
 
     if (cause == FPTRAP_CAUSE_BADFLOAT) {
         fp_exception_found = true;
+        asm volatile("%0 = elr\n" : "=r"(exception_elr));
         inc_elr(4);
     } else {
         do_coredump();
@@ -138,6 +143,16 @@ int main(int argc, char *argv[])
     set_usr_fp_exception_bits();
     gen_sfrecipa_exception();
     check32(fp_exception_found, true);
+    /*
+     * ELR should have been the next PC after the failing instruction. See
+     * section 5.10 of the System-Level spec:
+     *
+     * Floating point exceptions establish the exception point after the packet
+     * that caused the error (like TRAP). The packet with the floating point
+     * exception commits, and all register values are updated. Program flow
+     * resumes at the exception handler.
+     */
+    check32(exception_elr, pre_exception_pc + 8);
 
 out:
     printf("%s\n", ((err) ? "FAIL" : "PASS"));
