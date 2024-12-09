@@ -17,6 +17,14 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
+
+#include "mmu.h"
+
+#define HEX_EVENT_FPTRAP 0xb
+#define FPTRAP_CAUSE_BADFLOAT 0xbf
+
+static bool fp_exception_found;
 
 void set_usr_fp_exception_bits(void)
 {
@@ -75,32 +83,63 @@ void gen_sfrecipa_exception(void)
     int RsV = 0x3f800000;
     int RtV = 0x00000000;
     asm volatile("R2,P0 = sfrecipa(%0, %1)\n\t"
-                 "R4 = sffixupd(R0, R1)\n\t"
-                 : : "r"(RsV), "r"(RtV) : "r2", "p0", "r4");
+                 : : "r"(RsV), "r"(RtV) : "r2", "p0");
 }
+
+void check_fp_exception_helper(uint32_t ssr)
+{
+    uint32_t cause = GET_FIELD(ssr, SSR_CAUSE);
+
+    if (cause == FPTRAP_CAUSE_BADFLOAT) {
+        fp_exception_found = true;
+        inc_elr(4);
+    } else {
+        do_coredump();
+    }
+}
+
+/* Set up the event handlers */
+MY_EVENT_HANDLE(my_event_handle_fperror, check_fp_exception_helper)
+
+DEFAULT_EVENT_HANDLE(my_event_handle_error,       HANDLE_ERROR_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_nmi,         HANDLE_NMI_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_tlbmissrw,   HANDLE_TLBMISSRW_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_tlbmissx,    HANDLE_TLBMISSX_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_reset,       HANDLE_RESET_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_rsvd,        HANDLE_RSVD_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_trap0,       HANDLE_TRAP0_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_trap1,       HANDLE_TRAP1_OFFSET)
+DEFAULT_EVENT_HANDLE(my_event_handle_int,         HANDLE_INT_OFFSET)
 
 int main(int argc, char *argv[])
 {
     clear_usr_invalid();
     if (get_usr_invalid()) {
         printf("ERROR: usr invalid bit not cleared\n");
-        return 1;
+        err = 1;
+        goto out;
     }
 
     gen_sfinvsqrta_exception();
     if (get_usr_invalid() == 0) {
         printf("ERROR: usr invalid bit not set\n");
-        return 1;
+        err = 1;
+        goto out;
     }
 
     clear_usr_div_by_zero();
     if (get_usr_div_by_zero()) {
         printf("ERROR: usr div-by-zero bit not cleared\n");
-        return 1;
+        err = 1;
+        goto out;
     }
 
+    install_my_event_vectors();
     set_usr_fp_exception_bits();
     gen_sfrecipa_exception();
+    check32(fp_exception_found, true);
 
-    return 0;
+out:
+    printf("%s\n", ((err) ? "FAIL" : "PASS"));
+    return err;
 }

@@ -505,6 +505,7 @@ asm (
 ".set HANDLE_TLBMISSRW_OFFSET,           0x18\n\t"
 ".set HANDLE_TRAP0_OFFSET,               0x20\n\t"
 ".set HANDLE_TRAP1_OFFSET,               0x24\n\t"
+".set HANDLE_FPERROR_OFFSET,             0x28\n\t"
 ".set HANDLE_INT_OFFSET,                 0x40\n\t"
 );
 
@@ -522,7 +523,7 @@ asm(
     "jump my_event_handle_trap0\n\t"
     "jump my_event_handle_trap1\n\t"
     "jump my_event_handle_rsvd\n\t"
-    "jump my_event_handle_rsvd\n\t"
+    "jump my_event_handle_fperror\n\t"
     "jump my_event_handle_rsvd\n\t"
     "jump my_event_handle_rsvd\n\t"
     "jump my_event_handle_rsvd\n\t"
@@ -571,6 +572,7 @@ DEFAULT_EVENT_HANDLE(my_event_handle_rsvd,        HANDLE_RSVD_OFFSET) \
 DEFAULT_EVENT_HANDLE(my_event_handle_trap0,       HANDLE_TRAP0_OFFSET) \
 DEFAULT_EVENT_HANDLE(my_event_handle_trap1,       HANDLE_TRAP1_OFFSET) \
 DEFAULT_EVENT_HANDLE(my_event_handle_int,         HANDLE_INT_OFFSET) \
+DEFAULT_EVENT_HANDLE(my_event_handle_fperror,     HANDLE_FPERROR_OFFSET)
 
 #endif /* NO_DEFAULT_EVENT_HANDLES */
 

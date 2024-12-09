@@ -10,7 +10,7 @@ DOWNSTREAM_TESTS += \
 	coproc_conv_fp16 \
 	coproc_range \
 	pcycle \
-	neg-float_excp \
+	float_excp \
 	neg-hvx_nocoproc \
 	neg-no-coproc \
 	swi_fs \
@@ -40,7 +40,7 @@ swi_fs: swi_fs.o
 test-thread: test-thread.o
 pcycle.o: pcycle.c ../hex_test.h
 pcycle: pcycle.o
-neg-float_excp: float_excp.o
+float_excp: float_excp.o
 
 hvx_nocoproc.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp

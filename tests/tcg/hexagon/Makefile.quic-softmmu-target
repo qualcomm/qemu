@@ -230,7 +230,7 @@ run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81QA_1
 run-swi: swi
 run-swi2: swi2
 run-thread_scheduling: thread_scheduling
-run-neg-float_excp: neg-float_excp
+run-float_excp: float_excp
 run-neg-unaligned: neg-unaligned
 run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81QA_1
 
