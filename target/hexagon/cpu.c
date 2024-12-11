@@ -480,15 +480,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
     hex_mmu_realize(env);
-    if (cs->cpu_index == 0) {
-        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
-        env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
-    } else {
-        CPUState *cpu0 = qemu_get_cpu(0);
-        CPUHexagonState *env0 = cpu_env(cpu0);
-        env->g_sreg = env0->g_sreg;
-        env->g_pcycle_base = env0->g_pcycle_base;
-    }
 #endif
 
     mcc->parent_realize(dev, errp);
