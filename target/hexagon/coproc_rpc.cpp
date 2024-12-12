@@ -39,15 +39,15 @@ extern "C" void rpc_exit_handler(void);
 void rpc_exit_handler(void)
 {
     if (local_rpc) {
-        delete static_cast<RemoteRPC * >(local_rpc);
-        local_rpc = NULL;
+        static_cast<RemoteRPC * >(local_rpc)->detach_server();
     }
 }
+
 
 extern "C" int hexagon_coproc_rpclib_init(const char *coproc_path, int hex_rev);
 int hexagon_coproc_rpclib_init(const char *coproc_path, int hex_rev)
 {
-    char coproc_full_name[4096];
+    char coproc_full_name[PATH_MAX];
 
     if (!coproc_path) {
         return ERROR;

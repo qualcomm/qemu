@@ -313,6 +313,15 @@ class RemoteRPC {
         }
     }
 
+    void detach_server() {
+        cancel_waiting = true;
+        stop_server = true;
+        if (server) {
+            server->stop();
+            server->close_sessions();
+        }
+    }
+
     void wait_server()
     {
         if (server_runner.joinable()) {
