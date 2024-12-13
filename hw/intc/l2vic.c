@@ -38,16 +38,6 @@
 #define L2VIC(obj) OBJECT_CHECK(L2VICState, (obj), TYPE_L2VIC)
 
 #define SLICE_MAX (L2VIC_INTERRUPT_MAX / 32)
-#define IRQBIT(irq) (1 << (irq) % 32)
-#define DEBUG_DEV_L2VIC 0
-
-#define D(...)                     \
-    do {                           \
-        if (DEBUG_DEV_L2VIC) {     \
-            qemu_log(__VA_ARGS__); \
-        }                          \
-    } while (0) ;
-
 
 typedef struct L2VICState {
     SysBusDevice parent_obj;
@@ -125,7 +115,6 @@ static inline bool vid_active(L2VICState *s)
 static bool l2vic_update(L2VICState *s, int irq)
 {
     if (vid_active(s)) {
-        D("L2VIC: busy\n");
         return true;
     }
 
@@ -143,7 +132,7 @@ static bool l2vic_update(L2VICState *s, int irq)
         /* already low: now call pulse */
         /*     pulse: calls qemu_upper() and then qemu_lower()) */
         qemu_irq_pulse(s->irq[vid + 2]);
-        D("L2VIC: delivered %d (vid %d)\n", irq, vid);
+        trace_l2vic_delivered(irq, vid);
         return true;
     }
     return false;
@@ -163,11 +152,6 @@ static void l2vic_set_irq(void *opaque, int irq, int level)
 {
     L2VICState *s = (L2VICState *) opaque;
     if (level) {
-        D("ACK, irq:level = %d, %d\n", irq, level);
-        D("\t(L2VICA(s->int_enable, 4 * (irq / 32)) = 0x%x\n",
-          L2VICA(s->int_enable, 4 * (irq / 32)));
-        D("\tIRQBIT(irq) = 0x%x\n", IRQBIT(irq));
-
         qemu_mutex_lock(&s->active);
         set_bit(irq, (unsigned long *)s->int_pending);
         qemu_mutex_unlock(&s->active);
@@ -180,7 +164,6 @@ static void l2vic_write(void *opaque, hwaddr offset,
     L2VICState *s = (L2VICState *) opaque;
     qemu_mutex_lock(&s->active);
     trace_l2vic_reg_write((unsigned) offset, (uint32_t) val);
-    D("L2Vic write 0x%" PRIx64 " 0x%" PRIx64 "\n", offset, val);
 
     if (offset == L2VIC_VID_0) {
         if ((int)val != L2VIC_CIAD_INSTRUCTION) {
@@ -255,7 +238,6 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
 {
     uint64_t value;
     L2VICState *s = (L2VICState *)opaque;
-    D("L2Vic read 0x%" PRIx64 "\n", offset);
     qemu_mutex_lock(&s->active);
 
     if (offset == L2VIC_VID_GRP_0) {
