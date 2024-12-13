@@ -2463,6 +2463,26 @@ if virgl.found()
                                          prefix: '#include <virglrenderer.h>',
                                          dependencies: virgl))
 endif
+if vcl.found()
+  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+                       cc.has_member('struct vircl_renderer_resource_info_ext',
+                                     'd3d_tex2d',
+                                     prefix: '#include <virclrenderer.h>'))
+  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+                       cc.has_member('struct vircl_renderer_resource_info_ext',
+                                     'd3d_tex2d',
+                                     prefix: '#include <virclrenderer.h>'))
+  config_host_data.set('HAVE_VIRGL_CBS_GET_EGL_DISPLAY',
+                       cc.has_member('struct vircl_renderer_callbacks',
+                                     'get_egl_display',
+                                     prefix: '#include <virclrenderer.h>'))
+  config_host_data.set('HAVE_VCL_CONTEXT_INIT',
+                       cc.has_function('vircl_renderer_context_create_with_flags',
+                                       prefix: '#include <virclrenderer.h>'))
+  config_host_data.set('HAVE_VCL_RESOURCE_BLOB',
+                       cc.has_function('vircl_renderer_resource_create_blob',
+                                       prefix: '#include <virclrenderer.h>'))
+endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())

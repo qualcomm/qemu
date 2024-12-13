@@ -1325,7 +1325,6 @@ static bool ins_is_load(uint32_t ins)
 static int kvm_handle_load_store(CPUState *cs, uint64_t fault_ipa,
                                  uint32_t ins)
 {
-    MemTxResult res;
     assert(ins_is_store(ins) || ins_is_load(ins));
 
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1340,15 +1339,15 @@ static int kvm_handle_load_store(CPUState *cs, uint64_t fault_ipa,
     if (ins_is_store(ins)) {
         if (rt == 0x1f) {
             uint64_t zero = 0;
-            res = address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+            address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
                                 &(zero), (ins & 0x40000000) ? 0x8 : 0x4);
         } else {
-            res = address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+            address_space_write(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
                                 &(env->xregs[rt]),
                                 (ins & 0x40000000) ? 0x8 : 0x4);
         }
     } else if (ins_is_load(ins)) {
-        res = address_space_read(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
+        address_space_read(cs->as, fault_ipa, MEMTXATTRS_UNSPECIFIED,
                            &(env->xregs[rt]), (ins & 0x40000000) ? 0x8 : 0x4);
     } else {
         __builtin_unreachable();
@@ -1553,8 +1552,13 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
     case KVM_EXIT_ARM_NISV:
         /* External DABT with no valid iss to decode */
+#ifdef CONFIG_LIBQEMU
+        ret = kvm_arm_handle_dabt_nisv(cs, run->arm_nisv.esr_iss,
+                                       run->arm_nisv.fault_ipa);
+#else
         ret = kvm_arm_handle_dabt_nisv(cpu, run->arm_nisv.esr_iss,
                                        run->arm_nisv.fault_ipa);
+#endif
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: un-handled exit reason %d\n",
