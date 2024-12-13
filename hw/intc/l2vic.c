@@ -172,8 +172,6 @@ static void l2vic_write(void *opaque, hwaddr offset,
             /* ciad issued: clear int_status */
             clear_bit(s->vid0, (unsigned long *)s->int_status);
         }
-    } else if (offset == L2VIC_VID_1) {
-        g_assert_not_reached(); /* No support of VID1 at the moment */
     } else if (offset >= L2VIC_INT_ENABLEn &&
         offset < (L2VIC_INT_ENABLE_CLEARn)) {
         L2VICA(s->int_enable, offset - L2VIC_INT_ENABLEn) = val;
@@ -226,7 +224,8 @@ static void l2vic_write(void *opaque, hwaddr offset,
                offset < L2VIC_INT_GRPn_3 + 0x80) {
         L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3) = val;
     } else {
-        qemu_log_mask(LOG_UNIMP, "%s: offset %x\n", __func__, (int) offset);
+        qemu_log_mask(LOG_UNIMP, "%s: offset %x unimplemented\n",
+                      __func__, (int) offset);
     }
     l2vic_update_all(s);
     qemu_mutex_unlock(&s->active);
@@ -328,10 +327,8 @@ static void fastl2vic_write(void *opaque, hwaddr offset,
         } else if (cmd == FASTL2VIC_INT) {
             l2vic_write(opaque, L2VIC_SOFT_INTn + slice, val, size);
         }
-        /* RESERVED */
-        else if (cmd == 0x3) {
-            g_assert_not_reached();
-        }
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write cmd %d\n",
+                      __func__, cmd);
         return;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write offset 0x%08x\n",
