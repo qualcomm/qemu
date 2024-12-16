@@ -2,24 +2,7 @@
  * QEMU L2VIC Interrupt Controller
  *
  * Arm PrimeCell PL190 Vector Interrupt Controller was used as a reference.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -31,8 +14,7 @@
 #include "l2vic.h"
 #include "trace.h"
 
-#define L2VICA(s, n) \
-    (s[(n)>>2])
+#define L2VICA(s, n) (s[(n) >> 2])
 
 #define TYPE_L2VIC "l2vic"
 #define L2VIC(obj) OBJECT_CHECK(L2VICState, (obj), TYPE_L2VIC)
@@ -46,16 +28,22 @@ typedef struct L2VICState {
     MemoryRegion iomem;
     MemoryRegion fast_iomem;
     uint32_t level;
-    uint32_t vid_group[4]; /* offset 0:vid group 0 etc, 10 bits in each group are used. */
+    uint32_t vid_group[4]; /* offset 0:vid group 0 etc, 10 bits in each group
+                              are used. */
     uint32_t vid0;
-    uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(16);  /* Clear Status of Active Edge interrupt, not used*/
-    uint32_t int_enable[SLICE_MAX] QEMU_ALIGNED(16); /* Enable interrupt source */
-    uint32_t int_enable_clear;    /* Clear (set to 0) corresponding bit in int_enable */
-    uint32_t int_enable_set;      /* Set (to 1) corresponding bit in int_enable */
-    uint32_t int_pending[SLICE_MAX] QEMU_ALIGNED(16); /* Present for debugging, not used */
-    uint32_t int_soft;   /* Generate an interrupt */
-    uint32_t int_status[SLICE_MAX] QEMU_ALIGNED(16); /* Which enabled interrupt is active */
-    uint32_t int_type[SLICE_MAX] QEMU_ALIGNED(16);  /* Edge or Level interrupt */
+    uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(
+        16); /* Clear Status of Active Edge interrupt, not used*/
+    uint32_t
+        int_enable[SLICE_MAX] QEMU_ALIGNED(16); /* Enable interrupt source */
+    uint32_t
+        int_enable_clear; /* Clear (set to 0) corresponding bit in int_enable */
+    uint32_t int_enable_set; /* Set (to 1) corresponding bit in int_enable */
+    uint32_t int_pending[SLICE_MAX] QEMU_ALIGNED(
+        16); /* Present for debugging, not used */
+    uint32_t int_soft; /* Generate an interrupt */
+    uint32_t int_status[SLICE_MAX] QEMU_ALIGNED(
+        16); /* Which enabled interrupt is active */
+    uint32_t int_type[SLICE_MAX] QEMU_ALIGNED(16); /* Edge or Level interrupt */
     /* L2 interrupt group 0-3 0x600-0x7FF */
     uint32_t int_group_n0[SLICE_MAX] QEMU_ALIGNED(16);
     uint32_t int_group_n1[SLICE_MAX] QEMU_ALIGNED(16);
@@ -82,7 +70,6 @@ static uint32_t *get_int_group(L2VICState *s, int irq)
         return s->int_group_n2;
     }
     return s->int_group_n3;
-
 }
 
 static int find_slice(int irq)
@@ -150,7 +137,7 @@ static void l2vic_update_all(L2VICState *s)
 
 static void l2vic_set_irq(void *opaque, int irq, int level)
 {
-    L2VICState *s = (L2VICState *) opaque;
+    L2VICState *s = (L2VICState *)opaque;
     if (level) {
         qemu_mutex_lock(&s->active);
         set_bit(irq, (unsigned long *)s->int_pending);
@@ -159,11 +146,12 @@ static void l2vic_set_irq(void *opaque, int irq, int level)
     l2vic_update(s, irq);
 }
 
-static void l2vic_write(void *opaque, hwaddr offset,
-                        uint64_t val, unsigned size) {
-    L2VICState *s = (L2VICState *) opaque;
+static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
+                        unsigned size)
+{
+    L2VICState *s = (L2VICState *)opaque;
     qemu_mutex_lock(&s->active);
-    trace_l2vic_reg_write((unsigned) offset, (uint32_t) val);
+    trace_l2vic_reg_write((unsigned)offset, (uint32_t)val);
 
     if (offset == L2VIC_VID_0) {
         if ((int)val != L2VIC_CIAD_INSTRUCTION) {
@@ -173,28 +161,23 @@ static void l2vic_write(void *opaque, hwaddr offset,
             clear_bit(s->vid0, (unsigned long *)s->int_status);
         }
     } else if (offset >= L2VIC_INT_ENABLEn &&
-        offset < (L2VIC_INT_ENABLE_CLEARn)) {
+               offset < (L2VIC_INT_ENABLE_CLEARn)) {
         L2VICA(s->int_enable, offset - L2VIC_INT_ENABLEn) = val;
     } else if (offset >= L2VIC_INT_ENABLE_CLEARn &&
                offset < L2VIC_INT_ENABLE_SETn) {
         L2VICA(s->int_enable, offset - L2VIC_INT_ENABLE_CLEARn) &= ~val;
-    } else if (offset >= L2VIC_INT_ENABLE_SETn &&
-               offset < L2VIC_INT_TYPEn) {
+    } else if (offset >= L2VIC_INT_ENABLE_SETn && offset < L2VIC_INT_TYPEn) {
         L2VICA(s->int_enable, offset - L2VIC_INT_ENABLE_SETn) |= val;
-    } else if (offset >= L2VIC_INT_TYPEn &&
-               offset < L2VIC_INT_TYPEn + 0x80) {
+    } else if (offset >= L2VIC_INT_TYPEn && offset < L2VIC_INT_TYPEn + 0x80) {
         L2VICA(s->int_type, offset - L2VIC_INT_TYPEn) = val;
-    } else if (offset >= L2VIC_INT_STATUSn &&
-               offset < L2VIC_INT_CLEARn) {
+    } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
         L2VICA(s->int_status, offset - L2VIC_INT_STATUSn) = val;
-    } else if (offset >= L2VIC_INT_CLEARn &&
-               offset < L2VIC_SOFT_INTn) {
+    } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
         L2VICA(s->int_clear, offset - L2VIC_INT_CLEARn) = val;
     } else if (offset >= L2VIC_INT_PENDINGn &&
                offset < L2VIC_INT_PENDINGn + 0x80) {
         L2VICA(s->int_pending, offset - L2VIC_INT_PENDINGn) = val;
-    } else if (offset >= L2VIC_SOFT_INTn &&
-               offset < L2VIC_INT_PENDINGn) {
+    } else if (offset >= L2VIC_SOFT_INTn && offset < L2VIC_INT_PENDINGn) {
         L2VICA(s->int_enable, offset - L2VIC_SOFT_INTn) |= val;
         /*
          *  Need to reverse engineer the actual irq number.
@@ -211,29 +194,24 @@ static void l2vic_write(void *opaque, hwaddr offset,
             l2vic_set_irq(opaque, irq, 1);
             qemu_mutex_lock(&s->active);
         }
-    } else if (offset >= L2VIC_INT_GRPn_0 &&
-               offset < L2VIC_INT_GRPn_1) {
+    } else if (offset >= L2VIC_INT_GRPn_0 && offset < L2VIC_INT_GRPn_1) {
         L2VICA(s->int_group_n0, offset - L2VIC_INT_GRPn_0) = val;
-    } else if (offset >= L2VIC_INT_GRPn_1 &&
-               offset < L2VIC_INT_GRPn_2) {
+    } else if (offset >= L2VIC_INT_GRPn_1 && offset < L2VIC_INT_GRPn_2) {
         L2VICA(s->int_group_n1, offset - L2VIC_INT_GRPn_1) = val;
-    } else if (offset >= L2VIC_INT_GRPn_2 &&
-               offset < L2VIC_INT_GRPn_3) {
+    } else if (offset >= L2VIC_INT_GRPn_2 && offset < L2VIC_INT_GRPn_3) {
         L2VICA(s->int_group_n2, offset - L2VIC_INT_GRPn_2) = val;
-    } else if (offset >= L2VIC_INT_GRPn_3 &&
-               offset < L2VIC_INT_GRPn_3 + 0x80) {
+    } else if (offset >= L2VIC_INT_GRPn_3 && offset < L2VIC_INT_GRPn_3 + 0x80) {
         L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3) = val;
     } else {
-        qemu_log_mask(LOG_UNIMP, "%s: offset %x unimplemented\n",
-                      __func__, (int) offset);
+        qemu_log_mask(LOG_UNIMP, "%s: offset %x unimplemented\n", __func__,
+                      (int)offset);
     }
     l2vic_update_all(s);
     qemu_mutex_unlock(&s->active);
     return;
 }
 
-static uint64_t l2vic_read(void *opaque, hwaddr offset,
-                           unsigned size)
+static uint64_t l2vic_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t value;
     L2VICState *s = (L2VICState *)opaque;
@@ -242,7 +220,7 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
     if (offset == L2VIC_VID_GRP_0) {
         value = s->vid_group[0];
     } else if (offset == L2VIC_VID_GRP_1) {
-        value =  s->vid_group[1];
+        value = s->vid_group[1];
     } else if (offset == L2VIC_VID_GRP_2) {
         value = s->vid_group[2];
     } else if (offset == L2VIC_VID_GRP_3) {
@@ -250,40 +228,31 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
     } else if (offset == L2VIC_VID_0) {
         value = s->vid0;
     } else if (offset >= L2VIC_INT_ENABLEn &&
-               offset <  L2VIC_INT_ENABLE_CLEARn) {
-        value = L2VICA(s->int_enable, offset-L2VIC_INT_ENABLEn);
+               offset < L2VIC_INT_ENABLE_CLEARn) {
+        value = L2VICA(s->int_enable, offset - L2VIC_INT_ENABLEn);
     } else if (offset >= L2VIC_INT_ENABLE_CLEARn &&
                offset < L2VIC_INT_ENABLE_SETn) {
         value = 0;
-    } else if (offset >= L2VIC_INT_ENABLE_SETn &&
-               offset < L2VIC_INT_TYPEn) {
+    } else if (offset >= L2VIC_INT_ENABLE_SETn && offset < L2VIC_INT_TYPEn) {
         value = 0;
-    } else if (offset >= L2VIC_INT_TYPEn &&
-               offset < L2VIC_INT_TYPEn+0x80) {
-        value = L2VICA(s->int_type, offset-L2VIC_INT_TYPEn);
-    } else if (offset >= L2VIC_INT_STATUSn &&
-               offset < L2VIC_INT_CLEARn) {
-        value = L2VICA(s->int_status, offset-L2VIC_INT_STATUSn);
-    } else if (offset >= L2VIC_INT_CLEARn &&
-               offset < L2VIC_SOFT_INTn) {
-        value = L2VICA(s->int_clear, offset-L2VIC_INT_CLEARn);
-    } else if (offset >= L2VIC_SOFT_INTn &&
-               offset < L2VIC_INT_PENDINGn) {
+    } else if (offset >= L2VIC_INT_TYPEn && offset < L2VIC_INT_TYPEn + 0x80) {
+        value = L2VICA(s->int_type, offset - L2VIC_INT_TYPEn);
+    } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
+        value = L2VICA(s->int_status, offset - L2VIC_INT_STATUSn);
+    } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
+        value = L2VICA(s->int_clear, offset - L2VIC_INT_CLEARn);
+    } else if (offset >= L2VIC_SOFT_INTn && offset < L2VIC_INT_PENDINGn) {
         value = 0;
     } else if (offset >= L2VIC_INT_PENDINGn &&
                offset < L2VIC_INT_PENDINGn + 0x80) {
-        value = L2VICA(s->int_pending, offset-L2VIC_INT_PENDINGn);
-    } else if (offset >= L2VIC_INT_GRPn_0 &&
-               offset < L2VIC_INT_GRPn_1) {
+        value = L2VICA(s->int_pending, offset - L2VIC_INT_PENDINGn);
+    } else if (offset >= L2VIC_INT_GRPn_0 && offset < L2VIC_INT_GRPn_1) {
         value = L2VICA(s->int_group_n0, offset - L2VIC_INT_GRPn_0);
-    } else if (offset >= L2VIC_INT_GRPn_1 &&
-               offset < L2VIC_INT_GRPn_2) {
+    } else if (offset >= L2VIC_INT_GRPn_1 && offset < L2VIC_INT_GRPn_2) {
         value = L2VICA(s->int_group_n1, offset - L2VIC_INT_GRPn_1);
-    } else if (offset >= L2VIC_INT_GRPn_2 &&
-               offset < L2VIC_INT_GRPn_3) {
+    } else if (offset >= L2VIC_INT_GRPn_2 && offset < L2VIC_INT_GRPn_3) {
         value = L2VICA(s->int_group_n2, offset - L2VIC_INT_GRPn_2);
-    } else if (offset >= L2VIC_INT_GRPn_3 &&
-               offset < L2VIC_INT_GRPn_3 + 0x80) {
+    } else if (offset >= L2VIC_INT_GRPn_3 && offset < L2VIC_INT_GRPn_3 + 0x80) {
         value = L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3);
     } else {
         value = 0;
@@ -291,7 +260,7 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset,
                       (int)offset);
     }
 
-    trace_l2vic_reg_read((unsigned) offset, value);
+    trace_l2vic_reg_read((unsigned)offset, value);
     qemu_mutex_unlock(&s->active);
 
     return value;
@@ -310,11 +279,10 @@ static const MemoryRegionOps l2vic_ops = {
 #define FASTL2VIC_DISABLE 0x1
 #define FASTL2VIC_INT 0x2
 
-static void fastl2vic_write(void *opaque, hwaddr offset,
-                        uint64_t val, unsigned size)
+static void fastl2vic_write(void *opaque, hwaddr offset, uint64_t val,
+                            unsigned size)
 {
     if (offset == 0) {
-
         uint32_t cmd = (val >> 16) & 0x3;
         uint32_t irq = val & 0x3ff;
         uint32_t slice = (irq / 32) * 4;
@@ -327,12 +295,12 @@ static void fastl2vic_write(void *opaque, hwaddr offset,
         } else if (cmd == FASTL2VIC_INT) {
             l2vic_write(opaque, L2VIC_SOFT_INTn + slice, val, size);
         }
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write cmd %d\n",
-                      __func__, cmd);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write cmd %d\n", __func__,
+                      cmd);
         return;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write offset 0x%08x\n",
-        __func__, (unsigned int)offset);
+                  __func__, (unsigned int)offset);
 }
 
 static const MemoryRegionOps fastl2vic_ops = {
@@ -364,7 +332,7 @@ static void l2vic_reset(DeviceState *d)
 
 static void reset_irq_handler(void *opaque, int irq, int level)
 {
-    L2VICState *s = (L2VICState *) opaque;
+    L2VICState *s = (L2VICState *)opaque;
     DeviceState *dev = DEVICE(opaque);
     if (level) {
         l2vic_reset(dev);
@@ -381,7 +349,8 @@ static void l2vic_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &l2vic_ops, s, "l2vic", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    memory_region_init_io(&s->fast_iomem, obj, &fastl2vic_ops, s, "fast", 0x10000);
+    memory_region_init_io(&s->fast_iomem, obj, &fastl2vic_ops, s, "fast",
+                          0x10000);
     sysbus_init_mmio(sbd, &s->fast_iomem);
 
     qdev_init_gpio_in(dev, l2vic_set_irq, L2VIC_INTERRUPT_MAX);
@@ -425,11 +394,11 @@ static void l2vic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo l2vic_info = {
-    .name          = TYPE_L2VIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name = TYPE_L2VIC,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(L2VICState),
     .instance_init = l2vic_init,
-    .class_init    = l2vic_class_init,
+    .class_init = l2vic_class_init,
 };
 
 static void l2vic_register_types(void)
