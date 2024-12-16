@@ -28,22 +28,28 @@ typedef struct L2VICState {
     MemoryRegion iomem;
     MemoryRegion fast_iomem;
     uint32_t level;
-    uint32_t vid_group[4]; /* offset 0:vid group 0 etc, 10 bits in each group
-                              are used. */
+    /*
+     * offset 0:vid group 0 etc, 10 bits in each group
+     * are used:
+     */
+    uint32_t vid_group[4];
     uint32_t vid0;
-    uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(
-        16); /* Clear Status of Active Edge interrupt, not used*/
-    uint32_t
-        int_enable[SLICE_MAX] QEMU_ALIGNED(16); /* Enable interrupt source */
-    uint32_t
-        int_enable_clear; /* Clear (set to 0) corresponding bit in int_enable */
-    uint32_t int_enable_set; /* Set (to 1) corresponding bit in int_enable */
-    uint32_t int_pending[SLICE_MAX] QEMU_ALIGNED(
-        16); /* Present for debugging, not used */
-    uint32_t int_soft; /* Generate an interrupt */
-    uint32_t int_status[SLICE_MAX] QEMU_ALIGNED(
-        16); /* Which enabled interrupt is active */
-    uint32_t int_type[SLICE_MAX] QEMU_ALIGNED(16); /* Edge or Level interrupt */
+    /* Clear Status of Active Edge interrupt, not used: */
+    uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(16);
+    /* Enable interrupt source */
+    uint32_t int_enable[SLICE_MAX] QEMU_ALIGNED(16);
+    /* Clear (set to 0) corresponding bit in int_enable */
+    uint32_t int_enable_clear;
+    /* Set (to 1) corresponding bit in int_enable */
+    uint32_t int_enable_set;
+    /* Present for debugging, not used */
+    uint32_t int_pending[SLICE_MAX] QEMU_ALIGNED(16);
+    /* Generate an interrupt */
+    uint32_t int_soft;
+    /* Which enabled interrupt is active */
+    uint32_t int_status[SLICE_MAX] QEMU_ALIGNED(16);
+    /* Edge or Level interrupt */
+    uint32_t int_type[SLICE_MAX] QEMU_ALIGNED(16);
     /* L2 interrupt group 0-3 0x600-0x7FF */
     uint32_t int_group_n0[SLICE_MAX] QEMU_ALIGNED(16);
     uint32_t int_group_n1[SLICE_MAX] QEMU_ALIGNED(16);
