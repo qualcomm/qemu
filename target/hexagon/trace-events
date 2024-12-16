@@ -11,3 +11,6 @@ hexagon_k0_lock_info(int htid, const char *info) "tid: %d: %s"
 hexagon_tlb_lock(int htid, unsigned int pc, int k0lock) "tid: %d: pc: 0x%x, k0_lock_count %d"
 hexagon_tlb_lock_info(int htid, const char *info) "tid: %d: %s"
 hexagon_tlbw(int htid, int tlbidx, unsigned int va, unsigned int pa) "tid: %d: idx: %d, va: 0x%x, pa: 0x%x"
+# hexswi.c
+hexagon_trap0(int htid, unsigned int pc, int excp_index, int cause_code) "tid: %d pc: 0x%x excp_index: 0x%x  ssr:cc: 0x%x"
+hexagon_trap1(int htid, unsigned int pc, int excp_index, int cause_code) "tid: %d pc: 0x%x excp_index: 0x%x  ssr:cc: 0x%x"

@@ -40,6 +40,7 @@
 #endif
 #include "sysemu/runstate.h"
 #include <dirent.h>
+#include "trace.h"
 
 #ifndef CONFIG_USER_ONLY
 
@@ -1087,11 +1088,9 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
-        HEX_DEBUG_LOG("\ttid = %u, trap0, pc = 0x%x, elr = 0x%x, "
-            "index 0x%x, cause 0x%x\n",
+        trace_hexagon_trap0(
             env->threadId,
             ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-            ARCH_GET_THREAD_REG(env, HEX_REG_PC) + 4,
             cs->exception_index,
             env->cause_code);
 
@@ -1104,11 +1103,9 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_TRAP1:
-        HEX_DEBUG_LOG("\ttid = %u, trap1, pc = 0x%x, elr = 0x%x, "
-            "index 0x%x, cause 0x%x\n",
+        trace_hexagon_trap1(
             env->threadId,
             ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-            ARCH_GET_THREAD_REG(env, HEX_REG_PC) + 4,
             cs->exception_index,
             env->cause_code);
         HEX_DEBUG_LOG("\tEVB 0x%x, shifted index %d/0x%x, final 0x%x\n",
