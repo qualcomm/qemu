@@ -23,26 +23,26 @@
 #include "q6v_defines.h"
 
 #ifndef QEMU_GENERATE
-#define VdV      (*(mmvector_t *)(VdV_void))
-#define VsV      (*(mmvector_t *)(VsV_void))
-#define VuV      (*(mmvector_t *)(VuV_void))
-#define VvV      (*(mmvector_t *)(VvV_void))
-#define VwV      (*(mmvector_t *)(VwV_void))
-#define VxV      (*(mmvector_t *)(VxV_void))
-#define VyV      (*(mmvector_t *)(VyV_void))
+#define VdV      (*(mmvector_t *restrict)(VdV_void))
+#define VsV      (*(mmvector_t *restrict)(VsV_void))
+#define VuV      (*(mmvector_t *restrict)(VuV_void))
+#define VvV      (*(mmvector_t *restrict)(VvV_void))
+#define VwV      (*(mmvector_t *restrict)(VwV_void))
+#define VxV      (*(mmvector_t *restrict)(VxV_void))
+#define VyV      (*(mmvector_t *restrict)(VyV_void))
 
-#define VddV     (*(mmvector_pair_t *)(VddV_void))
-#define VuuV     (*(mmvector_pair_t *)(VuuV_void))
-#define VvvV     (*(mmvector_pair_t *)(VvvV_void))
-#define VxxV     (*(mmvector_pair_t *)(VxxV_void))
+#define VddV     (*(mmvector_pair_t *restrict)(VddV_void))
+#define VuuV     (*(mmvector_pair_t *restrict)(VuuV_void))
+#define VvvV     (*(mmvector_pair_t *restrict)(VvvV_void))
+#define VxxV     (*(mmvector_pair_t *restrict)(VxxV_void))
 
-#define QeV      (*(mmqreg_t *)(QeV_void))
-#define QdV      (*(mmqreg_t *)(QdV_void))
-#define QsV      (*(mmqreg_t *)(QsV_void))
-#define QtV      (*(mmqreg_t *)(QtV_void))
-#define QuV      (*(mmqreg_t *)(QuV_void))
-#define QvV      (*(mmqreg_t *)(QvV_void))
-#define QxV      (*(mmqreg_t *)(QxV_void))
+#define QeV      (*(mmqreg_t *restrict)(QeV_void))
+#define QdV      (*(mmqreg_t *restrict)(QdV_void))
+#define QsV      (*(mmqreg_t *restrict)(QsV_void))
+#define QtV      (*(mmqreg_t *restrict)(QtV_void))
+#define QuV      (*(mmqreg_t *restrict)(QuV_void))
+#define QvV      (*(mmqreg_t *restrict)(QvV_void))
+#define QxV      (*(mmqreg_t *restrict)(QxV_void))
 #endif
 
 #define LOG_VTCM_BYTE(VA, MASK, VAL, IDX) \

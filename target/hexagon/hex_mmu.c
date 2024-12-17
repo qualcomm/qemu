@@ -195,23 +195,6 @@ void dump_mmu(CPUHexagonState *env)
     }
 }
 
-#if HEX_DEBUG
-static void hex_dump_mmu(CPUHexagonState *env, FILE *f)
-{
-    bool valid_found = false;
-    int i;
-    rcu_read_lock();
-    HexagonCPU *cpu = env_archcpu(env);
-    for (i = 0; i < cpu->num_tlbs; i++) {
-        valid_found |= hex_dump_mmu_entry(f, env->hex_tlb->entries[i]);
-    }
-    if (!valid_found) {
-        fprintf(f, "TLB is empty :(\n");
-    }
-    rcu_read_unlock();
-}
-#endif
-
 static inline void hex_log_tlbw(uint32_t index, uint64_t entry)
 {
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {
@@ -267,10 +250,6 @@ void hex_mmu_on(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_MMU, "Hexagon MMU turned on!\n");
     tlb_flush(cs);
-
-#if HEX_DEBUG
-    hex_dump_mmu(env, stderr);
-#endif
 }
 
 void hex_mmu_off(CPUHexagonState *env)

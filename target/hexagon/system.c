@@ -96,8 +96,6 @@ int hex_get_page_size(thread_t *thread, size4u_t vaddr, int width)
     /* now get tlb size for this vaddr */
     if (!hex_tlb_find_match(thread, vaddr, MMU_DATA_LOAD, &phys, &prot, &size,
                             &excp, cpu_mmu_index(env_cpu(thread), false))) {
-        HEX_DEBUG_LOG("%s: tlb lookup failed: vaddr=0x%x\n",
-            __func__, vaddr);
         g_assert_not_reached();
     }
 #endif

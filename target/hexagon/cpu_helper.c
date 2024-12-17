@@ -492,10 +492,6 @@ void hexagon_stop_thread(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
     HexagonCPU *cpu = env_archcpu(env);
-#if HEX_DEBUG
-    HEX_DEBUG_LOG("%s: htid %d, cpu %p\n", __func__,
-                  ARCH_GET_SYSTEM_REG(env, HEX_SREG_HTID), cpu);
-#endif
 
     uint32_t thread_enabled_mask = clear_enable_mask(env);
     CPUState *cs = env_cpu(env);

@@ -21,17 +21,23 @@ import sys
 import re
 import string
 import hex_common
-import os
+import argparse
 
 
 def main():
-    hex_common.read_semantics_file(sys.argv[1])
-    coproc_opcodes_fname = sys.argv[2]
-    opcodes_fname = sys.argv[3]
+    parser = argparse.ArgumentParser(
+        description="Emit opaque macro calls with instruction names"
+    )
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("coproc_out", help="output file for coproc")
+    parser.add_argument("out", help="output file")
+    args = parser.parse_args()
+    hex_common.read_semantics_file(args.semantics)
 
-    with open(coproc_opcodes_fname, "w") as coproc_f, \
-         open(opcodes_fname, "w") as all_f:
-
+    ##
+    ##     Generate a list of all the opcodes
+    ##
+    with open(args.coproc_out, "w") as coproc_f, open(args.out, "w") as all_f:
         for tag in hex_common.get_all_tags():
             all_f.write(f"OPCODE({tag}),\n")
             if hex_common.is_coproc(tag):

@@ -120,7 +120,6 @@ typedef struct DisasContext {
     bool need_next_pc;
     TCGv new_value[TOTAL_PER_THREAD_REGS];
     TCGv new_pred_value[NUM_PREGS];
-    TCGv pred_written;
     TCGv branch_taken;
     TCGv dczero_addr;
     TCGv gpreg_written;
@@ -402,14 +401,5 @@ FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES, 2, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED,     3, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED,     4, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,        5, 2)
-
-#define DEBUG_MARK_REG_WRITTEN(RTYPE, RNUM) \
-    do { \
-        if (HEX_DEBUG) { \
-            /* Do this so HELPER(debug_commit_end) will know */ \
-            tcg_gen_st_tl(tcg_constant_tl(1), tcg_env, \
-                          offsetof(CPUHexagonState, RTYPE##_written[RNUM])); \
-        } \
-    } while (0)
 
 #endif

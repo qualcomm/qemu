@@ -40,7 +40,6 @@
 #endif
 #include "sysemu/runstate.h"
 #include <dirent.h>
-#include "trace.h"
 
 #ifndef CONFIG_USER_ONLY
 
@@ -124,18 +123,12 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     target_ulong what_swi = ARCH_GET_THREAD_REG(env, HEX_REG_R00);
     target_ulong swi_info = ARCH_GET_THREAD_REG(env, HEX_REG_R01);
 
-    HEX_DEBUG_LOG("%s:%d: tid %d, what_swi 0x%x, swi_info 0x%x\n",
-                  __func__, __LINE__, env->threadId, what_swi, swi_info);
     switch (what_swi) {
     case SYS_HEAPINFO:
-    {
-        HEX_DEBUG_LOG("%s:%d: SYS_HEAPINFO\n", __func__, __LINE__);
-    }
     break;
 
     case SYS_GET_CMDLINE:
     {
-        HEX_DEBUG_LOG("%s:%d: SYS_GET_CMDLINE\n", __func__, __LINE__);
         target_ulong bufptr;
         target_ulong bufsize;
         int i;
@@ -150,8 +143,6 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
                      strlen(env->cmdline)) :
                 0;
 
-        HEX_DEBUG_LOG("\tcmdline '%s' len to copy %d buf max %d\n",
-            env->cmdline, to_copy, bufsize);
         for (i = 0; i < (int) to_copy; i++) {
             DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) env->cmdline[i]);
         }
@@ -162,19 +153,12 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
     case SYS_EXCEPTION:
     {
-        HEX_DEBUG_LOG("%s:%d: SYS_EXCEPTION\n\t"
-            "Program terminated successfully\n",
-            __func__, __LINE__);
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0);
 
         /* sometimes qurt returns pointer to rval and sometimes the */
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
-        target_ulong ret;
-        ret = ARCH_GET_THREAD_REG(env, HEX_REG_R02);
-        HEX_DEBUG_LOG("%s: swi_info 0x%x, ret %d/0x%x\n",
-            __func__, swi_info, ret, ret);
-
+        target_ulong ret = ARCH_GET_THREAD_REG(env, HEX_REG_R02);
         HexagonCPU *cpu = env_archcpu(env);
         if (!cpu->vp_mode) {
             hexagon_dump_json(env);
@@ -230,7 +214,6 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
     case SYS_WRITE:
     {
-        HEX_DEBUG_LOG("%s:%d: SYS_WRITE\n", __func__, __LINE__);
         char buf[BUFSIZE];
         int fd;
         target_ulong bufaddr;
@@ -349,8 +332,6 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             DEBUG_MEMORY_READ(physicalFilenameAddr + i, 1, &filename[i]);
             i++;
         } while (filename[i - 1]);
-        HEX_DEBUG_LOG("fname %s, fmode %d, len %d\n",
-            filename, filemode, length);
 
         /* convert ARM ANGEL filemode into host filemode */
         if (filemode < 14)
@@ -393,7 +374,6 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
     case SYS_CLOSE:
     {
-        HEX_DEBUG_LOG("%s:%d: SYS_CLOSE\n", __func__, __LINE__);
         int fd;
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
 
@@ -1069,8 +1049,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     CPUHexagonState *env = &cpu->env;
     BQL_LOCK_GUARD();
 
-    HEX_DEBUG_LOG("%s: tid %d, event 0x%x, cause 0x%x\n",
-      __func__, env->threadId, cs->exception_index, env->cause_code);
     qemu_log_mask(CPU_LOG_INT,
             "\t%s: event 0x%x:%s, cause 0x%x(%d)\n", __func__,
             cs->exception_index, event_name[cs->exception_index], env->cause_code, env->cause_code);
@@ -1088,12 +1066,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
-        trace_hexagon_trap0(
-            env->threadId,
-            ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-            cs->exception_index,
-            env->cause_code);
-
         if (env->cause_code == 0) {
             sim_handle_trap(env);
         }
@@ -1103,18 +1075,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_TRAP1:
-        trace_hexagon_trap1(
-            env->threadId,
-            ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-            cs->exception_index,
-            env->cause_code);
-        HEX_DEBUG_LOG("\tEVB 0x%x, shifted index %d/0x%x, final 0x%x\n",
-            ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB),
-            cs->exception_index << 2,
-            cs->exception_index << 2,
-            ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB) |
-                (cs->exception_index << 2));
-
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 4, cs->exception_index);
         break;
@@ -1296,13 +1256,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
                              target_ulong PC)
 {
-    HEX_DEBUG_LOG("%s:\n\ttid = %d, pc = 0x%" PRIx32
-                  ", traptype %d, "
-                  "imm %d\n",
-                  __func__, env->threadId,
-                  ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-                  traptype, imm);
-
     CPUState *cs = env_cpu(env);
     /* assert(cs->exception_index == HEX_EVENT_NONE); */
 

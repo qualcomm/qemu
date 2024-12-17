@@ -19,9 +19,6 @@
 #include "helper_protos_generated.h.inc"
 
 DEF_HELPER_FLAGS_3(raise_exception, TCG_CALL_NO_RETURN, noreturn, env, i32, i32)
-DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_FLAGS_3(debug_check_store_width, TCG_CALL_NO_WG, void, env, int, int)
-DEF_HELPER_FLAGS_5(debug_commit_end, TCG_CALL_NO_WG, void, env, i32, int, int, int)
 DEF_HELPER_2(commit_store, void, env, int)
 DEF_HELPER_3(gather_store, void, env, i32, int)
 DEF_HELPER_1(commit_hvx_stores, void, env)
@@ -100,9 +97,6 @@ DEF_HELPER_4(dfmpyhh, f64, env, f64, f64, f64)
 
 DEF_HELPER_2(creg_read, i32, env, i32)
 DEF_HELPER_2(creg_read_pair, i64, env, i32)
-DEF_HELPER_2(debug_value, void, env, s32)
-DEF_HELPER_2(debug_value_i64, void, env, s64)
-DEF_HELPER_3(debug_print_vec, void, env, s32, ptr)
 
 /* Histogram instructions */
 DEF_HELPER_1(vhist, void, env)

@@ -129,9 +129,6 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
 void log_store32(CPUHexagonState *env, target_ulong addr,
                  target_ulong val, int width, int slot)
 {
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
-                  ", %" PRId32 " [0x08%" PRIx32 "])\n",
-                  width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data32 = val;
@@ -140,49 +137,9 @@ void log_store32(CPUHexagonState *env, target_ulong addr,
 void log_store64(CPUHexagonState *env, target_ulong addr,
                  int64_t val, int width, int slot)
 {
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
-                  ", %" PRId64 " [0x016%" PRIx64 "])\n",
-                   width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
-}
-
-/* Handy place to set a breakpoint */
-void HELPER(debug_start_packet)(CPUHexagonState *env)
-{
-#ifdef CONFIG_USER_ONLY
-    HEX_DEBUG_LOG("Start packet: pc = 0x" TARGET_FMT_lx "\n",
-                  env->gpr[HEX_REG_PC]);
-#else
-    HEX_DEBUG_LOG("Start packet: pc = 0x" TARGET_FMT_lx " tid = %d\n",
-                  env->gpr[HEX_REG_PC], env->threadId);
-#endif
-
-    for (int i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-        env->reg_written[i] = 0;
-    }
-#ifndef CONFIG_USER_ONLY
-    for (int i = 0; i < NUM_GREGS; i++) {
-        env->greg_written[i] = 0;
-    }
-
-    for (int i = 0; i < NUM_SREGS; i++) {
-        if (i < HEX_SREG_GLB_START) {
-            env->t_sreg_written[i] = 0;
-        }
-    }
-#endif
-}
-
-/* Checks for bookkeeping errors between disassembly context and runtime */
-void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
-{
-    if (env->mem_log_stores[slot].width != check) {
-        HEX_DEBUG_LOG("ERROR: %d != %d\n",
-                      env->mem_log_stores[slot].width, check);
-        g_assert_not_reached();
-    }
 }
 
 static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
@@ -310,132 +267,6 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
             }
         }
     }
-}
-
-static void print_store(CPUHexagonState *env, int slot)
-{
-    if (!(env->slot_cancelled & (1 << slot))) {
-        uint8_t width = env->mem_log_stores[slot].width;
-        if (width == 1) {
-            uint32_t data = env->mem_log_stores[slot].data32 & 0xff;
-            HEX_DEBUG_LOG("\tmemb[0x" TARGET_FMT_lx "] = %" PRId32
-                          " (0x%02" PRIx32 ")\n",
-                          env->mem_log_stores[slot].va, data, data);
-        } else if (width == 2) {
-            uint32_t data = env->mem_log_stores[slot].data32 & 0xffff;
-            HEX_DEBUG_LOG("\tmemh[0x" TARGET_FMT_lx "] = %" PRId32
-                          " (0x%04" PRIx32 ")\n",
-                          env->mem_log_stores[slot].va, data, data);
-        } else if (width == 4) {
-            uint32_t data = env->mem_log_stores[slot].data32;
-            HEX_DEBUG_LOG("\tmemw[0x" TARGET_FMT_lx "] = %" PRId32
-                          " (0x%08" PRIx32 ")\n",
-                          env->mem_log_stores[slot].va, data, data);
-        } else if (width == 8) {
-            HEX_DEBUG_LOG("\tmemd[0x" TARGET_FMT_lx "] = %" PRId64
-                          " (0x%016" PRIx64 ")\n",
-                          env->mem_log_stores[slot].va,
-                          env->mem_log_stores[slot].data64,
-                          env->mem_log_stores[slot].data64);
-        } else {
-            HEX_DEBUG_LOG("\tBad store width %d\n", width);
-            g_assert_not_reached();
-        }
-    }
-}
-
-/* This function is a handy place to set a breakpoint */
-void HELPER(debug_commit_end)(CPUHexagonState *env, uint32_t this_PC,
-                              int pred_written, int has_st0, int has_st1)
-{
-    bool reg_printed = false;
-    bool pred_printed = false;
-    int i;
-
-#ifdef CONFIG_USER_ONLY
-    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n", this_PC);
-#else
-    HEX_DEBUG_LOG("Packet committed: tid = %d, pc = 0x" TARGET_FMT_lx "\n",
-                  env->threadId, this_PC);
-#endif
-    HEX_DEBUG_LOG("slot_cancelled = %d\n", env->slot_cancelled);
-
-    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
-        if (env->reg_written[i]) {
-            if (!reg_printed) {
-                HEX_DEBUG_LOG("Regs written\n");
-                reg_printed = true;
-            }
-            HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx " )\n",
-                          i, env->gpr[i], env->gpr[i]);
-        }
-    }
-
-#ifndef CONFIG_USER_ONLY
-    bool greg_printed = false;
-    for (i = 0; i < NUM_GREGS; i++) {
-        if (env->greg_written[i]) {
-            if (!greg_printed) {
-                HEX_DEBUG_LOG("GRegs written\n");
-                greg_printed = true;
-            }
-            HEX_DEBUG_LOG("\tset g%d (%s) = " TARGET_FMT_ld
-                " (0x" TARGET_FMT_lx " )\n",
-                i, hexagon_gregnames[i], env->greg[i], env->greg[i]);
-        }
-    }
-
-    bool sreg_printed = false;
-    for (i = 0; i < NUM_SREGS; i++) {
-        if (i < HEX_SREG_GLB_START) {
-            if (env->t_sreg_written[i]) {
-                if (!sreg_printed) {
-                    HEX_DEBUG_LOG("SRegs written\n");
-                    sreg_printed = true;
-                }
-                HEX_DEBUG_LOG("\tset s%d (%s) = " TARGET_FMT_ld
-                    " (0x" TARGET_FMT_lx " )\n",
-                    i, hexagon_sregnames[i], env->t_sreg[i],
-                    env->t_sreg[i]);
-            }
-        }
-    }
-#endif
-
-    for (i = 0; i < NUM_PREGS; i++) {
-        if (pred_written & (1 << i)) {
-            if (!pred_printed) {
-                HEX_DEBUG_LOG("Predicates written\n");
-                pred_printed = true;
-            }
-            HEX_DEBUG_LOG("\tp%d = 0x" TARGET_FMT_lx "\n",
-                          i, env->pred[i]);
-        }
-    }
-
-    if (has_st0 || has_st1) {
-        HEX_DEBUG_LOG("Stores\n");
-        if (has_st0) {
-            print_store(env, 0);
-        }
-        if (has_st1) {
-            print_store(env, 1);
-        }
-    }
-
-#ifdef CONFIG_USER_ONLY
-    HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->gpr[HEX_REG_PC]);
-#else
-    HEX_DEBUG_LOG("tid[%d], Next PC = 0x%x\n", env->threadId,
-                  env->gpr[HEX_REG_PC]);
-#endif
-    HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
-                  ", insn = " TARGET_FMT_lx
-                  ", hvx = " TARGET_FMT_lx "\n",
-                  env->exec_ctr_pkt,
-                  env->exec_ctr_insn,
-                  env->exec_ctr_hvx);
-
 }
 
 int32_t HELPER(fcircadd)(int32_t RxV, int32_t offset, int32_t M, int32_t CS)
@@ -1667,73 +1498,17 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
 }
 #endif
 
-void HELPER(debug_print_vec)(CPUHexagonState *env, int rnum, void *vecptr)
-
-{
-    unsigned char *vec = (unsigned char *)vecptr;
-    printf("vec[%d] = 0x", rnum);
-    for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
-        printf("%02x", vec[i]);
-    }
-    printf("\n");
-}
-
-
-
 #ifndef CONFIG_USER_ONLY
 void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
     BQL_LOCK_GUARD();
     hexagon_modify_ssr(env, new, old);
 }
-#endif
-
-
-#ifndef CONFIG_USER_ONLY
-#if HEX_DEBUG
-static void print_thread(const char *str, CPUState *cs)
-{
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *thread = &cpu->env;
-    bool is_stopped = cpu_is_stopped(cs);
-    int exe_mode = get_exe_mode(thread);
-    hex_lock_state_t lock_state = thread->k0_lock_state;
-    HEX_DEBUG_LOG("%s: threadId = %d: %s, exe_mode = %s, k0_lock_state = %s\n",
-           str,
-           thread->threadId,
-           is_stopped ? "stopped" : "running",
-           exe_mode == HEX_EXE_MODE_OFF ? "off" :
-           exe_mode == HEX_EXE_MODE_RUN ? "run" :
-           exe_mode == HEX_EXE_MODE_WAIT ? "wait" :
-           exe_mode == HEX_EXE_MODE_DEBUG ? "debug" :
-           "unknown",
-           lock_state == HEX_LOCK_UNLOCKED ? "unlocked" :
-           lock_state == HEX_LOCK_WAITING ? "waiting" :
-           lock_state == HEX_LOCK_OWNER ? "owner" :
-           "unknown");
-}
-
-static void print_thread_states(const char *str)
-{
-    CPUState *cs;
-    CPU_FOREACH(cs) {
-        print_thread(str, cs);
-    }
-}
-#else
-static void print_thread(const char *str, CPUState *cs)
-{
-}
-static void print_thread_states(const char *str)
-{
-}
-#endif
 
 static void hex_k0_lock(CPUHexagonState *env)
 {
     trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_lock");
     BQL_LOCK_GUARD();
-    print_thread_states("\tThread");
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
@@ -1770,14 +1545,12 @@ static void hex_k0_lock(CPUHexagonState *env)
     }
 
     trace_hexagon_k0_lock_info(env->threadId, "After hex_k0_lock\n");
-    print_thread_states("\tThread");
 }
 
 static void hex_k0_unlock(CPUHexagonState *env)
 {
     trace_hexagon_k0_lock_info(env->threadId, "Before hex_k0_unlock");
     BQL_LOCK_GUARD();
-    print_thread_states("\tThread");
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
@@ -1840,28 +1613,15 @@ static void hex_k0_unlock(CPUHexagonState *env)
     }
     if (unlock_thread) {
         cs = env_cpu(unlock_thread);
-        print_thread("\tWaiting thread found", cs);
         trace_hexagon_k0_lock_info(unlock_thread->threadId, "Will get the next k0lock");
         unlock_thread->k0_lock_state = HEX_LOCK_QUEUED;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
         cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
     }
 
-    print_thread_states("\tThread");
     trace_hexagon_k0_lock_info(env->threadId, "After hex_k0_unlock\n");
 }
 #endif
-
-/* Helpful for printing intermediate values within instructions */
-void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
-{
-    HEX_DEBUG_LOG("value = 0x%x\n", value);
-}
-
-void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
-{
-    HEX_DEBUG_LOG("value_i64 = 0x%" PRIx64 "\n", value);
-}
 
 /* Histogram instructions */
 
@@ -2030,12 +1790,6 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 
 static void cancel_slot(CPUHexagonState *env, uint32_t slot)
 {
-#ifdef CONFIG_USER_ONLY
-    HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
-#else
-    HEX_DEBUG_LOG("op_helper: slot_cancelled = %d: pc = 0x%x\n", slot,
-                  env->gpr[HEX_REG_PC]);
-#endif
     env->slot_cancelled |= (1 << slot);
 }
 
@@ -2616,7 +2370,6 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
             cs->exception_index = HEX_EVENT_IMPRECISE;
             thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
             ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
-            HEX_DEBUG_LOG("tid %d gets nmi\n", thread_env->threadId);
         }
     }
     if (found) {

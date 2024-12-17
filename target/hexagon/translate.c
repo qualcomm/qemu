@@ -301,21 +301,6 @@ void gen_exception_end_tb(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-#define PACKET_BUFFER_LEN              1028
-static void print_pkt(Packet *pkt)
-{
-    GString *buf = g_string_sized_new(PACKET_BUFFER_LEN);
-    snprint_a_pkt_debug(buf, pkt);
-    HEX_DEBUG_LOG("%s", buf->str);
-    g_string_free(buf, true);
-}
-#define HEX_DEBUG_PRINT_PKT(pkt) \
-    do { \
-        if (HEX_DEBUG) { \
-            print_pkt(pkt); \
-        } \
-    } while (0)
-
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
                              uint32_t words[])
 {
@@ -340,14 +325,6 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
         /* We can only cross a page boundary at the beginning of a TB */
         g_assert(ctx->base.num_insns == 1);
     }
-
-    HEX_DEBUG_LOG("decode_packet: tid = %d, pc = 0x%" VADDR_PRIx "\n",
-                  env->threadId, ctx->base.pc_next);
-    HEX_DEBUG_LOG("    words = { ");
-    for (int i = 0; i < nwords; i++) {
-        HEX_DEBUG_LOG("0x%x, ", words[i]);
-    }
-    HEX_DEBUG_LOG("}\n");
 
     return nwords;
 }
@@ -911,11 +888,6 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         tcg_gen_movi_tl(ctx->mult_reg_written, 0);
     }
 
-    if (HEX_DEBUG) {
-        /* Handy place to set a breakpoint before the packet executes */
-        gen_helper_debug_start_packet(tcg_env);
-    }
-
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
@@ -931,10 +903,6 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     ctx->need_next_pc = need_next_PC(ctx);
     if (ctx->need_next_pc) {
         tcg_gen_movi_tl(hex_next_PC, next_PC);
-    }
-    if (HEX_DEBUG) {
-        ctx->pred_written = tcg_temp_new();
-        tcg_gen_movi_tl(ctx->pred_written, 0);
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -1174,7 +1142,6 @@ static void gen_sreg_writes(DisasContext *ctx)
         }
         if (reg_num < HEX_SREG_GLB_START) {
             tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
-            DEBUG_MARK_REG_WRITTEN(t_sreg, reg_num);
         }
     }
 }
@@ -1191,15 +1158,6 @@ static void gen_pred_writes(DisasContext *ctx)
         tcg_gen_mov_tl(hex_pred[pred_num], ctx->new_pred_value[pred_num]);
      }
 
-}
-
-static void gen_check_store_width(DisasContext *ctx, int slot_num)
-{
-    if (HEX_DEBUG) {
-        gen_helper_debug_check_store_width(tcg_env,
-            tcg_constant_tl(slot_num),
-            tcg_constant_tl(ctx->store_width[slot_num]));
-    }
 }
 
 static bool slot_is_predicated(Packet *pkt, int slot_num)
@@ -1253,25 +1211,21 @@ void process_store(DisasContext *ctx, int slot_num)
          */
         switch (ctx->store_width[slot_num]) {
         case 1:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_UB);
             break;
         case 2:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_TEUW);
             break;
         case 4:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_TEUL);
             break;
         case 8:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_i64(hex_store_val64[slot_num],
                                 hex_store_addr[slot_num],
                                 ctx->mem_idx, MO_TEUQ);
@@ -1556,18 +1510,6 @@ static void gen_commit_packet(DisasContext *ctx)
     }
 #endif
     update_exec_counters(ctx);
-    if (HEX_DEBUG) {
-        TCGv has_st0 =
-            tcg_constant_tl(pkt->pkt_has_scalar_store_s0 &&
-                         !pkt->pkt_has_dczeroa);
-        TCGv has_st1 =
-            tcg_constant_tl(pkt->pkt_has_scalar_store_s1 &&
-                         !pkt->pkt_has_dczeroa);
-
-        /* Handy place to set a breakpoint at the end of execution */
-        gen_helper_debug_commit_end(tcg_env, tcg_constant_tl(ctx->pkt->pc),
-                                    ctx->pred_written, has_st0, has_st1);
-    }
 
     if (pkt->vhist_insn != NULL) {
         ctx->pre_commit = false;
@@ -1601,7 +1543,6 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     ctx->pkt = &pkt;
     if (decode_packet(ctx, nwords, words, &pkt, false,
                       hex_cpu->rev_reg, ctx->base.pc_next) > 0) {
-        HEX_DEBUG_PRINT_PKT(&pkt);
 
 #ifndef CONFIG_USER_ONLY
         if (check_for_attrib(&pkt, A_PRIV)) {

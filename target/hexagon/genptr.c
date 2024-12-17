@@ -137,7 +137,6 @@ static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
 static inline void gen_log_greg_write(DisasContext *ctx, int rnum, TCGv val)
 {
     tcg_gen_mov_tl(ctx->greg_new_value[rnum], val);
-    DEBUG_MARK_REG_WRITTEN(greg, rnum);
 }
 #endif
 
@@ -148,7 +147,6 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
     if (reg_mask != IMMUTABLE) {
         gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
-        DEBUG_MARK_REG_WRITTEN(reg, rnum);
     }
 }
 
@@ -322,9 +320,6 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
         tcg_gen_mov_tl(pred, base_val);
     } else {
         tcg_gen_and_tl(pred, pred, base_val);
-    }
-    if (HEX_DEBUG) {
-        tcg_gen_ori_tl(ctx->pred_written, ctx->pred_written, 1 << pnum);
     }
     set_bit(pnum, ctx->pregs_written);
 }
@@ -1847,7 +1842,6 @@ static void gen_vtcm_memcpy(DisasContext *ctx, TCGv dst, TCGv src, TCGv size)
     tcg_gen_add_tl(src_plus_i, src, tmp);
     tcg_gen_add_tl(dst_plus_i, dst, tmp);
     tcg_gen_qemu_ld_i32(val, src_plus_i, ctx->mem_idx, MO_TEUL);
-    gen_helper_debug_value(tcg_env, val);
     tcg_gen_qemu_st_i32(val, dst_plus_i, ctx->mem_idx, MO_TEUL);
     tcg_gen_addi_tl(i, i, 1);
     tcg_gen_br(loop);
