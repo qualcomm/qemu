@@ -91,7 +91,7 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static Property hexagon_cpu_properties[] = {
+static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_BOOL("count-gcycle-xt", HexagonCPU, count_gcycle_xt, false),
     DEFINE_PROP_BOOL("sched-limit", HexagonCPU, sched_limit, false),
