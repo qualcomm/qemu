@@ -82,6 +82,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     MemoryRegion *address_space = get_system_memory();
 
+    MemoryRegion *config_table_rom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(config_table_rom, NULL, "config_table.rom",
+                           sizeof(m_cfg->cfgtable), &error_fatal);
+    memory_region_add_subregion(address_space, m_cfg->cfgbase,
+                                config_table_rom);
+
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     memory_region_init_ram(sram, NULL, "ddr.ram",
         machine->ram_size, &error_fatal);
@@ -132,6 +138,15 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         }
 
     }
+
+    hexagon_config_table *config_table = &m_cfg->cfgtable;
+
+    config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
+
+    rom_add_blob_fixed_as("config_table.rom", config_table,
+                          sizeof(*config_table), m_cfg->cfgbase,
+                          &address_space_memory);
+
 }
 
 static void init_mc(MachineClass *mc)
