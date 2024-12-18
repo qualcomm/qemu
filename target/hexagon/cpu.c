@@ -397,6 +397,8 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 }
 #endif
 
+
+#define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
