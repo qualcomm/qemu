@@ -71,6 +71,8 @@ static const Property hexagon_cpu_properties[] = {
         0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
+    DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
+                     TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -399,6 +401,8 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 }
 #endif
 
+
+#define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
