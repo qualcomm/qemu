@@ -136,7 +136,6 @@ static inline void gen_precise_exception(int excp, target_ulong PC)
     tcg_gen_movi_tl(hex_cause_code, excp);
     gen_exception(HEX_EVENT_PRECISE, PC);
 }
-#endif
 
 static inline void gen_pcycle_counters(DisasContext *ctx)
 {
@@ -145,6 +144,7 @@ static inline void gen_pcycle_counters(DisasContext *ctx)
         ctx->num_cycles = 0;
     }
 }
+#endif
 
 static void gen_exec_counters(DisasContext *ctx)
 {
@@ -154,6 +154,10 @@ static void gen_exec_counters(DisasContext *ctx)
                     hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_HVX_CNT],
                     hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
+
+#ifndef CONFIG_USER_ONLY
+   gen_pcycle_counters(ctx);
+#endif
 }
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
