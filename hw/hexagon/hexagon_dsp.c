@@ -127,7 +127,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                 qdev_get_gpio_in(DEVICE(cpu), 7),
                 NULL);
         sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
-            m_cfg->cfgtable.fastl2vic_base);
+            m_cfg->cfgtable.fastl2vic_base << 16);
 
         /*
          * CPU #0 is the only CPU running at boot, others must be
