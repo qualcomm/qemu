@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "user-internals.h"
-#include "cpu_loop-common.h"
+#include "user/cpu_loop.h"
 #include "target/hexagon/internal.h"
 #include "signal-common.h"
 #include "internal.h"
@@ -85,8 +85,8 @@ void cpu_loop(CPUHexagonState *env)
             break;
             default:
                 EXCP_DUMP(env, "\nqemu: unhandled CPU precise exception "
-                    "0x%x/0x%x - aborting\n",
-                    trapnr, env->cause_code);
+                    "cause code 0x%x - aborting\n",
+                    env->cause_code);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -104,9 +104,8 @@ void cpu_loop(CPUHexagonState *env)
             /* nothing to do here for user-mode, just resume guest code */
             break;
         default:
-            EXCP_DUMP(env, "\nqemu: unhandled CPU exception "
-                "0x%x/0x%x - aborting\n",
-                trapnr, env->cause_code);
+            EXCP_DUMP(env, "\nqemu: unhandled CPU exception 0x%x - aborting\n",
+                      trapnr);
             exit(EXIT_FAILURE);
         }
         if (signum) {
@@ -122,7 +121,7 @@ void cpu_loop(CPUHexagonState *env)
     }
 }
 
-void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
+void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
 {
     env->gpr[HEX_REG_PC] = regs->sepc;
     env->gpr[HEX_REG_SP] = regs->sp;

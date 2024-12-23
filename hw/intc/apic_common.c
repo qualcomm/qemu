@@ -28,7 +28,7 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "trace.h"
 #include "hw/boards.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -414,7 +414,6 @@ static const Property apic_properties_common[] = {
                     true),
     DEFINE_PROP_BOOL("legacy-instance-id", APICCommonState, legacy_instance_id,
                      false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void apic_common_get_id(Object *obj, Visitor *v, const char *name,

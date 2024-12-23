@@ -28,9 +28,9 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/piix4.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/xen.h"
+#include "system/runstate.h"
+#include "system/system.h"
+#include "system/xen.h"
 #include "qapi/error.h"
 #include "qemu/range.h"
 #include "hw/acpi/cpu_hotplug.h"
@@ -617,7 +617,6 @@ static const Property piix4_pm_properties[] = {
     DEFINE_PROP_BOOL("smm-enabled", PIIX4PMState, smm_enabled, false),
     DEFINE_PROP_BOOL("x-not-migrate-acpi-index", PIIX4PMState,
                       not_migrate_acpi_index, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void piix4_pm_class_init(ObjectClass *klass, void *data)

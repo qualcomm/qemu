@@ -19,7 +19,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "internal.h"
 #include "exec/exec-all.h"
 #include "hex_mmu.h"

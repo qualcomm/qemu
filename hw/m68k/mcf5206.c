@@ -16,7 +16,7 @@
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/sysbus.h"
 
 /* General purpose timer module.  */
@@ -603,7 +603,6 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
 static const Property mcf5206_mbar_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", m5206_mbar_state, cpu,
                      TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mcf5206_mbar_class_init(ObjectClass *oc, void *data)

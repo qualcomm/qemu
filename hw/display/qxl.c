@@ -29,7 +29,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
@@ -2475,7 +2475,6 @@ static const Property qxl_properties[] = {
         DEFINE_PROP_UINT32("xres", PCIQXLDevice, xres, 0),
         DEFINE_PROP_UINT32("yres", PCIQXLDevice, yres, 0),
         DEFINE_PROP_BOOL("global-vmstate", PCIQXLDevice, vga.global_vmstate, false),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static void qxl_pci_class_init(ObjectClass *klass, void *data)

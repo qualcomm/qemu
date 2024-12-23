@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "cpu.h"
 #include "disas/dis-asm.h"
 #include "tcg/debug-assert.h"
@@ -151,7 +152,6 @@ static void avr_cpu_initfn(Object *obj)
 
 static const Property avr_cpu_properties[] = {
     DEFINE_PROP_UINT32("init-sp", AVRCPU, init_sp, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)

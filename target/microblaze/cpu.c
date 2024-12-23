@@ -30,6 +30,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/gdbstub.h"
+#include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 
@@ -403,7 +404,6 @@ static const Property mb_properties[] = {
     /*
      * End of properties reserved by Xilinx DTS conversion tool.
      */
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)

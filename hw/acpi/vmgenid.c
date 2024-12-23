@@ -20,7 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
                         BIOSLinker *linker, const char *oem_id)
@@ -216,7 +216,6 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
 
 static const Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmgenid_device_class_init(ObjectClass *klass, void *data)

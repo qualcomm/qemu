@@ -13,8 +13,8 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/usb/msd.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
+#include "system/system.h"
+#include "system/block-backend.h"
 
 static const struct SCSIBusInfo usb_msd_scsi_info_storage = {
     .tcq = false,
@@ -72,7 +72,6 @@ static const Property msd_properties[] = {
     DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
     DEFINE_PROP_BOOL("removable", MSDState, removable, false),
     DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)

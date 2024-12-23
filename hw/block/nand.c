@@ -23,7 +23,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/block/flash.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -449,7 +449,6 @@ static const Property nand_properties[] = {
     DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
     DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
     DEFINE_PROP_DRIVE("drive", NANDFlashState, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nand_class_init(ObjectClass *klass, void *data)

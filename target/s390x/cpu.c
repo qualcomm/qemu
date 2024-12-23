@@ -25,19 +25,19 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/resettable.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #endif
 #include "hw/s390x/cpu-topology.h"
 
@@ -260,7 +260,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    if (!s390_cpu_realize_sysemu(dev, &err)) {
+    if (!s390_cpu_system_realize(dev, &err)) {
         goto out;
     }
 #endif
@@ -300,7 +300,7 @@ static void s390_cpu_initfn(Object *obj)
     cs->exception_index = EXCP_HLT;
 
 #if !defined(CONFIG_USER_ONLY)
-    s390_cpu_init_sysemu(obj);
+    s390_cpu_system_init(obj);
 #endif
 }
 
@@ -309,8 +309,8 @@ static const gchar *s390_gdb_arch_name(CPUState *cs)
     return "s390:64-bit";
 }
 
+#ifndef CONFIG_USER_ONLY
 static const Property s390x_cpu_properties[] = {
-#if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("core-id", S390CPU, env.core_id, 0),
     DEFINE_PROP_INT32("socket-id", S390CPU, env.socket_id, -1),
     DEFINE_PROP_INT32("book-id", S390CPU, env.book_id, -1),
@@ -318,9 +318,8 @@ static const Property s390x_cpu_properties[] = {
     DEFINE_PROP_BOOL("dedicated", S390CPU, env.dedicated, false),
     DEFINE_PROP_CPUS390ENTITLEMENT("entitlement", S390CPU, env.entitlement,
                                    S390_CPU_ENTITLEMENT_AUTO),
-#endif
-    DEFINE_PROP_END_OF_LIST()
 };
+#endif
 
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
@@ -388,7 +387,6 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, s390_cpu_realizefn,
                                     &scc->parent_realize);
-    device_class_set_props(dc, s390x_cpu_properties);
     dc->user_creatable = true;
 
     resettable_class_set_parent_phases(rc, NULL, s390_cpu_reset_hold, NULL,
@@ -404,7 +402,8 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = s390_cpu_gdb_read_register;
     cc->gdb_write_register = s390_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
-    s390_cpu_class_init_sysemu(cc);
+    device_class_set_props(dc, s390x_cpu_properties);
+    s390_cpu_system_class_init(cc);
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
     cc->gdb_core_xml_file = "s390x-core64.xml";

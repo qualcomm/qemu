@@ -13,17 +13,19 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/helper-proto.h"
+#include "exec/page-protection.h"
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include <zlib.h> /* for crc32 */
 #include "hw/irq.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/kvm.h"
-#include "sysemu/tcg.h"
+#include "system/cpu-timers.h"
+#include "system/kvm.h"
+#include "system/tcg.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #ifdef CONFIG_TCG
@@ -5346,9 +5348,12 @@ static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
         valid_mask |= HCRX_TALLINT | HCRX_VINMI | HCRX_VFNMI;
     }
     /* FEAT_CMOW adds CMOW */
-
     if (cpu_isar_feature(aa64_cmow, cpu)) {
         valid_mask |= HCRX_CMOW;
+    }
+    /* FEAT_XS adds FGTnXS, FnXS */
+    if (cpu_isar_feature(aa64_xs, cpu)) {
+        valid_mask |= HCRX_FGTNXS | HCRX_FNXS;
     }
 
     /* Clear RES0 bits.  */
@@ -9142,6 +9147,31 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                      state <= ARM_CP_STATE_AA64; state++) {
                     if (r->state != state && r->state != ARM_CP_STATE_BOTH) {
                         continue;
+                    }
+                    if ((r->type & ARM_CP_ADD_TLBI_NXS) &&
+                        cpu_isar_feature(aa64_xs, cpu)) {
+                        /*
+                         * This is a TLBI insn which has an NXS variant. The
+                         * NXS variant is at the same encoding except that
+                         * crn is +1, and has the same behaviour except for
+                         * fine-grained trapping. Add the NXS insn here and
+                         * then fall through to add the normal register.
+                         * add_cpreg_to_hashtable() copies the cpreg struct
+                         * and name that it is passed, so it's OK to use
+                         * a local struct here.
+                         */
+                        ARMCPRegInfo nxs_ri = *r;
+                        g_autofree char *name = g_strdup_printf("%sNXS", r->name);
+
+                        assert(state == ARM_CP_STATE_AA64);
+                        assert(nxs_ri.crn < 0xf);
+                        nxs_ri.crn++;
+                        if (nxs_ri.fgt) {
+                            nxs_ri.fgt |= R_FGT_NXS_MASK;
+                        }
+                        add_cpreg_to_hashtable(cpu, &nxs_ri, opaque, state,
+                                               ARM_CP_SECSTATE_NS,
+                                               crm, opc1, opc2, name);
                     }
                     if (state == ARM_CP_STATE_AA32) {
                         /*

@@ -11,8 +11,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
+#include "system/system.h"
+#include "system/qtest.h"
 #include "hw/irq.h"
 #include "hw/m68k/next-cube.h"
 #include "hw/boards.h"
@@ -916,7 +916,6 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
  */
 static const Property next_pc_properties[] = {
     DEFINE_PROP_LINK("cpu", NeXTPC, cpu, TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription next_rtc_vmstate = {

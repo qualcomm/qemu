@@ -28,7 +28,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/qmp/qlist.h"
 #include "qom/object.h"
 
@@ -262,7 +262,6 @@ static const Property rx62n_properties[] = {
                      MemoryRegion *),
     DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
     DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void rx62n_class_init(ObjectClass *klass, void *data)

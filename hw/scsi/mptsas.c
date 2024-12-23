@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/pci/msi.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
@@ -1414,7 +1414,6 @@ static const Property mptsas_properties[] = {
     DEFINE_PROP_UINT64("sas_address", MPTSASState, sas_addr, 0),
     /* TODO: test MSI support under Windows */
     DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mptsas1068_class_init(ObjectClass *oc, void *data)

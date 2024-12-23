@@ -22,7 +22,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -1669,8 +1669,6 @@ static const Property pl330_properties[] = {
 
     DEFINE_PROP_LINK("memory", PL330State, mem_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pl330_class_init(ObjectClass *klass, void *data)

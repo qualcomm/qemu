@@ -27,7 +27,7 @@
 
 #include "block/aio.h"
 #include "qom/object.h"
-#include "sysemu/event-loop-base.h"
+#include "system/event-loop-base.h"
 
 #define SIG_IPI SIGUSR1
 
@@ -246,6 +246,14 @@ void event_notifier_set_handler(EventNotifier *e,
 
 GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
+
+/**
+ * rust_bql_mock_lock:
+ *
+ * Called from Rust doctests to make bql_lock() return true.
+ * Do not touch.
+ */
+void rust_bql_mock_lock(void);
 
 /**
  * bql_locked: Return lock status of the Big QEMU Lock (BQL)

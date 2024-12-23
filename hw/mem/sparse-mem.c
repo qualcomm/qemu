@@ -17,7 +17,7 @@
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "hw/mem/sparse-mem.h"
 
 #define SPARSE_MEM(obj) OBJECT_CHECK(SparseMemState, (obj), TYPE_SPARSE_MEM)
@@ -103,7 +103,6 @@ static const Property sparse_mem_properties[] = {
     DEFINE_PROP_UINT64("length", SparseMemState, length, UINT64_MAX),
     /* Max amount of actual memory that can be used to back the sparse memory */
     DEFINE_PROP_UINT64("maxsize", SparseMemState, maxsize, 10 * MiB),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 MemoryRegion *sparse_mem_init(uint64_t addr, uint64_t length)

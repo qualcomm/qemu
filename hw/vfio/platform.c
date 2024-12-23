@@ -21,7 +21,7 @@
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-platform.h"
-#include "sysemu/iommufd.h"
+#include "system/iommufd.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
@@ -36,7 +36,7 @@
 #include "hw/irq.h"
 #include "hw/platform-bus.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 /*
  * Functions used whatever the injection method
@@ -640,7 +640,6 @@ static const Property vfio_platform_dev_properties[] = {
     DEFINE_PROP_LINK("iommufd", VFIOPlatformDevice, vbasedev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vfio_platform_instance_init(Object *obj)

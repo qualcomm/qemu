@@ -14,7 +14,7 @@
 #include "qemu/memalign.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "ufs.h"
@@ -277,7 +277,6 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
 static const Property ufs_lu_props[] = {
     DEFINE_PROP_DRIVE("drive", UfsLu, conf.blk),
     DEFINE_PROP_UINT8("lun", UfsLu, lun, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static bool ufs_add_lu(UfsHc *u, UfsLu *lu, Error **errp)

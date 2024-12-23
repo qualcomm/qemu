@@ -26,6 +26,7 @@
 #include "tcg/startup.h"
 #include "target_mman.h"
 #include "exec/page-protection.h"
+#include "exec/translation-block.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>
@@ -135,6 +136,7 @@
 #include "signal-common.h"
 #include "loader.h"
 #include "user-mmap.h"
+#include "user/page-protection.h"
 #include "user/safe-syscall.h"
 #include "qemu/guest-random.h"
 #include "qemu/selfmap.h"
@@ -142,7 +144,7 @@
 #include "special-errno.h"
 #include "qapi/error.h"
 #include "fd-trans.h"
-#include "cpu_loop-common.h"
+#include "user/cpu_loop.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -8294,38 +8296,30 @@ static int is_proc_myself(const char *filename, const char *entry)
 }
 
 static void excp_dump_file(FILE *logfile, CPUArchState *env,
-                      const char *msg)
+                      const char *fmt, int code)
 {
     if (logfile) {
         CPUState *cs = env_cpu(env);
 
-        fprintf(logfile, "%s", msg);
+        fprintf(logfile, fmt, code);
         fprintf(logfile, "Failing executable: %s\n", exec_path);
         cpu_dump_state(cs, logfile, 0);
         open_self_maps(env, fileno(logfile));
     }
 }
 
-void G_GNUC_PRINTF(2, 3)
-target_exception_dump(CPUArchState *env, const char *fmt, ...)
+void target_exception_dump(CPUArchState *env, const char *fmt, int code)
 {
-    va_list vargs;
-    va_start(vargs, fmt);
-    g_autoptr(GString) buf = g_string_new(NULL);
-    g_string_append_vprintf(buf, fmt, vargs);
-
     /* dump to console */
-    excp_dump_file(stderr, env, buf->str);
+    excp_dump_file(stderr, env, fmt, code);
 
     /* dump to log file */
     if (qemu_log_separate()) {
         FILE *logfile = qemu_log_trylock();
 
-        excp_dump_file(logfile, env, buf->str);
+        excp_dump_file(logfile, env, fmt, code);
         qemu_log_unlock(logfile);
     }
-
-    va_end(vargs);
 }
 
 #include "target_proc.h"

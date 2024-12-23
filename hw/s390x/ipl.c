@@ -15,9 +15,9 @@
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/tcg.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/tcg.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
@@ -299,7 +299,6 @@ static const Property s390_ipl_properties[] = {
     DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
     DEFINE_PROP_BOOL("iplbext_migration", S390IPLState, iplbext_migration,
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_ipl_set_boot_menu(S390IPLState *ipl)

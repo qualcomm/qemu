@@ -32,8 +32,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/tswap.h"
-#include "sysemu/dma.h"
-#include "sysemu/reset.h"
+#include "system/dma.h"
+#include "system/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
@@ -187,7 +187,6 @@ static const Property generic_loader_props[] = {
     DEFINE_PROP_UINT32("cpu-num", GenericLoaderState, cpu_num, CPU_NONE),
     DEFINE_PROP_BOOL("force-raw", GenericLoaderState, force_raw, false),
     DEFINE_PROP_STRING("file", GenericLoaderState, file),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void generic_loader_class_init(ObjectClass *klass, void *data)

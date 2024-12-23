@@ -22,7 +22,7 @@
 
 #include "qapi/error.h"
 #include "hw/vfio/vfio-common.h"
-#include "sysemu/iommufd.h"
+#include "system/iommufd.h"
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/vfio-ccw.h"
 #include "hw/qdev-properties.h"
@@ -663,7 +663,6 @@ static const Property vfio_ccw_properties[] = {
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vfio_ccw_vmstate = {

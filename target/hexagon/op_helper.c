@@ -38,7 +38,7 @@
 #include "system.h"
 #include "dma_adapter.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "hw/boards.h"
 #include "hw/hexagon/hexagon.h"
 #include "hex_mmu.h"

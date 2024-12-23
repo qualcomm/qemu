@@ -14,12 +14,12 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/iov.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "ui/console.h"
 #include "ui/rect.h"
 #include "trace.h"
-#include "sysemu/dma.h"
-#include "sysemu/sysemu.h"
+#include "system/dma.h"
+#include "system/system.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-gpu.h"
@@ -1682,7 +1682,6 @@ static const Property virtio_gpu_properties[] = {
                     VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
     DEFINE_PROP_SIZE("hostmem", VirtIOGPU, parent_obj.conf.hostmem, 0),
     DEFINE_PROP_UINT8("x-scanout-vmstate-version", VirtIOGPU, scanout_vmstate_version, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_gpu_class_init(ObjectClass *klass, void *data)

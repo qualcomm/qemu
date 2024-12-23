@@ -6,7 +6,7 @@
 #include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "trace.h"
@@ -24,7 +24,6 @@ static const Property usb_props[] = {
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
                     USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void usb_bus_class_init(ObjectClass *klass, void *data)

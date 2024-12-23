@@ -26,7 +26,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
@@ -34,7 +34,7 @@
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "chardev/char-fe.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"
@@ -1026,7 +1026,6 @@ static const Property ivshmem_plain_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
     DEFINE_PROP_LINK("memdev", IVShmemState, hostmem, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
@@ -1083,7 +1082,6 @@ static const Property ivshmem_doorbell_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD,
                     true),
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ivshmem_doorbell_init(Object *obj)

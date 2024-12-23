@@ -17,7 +17,7 @@
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 
 /*
@@ -192,8 +192,6 @@ static const Property pnv_phb_properties[] = {
 
     DEFINE_PROP_LINK("pec", PnvPHB, pec, TYPE_PNV_PHB4_PEC,
                      PnvPhb4PecState *),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb_class_init(ObjectClass *klass, void *data)
@@ -304,8 +302,6 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
 
 static const Property pnv_phb_root_port_properties[] = {
     DEFINE_PROP_UINT32("version", PnvPHBRootPort, version, 0),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)

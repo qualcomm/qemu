@@ -34,7 +34,7 @@
 #include "hw/ide/piix.h"
 #include "hw/intc/i8259.h"
 #include "hw/isa/isa.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
@@ -415,7 +415,6 @@ static const Property pci_piix_props[] = {
     DEFINE_PROP_BOOL("has-pit", PIIXState, has_pit, true),
     DEFINE_PROP_BOOL("has-usb", PIIXState, has_usb, true),
     DEFINE_PROP_BOOL("smm-enabled", PIIXState, smm_enabled, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_piix_class_init(ObjectClass *klass, void *data)

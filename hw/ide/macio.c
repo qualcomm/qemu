@@ -30,8 +30,8 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/misc/macio/macio.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/dma.h"
+#include "system/block-backend.h"
+#include "system/dma.h"
 
 #include "ide-internal.h"
 
@@ -462,7 +462,6 @@ static void macio_ide_initfn(Object *obj)
 static const Property macio_ide_properties[] = {
     DEFINE_PROP_UINT32("channel", MACIOIDEState, channel, 0),
     DEFINE_PROP_UINT32("addr", MACIOIDEState, addr, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void macio_ide_class_init(ObjectClass *oc, void *data)

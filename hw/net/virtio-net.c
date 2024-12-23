@@ -39,15 +39,15 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/replay.h"
+#include "system/system.h"
+#include "system/replay.h"
 #include "trace.h"
 #include "monitor/qdev.h"
 #include "monitor/monitor.h"
 #include "hw/pci/pci_device.h"
 #include "net_rx_pkt.h"
 #include "hw/virtio/vhost.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -4057,7 +4057,6 @@ static const Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_net_class_init(ObjectClass *klass, void *data)

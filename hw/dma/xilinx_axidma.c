@@ -33,7 +33,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/stream.h"
 #include "qom/object.h"
 #include "trace.h"
@@ -619,7 +619,6 @@ static const Property axidma_properties[] = {
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("dma", XilinxAXIDMA, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void axidma_class_init(ObjectClass *klass, void *data)

@@ -36,7 +36,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/iov.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -1232,12 +1232,10 @@ static const Property uhci_properties_companion[] = {
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
-    DEFINE_PROP_END_OF_LIST(),
 };
 static const Property uhci_properties_standalone[] = {
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void uhci_class_init(ObjectClass *klass, void *data)

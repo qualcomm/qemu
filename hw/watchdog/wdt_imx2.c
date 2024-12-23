@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
@@ -284,7 +284,6 @@ static void imx2_wdt_realize(DeviceState *dev, Error **errp)
 static const Property imx2_wdt_properties[] = {
     DEFINE_PROP_BOOL("pretimeout-support", IMX2WdtState, pretimeout_support,
                      false),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void imx2_wdt_class_init(ObjectClass *klass, void *data)

@@ -32,9 +32,9 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/pci-host/q35.h"
-#include "sysemu/kvm.h"
-#include "sysemu/dma.h"
-#include "sysemu/sysemu.h"
+#include "system/kvm.h"
+#include "system/dma.h"
+#include "system/system.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
@@ -3418,7 +3418,6 @@ static const Property vtd_properties[] = {
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
     DEFINE_PROP_BOOL("stale-tm", IntelIOMMUState, stale_tm, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 /* Read IRTE entry with specific index */

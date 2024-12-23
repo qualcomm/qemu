@@ -18,8 +18,8 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
+#include "system/system.h"
+#include "system/block-backend.h"
 
 #include "nvme.h"
 #include "trace.h"
@@ -834,7 +834,6 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_ns_class_init(ObjectClass *oc, void *data)

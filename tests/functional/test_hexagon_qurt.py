@@ -10,7 +10,6 @@ import tempfile
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from unittest import skipUnless
-from qemu_test.utils import archive_extract
 from hexagon.utils import run_tests, HexagonCheckError
 
 class QURTTests(QemuSystemTest):
@@ -49,8 +48,7 @@ class QURTTests(QemuSystemTest):
 
     @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_qurt(self):
-        file_path = self.ASSET_TARBALL.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_TARBALL)
         self.vm.add_args('-m', '4G', '-no-reboot')
         results = [self.run_tests_for_arch(a) for a in self.QURT_MACHINES.keys()]
         self.assertTrue(all(results))

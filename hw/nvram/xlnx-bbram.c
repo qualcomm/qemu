@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -523,7 +523,6 @@ static const VMStateDescription vmstate_bbram_ctrl = {
 static const Property bbram_ctrl_props[] = {
     DEFINE_PROP("drive", XlnxBBRam, blk, bbram_prop_drive, BlockBackend *),
     DEFINE_PROP_UINT32("crc-zpads", XlnxBBRam, crc_zpads, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void bbram_ctrl_class_init(ObjectClass *klass, void *data)

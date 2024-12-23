@@ -22,7 +22,7 @@
 #include "hex_interrupts.h"
 #include "macros.h"
 #include "sys_macros.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 
 static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num);
 

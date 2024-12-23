@@ -26,7 +26,7 @@
 #include "hw/net/imx_fec.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "net/checksum.h"
@@ -1229,7 +1229,6 @@ static const Property imx_eth_properties[] = {
     DEFINE_PROP_BOOL("phy-connected", IMXFECState, phy_connected, true),
     DEFINE_PROP_LINK("phy-consumer", IMXFECState, phy_consumer, TYPE_IMX_FEC,
                      IMXFECState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void imx_eth_class_init(ObjectClass *klass, void *data)

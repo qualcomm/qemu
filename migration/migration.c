@@ -22,9 +22,9 @@
 #include "fd.h"
 #include "file.h"
 #include "socket.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/cpu-throttle.h"
+#include "system/runstate.h"
+#include "system/system.h"
+#include "system/cpu-throttle.h"
 #include "rdma.h"
 #include "ram.h"
 #include "migration/global_state.h"
@@ -59,13 +59,13 @@
 #include "multifd.h"
 #include "threadinfo.h"
 #include "qemu/yank.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "yank_functions.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "options.h"
-#include "sysemu/dirtylimit.h"
+#include "system/dirtylimit.h"
 #include "qemu/sockets.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 #define NOTIFIER_ELEM_INIT(array, elem)    \
     [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
@@ -3822,7 +3822,8 @@ static void migration_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->user_creatable = false;
-    device_class_set_props(dc, migration_properties);
+    device_class_set_props_n(dc, migration_properties,
+                             migration_properties_count);
 }
 
 static void migration_instance_finalize(Object *obj)

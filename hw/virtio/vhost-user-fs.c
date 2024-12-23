@@ -23,7 +23,7 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -409,7 +409,6 @@ static const Property vuf_properties[] = {
     DEFINE_PROP_UINT16("num-request-queues", VHostUserFS,
                        conf.num_request_queues, 1),
     DEFINE_PROP_UINT16("queue-size", VHostUserFS, conf.queue_size, 128),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vuf_instance_init(Object *obj)

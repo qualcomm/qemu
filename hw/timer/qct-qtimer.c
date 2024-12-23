@@ -26,7 +26,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "qapi/error.h"
 #include "trace.h"
 
@@ -521,12 +521,11 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property qct_qtimer_properties[] = {
+static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void qct_qtimer_class_init(ObjectClass *klass, void *data)

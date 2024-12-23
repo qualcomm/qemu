@@ -30,7 +30,7 @@
 #include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "hw/sd/sdhci.h"
@@ -1550,7 +1550,6 @@ static const Property sdhci_sysbus_properties[] = {
                      false),
     DEFINE_PROP_LINK("dma", SDHCIState,
                      dma_mr, TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sdhci_sysbus_init(Object *obj)

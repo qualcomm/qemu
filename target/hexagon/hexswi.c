@@ -38,7 +38,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hex_mmu.h"
 #endif
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include <dirent.h>
 
 #ifndef CONFIG_USER_ONLY

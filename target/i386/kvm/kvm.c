@@ -31,10 +31,10 @@
 #include "cpu.h"
 #include "host-cpu.h"
 #include "vmsr_energy.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/kvm_int.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/hw_accel.h"
+#include "system/kvm_int.h"
+#include "system/runstate.h"
 #include "kvm_i386.h"
 #include "../confidential-guest.h"
 #include "sev.h"
@@ -2412,6 +2412,21 @@ void kvm_arch_after_reset_vcpu(X86CPU *cpu)
         }
 
         hyperv_x86_synic_reset(cpu);
+    }
+}
+
+void kvm_arch_reset_parked_vcpu(unsigned long vcpu_id, int kvm_fd)
+{
+    g_autofree struct kvm_msrs *msrs = NULL;
+
+    msrs = g_malloc0(sizeof(*msrs) + sizeof(msrs->entries[0]));
+    msrs->entries[0].index = MSR_IA32_TSC;
+    msrs->entries[0].data = 1; /* match the value in x86_cpu_reset() */
+    msrs->nmsrs++;
+
+    if (ioctl(kvm_fd, KVM_SET_MSRS, msrs) != 1) {
+        warn_report("parked vCPU %lu TSC reset failed: %d",
+                    vcpu_id, errno);
     }
 }
 

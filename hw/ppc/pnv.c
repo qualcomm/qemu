@@ -22,14 +22,14 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "sysemu/qtest.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/numa.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/cpus.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/hw_accel.h"
+#include "system/qtest.h"
+#include "system/system.h"
+#include "system/numa.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/cpus.h"
+#include "system/device_tree.h"
+#include "system/hw_accel.h"
 #include "target/ppc/cpu.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/ppc.h"
@@ -2431,7 +2431,6 @@ static const Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_BOOL("big-core", PnvChip, big_core, false),
     DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_chip_class_init(ObjectClass *klass, void *data)

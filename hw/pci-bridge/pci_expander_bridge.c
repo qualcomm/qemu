@@ -23,7 +23,7 @@
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 #include "hw/boards.h"
 #include "qom/object.h"
 
@@ -425,7 +425,6 @@ static const Property pxb_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_BOOL("bypass_iommu", PXBDev, bypass_iommu, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxb_dev_class_init(ObjectClass *klass, void *data)
@@ -509,7 +508,6 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
 
 static const Property pxb_cxl_dev_properties[] = {
     DEFINE_PROP_BOOL("hdm_for_passthrough", PXBCXLDev, hdm_for_passthrough, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)

@@ -36,7 +36,7 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/pci/pci_device.h"
@@ -2989,7 +2989,6 @@ static const Property pci_vga_cirrus_properties[] = {
                      cirrus_vga.enable_blitter, true),
     DEFINE_PROP_BOOL("global-vmstate", struct PCICirrusVGAState,
                      cirrus_vga.vga.global_vmstate, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cirrus_vga_class_init(ObjectClass *klass, void *data)

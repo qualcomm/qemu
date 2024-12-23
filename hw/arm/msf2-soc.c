@@ -30,7 +30,7 @@
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"
 #include "hw/qdev-clock.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #define MSF2_TIMER_BASE       0x40004000
 #define MSF2_SYSREG_BASE      0x40038000
@@ -234,7 +234,6 @@ static const Property m2sxxx_soc_properties[] = {
     /* default divisors in Libero GUI */
     DEFINE_PROP_UINT8("apb0div", MSF2State, apb0div, 2),
     DEFINE_PROP_UINT8("apb1div", MSF2State, apb1div, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void m2sxxx_soc_class_init(ObjectClass *klass, void *data)

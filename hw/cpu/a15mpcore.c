@@ -24,7 +24,7 @@
 #include "hw/cpu/a15mpcore.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm_arm.h"
 #include "target/arm/gtimer.h"
 
@@ -153,7 +153,6 @@ static const Property a15mp_priv_properties[] = {
      * Other boards may differ and should set this property appropriately.
      */
     DEFINE_PROP_UINT32("num-irq", A15MPPrivState, num_irq, 160),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void a15mp_priv_class_init(ObjectClass *klass, void *data)

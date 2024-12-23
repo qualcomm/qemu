@@ -22,10 +22,10 @@
 #include "trace.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-ram-registrar.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/blockdev.h"
+#include "system/block-ram-registrar.h"
+#include "system/system.h"
+#include "system/runstate.h"
 #include "hw/virtio/virtio-blk.h"
 #include "scsi/constants.h"
 #ifdef __linux__
@@ -2014,7 +2014,6 @@ static const Property virtio_blk_properties[] = {
                        conf.max_write_zeroes_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_BOOL("x-enable-wce-if-config-wce", VirtIOBlock,
                      conf.x_enable_wce_if_config_wce, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_blk_class_init(ObjectClass *klass, void *data)

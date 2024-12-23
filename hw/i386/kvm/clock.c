@@ -16,9 +16,9 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
-#include "sysemu/hw_accel.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
+#include "system/hw_accel.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
@@ -308,7 +308,6 @@ static const VMStateDescription kvmclock_vmsd = {
 static const Property kvmclock_properties[] = {
     DEFINE_PROP_BOOL("x-mach-use-reliable-get-clock", KVMClockState,
                       mach_use_reliable_get_clock, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvmclock_class_init(ObjectClass *klass, void *data)

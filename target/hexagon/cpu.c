@@ -21,6 +21,7 @@
 #include "internal.h"
 #include "exec/exec-all.h"
 #include "exec/memory.h"
+#include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
@@ -38,7 +39,7 @@
 #include "hex_mmu.h"
 #include "hw/intc/l2vic.h"
 #include "qemu/main-loop.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "hex_interrupts.h"
 #include "qemu/cutils.h"
 #endif
@@ -133,7 +134,6 @@ static const Property hexagon_cpu_properties[] = {
                      false),
     DEFINE_PROP_UINT32("l2line-size", HexagonCPU, l2line_size, 0x80),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 const char * const hexagon_regnames[] = {

@@ -10,7 +10,6 @@ import tempfile
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from unittest import skipUnless
-from qemu_test.utils import archive_extract
 from hexagon.utils import run_tests, HexagonCheckError
 
 class SivalTests(QemuSystemTest):
@@ -66,8 +65,7 @@ class SivalTests(QemuSystemTest):
 
     @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_sival(self):
-        file_path = self.ASSET_TARBALL.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_TARBALL)
         with tempfile.NamedTemporaryFile() as fp:
             self.tempfile = fp
             self.vm.add_args('-cpu', f'any,dump-json-reg-file={fp.name}')

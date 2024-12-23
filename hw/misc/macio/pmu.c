@@ -34,8 +34,8 @@
 #include "hw/irq.h"
 #include "hw/misc/macio/pmu.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
-#include "sysemu/rtc.h"
+#include "system/runstate.h"
+#include "system/rtc.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
@@ -762,7 +762,6 @@ static void pmu_init(Object *obj)
 
 static const Property pmu_properties[] = {
     DEFINE_PROP_BOOL("has-adb", PMUState, has_adb, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pmu_class_init(ObjectClass *oc, void *data)

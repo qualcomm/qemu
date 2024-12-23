@@ -35,9 +35,9 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "net/net.h"
-#include "sysemu/numa.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/numa.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
@@ -104,7 +104,6 @@ static const Property pci_props[] = {
     DEFINE_PROP_BIT("x-pcie-ext-tag", PCIDevice, cap_present,
                     QEMU_PCIE_EXT_TAG_BITNR, true),
     { .name = "busnr", .info = &prop_pci_busnr },
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pcibus = {

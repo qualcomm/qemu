@@ -27,7 +27,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 #include "hw/ide/mmio.h"
 #include "hw/qdev-properties.h"
@@ -143,7 +143,6 @@ static void mmio_ide_initfn(Object *obj)
 
 static const Property mmio_ide_properties[] = {
     DEFINE_PROP_UINT32("shift", MMIOIDEState, shift, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void mmio_ide_class_init(ObjectClass *oc, void *data)

@@ -26,13 +26,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/cpu.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "guest-loader.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "hw/boards.h"
 
 /*
@@ -116,7 +116,6 @@ static const Property guest_loader_props[] = {
     DEFINE_PROP_STRING("kernel", GuestLoaderState, kernel),
     DEFINE_PROP_STRING("bootargs", GuestLoaderState, args),
     DEFINE_PROP_STRING("initrd", GuestLoaderState, initrd),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void guest_loader_class_init(ObjectClass *klass, void *data)

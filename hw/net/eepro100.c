@@ -50,9 +50,9 @@
 #include "net/net.h"
 #include "net/eth.h"
 #include "hw/nvram/eeprom93xx.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/dma.h"
+#include "system/reset.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -2060,7 +2060,6 @@ static E100PCIDeviceInfo *eepro100_get_class(EEPRO100State *s)
 
 static const Property e100_properties[] = {
     DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void eepro100_class_init(ObjectClass *klass, void *data)

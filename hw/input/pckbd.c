@@ -34,8 +34,8 @@
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 
 #include "trace.h"
 
@@ -738,7 +738,6 @@ static void i8042_mmio_init(Object *obj)
 static const Property i8042_mmio_properties[] = {
     DEFINE_PROP_UINT64("mask", MMIOKBDState, kbd.mask, UINT64_MAX),
     DEFINE_PROP_UINT32("size", MMIOKBDState, size, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_kbd_mmio = {
@@ -938,7 +937,6 @@ static const Property i8042_properties[] = {
     DEFINE_PROP_BOOL("kbd-throttle", ISAKBDState, kbd_throttle, false),
     DEFINE_PROP_UINT8("kbd-irq", ISAKBDState, kbd_irq, 1),
     DEFINE_PROP_UINT8("mouse-irq", ISAKBDState, mouse_irq, 12),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void i8042_class_initfn(ObjectClass *klass, void *data)

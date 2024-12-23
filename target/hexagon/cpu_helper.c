@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #include "exec/helper-proto.h"
@@ -41,7 +41,7 @@
 #include "hex_interrupts.h"
 #include "pmu.h"
 #endif
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "trace.h"
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)

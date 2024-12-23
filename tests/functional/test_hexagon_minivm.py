@@ -8,8 +8,6 @@ import os
 from glob import glob
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from qemu_test.utils import archive_extract
-
 
 class MiniVMTest(QemuSystemTest):
 
@@ -23,13 +21,12 @@ class MiniVMTest(QemuSystemTest):
         'a5c2bc8c1dddbe5ef4c375c84f0145ad61d116bb465669fc30690839720e6904')
 
     def test_minivm(self):
-        tarball_path = self.ASSET_TARBALL.fetch()
         contents = ('boot/minivm', 'boot/test_mmu', 'boot/test_processors',
             'boot/test_interrupts',
             )
         for f in contents:
             f = os.path.join('hexagon-unknown-linux-musl-rootfs', f)
-            archive_extract(tarball_path, self.workdir, member=f)
+            self.archive_extract(self.ASSET_TARBALL, member=f)
         rootfs_path = f'{self.workdir}/hexagon-unknown-linux-musl-rootfs'
         kernel_path = f'{rootfs_path}/boot/minivm'
 

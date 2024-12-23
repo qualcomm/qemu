@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
@@ -169,7 +169,6 @@ static const BlockDevOps swim_block_ops = {
 static const Property swim_drive_properties[] = {
     DEFINE_PROP_INT32("unit", SWIMDrive, unit, -1),
     DEFINE_BLOCK_PROPERTIES(SWIMDrive, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void swim_drive_realize(DeviceState *qdev, Error **errp)
