@@ -1148,6 +1148,7 @@ static void G_NORETURN hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 #ifdef CONFIG_TCG
 static const TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
+    .translate_code = hexagon_translate_code,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,
 
