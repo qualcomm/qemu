@@ -39,6 +39,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
 #include "hw/intc/l2vic.h"
+#include "hw/timer/qct-qtimer.h"
 #include "hex_interrupts.h"
 #include "hexswi.h"
 #endif
@@ -1826,7 +1827,20 @@ static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
 static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
                                uint32_t *high)
 {
-    qemu_log_mask(LOG_UNIMP, "reading timer_hi/lo not yet supported\n");
+#ifndef CONFIG_USER_ONLY
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    uint32_t qtimer_base_addr = cpu->globalregs ?
+        hexagon_globalreg_get_qtimer_base_addr(cpu) : 0xffffffffUL;
+    const hwaddr low_addr  = qtimer_base_addr + QCT_QTIMER_CNTPCT_LO;
+    const hwaddr high_addr = qtimer_base_addr + QCT_QTIMER_CNTPCT_HI;
+
+    cpu_physical_memory_read(low_addr, low, sizeof(*low));
+    cpu_physical_memory_read(high_addr, high, sizeof(*high));
+#else
+    *low = 0;
+    *high = 0;
+#endif
 }
 
 static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
