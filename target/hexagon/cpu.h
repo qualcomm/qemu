@@ -353,12 +353,10 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     /* some system registers are per thread and some are global */
     target_ulong t_sreg[NUM_SREGS];
-    target_ulong t_sreg_written[NUM_SREGS];
     target_ulong *g_sreg;
     target_ulong *g_gcycle;
 
     target_ulong greg[NUM_GREGS];
-    target_ulong greg_written[NUM_GREGS];
     target_ulong wait_next_pc;
 #endif
     target_ulong new_value_usr;

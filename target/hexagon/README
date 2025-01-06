@@ -268,9 +268,7 @@ fields
 During runtime, the following fields in CPUHexagonState (see cpu.h) are used
 
     new_value             new value of a given register
-    reg_written           boolean indicating if register was written
     new_pred_value        new value of a predicate register
-    pred_written          boolean indicating if predicate was written
     mem_log_stores        record of the stores (indexed by slot)
 
 For Hexagon Vector eXtensions (HVX), the following fields are used
