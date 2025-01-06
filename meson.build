@@ -823,6 +823,8 @@ socket = []
 version_res = []
 coref = []
 iokit = []
+pvg = not_found
+metal = []
 emulator_link_args = []
 midl = not_found
 widl = not_found
@@ -844,6 +846,8 @@ elif host_os == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
   host_dsosuf = '.dylib'
+  pvg = dependency('appleframeworks', modules: 'ParavirtualizedGraphics')
+  metal = dependency('appleframeworks', modules: 'Metal')
 elif host_os == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
