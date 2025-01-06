@@ -101,20 +101,27 @@ size8u_t encmask_2_mask[] = {
     INVALID_MASK,                      /* RSVD, 0111 */
 };
 
-static inline int hex_tlb_pgsize(uint64_t entry)
+/*
+ * @return the page size type from @a entry.
+ */
+static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
 {
     if (entry == 0) {
         qemu_log_mask(CPU_LOG_MMU, "%s: Supplied TLB entry was 0!\n", __func__);
         return 0;
     }
-    int size = ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
+    tlb_pgsize_t size =
+        ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
     g_assert(size < NUM_PGSIZE_TYPES);
     return size;
 }
 
-static inline uint64_t hex_tlb_page_size(uint64_t entry)
+/*
+ * @return the page size of @a entry, in bytes.
+ */
+static inline uint64_t hex_tlb_page_size_bytes(uint64_t entry)
 {
-    return 1ull << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize(entry));
+    return 1ull << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize_type(entry));
 }
 
 static inline uint64_t hex_tlb_phys_page_num(uint64_t entry)
@@ -125,7 +132,7 @@ static inline uint64_t hex_tlb_phys_page_num(uint64_t entry)
 
 static inline uint64_t hex_tlb_phys_addr(uint64_t entry)
 {
-    uint64_t pagemask = encmask_2_mask[hex_tlb_pgsize(entry)];
+    uint64_t pagemask = encmask_2_mask[hex_tlb_pgsize_type(entry)];
     uint64_t pagenum = hex_tlb_phys_page_num(entry);
     uint64_t PA = (pagenum << TARGET_PAGE_BITS) & (~pagemask);
     return PA;
@@ -155,7 +162,8 @@ static bool hex_dump_mmu_entry(FILE *f, uint64_t entry)
                 GET_TLB_FIELD(entry, PTE_R), GET_TLB_FIELD(entry, PTE_U),
                 GET_TLB_FIELD(entry, PTE_C));
         fprintf(f, " PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")", PA,
-                pgsize_str[hex_tlb_pgsize(entry)], hex_tlb_page_size(entry));
+                pgsize_str[hex_tlb_pgsize_type(entry)],
+                hex_tlb_page_size_bytes(entry));
         fprintf(f, "\n");
         return true;
     }
@@ -188,8 +196,8 @@ void dump_mmu(CPUHexagonState *env)
                 GET_TLB_FIELD(entry, PTE_R), GET_TLB_FIELD(entry, PTE_U),
                 GET_TLB_FIELD(entry, PTE_C));
             qemu_printf(" PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")", PA,
-                        pgsize_str[hex_tlb_pgsize(entry)],
-                        hex_tlb_page_size(entry));
+                        pgsize_str[hex_tlb_pgsize_type(entry)],
+                        hex_tlb_page_size_bytes(entry));
             qemu_printf("\n");
         }
     }
@@ -279,7 +287,7 @@ static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
             }
         }
 
-        uint64_t page_size = hex_tlb_page_size(entry);
+        uint64_t page_size = hex_tlb_page_size_bytes(entry);
         uint64_t page_start = hex_tlb_virt_addr(entry);
         page_start &= ~(page_size - 1);
         if (page_start <= VA && VA < page_start + page_size) {
@@ -359,7 +367,7 @@ static inline bool hex_tlb_entry_match(CPUHexagonState *env, uint64_t entry,
     if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
         hex_tlb_entry_get_perm(env, entry, access_type, mmu_idx, prot, excp);
         *PA = hex_tlb_phys_addr(entry);
-        *size = hex_tlb_page_size(entry);
+        *size = hex_tlb_page_size_bytes(entry);
         return true;
     }
     return false;
@@ -439,10 +447,10 @@ static bool hex_tlb_is_match(CPUHexagonState *env,
 {
     bool valid1 = GET_TLB_FIELD(entry1, PTE_V);
     bool valid2 = GET_TLB_FIELD(entry2, PTE_V);
-    uint64_t size1 = hex_tlb_page_size(entry1);
+    uint64_t size1 = hex_tlb_page_size_bytes(entry1);
     uint64_t vaddr1 = hex_tlb_virt_addr(entry1);
     vaddr1 &= ~(size1 - 1);
-    uint64_t size2 = hex_tlb_page_size(entry2);
+    uint64_t size2 = hex_tlb_page_size_bytes(entry2);
     uint64_t vaddr2 = hex_tlb_virt_addr(entry2);
     vaddr2 &= ~(size2 - 1);
     int asid1 = GET_TLB_FIELD(entry1, PTE_ASID);
