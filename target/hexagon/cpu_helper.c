@@ -49,8 +49,7 @@ uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
     uint64_t cycles = 0;
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env_ = &cpu->env;
+        CPUHexagonState *env_ = cpu_env(cs);
         cycles += env_->t_cycle_count;
     }
     return *(env->g_pcycle_base) + cycles;
@@ -418,8 +417,7 @@ void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
 
         found = false;
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            env = &cpu->env;
+            env = cpu_env(cs);
             if (env->threadId == htid) {
                 found = true;
                 break;
@@ -442,8 +440,7 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 {
     BQL_LOCK_GUARD();
 
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     hexagon_cpu_soft_reset(env);
 
@@ -458,8 +455,7 @@ void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env = &cpu->env;
+        CPUHexagonState *env = cpu_env(cs);
         if (!(mask & (0x1 << env->threadId))) {
             continue;
         }
@@ -478,8 +474,7 @@ static target_ulong get_thread0_r2(void)
 {
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *thread = &cpu->env;
+        CPUHexagonState *thread = cpu_env(cs);
         if (thread->threadId == 0) {
             return thread->gpr[2];
         }
@@ -705,8 +700,7 @@ static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
 
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env_ = &cpu->env;
+        CPUHexagonState *env_ = cpu_env(cs);
         if (env_ == env) {
             continue;
         }
@@ -755,8 +749,7 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         CPUState *cs;
         int xe2max = 0;
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *env_ = &cpu->env;
+            CPUHexagonState *env_ = cpu_env(cs);
             if (sys_coproc_active(env_)) {
                 xe2max++;
             }
@@ -811,8 +804,7 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env_ = &cpu->env;
+        CPUHexagonState *env_ = cpu_env(cs);
         env_->t_cycle_count = 0;
     }
 }
@@ -821,8 +813,7 @@ static CPUHexagonState *get_cpu(unsigned int num)
 {
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env = &cpu->env;
+        CPUHexagonState *env = cpu_env(cs);
         if (env->threadId == num) {
             return env;
         }
@@ -850,8 +841,7 @@ uint32_t hexagon_get_pmu_event_stats(int event)
     switch (event) {
     case COMMITTED_PKT_ANY:
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *env = &cpu->env;
+            CPUHexagonState *env = cpu_env(cs);
             ret += env->pmu.num_packets;
         }
         break;
@@ -870,8 +860,7 @@ uint32_t hexagon_get_pmu_event_stats(int event)
         break;
     case HVX_PKT:
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *env = &cpu->env;
+            CPUHexagonState *env = cpu_env(cs);
             ret += env->pmu.hvx_packets;
         }
         break;
@@ -905,8 +894,7 @@ void hexagon_reset_pmu_event_stats(int event)
     switch (event) {
     case COMMITTED_PKT_ANY:
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *env = &cpu->env;
+            CPUHexagonState *env = cpu_env(cs);
             env->pmu.num_packets = 0;
         }
         break;
@@ -925,8 +913,7 @@ void hexagon_reset_pmu_event_stats(int event)
         break;
     case HVX_PKT:
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *env = &cpu->env;
+            CPUHexagonState *env = cpu_env(cs);
             env->pmu.hvx_packets = 0;
         }
         break;
