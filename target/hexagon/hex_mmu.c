@@ -580,7 +580,7 @@ void hex_tlb_lock(CPUHexagonState *env)
 
 void hex_tlb_unlock(CPUHexagonState *env)
 {
-    trace_hexagon_tlb_lock_info(env->threadId, "hex_tlb_unlock: %d\n");
+    trace_hexagon_tlb_lock_info(env->threadId, "hex_tlb_unlock\n");
     BQL_LOCK_GUARD();
     trace_hexagon_tlb_lock(env->threadId, env->next_PC, env->tlb_lock_count);
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
