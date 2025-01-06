@@ -1045,8 +1045,7 @@ static const char *event_name[] = {
 void hexagon_cpu_do_interrupt(CPUState *cs)
 
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
     BQL_LOCK_GUARD();
 
     qemu_log_mask(CPU_LOG_INT,

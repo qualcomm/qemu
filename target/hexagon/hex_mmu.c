@@ -498,8 +498,7 @@ int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry, uint64_t index)
 static inline void print_thread(const char *str, CPUState *cs)
 {
     g_assert(bql_locked());
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *thread = &cpu->env;
+    CPUHexagonState *thread = cpu_env(cs);
     bool is_stopped = cpu_is_stopped(cs);
     int exe_mode = get_exe_mode(thread);
     hex_lock_state_t lock_state = thread->tlb_lock_state;
@@ -609,8 +608,7 @@ void hex_tlb_unlock(CPUHexagonState *env)
     CPUHexagonState *unlock_thread = NULL;
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *thread = &cpu->env;
+        CPUHexagonState *thread = cpu_env(cs);
 
         /*
          * The hardware implements round-robin fairness, so we look for threads

@@ -130,8 +130,7 @@ static bool is_lowest_prio(CPUHexagonState *env, int int_num)
     CPUState *cs;
 
     CPU_FOREACH(cs) {
-        HexagonCPU *hex_cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *hex_env = &hex_cpu->env;
+        CPUHexagonState *hex_env = cpu_env(cs);
         if (!hex_is_qualified_for_int(hex_env, int_num)) {
             continue;
         }
@@ -314,8 +313,7 @@ void hex_interrupt_update(CPUHexagonState *env)
     g_assert(bql_locked());
     if (get_ipend(env) != 0) {
         CPU_FOREACH(cs) {
-            HexagonCPU *hex_cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *hex_env = &hex_cpu->env;
+            CPUHexagonState *hex_env = cpu_env(cs);
             const int exe_mode = get_exe_mode(hex_env);
             if (exe_mode != HEX_EXE_MODE_OFF) {
                 cs->interrupt_request |= CPU_INTERRUPT_SWI;
