@@ -83,8 +83,7 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 #ifndef CONFIG_USER_ONLY
 int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     if (n < NUM_SREGS) {
         return gdb_get_regl(mem_buf, hexagon_sreg_read(env, n));
@@ -101,8 +100,7 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
 int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     if (n < NUM_SREGS) {
         hexagon_gdb_sreg_write(env, n, ldtul_p(mem_buf));
@@ -141,8 +139,7 @@ static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 
 int hexagon_hvx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     if (n < NUM_VREGS) {
         return gdb_get_vreg(env, mem_buf, n);
@@ -178,8 +175,7 @@ static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 
 int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
    if (n < NUM_VREGS) {
         return gdb_put_vreg(env, mem_buf, n);
