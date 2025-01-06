@@ -1518,8 +1518,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
     CPUHexagonState *unlock_thread = NULL;
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *thread = &cpu->env;
+        CPUHexagonState *thread = cpu_env(cs);
 
         /*
          * The hardware implements round-robin fairness, so we look for threads
@@ -1979,8 +1978,7 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     CPUState *cs;
     if (old_en == 0 && new_en == 1) {
         CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            CPUHexagonState *_env = &cpu->env;
+            CPUHexagonState *_env = cpu_env(cs);
             _env->t_cycle_count = 0;
         }
     }
@@ -2170,8 +2168,7 @@ uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
 {
     CPUState *cs;
     CPU_FOREACH(cs) {
-        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *found_env = &found_cpu->env;
+        CPUHexagonState *found_env = cpu_env(cs);
         if (found_env->threadId == tid) {
             target_ulong imask = ARCH_GET_SYSTEM_REG(found_env, HEX_SREG_IMASK);
             qemu_log_mask(CPU_LOG_INT, "%s: tid %d imask = 0x%x\n",
@@ -2194,8 +2191,7 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     BQL_LOCK_GUARD();
     thread &= env->processor_ptr->thread_system_mask;
     CPU_FOREACH(cs) {
-        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *found_env = &found_cpu->env;
+        CPUHexagonState *found_env = cpu_env(cs);
         if (thread == found_env->threadId) {
             SET_SYSTEM_FIELD(found_env, HEX_SREG_STID, STID_PRIO, prio);
             qemu_log_mask(CPU_LOG_INT, "%s: tid %d prio = 0x%x\n",
@@ -2216,8 +2212,7 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
     BQL_LOCK_GUARD();
     pred &= env->processor_ptr->thread_system_mask;
     CPU_FOREACH(cs) {
-        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *found_env = &found_cpu->env;
+        CPUHexagonState *found_env = cpu_env(cs);
 
         if (pred == found_env->threadId) {
             SET_SYSTEM_FIELD(found_env, HEX_SREG_IMASK, IMASK_MASK, imask);
@@ -2303,8 +2298,7 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
 
     BQL_LOCK_GUARD();
     CPU_FOREACH (cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *thread_env = &cpu->env;
+        CPUHexagonState *thread_env = cpu_env(cs);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if ((thread_mask & thread_id_mask) != 0) {
             found = true;
@@ -2329,8 +2323,7 @@ static uint32_t get_ready_count(CPUHexagonState *env)
 
     g_assert(bql_locked());
     CPU_FOREACH(cs) {
-        HexagonCPU *cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *thread_env = &cpu->env;
+        CPUHexagonState *thread_env = cpu_env(cs);
         const bool running =
             (get_exe_mode(thread_env) == HEX_EXE_MODE_RUN) &&
             (env->k0_lock_state != HEX_LOCK_WAITING) &&
