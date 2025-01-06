@@ -1,15 +1,10 @@
-/* Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved. */
-
 /*
- *
- * This file contains architecture parameters
- *
- *
- *
+ * Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef _MAX_H
-#define _MAX_H
+#ifndef HEXAGON_MAX_H
+#define HEXAGON_MAX_H
 
 
 #define INSTRUCTIONS_MAX 7		/* 2 pairs + loopend */
@@ -77,4 +72,4 @@
 #define MAX_BP_QUEUE_SIZE 16
 #define MAX_CMT_WINDOW 10
 #define MAX_BRANCHES_PER_PACKET 2
-#endif							/* _MAX_H */
+#endif /* HEXAGON_MAX_H */
