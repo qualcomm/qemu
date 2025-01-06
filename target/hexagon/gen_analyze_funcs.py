@@ -22,6 +22,8 @@ import re
 import string
 import hex_common
 
+def has_analyze_func(reg, mode):
+    return callable(getattr(reg, f"analyze_{mode}", None))
 
 ##
 ## Generate the code to analyze the instruction
@@ -66,20 +68,21 @@ def gen_analyze_func(f, tag, regs, imms):
     for regno, register in enumerate(regs):
         reg_type, reg_id = register
         reg = hex_common.get_register(tag, reg_type, reg_id)
-        reg.decl_reg_num(f, regno)
+        if has_analyze_func(reg, "read") or has_analyze_func(reg, "write"):
+            reg.decl_reg_num(f, regno)
 
     ## Analyze the register reads
     for regno, register in enumerate(regs):
         reg_type, reg_id = register
         reg = hex_common.get_register(tag, reg_type, reg_id)
-        if reg.is_read():
+        if reg.is_read() and has_analyze_func(reg, "read"):
             reg.analyze_read(f, regno)
 
     ## Analyze the register writes
     for regno, register in enumerate(regs):
         reg_type, reg_id = register
         reg = hex_common.get_register(tag, reg_type, reg_id)
-        if reg.is_written():
+        if reg.is_written() and has_analyze_func(reg, "write"):
             reg.analyze_write(f, tag, regno)
 
     if ("A_PRIV" in hex_common.attribdict[tag] or
