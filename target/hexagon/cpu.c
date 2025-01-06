@@ -477,7 +477,7 @@ void hexagon_dump_json(CPUHexagonState *env_)
     CPUState *cs = NULL;
     CPU_FOREACH(cs) {
         cpu = HEXAGON_CPU(cs);
-        CPUHexagonState *env = &cpu->env;
+        CPUHexagonState *env = cpu_env(cs);
 
         qemu_fprintf(f, "    \"%d\": {\n", cs->cpu_index);
         for (int i = 0; i < 32; i++) {
@@ -745,7 +745,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
     CPUState *cs = CPU(dev);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(dev);
 
     cpu_exec_realizefn(cs, errp);
@@ -754,6 +753,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     }
 
 #ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
     /*
      * 0    jtlb_entries   DMA_TLB_OFFSET    dma_jtlb_entries
      * v         v             v                    v
@@ -779,7 +779,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
     env->threadId = cs->cpu_index;
     env->processor_ptr = NULL;
 
@@ -872,8 +872,7 @@ bool hexagon_thread_is_enabled(CPUHexagonState *env) {
 
 static bool hexagon_cpu_has_work(CPUState *cs)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     return hexagon_thread_is_enabled(env) &&
         (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
@@ -882,8 +881,9 @@ static bool hexagon_cpu_has_work(CPUState *cs)
 
 static void hexagon_cpu_set_irq(void *opaque, int irq, int level)
 {
-    HexagonCPU *cpu = opaque;
-    CPUHexagonState *env = &cpu->env;
+    HexagonCPU *cpu = HEXAGON_CPU(opaque);
+    CPUState *cs = CPU(cpu);
+    CPUHexagonState *env = cpu_env(cs);
 
     trace_hexagon_irq_line(irq, level);
 
@@ -943,8 +943,7 @@ static void find_qemu_subpage(vaddr *addr, hwaddr *phys,
 #ifndef CONFIG_USER_ONLY
 static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
     hwaddr phys_addr;
     int prot;
     uint64_t page_size = 0;
@@ -988,8 +987,7 @@ static void set_badva_regs(CPUHexagonState *env, target_ulong VA, int slot,
 void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
                              MMUAccessType access_type)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     set_badva_regs(env, VA, slot, access_type);
 
@@ -1017,8 +1015,7 @@ void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
 void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
                           MMUAccessType access_type, int32_t excp)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     set_badva_regs(env, VA, slot, access_type);
     cs->exception_index = excp;
@@ -1042,8 +1039,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
                              MMUAccessType access_type, int mmu_idx,
                              bool probe, uintptr_t retaddr)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
     int slot = env->slot;
     hwaddr phys;
     int prot = 0;
@@ -1095,8 +1091,7 @@ static const struct SysemuCPUOps hexagon_sysemu_ops = {
 #ifndef CONFIG_USER_ONLY
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
     if (interrupt_request & CPU_INTERRUPT_TLB_UNLOCK) {
         cs->halted = false;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
@@ -1118,8 +1113,7 @@ static void G_NORETURN hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                         int mmu_idx,
                                         uintptr_t retaddr)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     cs->exception_index = HEX_EVENT_PRECISE;
     switch (access_type) {
