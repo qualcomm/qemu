@@ -23,7 +23,10 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#ifndef __linux__
 #include <hexagon_standalone.h>
+#endif
 
 static int err;
 static uint32_t rev;
