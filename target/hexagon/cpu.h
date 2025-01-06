@@ -347,9 +347,6 @@ typedef struct CPUArchState {
 
     uint8_t slot_cancelled;
 
-    QEMU_BUILD_BUG_MSG(NUM_GPREGS > CHAR_BIT * sizeof(target_ulong),
-                       "Hexagon's CPUArchState.gpreg_written type is too small");
-
 #ifndef CONFIG_USER_ONLY
     /* some system registers are per thread and some are global */
     target_ulong t_sreg[NUM_SREGS];

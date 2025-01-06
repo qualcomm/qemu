@@ -26,6 +26,9 @@
 #include "insn.h"
 #include "internal.h"
 
+QEMU_BUILD_BUG_MSG(NUM_GPREGS > CHAR_BIT * sizeof(target_ulong),
+        "Hexagon's DisasContext.gpreg_written type is too small");
+
 typedef struct DisasContext {
     DisasContextBase base;
     Packet *pkt;
