@@ -2,6 +2,8 @@ include:
   - project: 'qqvp/cmake-boilerplate'
     file: 'base.yml'
 
+image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u22:latest
+
 # TODO
 # - Cache builds to avoid re-building same commit
 
