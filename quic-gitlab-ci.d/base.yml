@@ -506,7 +506,9 @@ test_hexagon_perf:
   tags:
     - performance-hardware
   variables:
-    INSPECTOR: perf-stat
+    # TODO: re-enabled this once we update the performance node to Ubuntu 22
+    # and install the matching linux-tools- packages on the U22 container
+    INSPECTOR: none
     QEMU_USER_BIN_DIR: hexagon_build
     QEMU_BIN_DIR: hexagon_build
 
