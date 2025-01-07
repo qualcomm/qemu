@@ -45,6 +45,7 @@
 #include "hw/intc/l2vic.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hex_interrupts.h"
+#include "hexswi.h"
 #include "pmu.h"
 #endif
 #include "mmvec/macros.h"

@@ -638,9 +638,6 @@ void hexagon_translate_init(void);
 void hexagon_cpu_soft_reset(CPUHexagonState *env);
 void hexagon_dump_json(CPUHexagonState *env);
 
-extern void hexagon_cpu_do_interrupt(CPUState *cpu);
-void register_trap_exception(CPUHexagonState *env, int type, int imm,
-                             target_ulong PC);
 void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
                             int *max_insns, vaddr pc, void *host_pc);
 

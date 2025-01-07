@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hexswi.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #include "exec/helper-proto.h"
@@ -1043,7 +1044,6 @@ static const char *event_name[] = {
 };
 
 void hexagon_cpu_do_interrupt(CPUState *cs)
-
 {
     CPUHexagonState *env = cpu_env(cs);
     BQL_LOCK_GUARD();

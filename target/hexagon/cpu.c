@@ -42,6 +42,7 @@
 #include "system/cpus.h"
 #include "hex_interrupts.h"
 #include "qemu/cutils.h"
+#include "hexswi.h"
 #endif
 #include "opcodes.h"
 #include "coproc.h"
