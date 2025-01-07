@@ -1,5 +1,5 @@
 t = []
-if glib_pc.type_name() != 'internal' and get_option('plugins')
+if get_option('plugins')
   foreach i : ['bb', 'empty', 'inline', 'insn', 'mem', 'syscall']
     if host_os == 'windows'
       t += shared_module(i, files(i + '.c') + '../../../contrib/plugins/win32_linker.c',
