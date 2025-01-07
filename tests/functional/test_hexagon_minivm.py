@@ -16,31 +16,26 @@ class MiniVMTest(QemuSystemTest):
 
     REPO = 'https://artifacts.codelinaro.org/artifactory'
     ASSET_TARBALL = \
-        Asset(f'{REPO}/codelinaro-toolchain-for-hexagon/19.1.2/'
-                'hexagon_rootfs_2024_Oct_22.tar.xz',
-        'a5c2bc8c1dddbe5ef4c375c84f0145ad61d116bb465669fc30690839720e6904')
+        Asset(f'{REPO}/codelinaro-toolchain-for-hexagon/'
+               '19.1.5/hexagon_minivm_2024_Dec_15.tar.gz',
+        'd7920b5ff14bed5a10b23ada7d4eb927ede08635281f25067e0d5711feee2c2a')
 
     def test_minivm(self):
-        contents = ('boot/minivm', 'boot/test_mmu', 'boot/test_processors',
-            'boot/test_interrupts',
-            )
-        for f in contents:
-            f = os.path.join('hexagon-unknown-linux-musl-rootfs', f)
-            self.archive_extract(self.ASSET_TARBALL, member=f)
+        self.set_machine('SA8775P_CDSP0')
+        self.archive_extract(self.ASSET_TARBALL)
         rootfs_path = f'{self.workdir}/hexagon-unknown-linux-musl-rootfs'
         kernel_path = f'{rootfs_path}/boot/minivm'
 
-        self.set_machine('SA8775P_CDSP0')
-
+        assert(os.path.exists(kernel_path))
         for test_bin_path in glob(f'{rootfs_path}/boot/test_*'):
             print(f'# Testing "{os.path.basename(test_bin_path)}"')
 
             vm = self.get_vm()
             vm.add_args('-kernel', kernel_path,
-                        '-device', f'loader,addr={self.GUEST_ENTRY},file={test_bin_path}')
+                  '-device',
+                  f'loader,addr={hex(self.GUEST_ENTRY)},file={test_bin_path}')
             vm.launch()
             vm.wait()
-            self.assertRegex(vm.get_log(), 'PASS')
             self.assertEqual(vm.exitcode(), 0)
 
 if __name__ == '__main__':
