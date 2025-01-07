@@ -934,7 +934,7 @@ static bool get_physical_address(CPUHexagonState *env, hwaddr *phys,
 static void find_qemu_subpage(vaddr *addr, hwaddr *phys,
                                      int page_size)
 {
-    vaddr page_start = *addr & ~((vaddr)(page_size - 1));
+    vaddr page_start = ROUND_DOWN(*addr, page_size);
     vaddr offset = ((*addr - page_start) / TARGET_PAGE_SIZE) *
         TARGET_PAGE_SIZE;
     *addr = page_start + offset;
