@@ -29,7 +29,7 @@ QEMU interface matches the Hexagon simulator interface.
 ## Host system requirements
 
 Releases of QEMU are provided for Linux and Windows 10 or 11. Starting with
-QEMU Hexagon 10.0, the Linux binaries will work on Ubuntu 20.
+QEMU Hexagon 10.0, the Linux binaries will work on Ubuntu 22.
 
 ### Windows dependencies
 

@@ -15,20 +15,8 @@ In this release: support for Hexagon arch v81, HVX, DMA, COPROC.
 
 Main changes in this release:
 
-- Updated upstream base to 9.1.50.
-- Added support for v81 (Scalar, HVX, DMA, and coproc).
-- Honored framelimit on allocframe
-- Modernized many tests and enable some to use the upstream toolchain
-- Added functional tests
+- Dropped support for Ubuntu 20. Now minimum required version is Ubuntu 22.
 
 Main bug fixes:
 
-- Fixed control reg names in '-d in_asm' output
-- Fixed PC alignment check
-- V68 H2 init was calling v66g_1024_init instead of v68n_1024_init
-- Protected read-only bits of syscfg
-- gdb-xml: fixed system and guest order
-- Fixed reading and writing of sys/ctrl regs through LLDB
-- Fixed undetected "multiple writes to same reg"
-- Throw 'invalid packet' on immext without extendable instruction
-
+-
