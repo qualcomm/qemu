@@ -244,6 +244,10 @@ might show more consistency.
       * - V81QA_1
         - 12
         - Yes
+
+      * - virt
+        - 16
+        - No
    ```
 
 - `-monitor [none|stdio]`
