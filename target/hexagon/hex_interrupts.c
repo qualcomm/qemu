@@ -28,98 +28,98 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num);
 
 static bool get_syscfg_gie(CPUHexagonState *env)
 {
-    target_ulong syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     return GET_SYSCFG_FIELD(SYSCFG_GIE, syscfg);
 }
 
 static bool get_ssr_ex(CPUHexagonState *env)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     return GET_SSR_FIELD(SSR_EX, ssr);
 }
 
 static bool get_ssr_ie(CPUHexagonState *env)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     return GET_SSR_FIELD(SSR_IE, ssr);
 }
 
 /* Do these together so we only have to call hexagon_modify_ssr once */
 static void set_ssr_ex_cause(CPUHexagonState *env, int ex, uint32_t cause)
 {
-    target_ulong old = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong old = arch_get_system_reg(env, HEX_SREG_SSR);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_EX, ex);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_CAUSE, cause);
-    target_ulong new = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong new = arch_get_system_reg(env, HEX_SREG_SSR);
     hexagon_modify_ssr(env, new, old);
 }
 
 static bool get_iad_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong iad = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IAD);
+    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
     return extract32(iad, int_num, 1);
 }
 
 static void set_iad_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong iad = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IAD);
+    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
     iad = deposit32(iad, int_num, 1, val);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IAD, iad);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad);
 }
 
 static uint32_t get_ipend(CPUHexagonState *env)
 {
-    return ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND);
+    return arch_get_system_reg(env, HEX_SREG_IPEND);
 }
 
 static inline bool get_ipend_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong ipend = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     return extract32(ipend, int_num, 1);
 }
 
 static void clear_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipend = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend &= ~mask;
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPEND, ipend);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipend = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend |= mask;
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPEND, ipend);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong ipend = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend = deposit32(ipend, int_num, 1, val);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPEND, ipend);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static bool get_imask_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong imask = ARCH_GET_SYSTEM_REG(env, HEX_SREG_IMASK);
+    target_ulong imask = arch_get_system_reg(env, HEX_SREG_IMASK);
     return extract32(imask, int_num, 1);
 }
 
 static uint32_t get_prio(CPUHexagonState *env)
 {
-    target_ulong stid = ARCH_GET_SYSTEM_REG(env, HEX_SREG_STID);
+    target_ulong stid = arch_get_system_reg(env, HEX_SREG_STID);
     return extract32(stid, reg_field_info[STID_PRIO].offset,
                      reg_field_info[STID_PRIO].width);
 }
 
 static void set_elr(CPUHexagonState *env, target_ulong val)
 {
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_ELR, val);
+    arch_set_system_reg(env, HEX_SREG_ELR, val);
 }
 
 static bool get_schedcfgen(CPUHexagonState *env)
 {
-    target_ulong schedcfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SCHEDCFG);
+    target_ulong schedcfg = arch_get_system_reg(env, HEX_SREG_SCHEDCFG);
     return extract32(schedcfg, reg_field_info[SCHEDCFG_EN].offset,
                      reg_field_info[SCHEDCFG_EN].width);
 }
@@ -182,7 +182,7 @@ static void restore_state(CPUHexagonState *env, bool int_accepted)
 static void hex_accept_int(CPUHexagonState *env, int int_num)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong evb = ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB);
+    target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
     const int exe_mode = get_exe_mode(env);
     const bool in_wait_mode = exe_mode == HEX_EXE_MODE_WAIT;
 

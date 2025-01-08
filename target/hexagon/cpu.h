@@ -525,8 +525,8 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
     *cs_base = 0;
 
 #ifndef CONFIG_USER_ONLY
-    target_ulong syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
 
     bool pcycle_enabled = extract32(syscfg,
                                     reg_field_info[SYSCFG_PCYCLEEN].offset,

@@ -60,7 +60,7 @@ extern const char * const hexagon_gregnames[];
 extern void init_genptr(void);
 
 #define hexagon_cpu_mmu_enabled(env) \
-    GET_SYSCFG_FIELD(SYSCFG_MMUEN, ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG))
+    GET_SYSCFG_FIELD(SYSCFG_MMUEN, arch_get_system_reg(env, HEX_SREG_SYSCFG))
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_hexagon_cpu;

@@ -381,7 +381,7 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
     *prot = 0;
     *size = 0;
     *excp = 0;
-    uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     int i;
     HexagonCPU *cpu = env_archcpu(env);
@@ -544,7 +544,7 @@ void hex_tlb_lock(CPUHexagonState *env)
     trace_hexagon_tlb_lock(env->threadId, env->next_PC, env->tlb_lock_count);
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     uint8_t tlb_lock = GET_SYSCFG_FIELD(SYSCFG_TLBLOCK, syscfg);
     if (tlb_lock) {
         if (env->tlb_lock_state == HEX_LOCK_QUEUED) {
@@ -592,7 +592,7 @@ void hex_tlb_unlock(CPUHexagonState *env)
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
     /* Nothing to do if the TLB isn't locked by this thread */
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     uint8_t tlb_lock = GET_SYSCFG_FIELD(SYSCFG_TLBLOCK, syscfg);
     if ((tlb_lock == 0) ||
         (env->tlb_lock_state != HEX_LOCK_OWNER)) {

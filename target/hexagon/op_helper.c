@@ -497,7 +497,7 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 
     BQL_LOCK_GUARD();
     iad = READ_SREG(HEX_SREG_IAD) & ~(mask);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IAD, iad);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad);
     hexagon_clear_last_irq(env, L2VIC_VID_0);
     hex_interrupt_update(env);
 }
@@ -508,7 +508,7 @@ void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 
     BQL_LOCK_GUARD();
     iad = READ_SREG(HEX_SREG_IAD) | mask;
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IAD, iad);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad);
     hex_interrupt_update(env);
 }
 
@@ -1424,12 +1424,12 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     if (slot == 0) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA0, badva);
+        arch_set_system_reg(env, HEX_SREG_BADVA0, badva);
         SET_SSR_FIELD(env, SSR_V0, 1);
         SET_SSR_FIELD(env, SSR_V1, 0);
         SET_SSR_FIELD(env, SSR_BVS, 0);
     } else if (slot == 1) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA1, badva);
+        arch_set_system_reg(env, HEX_SREG_BADVA1, badva);
         SET_SSR_FIELD(env, SSR_V0, 0);
         SET_SSR_FIELD(env, SSR_V1, 1);
         SET_SSR_FIELD(env, SSR_BVS, 1);
@@ -1454,7 +1454,7 @@ static void hex_k0_lock(CPUHexagonState *env)
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (env->k0_lock_state == HEX_LOCK_QUEUED) {
             env->next_PC += 4;
@@ -1497,7 +1497,7 @@ static void hex_k0_unlock(CPUHexagonState *env)
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
     /* Nothing to do if the k0 isn't locked by this thread */
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     if ((GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg) == 0) ||
         (env->k0_lock_state != HEX_LOCK_OWNER)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1742,18 +1742,18 @@ void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
     CPUState *cpu;
 
     BQL_LOCK_GUARD();
-    modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
 
     CPU_FOREACH (cpu) {
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = ARCH_GET_SYSTEM_REG(thread_env, HEX_SREG_IMASK);
+            uint32_t imask = arch_get_system_reg(thread_env, HEX_SREG_IMASK);
             uint32_t intbitpos = (src >> 16) & 0xF;
             uint32_t val = (src >> thread_env->threadId) & 0x1;
             imask = deposit32(imask, intbitpos, 1, val);
-            ARCH_SET_SYSTEM_REG(thread_env, HEX_SREG_IMASK, imask);
+            arch_set_system_reg(thread_env, HEX_SREG_IMASK, imask);
 
             qemu_log_mask(CPU_LOG_INT, "%s: thread %d, new imask 0x%x\n",
                           __func__, thread_env->threadId, imask);
@@ -1772,7 +1772,7 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
     CPUState *cpu;
 
     BQL_LOCK_GUARD();
-    modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     /* src fields are in same position as modectl, but mean different things */
     intbitpos = GET_FIELD(MODECTL_W, src);
@@ -1781,7 +1781,7 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = ARCH_GET_SYSTEM_REG(thread_env, HEX_SREG_IMASK);
+            uint32_t imask = arch_get_system_reg(thread_env, HEX_SREG_IMASK);
             dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
         }
     }
@@ -1814,7 +1814,7 @@ static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
 
 static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     return GET_SSR_FIELD(SSR_CE, ssr);
 }
 
@@ -1822,18 +1822,18 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
 {
     uint32_t low, high;
     if (IS_PMU_CREG(reg)) {
-        target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         int ssr_pe = GET_SSR_FIELD(SSR_PE, ssr);
         return ssr_pe ? hexagon_get_pmu_counter(env, reg - HEX_REG_UPMUCNT0) : 0;
     }
     switch (reg) {
     case HEX_REG_PKTCNTLO:
         low = env->exec_ctr_pkt;
-        ARCH_SET_THREAD_REG(env, HEX_REG_PKTCNTLO, low);
+        arch_set_thread_reg(env, HEX_REG_PKTCNTLO, low);
         return low;
     case HEX_REG_PKTCNTHI:
         high = 0;
-        ARCH_SET_THREAD_REG(env, HEX_REG_PKTCNTHI, high);
+        arch_set_thread_reg(env, HEX_REG_PKTCNTHI, high);
         return high;
     case HEX_REG_UPCYCLELO:
         return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_low(env) : 0;
@@ -1867,26 +1867,26 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
     g_assert(bql_locked());
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         const uint32_t vid = hexagon_find_last_irq(env, reg);
-        ARCH_SET_SYSTEM_REG(env, reg, vid);
+        arch_set_system_reg(env, reg, vid);
     } else if ((reg == HEX_SREG_TIMERLO) || (reg == HEX_SREG_TIMERHI)) {
         uint32_t low = 0;
         uint32_t high = 0;
         hexagon_read_timer(env, &low, &high);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_TIMERLO, low);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_TIMERHI, high);
+        arch_set_system_reg(env, HEX_SREG_TIMERLO, low);
+        arch_set_system_reg(env, HEX_SREG_TIMERHI, high);
     } else if (reg == HEX_SREG_BADVA) {
-        target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
-            return ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA1);
+            return arch_get_system_reg(env, HEX_SREG_BADVA1);
         }
-        return ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA0);
+        return arch_get_system_reg(env, HEX_SREG_BADVA0);
     } else if (IS_PMU_SREG(reg)) {
         return hexagon_get_pmu_counter(env, pmu_index_from_sreg(reg));
     } else if (reg == HEX_SREG_IPENDAD) {
-        return (ARCH_GET_SYSTEM_REG(env, HEX_SREG_IPEND) & 0xffff) |
-            ((ARCH_GET_SYSTEM_REG(env, HEX_SREG_IAD) & 0xffff) << 16);
+        return (arch_get_system_reg(env, HEX_SREG_IPEND) & 0xffff) |
+            ((arch_get_system_reg(env, HEX_SREG_IAD) & 0xffff) << 16);
     }
-    return ARCH_GET_SYSTEM_REG(env, reg);
+    return arch_get_system_reg(env, reg);
 }
 
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
@@ -1907,8 +1907,8 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
         uint32_t low = 0;
         uint32_t high = 0;
         hexagon_read_timer(env, &low, &high);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_TIMERLO, low);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_TIMERHI, high);
+        arch_set_system_reg(env, HEX_SREG_TIMERLO, low);
+        arch_set_system_reg(env, HEX_SREG_TIMERHI, high);
     } else if (reg == HEX_SREG_PCYCLELO) {
         return hexagon_get_sys_pcycle_count(env);
     }
@@ -1950,7 +1950,7 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 
     uint32_t old;
     uint32_t syscfg_read_only_mask = 0x80001c00;
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
 
     /* clear read-only bits if they are set in the new value. */
     val &= ~syscfg_read_only_mask;
@@ -1958,8 +1958,8 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     val |= (syscfg & syscfg_read_only_mask);
 
     uint32_t tmp = val;
-    old = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_SYSCFG, tmp);
+    old = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    arch_set_system_reg(env, HEX_SREG_SYSCFG, tmp);
 
     /* Check for change in MMU enable */
     target_ulong old_mmu_enable = GET_SYSCFG_FIELD(SYSCFG_MMUEN, old);
@@ -2034,7 +2034,7 @@ static void set_pmu_event(CPUHexagonState *env, unsigned int index,
 static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                                   uint32_t val)
 {
-    uint32_t old = ARCH_GET_SYSTEM_REG(env, reg);
+    uint32_t old = arch_get_system_reg(env, reg);
     uint32_t new = val;
 
     g_assert(bql_locked());
@@ -2042,7 +2042,7 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
         if (old != new) {
             qemu_log_mask(LOG_UNIMP, "PMUSTID settings not implemented.");
         }
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
         return true;
     } else if (reg == HEX_SREG_PMUCFG) {
         int old_thmask = GET_FIELD(PMUCFG_THMASK, old);
@@ -2058,7 +2058,7 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                           deposit16(env->pmu.g_events[i], 8, 2, new_bits));
         }
         pmu_unlock();
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
         return true;
     } else if (reg == HEX_SREG_PMUEVTCFG || reg == HEX_SREG_PMUEVTCFG1) {
         int half_pmu_ctrs = NUM_PMU_CTRS / 2;
@@ -2070,7 +2070,7 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                           deposit16(env->pmu.g_events[index], 0, 8, new_bits));
         }
         pmu_unlock();
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
         return true;
     } else if (IS_PMU_SREG(reg)) {
         hexagon_set_pmu_counter(env, reg, val);
@@ -2087,18 +2087,18 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         hexagon_set_vid(env, (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
                         val);
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
     } else if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
     } else if (reg == HEX_SREG_PCYCLELO) {
         hexagon_set_sys_pcycle_count_low(env, val);
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
     } else if (!handle_pmu_sreg_write(env, reg, val)) {
-        ARCH_SET_SYSTEM_REG(env, reg, val);
+        arch_set_system_reg(env, reg, val);
     }
 }
 
@@ -2128,7 +2128,7 @@ void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
      * The above is needed to run special logic for regs like syscfg, but it
      * won't set read-only bits. This will:
      */
-    ARCH_SET_SYSTEM_REG(env, reg, val);
+    arch_set_system_reg(env, reg, val);
 }
 
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
@@ -2154,7 +2154,7 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
     }
     switch (reg) {
     case HEX_GREG_GPCYCLELO: {
-        target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
         return ssr_ce ? hexagon_get_sys_pcycle_count(env) : 0;
     }
@@ -2171,7 +2171,7 @@ uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
     CPU_FOREACH(cs) {
         CPUHexagonState *found_env = cpu_env(cs);
         if (found_env->threadId == tid) {
-            target_ulong imask = ARCH_GET_SYSTEM_REG(found_env, HEX_SREG_IMASK);
+            target_ulong imask = arch_get_system_reg(found_env, HEX_SREG_IMASK);
             qemu_log_mask(CPU_LOG_INT, "%s: tid %d imask = 0x%x\n",
                           __func__, env->threadId,
                           (unsigned)GET_FIELD(IMASK_MASK, imask));
@@ -2248,7 +2248,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
 
     BQL_LOCK_GUARD();
     qemu_log_mask(CPU_LOG_INT, "%s: check resched\n", __func__);
-    schedcfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SCHEDCFG);
+    schedcfg = arch_get_system_reg(env, HEX_SREG_SCHEDCFG);
     schedcfg_en = GET_FIELD(SCHEDCFG_EN, schedcfg);
     int_number = GET_FIELD(SCHEDCFG_INTNO, schedcfg);
 
@@ -2260,7 +2260,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
         HexagonCPU *thread = HEXAGON_CPU(cs);
         CPUHexagonState *thread_env = &(thread->env);
         uint32_t th_prio = GET_FIELD(
-            STID_PRIO, ARCH_GET_SYSTEM_REG(thread_env, HEX_SREG_STID));
+            STID_PRIO, arch_get_system_reg(thread_env, HEX_SREG_STID));
         if (!hexagon_thread_is_enabled(thread_env)) {
             continue;
         }
@@ -2270,7 +2270,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
             : th_prio;
     }
 
-    bestwait_reg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_BESTWAIT);
+    bestwait_reg = arch_get_system_reg(env, HEX_SREG_BESTWAIT);
     best_prio = GET_FIELD(BESTWAIT_PRIO, bestwait_reg);
 
     /*
@@ -2281,7 +2281,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
     if (lowest_th_prio > best_prio) {
         qemu_log_mask(CPU_LOG_INT,
                       "%s: raising resched int %d, cur PC 0x%08x\n", __func__,
-                      int_number, ARCH_GET_THREAD_REG(env, HEX_REG_PC));
+                      int_number, arch_get_thread_reg(env, HEX_REG_PC));
         SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, 0x1ff);
         hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
     }

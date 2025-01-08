@@ -120,9 +120,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 {
     g_assert(bql_locked());
 
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
-    target_ulong what_swi = ARCH_GET_THREAD_REG(env, HEX_REG_R00);
-    target_ulong swi_info = ARCH_GET_THREAD_REG(env, HEX_REG_R01);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
+    target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
 
     switch (what_swi) {
     case SYS_HEAPINFO:
@@ -148,18 +148,18 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) env->cmdline[i]);
         }
       DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) 0);
-      ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+      arch_set_thread_reg(env, HEX_REG_R00, 0);
     }
     break;
 
     case SYS_EXCEPTION:
     {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0);
+        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
 
         /* sometimes qurt returns pointer to rval and sometimes the */
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
-        target_ulong ret = ARCH_GET_THREAD_REG(env, HEX_REG_R02);
+        target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
         HexagonCPU *cpu = env_archcpu(env);
         if (!cpu->vp_mode) {
             hexagon_dump_json(env);
@@ -241,10 +241,10 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         }
 
        if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, retval);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         } else {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, count - retval);
+            arch_set_thread_reg(env, HEX_REG_R00, count - retval);
         }
         rcu_read_unlock();
     }
@@ -284,10 +284,10 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         }
 
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, retval);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         } else {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, count - retval);
+            arch_set_thread_reg(env, HEX_REG_R00, count - retval);
         }
     }
     break;
@@ -345,7 +345,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
 
         fd = open(filename, real_openmode, 0644);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, fd);
+        arch_set_thread_reg(env, HEX_REG_R00, fd);
 
         if (fd == -1) {
             HexagonCPU *cpu = env_archcpu(env);
@@ -360,14 +360,14 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
                 g_string_append_printf(lib_filename_str, "/%s", filename);
                 gchar *lib_filename = g_string_free(lib_filename_str, false);
                 fd = open(lib_filename, real_openmode, 0644);
-                ARCH_SET_THREAD_REG(env, HEX_REG_R00, fd);
+                arch_set_thread_reg(env, HEX_REG_R00, fd);
 
                 if (fd == -1) {
-                    ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+                    arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
                 }
                 g_free(lib_filename);
             } else {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             }
         }
     }
@@ -380,29 +380,29 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         if (fd == 0 || fd == 1 || fd == 2) {
             /* silently ignore request to close stdin/stdout */
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+            arch_set_thread_reg(env, HEX_REG_R00, 0);
         } else {
             int closedret = close(fd);
 
             if (closedret == -1) {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R01,
+                arch_set_thread_reg(env, HEX_REG_R01,
                                     MapError(errno));
             } else {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R00, closedret);
+                arch_set_thread_reg(env, HEX_REG_R00, closedret);
             }
         }
     }
     break;
 
     case SYS_ISERROR:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+        arch_set_thread_reg(env, HEX_REG_R00, 0);
         break;
 
     case SYS_ISTTY:
     {
         int fd;
         DEBUG_MEMORY_READ(swi_info, 4, &fd);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00,
+        arch_set_thread_reg(env, HEX_REG_R00,
                             isatty(fd));
     }
     break;
@@ -418,10 +418,10 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         retval = lseek(fd, pos, SEEK_SET);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         } else {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
+            arch_set_thread_reg(env, HEX_REG_R00, retval);
         }
     }
     break;
@@ -484,14 +484,14 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             sys_stat.ctime = st_buf.st_ctime;
 #endif
         } else {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, err);
+            arch_set_thread_reg(env, HEX_REG_R01, err);
         }
         DEBUG_MEMORY_READ(swi_info + 4, 4, &statBufferAddr);
 
         for (int i = 0; i < sizeof(sys_stat); i++) {
             DEBUG_MEMORY_WRITE(statBufferAddr + i, 1, st_bufptr[i]);
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, rc);
+        arch_set_thread_reg(env, HEX_REG_R00, rc);
     }
     break;
 
@@ -505,22 +505,22 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         oldpos = lseek(fd, 0, SEEK_CUR);
         if (oldpos == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             break;
         }
         len = lseek(fd, 0, SEEK_END);
         if (len == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             break;
         }
         if (lseek(fd, oldpos, SEEK_SET) == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             break;
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, len);
+        arch_set_thread_reg(env, HEX_REG_R00, len);
     }
     break;
 
@@ -535,10 +535,10 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         retval = ftruncate(fd, size_limit);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         } else {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
+            arch_set_thread_reg(env, HEX_REG_R00, retval);
         }
     }
     break;
@@ -562,11 +562,11 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         rc = access(filename, BufferMode);
         if (rc != 0) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         }
 
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, rc);
+        arch_set_thread_reg(env, HEX_REG_R00, rc);
     }
     break;
     case SYS_GETCWD:
@@ -579,18 +579,18 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         DEBUG_MEMORY_READ(swi_info + 4, 4, &BufferSize);
 
         if (!getcwd(cwdPtr, PATH_MAX)) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, 0);
         } else {
             size_t cwd_size = strlen(cwdPtr);
             if (cwd_size > BufferSize) {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ERANGE));
-                ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+                arch_set_thread_reg(env, HEX_REG_R01, MapError(ERANGE));
+                arch_set_thread_reg(env, HEX_REG_R00, 0);
             } else {
                 for (int i = 0; i < cwd_size; i++) {
                     DEBUG_MEMORY_WRITE(BufferAddr + i, 1, (size8u_t)cwdPtr[i]);
                 }
-                ARCH_SET_THREAD_REG(env, HEX_REG_R00, BufferAddr);
+                arch_set_thread_reg(env, HEX_REG_R00, BufferAddr);
             }
         }
         break;
@@ -619,9 +619,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             env->dir_list = g_list_append(env->dir_list, dir);
             dir_index = g_list_index(env->dir_list, dir) + DIR_INDEX_OFFSET;
         } else
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
 
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, dir_index);
+        arch_set_thread_reg(env, HEX_REG_R00, dir_index);
         break;
     }
 
@@ -638,12 +638,12 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             errno = 0;
             host_dir_entry = readdir(dir);
             if (host_dir_entry == NULL) {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             }
         } else
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, EBADF);
+            arch_set_thread_reg(env, HEX_REG_R01, EBADF);
 
-        guest_dir_entry = ARCH_GET_THREAD_REG(env, HEX_REG_R02) +
+        guest_dir_entry = arch_get_thread_reg(env, HEX_REG_R02) +
             sizeof(int32_t);
         if (host_dir_entry) {
             vaddr_t guest_dir_ptr = guest_dir_entry;
@@ -655,10 +655,10 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
                     break;
                 }
             }
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00,
+            arch_set_thread_reg(env, HEX_REG_R00,
                 guest_dir_entry - sizeof(int32_t));
         } else
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+            arch_set_thread_reg(env, HEX_REG_R00, 0);
         break;
     }
 
@@ -671,11 +671,11 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         if (dir != NULL) {
             ret = closedir(dir);
             if (ret != 0) {
-                ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+                arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             }
         } else
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, EBADF);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, ret);
+            arch_set_thread_reg(env, HEX_REG_R01, EBADF);
+        arch_set_thread_reg(env, HEX_REG_R00, ret);
         break;
     }
 
@@ -734,39 +734,39 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
       case HEX_CAUSE_MISALIGNED_LOAD:
           printf("0x%x, Misaligned Load @ 0x%x",
                  HEX_CAUSE_MISALIGNED_LOAD,
-                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                 arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_MISALIGNED_STORE:
           printf("0x%x, Misaligned Store @ 0x%x",
                  HEX_CAUSE_MISALIGNED_STORE,
-                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                 arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_PRIV_NO_READ:
           printf("0x%x, Privilege violation: "
               "user/guest read permission @ 0x%x",
               HEX_CAUSE_PRIV_NO_READ,
-              ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+              arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_PRIV_NO_WRITE:
           printf("0x%x, Privilege violation: "
               "user/guest write permission @ 0x%x",
               HEX_CAUSE_PRIV_NO_WRITE,
-              ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+              arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_PRIV_NO_UREAD:
           printf("0x%x, Privilege violation: user read permission @ 0x%x",
                  HEX_CAUSE_PRIV_NO_UREAD,
-                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                 arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_PRIV_NO_UWRITE:
           printf("0x%x, Privilege violation: user write permission @ 0x%x",
                  HEX_CAUSE_PRIV_NO_UWRITE,
-                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                 arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_COPROC_LDST:
           printf("0x%x, Coprocessor VMEM address error. @ 0x%x",
                  HEX_CAUSE_COPROC_LDST,
-                 ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                 arch_get_system_reg(env, HEX_SREG_BADVA));
           break;
       case HEX_CAUSE_STACK_LIMIT:
           printf("0x%x, Stack limit check error", HEX_CAUSE_STACK_LIMIT);
@@ -812,9 +812,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         current_pos = lseek(fd, 0, SEEK_CUR);
         if (current_pos == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, current_pos);
+        arch_set_thread_reg(env, HEX_REG_R00, current_pos);
 
     }
     break;
@@ -848,7 +848,7 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             DEBUG_MEMORY_WRITE(bufptr + i, 1, buf[i]);
         }
 
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
+        arch_set_thread_reg(env, HEX_REG_R00, 0);
     }
     break;
 
@@ -867,9 +867,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         retval = unlink(buf);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
+        arch_set_thread_reg(env, HEX_REG_R00, retval);
     }
     break;
 
@@ -896,9 +896,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
         retval = rename(buf, buf2);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
+        arch_set_thread_reg(env, HEX_REG_R00, retval);
     }
     break;
 
@@ -906,11 +906,11 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     {
         int retval = time(NULL);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             break;
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval * 100);
+        arch_set_thread_reg(env, HEX_REG_R00, retval * 100);
     }
     break;
 
@@ -918,39 +918,39 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     {
         int retval = time(NULL);
         if (retval == -1) {
-            ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-            ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(errno));
+            arch_set_thread_reg(env, HEX_REG_R00, -1);
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             break;
         }
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, retval);
+        arch_set_thread_reg(env, HEX_REG_R00, retval);
     }
     break;
 
     case SYS_ERRNO:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, errno);
+        arch_set_thread_reg(env, HEX_REG_R00, errno);
         break;
 
     case SYS_READ_CYCLES:
     case SYS_READ_TCYCLES:
     {
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, 0);
+        arch_set_thread_reg(env, HEX_REG_R00, 0);
+        arch_set_thread_reg(env, HEX_REG_R01, 0);
         break;
     }
 
     case SYS_READ_ICOUNT:
     {
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, 0);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, 0);
+        arch_set_thread_reg(env, HEX_REG_R00, 0);
+        arch_set_thread_reg(env, HEX_REG_R01, 0);
         break;
     }
 
     case SYS_READ_PCYCLES:
     {
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00,
-            ARCH_GET_SYSTEM_REG(env, HEX_SREG_PCYCLELO));
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01,
-            ARCH_GET_SYSTEM_REG(env, HEX_SREG_PCYCLEHI));
+        arch_set_thread_reg(env, HEX_REG_R00,
+            arch_get_system_reg(env, HEX_SREG_PCYCLELO));
+        arch_set_thread_reg(env, HEX_REG_R01,
+            arch_get_system_reg(env, HEX_SREG_PCYCLEHI));
         break;
     }
 
@@ -958,23 +958,23 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         break;
 
     case SYS_PROF_ON:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ENOSYS));
+        arch_set_thread_reg(env, HEX_REG_R00, -1);
+        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
         qemu_log_mask(LOG_UNIMP, "SYS_PROF_ON is bogus on QEMU!\n");
         break;
     case SYS_PROF_OFF:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ENOSYS));
+        arch_set_thread_reg(env, HEX_REG_R00, -1);
+        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
         qemu_log_mask(LOG_UNIMP, "SYS_PROF_OFF bogus on QEMU!\n");
         break;
     case SYS_PROF_STATSRESET:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ENOSYS));
+        arch_set_thread_reg(env, HEX_REG_R00, -1);
+        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
         qemu_log_mask(LOG_UNIMP, "SYS_PROF_STATSRESET bogus on QEMU!\n");
         break;
     case SYS_DUMP_PMU_STATS:
-        ARCH_SET_THREAD_REG(env, HEX_REG_R00, -1);
-        ARCH_SET_THREAD_REG(env, HEX_REG_R01, MapError(ENOSYS));
+        arch_set_thread_reg(env, HEX_REG_R00, -1);
+        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
         qemu_log_mask(LOG_UNIMP, "PMU stats are bogus on QEMU!\n");
         break;
 
@@ -995,7 +995,7 @@ static int sim_handle_trap(CPUHexagonState *env)
     g_assert(bql_locked());
 
     int retval = 0;
-    target_ulong what_swi = ARCH_GET_THREAD_REG(env, HEX_REG_R00);
+    target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
 
     retval = sim_handle_trap_functional(env);
 
@@ -1010,10 +1010,10 @@ static void set_addresses(CPUHexagonState *env,
     target_ulong pc_offset, target_ulong exception_index)
 
 {
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_ELR,
-        ARCH_GET_THREAD_REG(env, HEX_REG_PC) + pc_offset);
-    ARCH_SET_THREAD_REG(env, HEX_REG_PC,
-        ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB) | (exception_index << 2));
+    arch_set_system_reg(env, HEX_SREG_ELR,
+        arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
+    arch_set_thread_reg(env, HEX_REG_PC,
+        arch_get_system_reg(env, HEX_SREG_EVB) | (exception_index << 2));
 }
 
 static const char *event_name[] = {
@@ -1056,9 +1056,9 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     CPU_MEMOP_PC_SET_ON_EXCEPTION(env);
 
-    uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_DIAG, env->cause_code);
+        arch_set_system_reg(env, HEX_SREG_DIAG, env->cause_code);
         env->cause_code = HEX_CAUSE_DOUBLE_EXCEPT;
         cs->exception_index = HEX_EVENT_PRECISE;
     }
@@ -1089,8 +1089,8 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 ", BADVA = 0x%" PRIx32 "\n",
                 cs->exception_index, env->cause_code,
                 env->threadId,
-                ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-                ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                arch_get_thread_reg(env, HEX_REG_PC),
+                arch_get_system_reg(env, HEX_SREG_BADVA));
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -1116,7 +1116,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 ", BADVA = 0x%" PRIx32 "\n",
                 cs->exception_index, env->cause_code,
                 env->threadId, env->gpr[HEX_REG_PC],
-                ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                arch_get_system_reg(env, HEX_SREG_BADVA));
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -1136,10 +1136,10 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         hexagon_ssr_set_cause(env, env->cause_code);
         /*
          * FIXME - QTOOL-89796 Properly handle FP exception traps
-         *     ARCH_SET_SYSTEM_REG(env, HEX_SREG_ELR, env->next_PC);
+         *     arch_set_system_reg(env, HEX_SREG_ELR, env->next_PC);
          */
-        ARCH_SET_THREAD_REG(env, HEX_REG_PC,
-            ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB) |
+        arch_set_thread_reg(env, HEX_REG_PC,
+            arch_get_system_reg(env, HEX_SREG_EVB) |
             (cs->exception_index << 2));
         break;
 
@@ -1167,7 +1167,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 ", BADVA = 0x%" PRIx32 "\n",
                 cs->exception_index, env->cause_code,
                 env->threadId, env->gpr[HEX_REG_PC],
-                ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                arch_get_system_reg(env, HEX_SREG_BADVA));
 
 
             hexagon_ssr_set_cause(env, env->cause_code);
@@ -1220,16 +1220,16 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 4, cs->exception_index);
-            ARCH_SET_SYSTEM_REG(env, HEX_SREG_DIAG,
-                (0x4 << 4) | (ARCH_GET_SYSTEM_REG(env, HEX_SREG_HTID) & 0xF));
+            arch_set_system_reg(env, HEX_SREG_DIAG,
+                (0x4 << 4) | (arch_get_system_reg(env, HEX_SREG_HTID) & 0xF));
             break;
 
         case HEX_CAUSE_IMPRECISE_NMI:
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 4, cs->exception_index);
-            ARCH_SET_SYSTEM_REG(env, HEX_SREG_DIAG,
+            arch_set_system_reg(env, HEX_SREG_DIAG,
                                 (0x3 << 4) |
-                                    (ARCH_GET_SYSTEM_REG(env, HEX_SREG_DIAG)));
+                                    (arch_get_system_reg(env, HEX_SREG_DIAG)));
             /* FIXME use thread mask */
             break;
 

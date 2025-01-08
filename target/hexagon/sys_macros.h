@@ -24,7 +24,7 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define READ_SREG(NUM) ARCH_GET_SYSTEM_REG(env, NUM)
+#define READ_SREG(NUM) arch_get_system_reg(env, NUM)
 
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
@@ -37,10 +37,10 @@
     (uint32_t)GET_FIELD(FIELD, REGIN)
 #define SET_SYSTEM_FIELD(ENV, REG, FIELD, VAL) \
     do { \
-        uint32_t regval = ARCH_GET_SYSTEM_REG(ENV, REG); \
+        uint32_t regval = arch_get_system_reg(ENV, REG); \
         fINSERT_BITS(regval, reg_field_info[FIELD].width, \
                      reg_field_info[FIELD].offset, (VAL)); \
-        ARCH_SET_SYSTEM_REG(ENV, REG, regval); \
+        arch_set_system_reg(ENV, REG, regval); \
     } while (0)
 #define SET_SSR_FIELD(ENV, FIELD, VAL) \
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SSR, FIELD, VAL)
@@ -48,7 +48,7 @@
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SYSCFG, FIELD, VAL)
 
 #define CCR_FIELD_SET(ENV, FIELD) \
-    (!!GET_FIELD(FIELD, ARCH_GET_SYSTEM_REG(ENV, HEX_SREG_CCR)))
+    (!!GET_FIELD(FIELD, arch_get_system_reg(ENV, HEX_SREG_CCR)))
 
 /*
  * Direct-to-guest is not implemented yet, continuing would cause unexpected

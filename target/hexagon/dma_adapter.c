@@ -638,7 +638,7 @@ int dma_adapter_register_perm_exception(dma_t *dma, uint32_t va,  dma_access_rig
 
 	e_info.badva0 = va;
 #if !defined(CONFIG_USER_ONLY)
-    e_info.badva1 = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA1);
+    e_info.badva1 = arch_get_system_reg(thread, HEX_SREG_BADVA1);
 #endif
 	e_info.bv0 = 1;
 	e_info.bv1 = 0;
@@ -1090,7 +1090,7 @@ static int dma_adapter_report_exception(dma_t *dma) {
 	// elr should be adjusted to be a PC of DMPOLL or DMWAIT.
 	dma_info->einfo.elr = thread->Regs[REG_PC];
 #if !defined(CONFIG_USER_ONLY)
-    dma_info->einfo.badva1 = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA1);
+    dma_info->einfo.badva1 = arch_get_system_reg(thread, HEX_SREG_BADVA1);
 #endif
 	
 	// Take an owner thread an exception.
@@ -1119,17 +1119,17 @@ size4u_t dma_adapter_cmd_start(thread_t *thread, size4u_t new_dma, size4u_t dumm
 		// thread, so that the command can be replayed again later.
 		dma_adapter_report_exception(dma);
 	} else {
-		if (new_dma != 0) {
+        if (new_dma != 0) {
 #ifndef CONFIG_USER_ONLY
-            uint32_t ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
-                       fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
-                reg_field_info[SSR_ASID].offset,
-                (GET_SSR_FIELD(SSR_ASID, ssr)));
-            ARCH_SET_SYSTEM_REG(thread, HEX_SREG_SSR, ssr);
+            uint32_t ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
+            fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
+                    reg_field_info[SSR_ASID].offset,
+                    (GET_SSR_FIELD(SSR_ASID, ssr)));
+            arch_set_system_reg(thread, HEX_SREG_SSR, ssr);
 #else
         g_assert_not_reached();
 #endif
-		}
+        }
 	}
 
 	// We should relay the instruction completeness checker.
@@ -1152,17 +1152,17 @@ size4u_t dma_adapter_cmd_link(thread_t *thread, size4u_t tail, size4u_t new_dma,
 		// thread, so that the command can be replayed again later.
 		dma_adapter_report_exception(dma);
 	} else {
-		if (new_dma != 0) {
+        if (new_dma != 0) {
 #ifndef CONFIG_USER_ONLY
-            uint32_t ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
-                       fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
-                reg_field_info[SSR_ASID].offset,
-                (GET_SSR_FIELD(SSR_ASID, ssr)));
-            ARCH_SET_SYSTEM_REG(thread, HEX_SREG_SSR, ssr);
+            uint32_t ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
+            fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
+                    reg_field_info[SSR_ASID].offset,
+                    (GET_SSR_FIELD(SSR_ASID, ssr)));
+            arch_set_system_reg(thread, HEX_SREG_SSR, ssr);
 #else
             g_assert_not_reached();
 #endif
-		}
+        }
 	}
 
 	// We should relay the instruction completeness checker.

@@ -109,7 +109,7 @@ int hex_get_page_size(thread_t *thread, size4u_t vaddr, int width)
 static int is_vtcm_acc_window_violation(thread_t *thread, paddr_t pa)
 {
     int violation = 0;
-    uint32_t vwctrl = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_VWCTRL);
+    uint32_t vwctrl = arch_get_system_reg(thread, HEX_SREG_VWCTRL);
     int enabled = GET_FIELD(VWCTRL_VWENABLE, vwctrl) & 0x1;
     paddr_t win_lo_addr = 0;
     paddr_t win_hi_addr = 0;
@@ -134,7 +134,7 @@ static int is_vtcm_acc_window_violation(thread_t *thread, paddr_t pa)
 
 static void register_einfo(thread_t *thread, hex_exception_info *einfo)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
     int register_double_exception = (GET_SSR_FIELD(SSR_EX, ssr) > 0);
     warn("register_einfo  cause: %x\n", einfo->cause);
     /*
@@ -163,7 +163,7 @@ static void register_einfo(thread_t *thread, hex_exception_info *einfo)
         register_exception_info(thread, einfo->type, einfo->cause,
                                 einfo->badva0, einfo->badva1, einfo->bvs,
                                 einfo->bv0, einfo->bv1, einfo->elr,
-                                ARCH_GET_SYSTEM_REG(thread, HEX_SREG_DIAG), 0);
+                                arch_get_system_reg(thread, HEX_SREG_DIAG), 0);
     }
 }
 
@@ -171,7 +171,7 @@ static void fill_einfo_ldst(thread_t *thread, hex_exception_info *einfo,
                             size4u_t type, size4u_t slot, size4u_t cause,
                             size4u_t va)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
     memset(einfo, 0, sizeof(*einfo));
     einfo->valid = 1;
     einfo->type = type;
@@ -222,7 +222,7 @@ static void sys_check_vwctrl(thread_t *thread, int slot, vaddr_t va, paddr_t pa)
      * 0x8fff0000 is low=0 hi=0xfff en=1, which means the full VTCM range is
      * accessible.
      */
-    if (ARCH_GET_SYSTEM_REG(thread, HEX_SREG_VWCTRL) == 0x8fff0000) {
+    if (arch_get_system_reg(thread, HEX_SREG_VWCTRL) == 0x8fff0000) {
         SYSVERWARN("VTCM access window default value set");
         return;
     }
@@ -503,13 +503,13 @@ static void register_error_exception(thread_t *thread, size4u_t error_code,
                                      size4u_t bvs, size4u_t bv0, size4u_t bv1,
                                      size4u_t slotmask)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
     if ((error_code > PRECISE_CAUSE_DOUBLE_EXCEPT) &&
         GET_SSR_FIELD(SSR_EX, ssr)) {
         register_exception_info(
             thread, EXCEPT_TYPE_PRECISE, HEX_CAUSE_DOUBLE_EXCEPT,
-            ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA0),
-            ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA1),
+            arch_get_system_reg(thread, HEX_SREG_BADVA0),
+            arch_get_system_reg(thread, HEX_SREG_BADVA1),
             GET_SSR_FIELD(SSR_BVS, ssr), GET_SSR_FIELD(SSR_V0, ssr),
             GET_SSR_FIELD(SSR_V1, ssr), thread->Regs[REG_PC], error_code,
             slotmask);
@@ -518,7 +518,7 @@ static void register_error_exception(thread_t *thread, size4u_t error_code,
 
     register_exception_info(thread, EXCEPT_TYPE_PRECISE, error_code, badva0,
                             badva1, bvs, bv0, bv1, thread->Regs[REG_PC],
-                            ARCH_GET_SYSTEM_REG(thread, HEX_SREG_DIAG), 0);
+                            arch_get_system_reg(thread, HEX_SREG_DIAG), 0);
 }
 #endif
 
@@ -527,12 +527,12 @@ void register_coproc_ldst_exception(thread_t *thread, int slot, size4u_t badva)
 #ifndef CONFIG_USER_ONLY
     if (slot == 0) {
         register_error_exception(thread, HEX_CAUSE_COPROC_LDST, badva,
-                                 ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA),
+                                 arch_get_system_reg(thread, HEX_SREG_BADVA),
                                  0 /* select 0 */, 1 /* set bv0 */,
                                  0 /* clear bv1 */, 1 << slot);
     } else {
         register_error_exception(thread, HEX_CAUSE_COPROC_LDST,
-                                 ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA0),
+                                 arch_get_system_reg(thread, HEX_SREG_BADVA0),
                                  badva, 1 /* select 1 */, 0 /* clear bv0 */,
                                  1 /* set bv1 */, 1 << slot);
     }
