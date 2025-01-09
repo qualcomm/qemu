@@ -637,7 +637,7 @@ static void v75na_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, v75_rev, &v75na_1024);
 }
 
-static void virt_nocoproc_config_init(MachineState *machine)
+static void sim_nocoproc_config_init(MachineState *machine)
 {
     hexagon_machine_config v75na_1024_nocoproc;
     memcpy(&v75na_1024_nocoproc, &v75na_1024, sizeof(v75na_1024));
@@ -645,7 +645,7 @@ static void virt_nocoproc_config_init(MachineState *machine)
     hexagon_common_init(machine, unknown_rev, &v75na_1024_nocoproc);
 }
 
-static void virt_coproc_config_init(MachineState *machine)
+static void sim_coproc_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, unknown_rev, &v75na_1024);
 }
@@ -748,12 +748,12 @@ static void v81qa_1_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 4 * GiB;
 }
 
-static void virt_init(ObjectClass *oc, void *data)
+static void sim_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Hexagon Virt";
-    mc->init = virt_nocoproc_config_init;
+    mc->desc = "Hexagon Sim-like";
+    mc->init = sim_nocoproc_config_init;
     init_mc(mc);
     mc->is_default = true;
     mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
@@ -761,12 +761,12 @@ static void virt_init(ObjectClass *oc, void *data)
     mc->default_cpus = 6;
 }
 
-static void virt_coproc_init(ObjectClass *oc, void *data)
+static void sim_coproc_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Hexagon Virt COPROC";
-    mc->init = virt_coproc_config_init;
+    mc->desc = "Hexagon Sim-like COPROC";
+    mc->init = sim_coproc_config_init;
     init_mc(mc);
     mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
         HEXAGON_LATEST_REV_UPPER);
@@ -843,13 +843,13 @@ static const TypeInfo hexagon_machine_types[] = {
         .parent = TYPE_MACHINE,
         .class_init = SA8797P_nsp0_init,
     }, {
-        .name = MACHINE_TYPE_NAME("virt"),
+        .name = MACHINE_TYPE_NAME("sim"),
         .parent = TYPE_MACHINE,
-        .class_init = virt_init,
+        .class_init = sim_init,
     }, {
-        .name = MACHINE_TYPE_NAME("virt_coproc"),
+        .name = MACHINE_TYPE_NAME("sim_coproc"),
         .parent = TYPE_MACHINE,
-        .class_init = virt_coproc_init,
+        .class_init = sim_coproc_init,
     },
 };
 

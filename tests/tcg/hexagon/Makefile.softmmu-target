@@ -34,7 +34,7 @@ CFLAGS=-mv73 -G0 -nodefaultlibs -nostdlib -static -fno-PIC -O0 -Werror
 LDFLAGS=-lclang_rt.builtins-hexagon
 
 ########### QEMU options
-QEMU_BASE_MACHINE=-M virt -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
+QEMU_BASE_MACHINE=-M sim -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
 QEMU_OPTS+=-display none
 QEMU_EXTRA_OPTS=
 # Set this before running make if you want to run tests with specific options,

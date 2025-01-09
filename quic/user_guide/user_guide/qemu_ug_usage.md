@@ -173,11 +173,11 @@ might show more consistency.
         - CPUs
         - Coprocessor plugin required
 
-      * - virt (default machine)
+      * - sim (default machine)
         - 6
         - No
 
-      * - virt_coproc
+      * - sim_coproc
         - 6
         - Yes
 

@@ -3,7 +3,7 @@
                                              '--check',
                                              'ref_{test_name}.sha256'],
                                    'prog-args': [],
-                                   'qemu-args': ['-M', 'virt_coproc',
+                                   'qemu-args': ['-M', 'sim_coproc',
                                                  '-cpu', 'v75',
                                                  '-append',
                                                  'pickle_driver.elf '
@@ -24,7 +24,7 @@
                                           '--check',
                                           'ref_{test_name}.sha256'],
                                 'prog-args': [],
-                                'qemu-args': ['-M', 'virt_coproc',
+                                'qemu-args': ['-M', 'sim_coproc',
                                               '-cpu', 'v75',
                                               '-append',
                                               'pickle_driver.elf --pickle_in '
@@ -44,7 +44,7 @@
                                   '--check',
                                   'ref_{test_name}.sha256'],
                         'prog-args': [],
-                        'qemu-args': ['-M', 'virt_coproc',
+                        'qemu-args': ['-M', 'sim_coproc',
                                       '-cpu', 'v75',
                                       '-append',
                                       'pickle_driver.elf --pickle_in '
@@ -61,7 +61,7 @@
                                             '--check',
                                             'ref_{test_name}.sha256'],
                                   'prog-args': [],
-                                  'qemu-args': ['-M', 'virt_coproc',
+                                  'qemu-args': ['-M', 'sim_coproc',
                                                 '-cpu', 'v75',
                                                 '-append',
                                                 'pickle_driver.elf --pickle_in '
@@ -81,7 +81,7 @@
                                                        '--check',
                                                        'ref_{test_name}.sha256'],
                                              'prog-args': [],
-                                             'qemu-args': ['-M', 'virt_coproc',
+                                             'qemu-args': ['-M', 'sim_coproc',
                                                            '-cpu', 'v75',
                                                            '-append',
                                                            'pickle_driver.elf '
@@ -115,7 +115,7 @@
                                                            '--check',
                                                            'ref_{test_name}.sha256'],
                                                  'prog-args': [],
-                                                 'qemu-args': ['-M', 'virt_coproc',
+                                                 'qemu-args': ['-M', 'sim_coproc',
                                                                '-cpu', 'v75',
                                                                '-append',
                                                                'pickle_driver.elf '
@@ -148,7 +148,7 @@
                                                         '--check',
                                                         'ref_{test_name}.sha256'],
                                               'prog-args': [],
-                                              'qemu-args': ['-M', 'virt_coproc',
+                                              'qemu-args': ['-M', 'sim_coproc',
                                                             '-cpu', 'v75',
                                                             '-append',
                                                             'pickle_driver.elf '
@@ -180,7 +180,7 @@
                                                           '--check',
                                                           'ref_{test_name}.sha256'],
                                                 'prog-args': [],
-                                                'qemu-args': ['-M', 'virt_coproc',
+                                                'qemu-args': ['-M', 'sim_coproc',
                                                               '-cpu', 'v75',
                                                               '-append',
                                                               'pickle_driver.elf '
@@ -210,7 +210,7 @@
                                               '--check',
                                               'ref_{test_name}.sha256'],
                                     'prog-args': [],
-                                    'qemu-args': ['-M', 'virt_coproc',
+                                    'qemu-args': ['-M', 'sim_coproc',
                                                   '-cpu', 'v75',
                                                   '-append',
                                                   'pickle_driver.elf '

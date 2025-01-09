@@ -224,7 +224,7 @@ hsv39_tlb: EXTRA_TEST_CFLAGS=-mv81
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
 run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
 run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
-run-vwctrl:QEMU_EXTRA_OPTS=-M virt_coproc
+run-vwctrl:QEMU_EXTRA_OPTS=-M sim_coproc
 run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
 run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81QA_1
 run-swi: swi

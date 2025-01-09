@@ -56,11 +56,11 @@ qtimer.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3
 run-vid-group: QEMU_BASE_MACHINE=-cpu v67,sched-limit=on
 run-test-thread: QEMU_EXTRA_OPTS=-smp cpus=8
 run-test-thread-mttcg: QEMU_EXTRA_OPTS+=-accel tcg,thread=multi
-run-coproc:QEMU_EXTRA_OPTS=-M virt_coproc
-run-coproc_conv:QEMU_EXTRA_OPTS=-M virt_coproc
+run-coproc:QEMU_EXTRA_OPTS=-M sim_coproc
+run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
-run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M virt_coproc
-run-invalid_coproc:QEMU_EXTRA_OPTS=-M virt_coproc
+run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim_coproc
+run-invalid_coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 
 run-neg-hvx_nocoproc: neg-hvx_nocoproc
 run-vid-group: vid-group

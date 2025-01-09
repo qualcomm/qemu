@@ -28,7 +28,7 @@
                 'HMX_mpy_f8xf8_act_random_wgt_1p0000_cvt_d32_TM01.elf',
                 ],
         'prog-args': [],
-        'qemu-args': ['-M', 'virt_coproc'],
+        'qemu-args': ['-M', 'sim_coproc'],
         'check': None,
     },
     'snpe-m10': {
