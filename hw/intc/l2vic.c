@@ -12,7 +12,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "l2vic.h"
+#include "hw/intc/l2vic.h"
 #include "trace.h"
 
 #define L2VICA(s, n) (s[(n) >> 2])
