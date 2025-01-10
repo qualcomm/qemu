@@ -2,6 +2,7 @@
  * QEMU L2VIC Interrupt Controller
  *
  * Arm PrimeCell PL190 Vector Interrupt Controller was used as a reference.
+ * Copyright(c) 2020-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
