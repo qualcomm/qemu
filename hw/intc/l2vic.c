@@ -317,9 +317,9 @@ static const MemoryRegionOps fastl2vic_ops = {
     .valid.unaligned = false,
 };
 
-static void l2vic_reset(DeviceState *d)
+static void l2vic_reset_hold(Object *obj, ResetType)
 {
-    L2VICState *s = L2VIC(d);
+    L2VICState *s = L2VIC(obj);
     memset(s->int_clear, 0, sizeof(s->int_clear));
     memset(s->int_enable, 0, sizeof(s->int_enable));
     memset(s->int_pending, 0, sizeof(s->int_pending));
@@ -339,9 +339,9 @@ static void l2vic_reset(DeviceState *d)
 static void reset_irq_handler(void *opaque, int irq, int level)
 {
     L2VICState *s = (L2VICState *)opaque;
-    DeviceState *dev = DEVICE(opaque);
+    Object *obj = OBJECT(opaque);
     if (level) {
-        l2vic_reset(dev);
+        l2vic_reset_hold(obj, RESET_TYPE_COLD);
     }
     l2vic_update_all(s);
 }
@@ -394,9 +394,10 @@ static const VMStateDescription vmstate_l2vic = {
 static void l2vic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, l2vic_reset);
     dc->vmsd = &vmstate_l2vic;
+    rc->phases.hold = l2vic_reset_hold;
 }
 
 static const TypeInfo l2vic_info = {
