@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 
 static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
-    DEFINE_PROP_UINT32("num-tlbs", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
+    DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
         0xffffffffULL),
     DEFINE_PROP_UINT32("qtimer-base-addr", HexagonCPU, qtimer_base_addr,

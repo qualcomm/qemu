@@ -1,5 +1,5 @@
 
-static hexagon_machine_config G_GNUC_UNUSED SA8775P_cdsp0 = {
+static hexagon_machine_config SA8775P_cdsp0 = {
     .cfgbase =         0x24000000 + 0x180000,
     .l2tcm_size =      0x00000000,
     .l2vic_base =      0x26300000 + 0x90000,
@@ -10,10 +10,10 @@ static hexagon_machine_config G_GNUC_UNUSED SA8775P_cdsp0 = {
     .cfgtable = {
         .l2tcm_base = 0x00002400,
         .reserved0 = 0x00000000,
-        .subsystem_base = 0x26380000,
+        .subsystem_base = 0x00002638,
         .etm_base = 0x00002419,
         .l2cfg_base = 0x0000241a,
-        .reserved1 = 0x241b0000,
+        .reserved1 = 0x0000241b,
         .l1s0_base = 0x00002500,
         .axi2_lowaddr = 0x00000000,
         .streamer_base = 0x00000000,
@@ -57,6 +57,8 @@ static hexagon_machine_config G_GNUC_UNUSED SA8775P_cdsp0 = {
         .reserved4 = 0x00000000,
         .reserved5 = 0x00000003,
         .coproc2_cvt_mpy_size = 0x0000000a,
-        .axi3_lowaddr = 0x000000e0,
+        .consistency_domain = 0x000000e0,
+        .capacity_domain = 0x00000080,
+        .axi3_lowaddr = 0x00000000,
     },
 };
