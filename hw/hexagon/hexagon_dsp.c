@@ -25,7 +25,7 @@
 #include "target/hexagon/internal.h"
 #include "system/reset.h"
 
-#include "machine_configs.h.inc"
+#include "machine_cfg_v66g_1024.h.inc"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;

@@ -1,7 +1,7 @@
 /*
  * Hexagon virt emulation
  *
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -9,8 +9,8 @@
 #include "exec/address-spaces.h"
 #include "hw/char/pl011.h"
 #include "hw/core/sysbus-fdt.h"
-#include "hw/hexagon/virt.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/virt.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
@@ -18,27 +18,28 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
+#include "elf.h"
+#include "machine_cfg_v68n_1024.h.inc"
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "system/system.h"
-#include "elf.h"
-#include "machine_cfg_v68n_1024.h.inc"
 #include <libfdt.h>
 
 static const int VIRTIO_DEV_COUNT = 2;
 
 static const MemMapEntry base_memmap[] = {
-
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
-    [VIRT_MMIO] = { 0x11000000, 0x00000100 },
+    [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
     [VIRT_FDT] = { 0x99900000, 0x00000200 },
 };
 
 static const int irqmap[] = {
-    [VIRT_MMIO] = 8, /* ...to 8 + VIRTIO_DEV_COUNT - 1 */
+    [VIRT_MMIO] = 18, /* ...to 18 + VIRTIO_DEV_COUNT - 1 */
     [VIRT_GPT] = 12,
-    [VIRT_UART0] = 50,
+    [VIRT_UART0] = 15,
+    [VIRT_QTMR0] = 2,
+    [VIRT_QTMR1] = 4,
 };
 
 
@@ -75,14 +76,14 @@ static void create_fdt(HexagonVirtMachineState *vms)
 }
 
 static void fdt_add_hvx(HexagonVirtMachineState *vms,
-                              const hexagon_machine_config *m_cfg, Error **errp)
+                        const hexagon_machine_config *m_cfg, Error **errp)
 {
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
         memory_region_init_ram(&vms->vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
                                errp);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base,
+        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base << 16,
                                     &vms->vtcm);
 
         qemu_fdt_add_subnode(ms->fdt, "/soc/vtcm");
@@ -91,19 +92,19 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
 
         assert(sizeof(m_cfg->cfgtable.vtcm_base) == sizeof(uint32_t));
         qemu_fdt_setprop_cells(ms->fdt, "/soc/vtcm", "reg", 0,
-                               m_cfg->cfgtable.vtcm_base, vtcm_size_bytes);
+                               m_cfg->cfgtable.vtcm_base << 16,
+                               vtcm_size_bytes);
     }
 
     if (m_cfg->cfgtable.ext_contexts > 0) {
         qemu_fdt_add_subnode(ms->fdt, "/soc/hvx");
         qemu_fdt_setprop_string(ms->fdt, "/soc/hvx", "compatible",
-                "qcom,hexagon-hvx");
+                                "qcom,hexagon-hvx");
         qemu_fdt_setprop_cells(ms->fdt, "/soc/hvx", "qcom,hvx-max-ctxts",
-                m_cfg->cfgtable.ext_contexts);
+                               m_cfg->cfgtable.ext_contexts);
         qemu_fdt_setprop_cells(ms->fdt, "/soc/hvx", "qcom,hvx-vlength",
-                m_cfg->cfgtable.hvx_vec_log_length);
+                               m_cfg->cfgtable.hvx_vec_log_length);
     }
-
 }
 
 static int32_t irq_hvm_ic_phandle = -1;
@@ -129,7 +130,7 @@ static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
                           irq_hvm_ic_phandle);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 1,
-                    m_cfg->cfgtable.fastl2vic_base);
+                    m_cfg->cfgtable.fastl2vic_base << 16);
 }
 
 
@@ -139,7 +140,7 @@ static void fdt_add_gpt_node(HexagonVirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
 
     name = g_strdup_printf("/soc/gpt@%" PRIx64,
-        (int64_t) base_memmap[VIRT_GPT].base);
+                           (int64_t)base_memmap[VIRT_GPT].base);
     qemu_fdt_add_subnode(ms->fdt, name);
     qemu_fdt_setprop_string(ms->fdt, name, "compatible",
                             "qcom,h2-timer,hvm-timer");
@@ -182,7 +183,7 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
                            clock_phandle);
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names", clocknames,
@@ -237,7 +238,7 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
                               irq_hvm_ic_phandle);
 
         sysbus_create_simple(
-            "virtio-mmio", base + i * size,
+            "virtio-mmio", base,
             qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_MMIO] + i));
 
         g_free(nodename);
@@ -256,13 +257,12 @@ static void create_qtimer(HexagonVirtMachineState *vms,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), errp);
 
 
-    unsigned QTMR0_IRQ = 3;
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0, 0xfab20000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0, m_cfg->qtmr_rg1);
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
-                       qdev_get_gpio_in(vms->l2vic, QTMR0_IRQ));
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
-                       qdev_get_gpio_in(vms->l2vic, 4));
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
 }
 
 static void virt_instance_init(Object *obj)
@@ -292,9 +292,9 @@ static uint64_t load_kernel(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
     uint64_t entry = 0;
-    if (load_elf_ram_sym(
-             ms->kernel_filename, NULL, NULL, NULL, NULL, &entry, NULL, NULL, 0,
-             EM_HEXAGON, 0, 0, &address_space_memory, false, NULL) > 0) {
+    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, NULL, &entry,
+                         NULL, NULL, 0, EM_HEXAGON, 0, 0, &address_space_memory,
+                         false, NULL) > 0) {
         return entry;
     }
     error_report("error loading '%s'", ms->kernel_filename);
@@ -324,7 +324,7 @@ static void virt_init(MachineState *ms)
     if (m_cfg->l2tcm_size) {
         memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
                                errp);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.l2tcm_base,
+        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.l2tcm_base << 16,
                                     &vms->tcm);
     }
 
@@ -351,11 +351,13 @@ static void virt_init(MachineState *ms)
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
             }
         }
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
-        qdev_prop_set_uint32(DEVICE(cpu), "num-tlbs",
+        qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
+        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
+        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
 
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
@@ -373,22 +375,14 @@ static void virt_init(MachineState *ms)
     fdt_add_virtio_devices(vms);
     fdt_add_cpu_nodes(vms);
     fdt_add_clocks(vms);
-    fdt_add_uart(vms, 0);
+    fdt_add_uart(vms, VIRT_UART0);
     fdt_add_gpt_node(vms);
     create_qtimer(vms, m_cfg);
 
-    hexagon_config_table *config_table =
-        (hexagon_config_table *)&m_cfg->cfgtable;
+    hexagon_config_table *config_table = (hexagon_config_table *)&m_cfg->cfgtable;
 
-    config_table->l2tcm_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2tcm_base);
+    /* FIXME: can we fix this? */
     config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
-    config_table->vtcm_base = HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.vtcm_base);
-    config_table->l2cfg_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.l2cfg_base);
-    config_table->fastl2vic_base =
-        HEXAGON_CFG_ADDR_BASE(m_cfg->cfgtable.fastl2vic_base);
-
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
@@ -405,8 +399,8 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->init = virt_init;
     mc->default_cpu_type = HEXAGON_CPU_TYPE_NAME("v73");
     mc->default_ram_size = 4 * GiB;
-    mc->max_cpus = HEXAGON_MAX_CPUS;
-    mc->default_cpus = 6;
+    mc->max_cpus = 8;
+    mc->default_cpus = 8;
     mc->is_default = false;
     mc->default_kernel_irqchip_split = false;
     mc->block_default_type = IF_VIRTIO;
