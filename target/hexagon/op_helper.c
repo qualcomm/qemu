@@ -39,6 +39,7 @@
 #include "hw/intc/l2vic.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hex_interrupts.h"
+#include "hexswi.h"
 #endif
 
 #define SF_BIAS        127

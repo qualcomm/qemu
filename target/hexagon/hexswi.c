@@ -21,6 +21,7 @@
 #include "tcg/tcg-op.h"
 #ifndef CONFIG_USER_ONLY
 #include "hex_mmu.h"
+#include "hexswi.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY
