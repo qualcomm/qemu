@@ -52,14 +52,6 @@ static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);
 
-#define ARCH_GET_THREAD_REG(ENV, REG) \
-    arch_get_thread_reg(ENV, REG)
-#define ARCH_SET_THREAD_REG(ENV, REG, VAL) \
-    arch_set_thread_reg(ENV, REG, VAL)
-#define ARCH_GET_SYSTEM_REG(ENV, REG) \
-    arch_get_system_reg(ENV, REG)
-#define ARCH_SET_SYSTEM_REG(ENV, REG, VAL) \
-    arch_set_system_reg(ENV, REG, VAL)
 
 #endif
 
