@@ -13,11 +13,11 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define READ_SREG(NUM) ARCH_GET_SYSTEM_REG(env, NUM)
-#define READ_SGP0()    ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP0)
-#define READ_SGP1()    ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP1)
-#define READ_SGP10()   ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP0) | \
-    ((uint64_t)ARCH_GET_SYSTEM_REG(env, HEX_SREG_SGP1) << 32))
+#define READ_SREG(NUM) arch_get_system_reg(env, NUM)
+#define READ_SGP0()    arch_get_system_reg(env, HEX_SREG_SGP0)
+#define READ_SGP1()    arch_get_system_reg(env, HEX_SREG_SGP1)
+#define READ_SGP10()   ((uint64_t)arch_get_system_reg(env, HEX_SREG_SGP0) | \
+    ((uint64_t)arch_get_system_reg(env, HEX_SREG_SGP1) << 32))
 
 #define WRITE_SREG(NUM, VAL)      log_sreg_write(env, NUM, VAL, slot)
 #define WRITE_SGP0(VAL)           log_sreg_write(env, HEX_SREG_SGP0, VAL, slot)
@@ -39,10 +39,10 @@
     (uint32_t)GET_FIELD(FIELD, REGIN)
 #define SET_SYSTEM_FIELD(ENV, REG, FIELD, VAL) \
     do { \
-        uint32_t regval = ARCH_GET_SYSTEM_REG(ENV, REG); \
+        uint32_t regval = arch_get_system_reg(ENV, REG); \
         fINSERT_BITS(regval, reg_field_info[FIELD].width, \
                      reg_field_info[FIELD].offset, (VAL)); \
-        ARCH_SET_SYSTEM_REG(ENV, REG, regval); \
+        arch_set_system_reg(ENV, REG, regval); \
     } while (0)
 #define SET_SSR_FIELD(ENV, FIELD, VAL) \
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SSR, FIELD, VAL)
@@ -50,7 +50,7 @@
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SYSCFG, FIELD, VAL)
 
 #define CCR_FIELD_SET(ENV, FIELD) \
-    (!!GET_FIELD(FIELD, ARCH_GET_SYSTEM_REG(ENV, HEX_SREG_CCR)))
+    (!!GET_FIELD(FIELD, arch_get_system_reg(ENV, HEX_SREG_CCR)))
 
 /*
  * Direct-to-guest is not implemented yet, continuing would cause unexpected
@@ -134,7 +134,7 @@
 #define fCLEAR_RTE_EX() \
     do { \
         uint32_t tmp = 0; \
-        tmp = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR); \
+        tmp = arch_get_system_reg(env, HEX_SREG_SSR); \
         fINSERT_BITS(tmp, reg_field_info[SSR_EX].width, \
                      reg_field_info[SSR_EX].offset, 0); \
         log_sreg_write(env, HEX_SREG_SSR, tmp, slot); \
@@ -175,7 +175,7 @@
 #define iic_flush_cache(p)
 
 #define fIN_DEBUG_MODE(TNUM) \
-    ((GET_FIELD(ISDBST_DEBUGMODE, ARCH_GET_SYSTEM_REG(env, HEX_SREG_ISDBST)) \
+    ((GET_FIELD(ISDBST_DEBUGMODE, arch_get_system_reg(env, HEX_SREG_ISDBST)) \
         & (0x1 << (TNUM))) != 0)
 
 #define fIN_DEBUG_MODE_NO_ISDB(TNUM) false
