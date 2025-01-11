@@ -84,7 +84,7 @@ static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
 
 #define INVALID_MASK 0xffffffffLL
 
-size8u_t encmask_2_mask[] = {
+static const uint64_t encmask_2_mask[] = {
     0x0fffLL,                           /* 4k,   0000 */
     0x3fffLL,                           /* 16k,  0001 */
     0xffffLL,                           /* 64k,  0010 */
