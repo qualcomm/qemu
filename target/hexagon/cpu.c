@@ -314,7 +314,7 @@ static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
 #ifndef CONFIG_USER_ONLY
 bool hexagon_thread_is_enabled(CPUHexagonState *env)
 {
-    target_ulong modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
 
@@ -356,11 +356,11 @@ static void mmu_reset(CPUHexagonState *env)
 void hexagon_cpu_soft_reset(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_SSR, 0);
+    arch_set_system_reg(env, HEX_SREG_SSR, 0);
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
-    target_ulong evb = ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB);
-    ARCH_SET_THREAD_REG(env, HEX_REG_PC, evb);
+    target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+    arch_set_thread_reg(env, HEX_REG_PC, evb);
 }
 #endif
 
@@ -391,11 +391,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
 
     if (cs->cpu_index == 0) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
+        arch_set_system_reg(env, HEX_SREG_MODECTL, 0x1);
         *(env->g_pcycle_base) = 0;
     }
     mmu_reset(env);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, cs->cpu_index);
+    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     hexagon_cpu_soft_reset(env);
     env->threadId = cs->cpu_index;
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
@@ -405,8 +405,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->next_PC = 0;
     env->wait_next_pc = 0;
     env->cause_code = -1;
-    ARCH_SET_THREAD_REG(env, HEX_REG_PC, cpu->boot_addr);
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
+    arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
+    arch_set_system_reg(env, HEX_SREG_CFGBASE,
                         HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
 
 #endif
@@ -522,7 +522,7 @@ static bool get_physical_address(CPUHexagonState *env, hwaddr *phys, int *prot,
 /* qemu seems to only want to know about TARGET_PAGE_SIZE pages */
 static void find_qemu_subpage(vaddr *addr, hwaddr *phys, int page_size)
 {
-    vaddr page_start = *addr & ~((vaddr)(page_size - 1));
+    vaddr page_start = ROUND_DOWN(*addr, page_size);
     vaddr offset = ((*addr - page_start) / TARGET_PAGE_SIZE) * TARGET_PAGE_SIZE;
     *addr = page_start + offset;
     *phys += offset;
@@ -553,17 +553,17 @@ static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 static void set_badva_regs(CPUHexagonState *env, target_ulong VA, int slot,
                            MMUAccessType access_type)
 {
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA, VA);
+    arch_set_system_reg(env, HEX_SREG_BADVA, VA);
 
     if (access_type == MMU_INST_FETCH || slot == 0) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA0, VA);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA1, INVALID_BADVA);
+        arch_set_system_reg(env, HEX_SREG_BADVA0, VA);
+        arch_set_system_reg(env, HEX_SREG_BADVA1, INVALID_BADVA);
         SET_SSR_FIELD(env, SSR_V0, 1);
         SET_SSR_FIELD(env, SSR_V1, 0);
         SET_SSR_FIELD(env, SSR_BVS, 0);
     } else if (slot == 1) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA0, INVALID_BADVA);
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA1, VA);
+        arch_set_system_reg(env, HEX_SREG_BADVA0, INVALID_BADVA);
+        arch_set_system_reg(env, HEX_SREG_BADVA1, VA);
         SET_SSR_FIELD(env, SSR_V0, 0);
         SET_SSR_FIELD(env, SSR_V1, 1);
         SET_SSR_FIELD(env, SSR_BVS, 1);
@@ -702,7 +702,7 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
 #ifndef CONFIG_USER_ONLY
     BQL_LOCK_GUARD();
     CPUHexagonState *env = cpu_env(cs);
-    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
     if (!mmuen) {
         return MMU_KERNEL_IDX;
@@ -757,7 +757,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 #ifndef CONFIG_USER_ONLY
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
-    target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
 
     if (reg <= HEX_GREG_G3) {
