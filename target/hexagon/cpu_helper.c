@@ -160,38 +160,16 @@ void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
     CPUHexagonState *env;
-    bool found;
 
     g_assert(bql_locked());
-    int nr_cpus = 0;
     CPU_FOREACH(cs) {
-        nr_cpus++;
-    }
-
-    for (int htid = 0; htid < nr_cpus; ++htid) {
-        if (!(mask & (0x1 << htid))) {
-            continue;
-        }
-
-        found = false;
-        CPU_FOREACH(cs) {
-            HexagonCPU *cpu = HEXAGON_CPU(cs);
-            env = &cpu->env;
-            if (env->threadId == htid) {
-                found = true;
-                break;
+        env = cpu_env(cs);
+        g_assert(env->threadId < THREADS_MAX);
+        if ((mask & (0x1 << env->threadId))) {
+            if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+                hexagon_resume_thread(env);
             }
         }
-        if (!found) {
-            cpu_abort(cs, "Error: Hexagon: Illegal resume thread mask 0x%x",
-                      mask);
-        }
-
-        if (get_exe_mode(env) != HEX_EXE_MODE_WAIT) {
-            /* this thread not currently in wait mode */
-            continue;
-        }
-        hexagon_resume_thread(env);
     }
 }
 
