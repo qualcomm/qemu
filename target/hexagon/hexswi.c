@@ -30,10 +30,10 @@ static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
                           target_ulong exception_index)
 
 {
-    ARCH_SET_SYSTEM_REG(env, HEX_SREG_ELR,
-                        ARCH_GET_THREAD_REG(env, HEX_REG_PC) + pc_offset);
-    ARCH_SET_THREAD_REG(env, HEX_REG_PC,
-                        ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB) |
+    arch_set_system_reg(env, HEX_SREG_ELR,
+                        arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
+    arch_set_thread_reg(env, HEX_REG_PC,
+                        arch_get_system_reg(env, HEX_SREG_EVB) |
                             (exception_index << 2));
 }
 
@@ -78,9 +78,9 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     env->llsc_addr = ~0;
 
-    uint32_t ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
-        ARCH_SET_SYSTEM_REG(env, HEX_SREG_DIAG, env->cause_code);
+        arch_set_system_reg(env, HEX_SREG_DIAG, env->cause_code);
         env->cause_code = HEX_CAUSE_DOUBLE_EXCEPT;
         cs->exception_index = HEX_EVENT_PRECISE;
     }
@@ -120,8 +120,8 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                           "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
                           ", BADVA = 0x%" PRIx32 "\n",
                           cs->exception_index, env->cause_code, env->threadId,
-                          ARCH_GET_THREAD_REG(env, HEX_REG_PC),
-                          ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                          arch_get_thread_reg(env, HEX_REG_PC),
+                          arch_get_system_reg(env, HEX_SREG_BADVA));
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -148,7 +148,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                           ", BADVA = 0x%" PRIx32 "\n",
                           cs->exception_index, env->cause_code, env->threadId,
                           env->gpr[HEX_REG_PC],
-                          ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                          arch_get_system_reg(env, HEX_SREG_BADVA));
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -167,8 +167,8 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     case HEX_EVENT_FPTRAP:
         hexagon_ssr_set_cause(env, env->cause_code);
-        ARCH_SET_THREAD_REG(env, HEX_REG_PC,
-                            ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB) |
+        arch_set_thread_reg(env, HEX_REG_PC,
+                            arch_get_system_reg(env, HEX_SREG_EVB) |
                                 (cs->exception_index << 2));
         break;
 
@@ -196,7 +196,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                           ", BADVA = 0x%" PRIx32 "\n",
                           cs->exception_index, env->cause_code, env->threadId,
                           env->gpr[HEX_REG_PC],
-                          ARCH_GET_SYSTEM_REG(env, HEX_SREG_BADVA));
+                          arch_get_system_reg(env, HEX_SREG_BADVA));
 
 
             hexagon_ssr_set_cause(env, env->cause_code);
