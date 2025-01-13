@@ -57,22 +57,21 @@ typedef  union {
   struct {
     /* Base address of L2TCM space */
     uint32_t l2tcm_base;
-    uint32_t reserved;
+    uint32_t reserved0;
     /* Base address of subsystem space */
     uint32_t subsystem_base;
     /* Base address of ETM space */
     uint32_t etm_base;
     /* Base address of L2 configuration space */
     uint32_t l2cfg_base;
-    uint32_t reserved2;
+    uint32_t reserved1;
     /* Base address of L1S */
     uint32_t l1s0_base;
     /* Base address of AXI2 */
     uint32_t axi2_lowaddr;
     /* Base address of streamer base */
     uint32_t streamer_base;
-    /* Base address of Clade */
-    uint32_t clade_base;
+    uint32_t reserved2;
     /* Base address of fast L2VIC */
     uint32_t fastl2vic_base;
     /* Number of entries in JTLB */
@@ -101,8 +100,7 @@ typedef  union {
     uint32_t l2itcm_size;
     /* Base address of L2-ITCM */
     uint32_t l2itcm_base;
-    /* Base address of Clade2 */
-    uint32_t clade2_base;
+    uint32_t reserved3;
     /* DTM is present */
     uint32_t dtm_present;
     /* Version of the DMA */
@@ -135,9 +133,9 @@ typedef  union {
     uint32_t l1d_write_policy;
     /* VTCM bank width  */
     uint32_t vtcm_bank_width;
-    uint32_t reserved3;
     uint32_t reserved4;
     uint32_t reserved5;
+    uint32_t reserved6;
     uint32_t coproc2_cvt_mpy_size;
     uint32_t consistency_domain;
     uint32_t capacity_domain;
