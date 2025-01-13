@@ -16,8 +16,6 @@
  */
 
 
-//#include "thread.h"
-//#include "arch.h"
 #ifndef CONFIG_USER_ONLY
 #include "qemu/osdep.h"
 #include "exec/exec-all.h"
@@ -35,9 +33,6 @@
 #include "mmvec/mmvec.h"
 #include "system.h"
 #include "arch_options_calc.h"
-//#include "external_api.h"
-//#include "iic.h"
-//#include "uarch/uarch.h"
 
 #define ARCHOPT(OPTION)  (proc->arch_proc_options->OPTION)
 
@@ -53,23 +48,6 @@
 
 
 #include "string.h"
-//#include "memwrap.h"
-
-//#include "pmu.h"
-//#include "isdb.h"
-
-//#include "walk/walk.h"
-
-//#include "clade_if.h"
-//#include "clade2_if.h"
-//#include "mmvec/mmvec.h"
-//#include "cacheability_auto.h"
-
-//#include "arch_options_calc.h"
-
-
-//#include "q6v_system.c"
-
 
 #define TLBGUESSIDX(VA) ( ((VA>>12)^(VA>>22)) & (MAX_TLB_GUESS_ENTRIES-1))
 
@@ -347,9 +325,6 @@ mem_dmalink_store(thread_t * thread, size4u_t vaddr, int width, size8u_t data, i
        maptr->log_as_tag = 0;
        maptr->no_deriveumaptr = 0;
        maptr->is_dealloc = 0;
-       //maptr->dropped_z = 0;
-
-        // hex_exception_info einfo = {0};
 
         /* The basic stuff */
        maptr->bad_vaddr = maptr->vaddr = vaddr;
@@ -513,11 +488,8 @@ register_error_exception(thread_t * thread, size4u_t error_code,
 						 size4u_t bv0, size4u_t bv1, size4u_t slotmask)
 {
     target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
-	//warn("Error exception detected, tnum=%d code=0x%x pc=0x%x badva0=0x%x badva1=0x%x, bvs=%x, Pcycle=%lld msg=%s\n", thread->threadId, error_code, thread->Regs[REG_PC], badva0, badva1, bvs, thread->processor_ptr->monotonic_pcycles, thread->exception_msg ? thread->exception_msg : "");
-	//thread->exception_msg = NULL;
 	if ((error_code > PRECISE_CAUSE_DOUBLE_EXCEPT)
 		&& GET_SSR_FIELD(SSR_EX, ssr)) {
-		//warn("Double Exception...");
 		register_exception_info(thread, EXCEPT_TYPE_PRECISE,
                                 HEX_CAUSE_DOUBLE_EXCEPT,
                                 ARCH_GET_SYSTEM_REG(thread, HEX_SREG_BADVA0),
@@ -541,7 +513,6 @@ register_error_exception(thread_t * thread, size4u_t error_code,
 void register_coproc_ldst_exception(thread_t * thread, int slot, size4u_t badva)
 {
 #ifndef CONFIG_USER_ONLY
-	//warn("Coprocessor LDST Exception, tnum=%d npc=%x\n", thread->threadId, thread->Regs[REG_PC]);
 	if (slot == 0) {
 		register_error_exception(thread, HEX_CAUSE_COPROC_LDST,
 			 badva,
