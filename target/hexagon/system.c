@@ -127,8 +127,11 @@ static void register_einfo(thread_t *thread, hex_exception_info *einfo)
         target_ulong ssr = ARCH_GET_SYSTEM_REG(thread, HEX_SREG_SSR);
         int register_double_exception = (GET_SSR_FIELD(SSR_EX, ssr)>0);
         warn ("register_einfo  cause: %x\n", einfo->cause);
-        // Imprecise can't cause double exception, but TB doesn't check anything on imprecise exception
-        // Precise, but higher priority than double, can't cause a double
+        /*
+         * Imprecise can't cause double exception, but TB doesn't check
+         * anything on imprecise exception.  Precise, but higher priority
+         * than double, can't cause a double.
+         */
         if ((einfo->type == EXCEPT_TYPE_PRECISE) && (einfo->cause < PRECISE_CAUSE_DOUBLE_EXCEPT))
                 register_double_exception = 0;
 
@@ -155,7 +158,10 @@ static void fill_einfo_ldst(thread_t *thread, hex_exception_info *einfo, size4u_
         einfo->valid = 1;
         einfo->type = type;
         einfo->cause = cause;
-        //DAG: If cause is BIU PRECISE, then SSR bits don't need an update so set them to their existing values
+        /*
+         * If cause is BIU PRECISE, then SSR bits don't need an update so set
+         * them to their existing values.
+         */
         if(cause == PRECISE_CAUSE_BIU_PRECISE) {
                 einfo->badva0 = thread->Regs[REG_BADVA0];
                 einfo->badva1 = thread->Regs[REG_BADVA1];
@@ -336,29 +342,7 @@ mem_dmalink_store(thread_t * thread, size4u_t vaddr, int width, size8u_t data, i
 
        /* Attributes of the packet that are needed by the uarch */
     maptr->slot = slot;
-#if 0
-    maptr->bp = GET_SSR_FIELD(SSR_BP);
-    maptr->xe = GET_SSR_FIELD(SSR_XE);
-    maptr->xa = GET_SSR_FIELD(SSR_XA);
-
-       /* For trace in the uarch */
-       maptr->pc_va = thread->Regs[REG_PC];
-
-
-       // Different here, we're not going to take an exception on dmlink, but the dmwait
-       // if this packet has an exception, don't log the store
-       if(sys_xlate_dma(thread,vaddr,TYPE_STORE,access_type_store, slot, width-1, &maptr->xlate_info, &einfo)==0) {
-               SYSVERWARN("not doing dmlink store due to potential exception");
-               if (!thread->processor_ptr->options->testgen_mode) {
-                       MEMTRACE_ST(thread, thread->Regs[REG_PC], vaddr, 0, width, DWRITE, data);
-               }
-               return;
-       }
-
-       maptr->paddr = maptr->xlate_info.pa;
-#else
   maptr->paddr = vaddr;
-#endif
 
        thread->mem_access[slot].stdata = data;
 
@@ -404,7 +388,7 @@ register_exception_info(thread_t * thread, size4u_t type, size4u_t cause,
 #endif
 	warn("Oldtype=%d oldcause=0x%x newtype=%d newcause=%x de_slotmask=%x diag=%x", thread->einfo.type, thread->einfo.cause, type, cause, de_slotmask, diag);
         if ((EXCEPTION_DETECTED)
-                 && (thread->einfo.type == 0x0B)) { // EXCEPT_TYPE_FPTRAP
+                 && (thread->einfo.type == 0x0B)) { /* EXCEPT_TYPE_FPTRAP */
                  warn("FP Exception has higher priority than multi write / bad cacheability");
        }
        else if ((EXCEPTION_DETECTED)
