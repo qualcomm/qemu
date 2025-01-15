@@ -378,9 +378,9 @@ void virtio_gpu_vircl_reset_scanout(VirtIOGPU *g);
 void virtio_gpu_vircl_reset(VirtIOGPU *g);
 int virtio_gpu_vircl_init(VirtIOGPU *g);
 int virtio_gpu_vircl_get_num_capsets(VirtIOGPU *g);
-#ifdef HAVE_VIRGL_RESOURCE_BLOB
+#ifdef HAVE_VCL_RESOURCE_BLOB
 int virtio_gpu_vircl_resource_unmap(VirtIOGPU *g,
                                     struct virtio_gpu_simple_resource *res);
-#endif /* HAVE_VIRGL_RESOURCE_BLOB */
+#endif /* HAVE_VCL_RESOURCE_BLOB */
 
 #endif

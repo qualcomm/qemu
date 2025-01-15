@@ -2464,15 +2464,15 @@ if virgl.found()
                                          dependencies: virgl))
 endif
 if vcl.found()
-  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+  config_host_data.set('HAVE_VCL_D3D_INFO_EXT',
                        cc.has_member('struct vircl_renderer_resource_info_ext',
                                      'd3d_tex2d',
                                      prefix: '#include <virclrenderer.h>'))
-  config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
+  config_host_data.set('HAVE_VCL_D3D_INFO_EXT',
                        cc.has_member('struct vircl_renderer_resource_info_ext',
                                      'd3d_tex2d',
                                      prefix: '#include <virclrenderer.h>'))
-  config_host_data.set('HAVE_VIRGL_CBS_GET_EGL_DISPLAY',
+  config_host_data.set('HAVE_VCL_CBS_GET_EGL_DISPLAY',
                        cc.has_member('struct vircl_renderer_callbacks',
                                      'get_egl_display',
                                      prefix: '#include <virclrenderer.h>'))
