@@ -487,11 +487,6 @@ static inline void print_thread_states(const char *str)
     }
 }
 
-/*
- * A tlb_lock is taken with either a tlbfault or an explicit
- * tlblock insn.  The insn tlblock only advances the PC
- * after the lock is acquired, similar to k0lock.
- */
 void hex_tlb_lock(CPUHexagonState *env)
 {
     qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lock: %d\n", env->threadId);
