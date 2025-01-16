@@ -388,7 +388,7 @@ class Register:
         self.reg_num = f"{regtype}{regid}N"
     def decl_reg_num(self, f, regno):
         f.write(code_fmt(f"""\
-            const int G_GNUC_UNUSED {self.reg_num} = insn->regno[{regno}];
+            const int {self.reg_num} = insn->regno[{regno}];
         """))
     def idef_arg(self, declared):
         declared.append(self.reg_tcg())
@@ -1107,10 +1107,6 @@ class GuestSource(GuestRegister, Single, OldSource):
             TCGv {self.reg_tcg()} = tcg_temp_new();
             gen_read_greg({self.reg_tcg()}, {self.reg_num});
         """))
-    def analyze_read(self, f, regno):
-        f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];
-        """))
 
 class GuestPairDest(GuestRegister, Pair, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1137,10 +1133,6 @@ class GuestPairSource(GuestRegister, Pair, OldSource):
             TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
             gen_read_greg_pair({self.reg_tcg()}, {self.reg_num});
         """))
-    def analyze_read(self, f, regno):
-        f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];
-        """))
 
 class SystemDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1165,10 +1157,6 @@ class SystemSource(Register, Single, OldSource):
             TCGv {self.reg_tcg()} = tcg_temp_new();
             gen_read_sreg({self.reg_tcg()}, {self.reg_num});
         """))
-    def analyze_read(self, f, regno):
-        f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];
-        """))
 
 class SystemPairDest(Register, Pair, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1192,10 +1180,6 @@ class SystemPairSource(Register, Pair, OldSource):
         f.write(code_fmt(f"""\
             TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
             gen_read_sreg_pair({self.reg_tcg()}, {self.reg_num});
-        """))
-    def analyze_read(self, f, regno):
-        f.write(code_fmt(f"""\
-            // const int {self.reg_num} = insn->regno[{regno}];
         """))
 
 def init_registers():
