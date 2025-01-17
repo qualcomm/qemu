@@ -2496,6 +2496,26 @@ if vcl.found()
                        cc.has_function('vircl_renderer_resource_create_blob',
                                        prefix: '#include <virclrenderer.h>'))
 endif
+if vqnn.found()
+  config_host_data.set('HAVE_VQNN_D3D_INFO_EXT',
+                       cc.has_member('struct virqnn_renderer_resource_info_ext',
+                                     'd3d_tex2d',
+                                     prefix: '#include <virqnnrenderer.h>'))
+  config_host_data.set('HAVE_VQNN_D3D_INFO_EXT',
+                       cc.has_member('struct virqnn_renderer_resource_info_ext',
+                                     'd3d_tex2d',
+                                     prefix: '#include <virqnnrenderer.h>'))
+  config_host_data.set('HAVE_VQNN_CBS_GET_EGL_DISPLAY',
+                       cc.has_member('struct virqnn_renderer_callbacks',
+                                     'get_egl_display',
+                                     prefix: '#include <virqnnrenderer.h>'))
+  config_host_data.set('HAVE_VQNN_CONTEXT_INIT',
+                       cc.has_function('virqnn_renderer_context_create_with_flags',
+                                       prefix: '#include <virqnnrenderer.h>'))
+  config_host_data.set('HAVE_VQNN_RESOURCE_BLOB',
+                       cc.has_function('virqnn_renderer_resource_create_blob',
+                                       prefix: '#include <virqnnrenderer.h>'))
+endif
 config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
