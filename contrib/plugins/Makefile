@@ -34,6 +34,9 @@ NAMES += stoptrigger
 NAMES += actprofile
 NAMES += coverage
 
+# id linker plugin
+NAMES += idlinker
+
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
 LDLIBS += $(shell $(PKG_CONFIG) --libs glib-2.0)

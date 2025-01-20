@@ -372,6 +372,15 @@ ExportedFct('finish_qemu_init', 'void', [ ], priv='finish_qemu_init', on_iothrea
 
 ExportedFct('sysbus_get_default', 'BusState *', [ ])
 
+# TCG PLUGIN API exports
+PrivateInclude('qemu/qemu-plugin.h')
+PrivateInclude('qemu/plugin.h')
+ExportedType('qemu_plugin_tb')
+ExportedType('qemu_plugin_insn')
+ExportedType('qemu_plugin_hwaddr')
+ExportedType('qemu_plugin_scoreboard')
+ExportedType('qemu_plugin_register')
+
 # AArch64 specific exports
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
