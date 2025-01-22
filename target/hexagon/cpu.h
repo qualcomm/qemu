@@ -412,7 +412,6 @@ typedef struct CPUArchState {
     int32_t slot;                    /* Needed for exception generation */
     hex_exception_info einfo;
     systemstate_t systemstate;
-    const char *cmdline;
     CPUHexagonTLBContext *hex_tlb;
     target_ulong imprecise_exception;
     hex_lock_state_t tlb_lock_state; /* different threads modify */
@@ -452,6 +451,7 @@ struct ArchCPU {
     bool cacheop_exceptions;
     gchar *usefs;
     gchar *coproc_path;
+    gchar *cmdline;
     uint64_t config_table_addr;
     bool vp_mode;
     uint32_t boot_addr;

@@ -131,20 +131,21 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         target_ulong bufptr;
         target_ulong bufsize;
         int i;
-        size_t cmdline_size = strlen(env->cmdline);
+        HexagonCPU *cpu = env_archcpu(env);
+        size_t cmdline_size = strlen(cpu->cmdline);
 
         DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &bufsize);
 
         const target_ulong to_copy =
-            (env->cmdline != NULL) ?
+            (cpu->cmdline != NULL) ?
                 ((bufsize <= (unsigned int)cmdline_size) ?
                      (bufsize - 1) :
-                     strlen(env->cmdline)) :
+                     strlen(cpu->cmdline)) :
                 0;
 
         for (i = 0; i < (int) to_copy; i++) {
-            DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) env->cmdline[i]);
+            DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) cpu->cmdline[i]);
         }
       DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) 0);
       arch_set_thread_reg(env, HEX_REG_R00, cmdline_size - to_copy);

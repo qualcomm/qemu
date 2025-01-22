@@ -347,12 +347,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             GString *argv = g_string_new(machine->kernel_filename);
             g_string_append(argv, " ");
             g_string_append(argv, machine->kernel_cmdline);
-            env->cmdline = g_string_free(argv, false);
+            qdev_prop_set_string(DEVICE(cpu), "cmdline", argv->str);
+            g_string_free(argv, true);
             env->dir_list = NULL;
         } else {
             if (cpu_0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu_0->usefs);
             }
+            qdev_prop_set_string(DEVICE(cpu), "cmdline", cpu_0->cmdline);
         }
 
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);

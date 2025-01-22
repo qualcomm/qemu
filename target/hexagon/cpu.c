@@ -99,6 +99,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("sched-limit", HexagonCPU, sched_limit, false),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
     DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
+    DEFINE_PROP_STRING("cmdline", HexagonCPU, cmdline),
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
                        0xffffffffULL),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
@@ -836,7 +837,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         }
         env->g_sreg = env0->g_sreg;
         env->g_gcycle = env0->g_gcycle;
-        env->cmdline = env0->cmdline;
         env->lib_search_dir = env0->lib_search_dir;
         env->g_pcycle_base = env0->g_pcycle_base;
         env->pmu.g_ctrs_off = env0->pmu.g_ctrs_off;
