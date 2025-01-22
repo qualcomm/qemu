@@ -395,6 +395,16 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     }
     break;
 
+    case SYS_READC:
+    {
+        int c = getchar();
+        if (c == EOF && ferror(stdin)) {
+            arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
+        }
+        arch_set_thread_reg(env, HEX_REG_R00, c);
+    }
+    break;
+
     case SYS_ISERROR:
         arch_set_thread_reg(env, HEX_REG_R00, 0);
         break;
