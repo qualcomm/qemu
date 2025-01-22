@@ -125,8 +125,6 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
 
     switch (what_swi) {
-    case SYS_HEAPINFO:
-    break;
 
     case SYS_GET_CMDLINE:
     {
@@ -973,24 +971,15 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         break;
 
     case SYS_PROF_ON:
-        arch_set_thread_reg(env, HEX_REG_R00, -1);
-        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
-        qemu_log_mask(LOG_UNIMP, "SYS_PROF_ON is bogus on QEMU!\n");
-        break;
     case SYS_PROF_OFF:
-        arch_set_thread_reg(env, HEX_REG_R00, -1);
-        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
-        qemu_log_mask(LOG_UNIMP, "SYS_PROF_OFF bogus on QEMU!\n");
-        break;
     case SYS_PROF_STATSRESET:
-        arch_set_thread_reg(env, HEX_REG_R00, -1);
-        arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
-        qemu_log_mask(LOG_UNIMP, "SYS_PROF_STATSRESET bogus on QEMU!\n");
-        break;
     case SYS_DUMP_PMU_STATS:
+    case SYS_SYSTEM:
+    case SYS_HEAPINFO:
         arch_set_thread_reg(env, HEX_REG_R00, -1);
         arch_set_thread_reg(env, HEX_REG_R01, MapError(ENOSYS));
-        qemu_log_mask(LOG_UNIMP, "PMU stats are bogus on QEMU!\n");
+        qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
+                      what_swi);
         break;
 
     default:
