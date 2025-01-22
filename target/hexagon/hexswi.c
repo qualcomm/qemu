@@ -406,8 +406,12 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
     break;
 
     case SYS_ISERROR:
-        arch_set_thread_reg(env, HEX_REG_R00, 0);
-        break;
+    {
+        int code;
+        DEBUG_MEMORY_READ(swi_info, 4, &code);
+        arch_set_thread_reg(env, HEX_REG_R00, code < 0 ? -1 : 0);
+    }
+    break;
 
     case SYS_ISTTY:
     {
