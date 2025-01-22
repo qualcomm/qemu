@@ -641,12 +641,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
 
     case SYS_READDIR:
     {
-        DIR *dir;
         struct dirent *host_dir_entry = NULL;
-        vaddr_t guest_dir_entry;
         int dir_index = swi_info - DIR_INDEX_OFFSET;
-
-        dir = g_list_nth_data(env->dir_list, dir_index);
+        DIR *dir = g_list_nth_data(env->dir_list, dir_index);
 
         if (dir) {
             errno = 0;
@@ -654,25 +651,24 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
             if (host_dir_entry == NULL) {
                 arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
             }
-        } else
+        } else {
             arch_set_thread_reg(env, HEX_REG_R01, EBADF);
+        }
 
-        guest_dir_entry = arch_get_thread_reg(env, HEX_REG_R02) +
-            sizeof(int32_t);
         if (host_dir_entry) {
-            vaddr_t guest_dir_ptr = guest_dir_entry;
-
+            vaddr_t guest_dir_entry = arch_get_thread_reg(env, HEX_REG_R02);
+            DEBUG_MEMORY_WRITE(guest_dir_entry, 4, host_dir_entry->d_ino);
             for (int i = 0; i < sizeof(host_dir_entry->d_name); i++) {
-                DEBUG_MEMORY_WRITE(guest_dir_ptr + i, 1,
+                DEBUG_MEMORY_WRITE(guest_dir_entry + 4 + i, 1,
                     host_dir_entry->d_name[i]);
                 if (!host_dir_entry->d_name[i]) {
                     break;
                 }
             }
-            arch_set_thread_reg(env, HEX_REG_R00,
-                guest_dir_entry - sizeof(int32_t));
-        } else
+            arch_set_thread_reg(env, HEX_REG_R00, guest_dir_entry);
+        } else {
             arch_set_thread_reg(env, HEX_REG_R00, 0);
+        }
         break;
     }
 
