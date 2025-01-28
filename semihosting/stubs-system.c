@@ -50,6 +50,11 @@ const char *semihosting_get_cmdline(void)
     return NULL;
 }
 
+const char *semihosting_get_usefs(void)
+{
+    return NULL;
+}
+
 void semihosting_arg_fallback(const char *file, const char *cmd)
 {
 }

@@ -38,6 +38,7 @@ SemihostingTarget semihosting_get_target(void);
 const char *semihosting_get_arg(int i);
 int semihosting_get_argc(void);
 const char *semihosting_get_cmdline(void);
+const char *semihosting_get_usefs(void);
 void semihosting_arg_fallback(const char *file, const char *cmd);
 
 /* for vl.c hooks */
