@@ -404,6 +404,23 @@ aarch64_check:
   needs: [aarch64_build]
   extends: .base-check
 
+libqemu_build:
+  variables: {BUILDDIR: $CI_JOB_NAME}
+  script:
+    - |
+      cmake -G'Unix Makefiles' \
+        -B ${BUILDDIR} \
+        -DCMAKE_INSTALL_PREFIX:STRING=$PWD/install_libqemu \
+        -DLIBQEMU_TARGETS:STRING='aarch64;hexagon;xtensa;riscv64;riscv32' \
+        -DCMAKE_BUILD_TYPE:STRING=Release
+      cd ${BUILDDIR}
+      make
+      make install
+  artifacts:
+    when: always
+    paths: [ "install_libqemu",  ]
+    expire_in: 7 days
+
 test_hexagon_perf:
   extends: .test_hexagon_perf
   needs: [hexagon_and_coproc_build]
