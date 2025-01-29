@@ -1304,6 +1304,7 @@ static void xqci_raise_IllegalInstruction(DisasContext *ctx)
 
 #include "xqci/xqci-tcg.c"
 #include "xqci/xqci-tcg-manual.c.inc"
+#include "xqci/xqci-trans-decode.c.inc"
 
 #endif /* TARGET_RISCV32 */
 
