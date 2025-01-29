@@ -105,11 +105,9 @@ static int MapError(int ERR)
 }
 
 
-static int sim_handle_trap_functional(CPUHexagonState *env)
-
+static void sim_handle_trap0(CPUHexagonState *env)
 {
     g_assert(bql_locked());
-
     target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
@@ -970,31 +968,9 @@ static int sim_handle_trap_functional(CPUHexagonState *env)
         break;
 
     default:
-        printf("error: unknown swi call 0x%x\n", what_swi);
-        CPUState *cs = env_cpu(env);
-        cpu_abort(cs, "Hexagon Unsupported swi call 0x%x\n", what_swi);
-        return 0;
-    }
-
-    return 1;
-}
-
-
-static int sim_handle_trap(CPUHexagonState *env)
-
-{
-    g_assert(bql_locked());
-
-    int retval = 0;
-    target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
-
-    retval = sim_handle_trap_functional(env);
-
-    if (!retval) {
         qemu_log_mask(LOG_GUEST_ERROR, "unknown swi request: 0x%x\n", what_swi);
+        cpu_abort(env_cpu(env), "Hexagon Unsupported swi call 0x%x\n", what_swi);
     }
-
-    return retval;
 }
 
 static void set_addresses(CPUHexagonState *env,
@@ -1057,7 +1033,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         if (env->cause_code == 0) {
-            sim_handle_trap(env);
+            sim_handle_trap0(env);
         }
 
         hexagon_ssr_set_cause(env, env->cause_code);
