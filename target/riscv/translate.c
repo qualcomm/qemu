@@ -1325,6 +1325,19 @@ static void xqci_raise_IllegalInstruction(DisasContext *ctx)
     gen_helper_raise_exception(tcg_env, tcg_constant_tl(RISCV_EXCP_ILLEGAL_INST));
 }
 
+static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
+                                          int offset, int length)
+{
+    return 0;
+}
+
+#include "decode-xqci-16.c.inc"
+#include "decode-xqci-32.c.inc"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#include "decode-xqci-48.c.inc"
+#pragma GCC diagnostic pop
+
 #include "xqci/xqci-tcg.c"
 #include "xqci/xqci-tcg-manual.c.inc"
 #include "xqci/xqci-trans-decode.c.inc"
@@ -1335,6 +1348,9 @@ static void xqci_raise_IllegalInstruction(DisasContext *ctx)
 #define MAX_INSN_LEN  8
 
 const RISCVDecoder16 decoder_table_16[] = {
+#ifdef TARGET_RISCV32
+    { has_xqci_p, decode_xqci_16},
+#endif
 };
 
 const RISCVDecoder32 decoder_table_32[] = {
@@ -1343,9 +1359,15 @@ const RISCVDecoder32 decoder_table_32[] = {
     { has_xthead_p, decode_xthead},
     { has_XVentanaCondOps_p, decode_XVentanaCodeOps},
     { has_xlrbr_p, decode_xlrbr},
+#ifdef TARGET_RISCV32
+    { has_xqci_p, decode_xqci_32},
+#endif
 };
 
 const RISCVDecoder48 decoder_table_48[] = {
+#ifdef TARGET_RISCV32
+    { has_xqci_p, decode_xqci_48},
+#endif
 };
 
 const size_t decoder_table_size_16 = ARRAY_SIZE(decoder_table_16);
