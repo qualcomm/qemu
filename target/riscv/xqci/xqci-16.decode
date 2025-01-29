@@ -1,0 +1,40 @@
+%slist_7_3 7:3
+%shamt_2_5 2:5
+%rd_7_3 7:3
+%rs1_7_5 7:5
+%width_minus1_2_5 2:5
+%rd_7_5 7:5
+%imm_2_5 2:5
+%uimm_5_1_10_3_6_1 5:1 10:3 6:1
+%rs1_7_3 7:3
+%rd_2_3 2:3
+{
+  qc_c_syncwf 100100 ... 0000001 slist=%slist_7_3
+  qc_c_bexti 100100 ........ 01 shamt=%shamt_2_5 rd=%rd_7_3
+}
+{
+  qc_c_syncwl 100101 ... 0000001 slist=%slist_7_3
+  qc_c_bseti 100101 ........ 01 shamt=%shamt_2_5 rd=%rd_7_3
+}
+{
+  qc_c_mienter_nest 0001100010010010
+  qc_c_setint 0001 ..... 0001010 rs1=%rs1_7_5
+  qc_c_ei 0001101110010010
+  qc_c_mret 0001100100010010
+  qc_c_clrint 0001 ..... 0001110 rs1=%rs1_7_5
+  qc_c_extu 0001 .......... 10 width_minus1=%width_minus1_2_5 rd=%rd_7_5
+  qc_c_dir 0001 ..... 0000010 rd=%rd_7_5
+  qc_c_eir 0001 ..... 0000110 rs1=%rs1_7_5
+  qc_c_mileaveret 0001101000010010
+  qc_c_mienter 0001100000010010
+  qc_c_di 0001101100010010
+  qc_c_mnret 0001100110010010
+}
+{
+  qc_c_delay 000000000 ..... 10 imm=%imm_2_5
+  qc_c_ptrace 0000000000000010
+}
+qc_c_muliadd 001 ........... 10 uimm=%uimm_5_1_10_3_6_1 rs1=%rs1_7_3 rd=%rd_2_3
+qc_c_mveqz 101011 ... 00 ... 10 rs1=%rs1_7_3 rd=%rd_2_3
+qc_c_sync 100000 ... 0000001 slist=%slist_7_3
+qc_c_syncr 100001 ... 0000001 slist=%slist_7_3
