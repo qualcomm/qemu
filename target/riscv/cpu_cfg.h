@@ -56,6 +56,20 @@ static inline bool has_xsf_p(const RISCVCPUConfig *cfg)
     return cfg->ext_xsfvqmaccdod || cfg->ext_xsfvqmaccqoq;
 }
 
+static inline bool has_xqci_p(const RISCVCPUConfig *cfg)
+{
+    return cfg->ext_xqci || cfg->ext_xqcia ||
+           cfg->ext_xqciac || cfg->ext_xqcibi ||
+           cfg->ext_xqcibm || cfg->ext_xqcicli ||
+           cfg->ext_xqcicm || cfg->ext_xqcics ||
+           cfg->ext_xqcicsr || cfg->ext_xqciint ||
+           cfg->ext_xqciio || cfg->ext_xqcilb ||
+           cfg->ext_xqcili || cfg->ext_xqcilia ||
+           cfg->ext_xqcilo || cfg->ext_xqcilsm ||
+           cfg->ext_xqcisim || cfg->ext_xqcisls ||
+           cfg->ext_xqcisync;
+}
+
 #define MATERIALISE_EXT_PREDICATE(ext) \
     static inline bool has_ ## ext ## _p(const RISCVCPUConfig *cfg) \
     { \
