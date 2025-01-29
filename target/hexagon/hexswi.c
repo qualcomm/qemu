@@ -22,10 +22,25 @@
 #ifndef CONFIG_USER_ONLY
 #include "hex_mmu.h"
 #include "hexswi.h"
+#include "semihosting/common-semi.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY
 
+#define HEX_SYS_EXCEPTION 0x18
+
+static void sim_handle_trap0(CPUHexagonState *env)
+{
+    g_assert(bql_locked());
+    target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
+
+    if (what_swi == HEX_SYS_EXCEPTION) {
+        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
+        exit(arch_get_thread_reg(env, HEX_REG_R02));
+    }
+
+    do_common_semihosting(cs);
+}
 
 static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
                           target_ulong exception_index)
@@ -89,17 +104,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         if (env->cause_code == 0) {
-            qemu_log_mask(LOG_UNIMP,
-                          "trap0 is unhandled, no semihosting available\n");
-
-            /*
-             * Detect the code sequence the standalone runtime uses
-             * to signal the program has finished.
-             * r0 = #0x18; r2 = #0x0; trap0(#0)
-             */
-            if (env->gpr[HEX_REG_R00] == 0x18) {
-                exit(env->gpr[HEX_REG_R02]);
-            }
+            sim_handle_trap0(env);
         }
 
         hexagon_ssr_set_cause(env, env->cause_code);
