@@ -104,20 +104,20 @@ void libqemu_cpu_register_thread(Object *obj)
     cpu->thread_id = qemu_get_thread_id();
 }
 
-void libqemu_cpu_reset(Object *obj)
+void libqemu_cpu_reset(Object *obj, bool reset)
 {
     CPUState *cpu = CPU(obj);
-    if (cpu_is_stopped(cpu)) {
+    if (reset) {
+        cpu_pause(cpu);
         cpu_reset(cpu);
     } else {
-        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-  /*
-   * Seems some tcg's (hexagon) need a harder reset?
-   */
-        if (!cpu->kvm_fd) {
-            cpu_reset(cpu);
-        }
+        cpu_resume(cpu);
     }
+}
+
+void libqemu_system_reset(void)
+{
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
 }
 
 static void libqemu_cpu_unhalted_async_job(struct CPUState *cpu_,
