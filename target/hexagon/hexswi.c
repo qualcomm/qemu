@@ -96,7 +96,8 @@
 
 #define BUFSIZE 2048
 
-static const int DIR_INDEX_OFFSET = 0x0b000;
+/* We start from 1 as 0 is used to signal an error from opendir() */
+static const int DIR_INDEX_OFFSET = 1;
 
 static int MapError(int ERR)
 {
