@@ -22,6 +22,158 @@
 #error "This file is only used in system emulation"
 #endif
 
+#include "semihosting/common-semi.h"
+
+/* non-arm-compatible semihosting calls */
+#define HEXAGON_SPECIFIC_SWI_FLAGS \
+    DEF_SWI_FLAG(OPEN,             0x01) \
+    DEF_SWI_FLAG(WRITEC,           0x03) \
+    DEF_SWI_FLAG(WRITE0,           0x04) \
+    DEF_SWI_FLAG(ISTTY,            0x09) \
+    DEF_SWI_FLAG(HEAPINFO,         0x16) \
+    DEF_SWI_FLAG(EXCEPTION,        0x18) \
+    DEF_SWI_FLAG(READ_CYCLES,      0x40) \
+    DEF_SWI_FLAG(PROF_ON,          0x41) \
+    DEF_SWI_FLAG(PROF_OFF,         0x42) \
+    DEF_SWI_FLAG(WRITECREG,        0x43) \
+    DEF_SWI_FLAG(READ_TCYCLES,     0x44) \
+    DEF_SWI_FLAG(LOG_EVENT,        0x45) \
+    DEF_SWI_FLAG(REDRAW,           0x46) \
+    DEF_SWI_FLAG(READ_ICOUNT,      0x47) \
+    DEF_SWI_FLAG(PROF_STATSRESET,  0x48) \
+    DEF_SWI_FLAG(DUMP_PMU_STATS,   0x4a) \
+    DEF_SWI_FLAG(READ_PCYCLES,     0x52) \
+    DEF_SWI_FLAG(COREDUMP,         0xCD) \
+    DEF_SWI_FLAG(FTELL,            0x100) \
+    DEF_SWI_FLAG(FSTAT,            0x101) \
+    DEF_SWI_FLAG(STAT,             0x103) \
+    DEF_SWI_FLAG(GETCWD,           0x104) \
+    DEF_SWI_FLAG(ACCESS,           0x105) \
+    DEF_SWI_FLAG(OPENDIR,          0x180) \
+    DEF_SWI_FLAG(CLOSEDIR,         0x181) \
+    DEF_SWI_FLAG(READDIR,          0x182) \
+    DEF_SWI_FLAG(EXEC,             0x185) \
+    DEF_SWI_FLAG(FTRUNC,           0x186)
+
+/*
+ * We use the arm-compatible semihosting routines for these ones, but we do
+ * need some hexagon-specific preprocessing.
+ */
+#define HEX_SYS_WRITE       0x05
+#define HEX_SYS_READ        0x06
+#define HEX_SYS_READC       0x07
+
+#define DEF_SWI_FLAG(name, val) HEX_SYS_ ##name = val,
+enum hex_swi_flag {
+    HEXAGON_SPECIFIC_SWI_FLAGS
+};
+#undef DEF_SWI_FLAG
+
+#define DEF_SWI_FLAG(_, val) case val:
+static inline bool is_hexagon_specific_swi_flag(enum hex_swi_flag what_swi)
+{
+    switch (what_swi) {
+    HEXAGON_SPECIFIC_SWI_FLAGS
+        return true;
+    }
+    return false;
+}
+#undef DEF_SWI_FLAG
+
+static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
+{
+    uint32_t addr, count;
+    uintptr_t retaddr = 0;
+    MMUAccessType access = load ? MMU_DATA_LOAD : MMU_DATA_STORE;
+
+    hexagon_read_memory(env, swi_info + 4, 4, &addr, retaddr);
+    hexagon_read_memory(env, swi_info + 8, 4, &count, retaddr);
+    hexagon_touch_memory(env, addr, count, access);
+}
+
+static void sim_handle_trap0(CPUHexagonState *env)
+{
+    target_ulong what_swi, swi_info;
+    G_GNUC_UNUSED uintptr_t retaddr = 0;
+    CPUState *cs = env_cpu(env);
+
+    g_assert(bql_locked());
+
+    what_swi = arch_get_thread_reg(env, HEX_REG_R00);
+    swi_info = arch_get_thread_reg(env, HEX_REG_R01);
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "sim_handle_trap0: swi=0x%" PRIx32
+                  " info=0x%" PRIx32 " PC=0x%" PRIx32
+                  " thread=%" PRId32 "\n",
+                  (uint32_t)what_swi, (uint32_t)swi_info,
+                  (uint32_t)arch_get_thread_reg(env, HEX_REG_PC),
+                  (uint32_t)env->threadId);
+
+    if (!is_hexagon_specific_swi_flag(what_swi)) {
+        if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
+            what_swi == HEX_SYS_WRITE) {
+            /*
+             * Avoid page faults if the buffer is not in memory yet.
+             * NOTE: Counterintuitive, but a WRITE must be able to LOAD from
+             * the input address. The contents of that buffer will be
+             * directed to the SWI interface.
+             */
+            do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
+        }
+        CPUState *cs = env_cpu(env);
+        /*
+         * ARM-compat semihosting SWI numbers are all <= 0x31.
+         * If R0 holds a value outside that range (e.g. guest code
+         * executing trap0(#0) with an arbitrary R0), treat it as an
+         * unrecognized request rather than forwarding to
+         * do_common_semihosting() which would abort.
+         */
+        if (what_swi > 0x31) {
+            qemu_log_mask(LOG_UNIMP,
+                          "trap0(#0): unrecognized request in r0: "
+                          "0x" TARGET_FMT_lx "\n", what_swi);
+            return;
+        }
+        /*
+         * QuRT uses POSIX-style fd numbers (0=stdin, 1=stdout, 2=stderr)
+         * but ARM-compatible semihosting doesn't pre-populate these in the
+         * guestfd table.  Reserve them on first semihosting call so that
+         * SYS_OPEN allocates from fd 3+ and SYS_WRITE/READ to fd 1/2
+         * reach the host stdio streams via do_common_semihosting.
+         */
+        static bool stdio_guestfds_inited;
+        if (!stdio_guestfds_inited) {
+            stdio_guestfds_inited = true;
+            int fd1 = alloc_guestfd();
+            associate_guestfd(0, STDIN_FILENO);
+            associate_guestfd(fd1, STDOUT_FILENO);
+            int fd2 = alloc_guestfd();
+            associate_guestfd(fd2, STDERR_FILENO);
+        }
+        do_common_semihosting(cs);
+        return;
+    }
+
+    switch (what_swi) {
+
+    case HEX_SYS_EXCEPTION:
+        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
+        exit(arch_get_thread_reg(env, HEX_REG_R02));
+        break;
+
+    /* TODO: implement other hexagon-specific semihosting calls */
+
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "unknown swi request: 0x%" PRIx32 "\n",
+                      (uint32_t)what_swi);
+        cpu_abort(env_cpu(env),
+                  "Hexagon Unsupported swi call 0x%" PRIx32 "\n",
+                  (uint32_t)what_swi);
+    }
+}
+
 static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
                           target_ulong exception_index)
 
@@ -70,10 +222,15 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     BQL_LOCK_GUARD();
 
-    qemu_log_mask(CPU_LOG_INT, "\t%s: event 0x%x:%s, cause 0x%x(%d)\n",
+    qemu_log_mask(CPU_LOG_INT,
+                  "\t%s: event 0x%" PRIx32 ":%s, cause 0x"
+                  TARGET_FMT_lx "(%" PRId32 ") PC=0x"
+                  TARGET_FMT_lx " thread=" TARGET_FMT_ld "\n",
                   __func__, cs->exception_index,
                   event_name[cs->exception_index], env->cause_code,
-                  env->cause_code);
+                  (int32_t)env->cause_code,
+                  arch_get_thread_reg(env, HEX_REG_PC),
+                  env->threadId);
 
     env->llsc_addr = ~0;
 
@@ -87,8 +244,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         if (env->cause_code == 0) {
-            qemu_log_mask(LOG_UNIMP,
-                          "trap0 is unhandled, no semihosting available\n");
+            sim_handle_trap0(env);
         }
 
         hexagon_ssr_set_cause(env, env->cause_code);

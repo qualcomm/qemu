@@ -26,6 +26,7 @@
 #include "system/system.h"
 #include "target/hexagon/internal.h"
 #include "system/reset.h"
+#include "semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
 
@@ -156,12 +157,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     /* Link the L2VIC interface to globalreg */
     if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
-                                  OBJECT(l2vic_dev), errp)) {
+                                  OBJECT(l2vic_dev), &error_fatal)) {
         error_report("Failed to link L2VIC interface to global registers");
         goto out;
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
     /*
      * Finally, realize the CPUs
@@ -219,6 +220,7 @@ static void init_mc(MachineClass *mc)
     mc->no_serial = 1;
     mc->is_default = false;
     mc->max_cpus = 8;
+    qemu_semihosting_enable();
 }
 
 /* ----------------------------------------------------------------- */
