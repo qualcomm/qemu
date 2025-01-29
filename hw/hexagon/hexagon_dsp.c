@@ -148,6 +148,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                 return;
             }
         } else if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+            env->dir_list = NULL;
             return;
         }
 
