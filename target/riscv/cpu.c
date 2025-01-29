@@ -269,6 +269,26 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(xtheadmempair, PRIV_VERSION_1_11_0, ext_xtheadmempair),
     ISA_EXT_DATA_ENTRY(xtheadsync, PRIV_VERSION_1_11_0, ext_xtheadsync),
     ISA_EXT_DATA_ENTRY(xventanacondops, PRIV_VERSION_1_12_0, ext_XVentanaCondOps),
+    ISA_EXT_DATA_ENTRY(xqccmp, PRIV_VERSION_1_12_0, ext_xqccmp),
+    ISA_EXT_DATA_ENTRY(xqci, PRIV_VERSION_1_12_0, ext_xqci),
+    ISA_EXT_DATA_ENTRY(xqcia, PRIV_VERSION_1_12_0, ext_xqcia),
+    ISA_EXT_DATA_ENTRY(xqciac, PRIV_VERSION_1_12_0, ext_xqciac),
+    ISA_EXT_DATA_ENTRY(xqcibi, PRIV_VERSION_1_12_0, ext_xqcibi),
+    ISA_EXT_DATA_ENTRY(xqcibm, PRIV_VERSION_1_12_0, ext_xqcibm),
+    ISA_EXT_DATA_ENTRY(xqcicli, PRIV_VERSION_1_12_0, ext_xqcicli),
+    ISA_EXT_DATA_ENTRY(xqcicm, PRIV_VERSION_1_12_0, ext_xqcicm),
+    ISA_EXT_DATA_ENTRY(xqcics, PRIV_VERSION_1_12_0, ext_xqcics),
+    ISA_EXT_DATA_ENTRY(xqcicsr, PRIV_VERSION_1_12_0, ext_xqcicsr),
+    ISA_EXT_DATA_ENTRY(xqciint, PRIV_VERSION_1_12_0, ext_xqciint),
+    ISA_EXT_DATA_ENTRY(xqciio, PRIV_VERSION_1_12_0, ext_xqciio),
+    ISA_EXT_DATA_ENTRY(xqcilb, PRIV_VERSION_1_12_0, ext_xqcilb),
+    ISA_EXT_DATA_ENTRY(xqcili, PRIV_VERSION_1_12_0, ext_xqcili),
+    ISA_EXT_DATA_ENTRY(xqcilia, PRIV_VERSION_1_12_0, ext_xqcilia),
+    ISA_EXT_DATA_ENTRY(xqcilo, PRIV_VERSION_1_12_0, ext_xqcilo),
+    ISA_EXT_DATA_ENTRY(xqcilsm, PRIV_VERSION_1_12_0, ext_xqcilsm),
+    ISA_EXT_DATA_ENTRY(xqcisim, PRIV_VERSION_1_12_0, ext_xqcisim),
+    ISA_EXT_DATA_ENTRY(xqcisls, PRIV_VERSION_1_12_0, ext_xqcisls),
+    ISA_EXT_DATA_ENTRY(xqcisync, PRIV_VERSION_1_12_0, ext_xqcisync),
 
     { },
 };
@@ -2640,6 +2660,53 @@ static RISCVCPUImpliedExtsRule SSCTR_IMPLIED = {
     },
 };
 
+static RISCVCPUImpliedExtsRule SHA_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_sha),
+    .implied_misa_exts = RVH,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_smstateen),
+        CPU_CFG_OFFSET(ext_ssstateen),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule SSSTATEEN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_ssstateen),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_smstateen),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule XQCI_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_xqci),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_xqcia),
+        CPU_CFG_OFFSET(ext_xqciac),
+        CPU_CFG_OFFSET(ext_xqcibi),
+        CPU_CFG_OFFSET(ext_xqcibm),
+        CPU_CFG_OFFSET(ext_xqcicli),
+        CPU_CFG_OFFSET(ext_xqcicm),
+        CPU_CFG_OFFSET(ext_xqcics),
+        CPU_CFG_OFFSET(ext_xqcicsr),
+        CPU_CFG_OFFSET(ext_xqciint),
+        CPU_CFG_OFFSET(ext_xqciio),
+        CPU_CFG_OFFSET(ext_xqcilb),
+        CPU_CFG_OFFSET(ext_xqcili),
+        CPU_CFG_OFFSET(ext_xqcilia),
+        CPU_CFG_OFFSET(ext_xqcilo),
+        CPU_CFG_OFFSET(ext_xqcilsm),
+        CPU_CFG_OFFSET(ext_xqcisim),
+        CPU_CFG_OFFSET(ext_xqcisls),
+        CPU_CFG_OFFSET(ext_xqcisync),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+
 RISCVCPUImpliedExtsRule *riscv_misa_ext_implied_rules[] = {
     &RVA_IMPLIED, &RVD_IMPLIED, &RVF_IMPLIED,
     &RVM_IMPLIED, &RVV_IMPLIED, NULL
@@ -2657,8 +2724,9 @@ RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
     &ZVE64X_IMPLIED, &ZVFBFMIN_IMPLIED, &ZVFBFWMA_IMPLIED,
     &ZVFH_IMPLIED, &ZVFHMIN_IMPLIED, &ZVKN_IMPLIED,
     &ZVKNC_IMPLIED, &ZVKNG_IMPLIED, &ZVKNHB_IMPLIED,
-    &ZVKS_IMPLIED,  &ZVKSC_IMPLIED, &ZVKSG_IMPLIED, &SSCFG_IMPLIED,
-    &SUPM_IMPLIED, &SSPM_IMPLIED, &SMCTR_IMPLIED, &SSCTR_IMPLIED,
+    &ZVKS_IMPLIED,  &ZVKSC_IMPLIED, &ZVKSG_IMPLIED, &SHA_IMPLIED,
+    &SSCFG_IMPLIED, &SUPM_IMPLIED, &SSPM_IMPLIED, &SMCTR_IMPLIED,
+    &SSCTR_IMPLIED, &SSSTATEEN_IMPLIED, &XQCI_IMPLIED,
     NULL
 };
 
