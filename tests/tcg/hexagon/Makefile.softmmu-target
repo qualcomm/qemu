@@ -1,0 +1,89 @@
+##
+##  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+##
+##  SPDX-License-Identifier: GPL-2.0-or-later
+##
+
+# -*- Mode: makefile -*-
+#
+# Hexagon SoftMMU tests - included from tests/tcg/Makefile
+#
+
+HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
+
+# Set search path for all sources
+VPATH 		+= $(HEXAGON_SYSTEM_SRC)
+
+########### Compiler
+#
+# Use the hexagon-unknown-none-elf toolchain which bundles picolibc and
+# crt0-semihost.  Pass --no-default-config so that the .cfg file shipped
+# with the toolchain (which targets hexagon-sim via libh2) is not used;
+# instead we supply the relevant flags explicitly.
+#
+CC = hexagon-unknown-none-elf-clang
+
+########### Picolibc sysroot
+#
+# The clang driver exposes where it installed crt0-semihost.o via
+# -print-file-name.  Stripping the trailing lib/v68/G0/crt0-semihost.o
+# gives us the picolibc sysroot.
+#
+_CRT0 := $(shell $(CC) -print-file-name=crt0-semihost.o)
+PICOLIBC_SYSROOT := $(patsubst %/lib/v68/G0/crt0-semihost.o,%,$(_CRT0))
+PICOLIBC_V73 = $(PICOLIBC_SYSROOT)/lib/v73/G0
+
+########### Compiling options
+CFLAGS = \
+	--no-default-config \
+	-target hexagon-unknown-none-elf \
+	-mcpu=hexagonv73 \
+	-G0 -fno-pic -fno-PIE -ffreestanding -fuse-init-array \
+	-nostdlibinc -isystem $(PICOLIBC_SYSROOT)/include \
+	-O0 -g -Werror
+
+# Linker flags: use ld.lld directly, bypassing the ld.eld wrapper which
+# targets hexagon-sim.  Provide picolibc crt0-semihost.o for startup and
+# our linker script that is compatible with ld.lld.
+LDFLAGS = \
+	--ld-path=hexagon-unknown-none-elf-ld.lld \
+	-nostartfiles -nodefaultlibs \
+	-L$(PICOLIBC_V73) \
+	-Wl,-T,$(HEXAGON_SYSTEM_SRC)/hexagon-standalone.ld \
+	$(PICOLIBC_V73)/crt0-semihost.o \
+	-lc -lm -lsemihost -lclang_rt.builtins
+
+########### QEMU options
+QEMU_BASE_MACHINE=-M V66G_1024 \
+	-cpu v66,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
+QEMU_OPTS+=-display none
+
+QEMU_OPTS+=$(QEMU_BASE_MACHINE) -kernel
+
+TESTS += \
+	standalone_hw \
+	tlb-miss-tlblock \
+	$()
+
+# Build and link the tests
+echo-and-run = echo $(1) && $(1)
+define build_fn
+    @if test "$(3)" = LINK; then extra="$(LDFLAGS)"; else extra=-c; fi && \
+    $(call echo-and-run, $(CC) $(CFLAGS) $(1) -o $(2) $$extra)
+endef
+
+%.o: %.S
+	$(call build_fn,$<,$@)
+%.o: %.c
+	$(call build_fn,$<,$@)
+
+standalone_hw: standalone_hw.o
+	$(call build_fn,$^,$@,LINK)
+
+############# Custom build options
+
+# tlb-miss-tlblock uses its own entry point and memory layout
+tlb-miss-tlblock: tlb-miss-tlblock.o
+	$(CC) $(CFLAGS) $< -o $@ \
+		-nostartfiles -nodefaultlibs \
+		-Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
