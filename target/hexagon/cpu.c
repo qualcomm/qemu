@@ -687,7 +687,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->greg[HEX_GREG_GPMUCNT7] = INVALID_REG_VAL;
 
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->k0_lock_count = 0;
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
+    env->tlb_lock_count = 0;
     env->ss_pending = false;
 
     mmu_reset(env);
