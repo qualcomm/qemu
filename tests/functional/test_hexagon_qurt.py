@@ -2,7 +2,7 @@
 #
 # Copyright(c) 2024-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 #
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
 import re
