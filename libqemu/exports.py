@@ -395,3 +395,8 @@ PublicInclude('libqemu/wrappers/target/riscv.h')
 ExportedFct('cpu_riscv_register_mip_update_callback', 'void',
         [ 'LibQemuRiscvMipUpdateCallbackFn', 'void *' ],
         priv = 'libqemu_cpu_riscv_register_mip_update_callback', arch = 'riscv')
+
+# Hexagon specific exports
+PrivateInclude('libqemu/wrappers/target/hexagon.h', arch = 'hexagon')
+ExportedFct('cpu_hexagon_register_reset', 'void', [ 'Object *' ],
+        priv = 'libqemu_cpu_hexagon_register_reset', arch = 'hexagon')
