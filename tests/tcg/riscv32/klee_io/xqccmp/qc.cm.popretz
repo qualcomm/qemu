@@ -1,0 +1,111 @@
+- variables:
+  - name: "rlist"
+    in: 4
+  - name: "spimm"
+    in: 0
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 0
+    jump_pc_offset: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 10252
+    value: 305419896
+    size: 32
+- variables:
+  - name: "rlist"
+    in: 15
+  - name: "spimm"
+    in: 0
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 0
+    jump_pc_offset: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 10252
+    value: 3970458648
+    size: 32
+  - address: 10256
+    value: 3665038752
+    size: 32
+  - address: 10260
+    value: 3359618856
+    size: 32
+  - address: 10264
+    value: 3054198960
+    size: 32
+  - address: 10268
+    value: 2748779064
+    size: 32
+  - address: 10272
+    value: 2443359168
+    size: 32
+  - address: 10276
+    value: 2137939272
+    size: 32
+  - address: 10280
+    value: 1832519376
+    size: 32
+  - address: 10284
+    value: 1527099480
+    size: 32
+  - address: 10288
+    value: 1221679584
+    size: 32
+  - address: 10292
+    value: 916259688
+    size: 32
+  - address: 10296
+    value: 610839792
+    size: 32
+  - address: 10300
+    value: 305419896
+    size: 32
+- variables:
+  - name: "rlist"
+    in: 14
+  - name: "spimm"
+    in: 0
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 0
+    jump_pc_offset: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 10244
+    value: 3359618856
+    size: 32
+  - address: 10248
+    value: 3054198960
+    size: 32
+  - address: 10252
+    value: 2748779064
+    size: 32
+  - address: 10256
+    value: 2443359168
+    size: 32
+  - address: 10260
+    value: 2137939272
+    size: 32
+  - address: 10264
+    value: 1832519376
+    size: 32
+  - address: 10268
+    value: 1527099480
+    size: 32
+  - address: 10272
+    value: 1221679584
+    size: 32
+  - address: 10276
+    value: 916259688
+    size: 32
+  - address: 10280
+    value: 610839792
+    size: 32
+  - address: 10284
+    value: 305419896
+    size: 32

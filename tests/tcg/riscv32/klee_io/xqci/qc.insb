@@ -1,0 +1,36 @@
+- variables:
+  - name: "width_minus1"
+    in: 31
+  - name: "shamt"
+    in: 0
+  - name: "rs1"
+    in: 0
+  - name: "rd"
+    in: 255
+    out: 0
+  overflow: 1
+  underflow: 1
+- variables:
+  - name: "width_minus1"
+    in: 1
+  - name: "shamt"
+    in: 1
+  - name: "rs1"
+    in: 2147483648
+  - name: "rd"
+    in: 255
+    out: 249
+  overflow: 1
+  underflow: 0
+- variables:
+  - name: "width_minus1"
+    in: 1
+  - name: "shamt"
+    in: 31
+  - name: "rs1"
+    in: 2147483648
+  - name: "rd"
+    in: 255
+    out: 255
+  overflow: 1
+  underflow: 0
