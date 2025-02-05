@@ -15,11 +15,10 @@ HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
 VPATH 		+= $(HEXAGON_SYSTEM_SRC)
 
 ########### Compiling options
-CC=hexagon-unknown-linux-musl-clang
 # We force -O0 to avoid optimizations that would break the
 # libc simplifications we made at min_libc.c
 #
-CFLAGS=-mv73 -G0 -nodefaultlibs -nostdlib -static -fno-PIC -O0 -g -Werror
+CFLAGS=-mv73 -U__linux__ -G0 -nodefaultlibs -nostdlib -static -fno-PIC -O0 -g -Werror
 LDFLAGS=-lclang_rt.builtins-hexagon
 
 ########### QEMU options
