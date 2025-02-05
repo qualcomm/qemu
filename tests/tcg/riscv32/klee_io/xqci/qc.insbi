@@ -1,0 +1,48 @@
+- variables:
+  - name: "width_minus1"
+    in: 31
+  - name: "shamt"
+    in: 0
+  - name: "imm"
+    in: 0
+  - name: "rd"
+    in: 255
+    out: 0
+  overflow: 1
+  underflow: 1
+- variables:
+  - name: "width_minus1"
+    in: 17
+  - name: "shamt"
+    in: 7
+  - name: "imm"
+    in: 16
+  - name: "rd"
+    in: 255
+    out: 33552511
+  overflow: 1
+  underflow: 0
+- variables:
+  - name: "width_minus1"
+    in: 0
+  - name: "shamt"
+    in: 0
+  - name: "imm"
+    in: 0
+  - name: "rd"
+    in: 255
+    out: 254
+  overflow: 0
+  underflow: 0
+- variables:
+  - name: "width_minus1"
+    in: 10
+  - name: "shamt"
+    in: 30
+  - name: "imm"
+    in: 16
+  - name: "rd"
+    in: 255
+    out: 255
+  overflow: 1
+  underflow: 0

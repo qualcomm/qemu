@@ -1,0 +1,45 @@
+- variables:
+  - name: "offset"
+    in: 0
+  - name: "imm"
+    in: 17
+  - name: "rs1"
+    in: 16
+  overflow: 0
+  underflow: 0
+- variables:
+  - name: "offset"
+    in: 8
+  - name: "imm"
+    in: 31
+  - name: "rs1"
+    in: 16711680
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 1
+    jump_pc_offset: 8
+- variables:
+  - name: "offset"
+    in: 8188
+  - name: "imm"
+    in: 31
+  - name: "rs1"
+    in: 16711680
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 1
+    jump_pc_offset: 4294967292
+- variables:
+  - name: "offset"
+    in: 0
+  - name: "imm"
+    in: 31
+  - name: "rs1"
+    in: 16711680
+  overflow: 0
+  underflow: 0
+  has_jump:
+    valid_test_jump: 0
+    jump_pc_offset: 0
