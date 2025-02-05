@@ -1,0 +1,145 @@
+SRC=$(SRC_PATH)/tests/tcg/riscv32
+
+XQCI_KLEE_IO_DIR=$(SRC)/klee_io/xqci
+XQCI_OUT_ASM_DIR=xqci-asm-tests
+XQCI_OUT_C_DIR=xqci-c-tests
+XQCI_OUT_C_CODE_DIR:=$(XQCI_OUT_C_DIR)/code
+XQCI_OUT_C_BIN_DIR:=$(XQCI_OUT_C_DIR)/bin
+XQCI_INST_DIR=$(SRC)/Xqci
+
+XQCCMP_KLEE_IO_DIR=$(SRC)/klee_io/xqccmp
+XQCCMP_OUT_ASM_DIR=xqccmp-asm-tests
+XQCCMP_OUT_C_DIR=xqccmp-c-tests
+XQCCMP_OUT_C_CODE_DIR:=$(XQCCMP_OUT_C_DIR)/code
+XQCCMP_OUT_C_BIN_DIR:=$(XQCCMP_OUT_C_DIR)/bin
+XQCCMP_INST_DIR=$(SRC)/Xqccmp
+
+CFLAGS=-fuse-ld=qcld -T $(SRC)/mem-test-page.ld --target=riscv32-unknown-linux-gnu -nostdlib -static -menable-experimental-extensions
+
+QEMU_FLAGS=-cpu qc_iu
+QEMU_EXE=
+QEMU=./qemu-riscv32
+
+#QEMU_FLAGS=-cpu rv32,zcd=false,d=false,zcb=true,zcmp=false,zilsd=true,zclsd=true,f=false,zfa=false,xqci=true,smrnmi=true,xqccmp=true,pmp=false -machine virt -display none -semihosting
+#QEMU_EXE=-device loader,file=
+#QEMU=./qemu-system-riscv32
+
+# These tests are a bit annoying to run in a makefile since any given input yaml file
+# in $(KLEE_IO_DIR)/* can generate multiple tests
+
+.PHONY: build-xqci-asm-tests
+build-xqci-asm-tests:
+	mkdir -p $(XQCI_OUT_ASM_DIR)
+	@for in_io in $(XQCI_KLEE_IO_DIR)/*; do \
+		instname=$$(basename $$in_io); \
+		echo "Building tests for" $$instname; \
+		python $(SRC)/assemble.py --inst-dir $(XQCI_INST_DIR) --inst-name $$instname --io-file $$in_io --out $(XQCI_OUT_ASM_DIR)/$$instname; \
+	done
+	chmod +x $(XQCI_OUT_ASM_DIR)/*
+
+.PHONY: run-xqci-asm-tests
+run-xqci-asm-tests: $(XQCI_OUT_ASM_DIR)/*
+	@for exe in $(XQCI_OUT_ASM_DIR)/*; do \
+		out=$$(timeout 5s $(QEMU) $(QEMU_FLAGS) $(QEMU_EXE)$$exe); \
+		err=$$?; \
+		if [ $$err -eq 0 ]; then \
+			echo "PASS" $$exe; \
+		else \
+			echo "FAIL ($${err}) $${exe}"; \
+		fi; \
+	done
+
+.PHONY: build-xqccmp-asm-tests
+build-xqccmp-asm-tests:
+	mkdir -p $(XQCCMP_OUT_ASM_DIR)
+	@for in_io in $(XQCCMP_KLEE_IO_DIR)/*; do \
+		instname=$$(basename $$in_io); \
+		echo "Building tests for" $$instname; \
+		python $(SRC)/assemble.py --inst-dir $(XQCCMP_INST_DIR) --inst-name $$instname --io-file $$in_io --out $(XQCCMP_OUT_ASM_DIR)/$$instname; \
+	done
+	chmod +x $(XQCCMP_OUT_ASM_DIR)/*
+
+.PHONY: run-xqccmp-asm-tests
+run-xqccmp-asm-tests: $(XQCCMP_OUT_ASM_DIR)/*
+	@for exe in $(XQCCMP_OUT_ASM_DIR)/*; do \
+		out=$$(timeout 5s $(QEMU) $(QEMU_FLAGS) $(QEMU_EXE)$$exe); \
+		err=$$?; \
+		if [ $$err -eq 0 ]; then \
+			echo "PASS" $$exe; \
+		else \
+			echo "FAIL ($${err}) $${exe}"; \
+		fi; \
+	done
+
+.PHONY: build-xqci-c-tests-dir
+build-xqci-c-tests-dir:
+	mkdir -p $(XQCI_OUT_C_DIR)
+	mkdir -p $(XQCI_OUT_C_CODE_DIR)
+	mkdir -p $(XQCI_OUT_C_BIN_DIR)
+
+.PHONY: build-xqccmp-c-tests-dir
+build-xqccmp-c-tests-dir:
+	mkdir -p $(XQCCMP_OUT_C_DIR)
+	mkdir -p $(XQCCMP_OUT_C_CODE_DIR)
+	mkdir -p $(XQCCMP_OUT_C_BIN_DIR)
+
+.PHONY: build-xqci-c-tests-code
+build-xqci-c-tests-code: build-xqci-c-tests-dir
+	@for in_io in $(XQCI_KLEE_IO_DIR)/*; do \
+		instname=$$(basename $$in_io); \
+		echo "Generating C code for" $$instname; \
+		python $(SRC)/c.py --inst-dir $(XQCI_INST_DIR) --inst-name $$instname --io-file $$in_io --out $(XQCI_OUT_C_CODE_DIR)/$$instname.c; \
+	done
+
+.PHONY: build-xqci-c-tests
+build-xqci-c-tests: build-xqci-c-tests-code
+	@for file in $(XQCI_OUT_C_CODE_DIR)/*; do \
+		instname=$$(basename $$file); \
+		echo "Building test for" $$instname; \
+		$(CC) $(CFLAGS) -march=rv32imc_xqci -o $(XQCI_OUT_C_BIN_DIR)/$$instname $$file; \
+	done
+
+.PHONY: run-xqci-c-tests
+run-xqci-c-tests: $(XQCI_OUT_C_BIN_DIR)/*
+	@for exe in $(XQCI_OUT_C_BIN_DIR)/*; do \
+		out=$$(timeout 5s $(QEMU) $(QEMU_FLAGS) $(QEMU_EXE)$$exe); \
+		err=$$?; \
+		if [ $$err -eq 0 ]; then \
+			echo "PASS" $$exe; \
+		else \
+			echo "FAIL ($${err}) $${exe}"; \
+		fi; \
+	done
+
+
+
+
+
+
+.PHONY: build-xqccmp-c-tests-code
+build-xqccmp-c-tests-code: build-xqccmp-c-tests-dir
+	@for in_io in $(XQCCMP_KLEE_IO_DIR)/*; do \
+		instname=$$(basename $$in_io); \
+		echo "Generating C code for" $$instname; \
+		python $(SRC)/c.py --inst-dir $(XQCCMP_INST_DIR) --inst-name $$instname --io-file $$in_io --out $(XQCCMP_OUT_C_CODE_DIR)/$$instname.c; \
+	done
+
+.PHONY: build-xqccmp-c-tests
+build-xqccmp-c-tests: build-xqccmp-c-tests-code
+	@for file in $(XQCCMP_OUT_C_CODE_DIR)/*; do \
+		instname=$$(basename $$file); \
+		echo "Building test for" $$instname; \
+		$(CC) $(CFLAGS) -march=rv32imc_xqccmp0p3 -o $(XQCCMP_OUT_C_BIN_DIR)/$$instname $$file; \
+	done
+
+.PHONY: run-xqccmp-c-tests
+run-xqccmp-c-tests: $(XQCCMP_OUT_C_BIN_DIR)/*
+	@for exe in $(XQCCMP_OUT_C_BIN_DIR)/*; do \
+		out=$$(timeout 5s $(QEMU) $(QEMU_FLAGS) $(QEMU_EXE)$$exe); \
+		err=$$?; \
+		if [ $$err -eq 0 ]; then \
+			echo "PASS" $$exe; \
+		else \
+			echo "FAIL ($${err}) $${exe}"; \
+		fi; \
+	done

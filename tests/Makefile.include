@@ -1,5 +1,9 @@
 # -*- Mode: makefile -*-
 
+# Temporary hardcode of riscv32 makefile, since we don't have a
+# container
+include $(SRC_PATH)/tests/tcg/riscv32/Makefile.target
+
 .PHONY: check-help
 check-help:
 	@echo "Regression testing targets:"

@@ -1,0 +1,20 @@
+- variables:
+  - name: "rs1"
+    in: 3
+  - name: "rs2"
+    in: 198
+  - name: "rd"
+    in: 4278190080
+    out: 192
+  overflow: 0
+  underflow: 0
+- variables:
+  - name: "rs1"
+    in: 4278190080
+  - name: "rs2"
+    in: 255
+  - name: "rd"
+    in: 4278190080
+    out: 4294967295
+  overflow: 0
+  underflow: 0
