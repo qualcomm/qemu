@@ -1,0 +1,75 @@
+- variables:
+  - name: "imm"
+    in: 4095
+  - name: "rs1"
+    in: 4294965248
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 2047
+    value: 0
+    size: 0
+- variables:
+  - name: "imm"
+    in: 0
+  - name: "rs1"
+    in: 0
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 0
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 0
+    value: 0
+    size: 0
+- variables:
+  - name: "imm"
+    in: 16797987
+  - name: "rs1"
+    in: 4278178365
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 9056
+    value: 305419896
+    size: 32
+- variables:
+  - name: "imm"
+    in: 8191
+  - name: "rs1"
+    in: 4100
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 0
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 12291
+    value: 0
+    size: 0
+- variables:
+  - name: "imm"
+    in: 33554688
+  - name: "rs1"
+    in: 33563136
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 0
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 8960
+    value: 305419896
+    size: 32
