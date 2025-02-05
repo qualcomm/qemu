@@ -428,19 +428,29 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+    memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
+    memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
+    memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
+    memset(env->QRegs, 0, sizeof(MMQReg) * NUM_QREGS);
+    memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
+    env->t_cycle_count = 0;
+    env->vtcm_pending = false;
 
-    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
-    hexagon_cpu_soft_reset(env);
-    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
-    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+    clear_wait_mode(env);
+
+    arch_set_system_reg(env, HEX_SREG_VWCTRL, DEFAULT_VWCTRL_VAL);
+
     env->threadId = cs->cpu_index;
+    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
+    env->ss_pending = false;
     env->next_PC = 0;
     env->wait_next_pc = 0;
-    env->cause_code = HEX_EVENT_NONE;
+
+    hexagon_cpu_soft_reset(env);
     arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
 #endif
     env->cause_code = HEX_EVENT_NONE;
