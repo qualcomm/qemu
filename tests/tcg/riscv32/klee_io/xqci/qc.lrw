@@ -1,0 +1,136 @@
+- variables:
+  - name: "shamt"
+    in: 0
+  - name: "rs1"
+    in: 0
+  - name: "rs2"
+    in: 255
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 0
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 255
+    value: 0
+    size: 0
+- variables:
+  - name: "shamt"
+    in: 2
+  - name: "rs1"
+    in: 4294967292
+  - name: "rs2"
+    in: 255
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 1016
+    value: 0
+    size: 0
+- variables:
+  - name: "shamt"
+    in: 3
+  - name: "rs1"
+    in: 472
+  - name: "rs2"
+    in: 2147483648
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 472
+    value: 0
+    size: 0
+- variables:
+  - name: "shamt"
+    in: 3
+  - name: "rs1"
+    in: 3832
+  - name: "rs2"
+    in: 255
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 0
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 5872
+    value: 305419896
+    size: 32
+- variables:
+  - name: "shamt"
+    in: 2
+  - name: "rs1"
+    in: 2147352057
+  - name: "rs2"
+    in: 2153909792
+  - name: "rd"
+    in: 0
+    out: 0
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 0
+  has_load:
+  - address: 2173056633
+    value: 0
+    size: 0
+- variables:
+  - name: "shamt"
+    in: 6
+  - name: "rs1"
+    in: 1621830528
+  - name: "rs2"
+    in: 41767936
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 11136
+    value: 305419896
+    size: 32
+- variables:
+  - name: "shamt"
+    in: 1
+  - name: "rs1"
+    in: 7160
+  - name: "rs2"
+    in: 2147484161
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 8186
+    value: 305419896
+    size: 32
+- variables:
+  - name: "shamt"
+    in: 7
+  - name: "rs1"
+    in: 4294962944
+  - name: "rs2"
+    in: 2147483776
+  - name: "rd"
+    in: 0
+    out: 305419896
+  overflow: 1
+  underflow: 0
+  has_valid_test_memop: 1
+  has_load:
+  - address: 12032
+    value: 305419896
+    size: 32
