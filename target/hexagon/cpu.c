@@ -30,6 +30,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "cpu_helper.h"
 #include "hex_mmu.h"
+#include "hw/hexagon/hexagon.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "macros.h"
@@ -42,6 +43,19 @@
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #endif
+
+static uint32_t hexagon_version_to_rev(HexagonVersion ver)
+{
+    switch (ver) {
+    case HEX_VER_V66: return v66_rev;
+    case HEX_VER_V67: return v67_rev;
+    case HEX_VER_V68: return v68_rev;
+    case HEX_VER_V69: return v69_rev;
+    case HEX_VER_V71: return v71_rev;
+    case HEX_VER_V73: return v73_rev;
+    default: return unknown_rev;
+    }
+}
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
@@ -69,6 +83,7 @@ static const Property hexagon_cpu_properties[] = {
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
 #endif
+    DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
@@ -458,6 +473,14 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 #endif
+
+    if (mcc->hex_def) {
+        HexagonCPU *cpu_dev = HEXAGON_CPU(cs);
+        if (!cpu_dev->rev_reg) {
+            cpu_dev->rev_reg =
+                hexagon_version_to_rev(mcc->hex_def->hex_version);
+        }
+    }
 
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
