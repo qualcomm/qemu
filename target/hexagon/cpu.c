@@ -600,6 +600,17 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     env->t_cycle_count = 0;
 
+    memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
+    memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
+    memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
+    for (int i = 0; i < NUM_VREGS; i++) {
+        env->VRegs[i].ud_ext[0] = V_EXTENDED_DWORDVAL;
+        env->VRegs[i].ud_ext[1] = V_EXTENDED_DWORDVAL;
+        env->VRegs[i].ud_ext[2] = V_EXTENDED_DWORDVAL;
+        env->VRegs[i].ud_ext[3] = V_EXTENDED_DWORDVAL;
+    }
+    memset(env->QRegs, 0, sizeof(MMQReg) * NUM_QREGS);
+    env->memop_pc.set = false;
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     clear_wait_mode(env);
@@ -648,19 +659,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         arch_set_system_reg(env, HEX_SREG_IPENDAD, INVALID_REG_VAL);
     }
 
-    memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
-    memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
-    memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
-    for (int i = 0; i < NUM_VREGS; i++) {
-        env->VRegs[i].ud_ext[0] = V_EXTENDED_DWORDVAL;
-        env->VRegs[i].ud_ext[1] = V_EXTENDED_DWORDVAL;
-        env->VRegs[i].ud_ext[2] = V_EXTENDED_DWORDVAL;
-        env->VRegs[i].ud_ext[3] = V_EXTENDED_DWORDVAL;
-    }
-    memset(env->QRegs, 0, sizeof(MMQReg) * NUM_QREGS);
     memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
     env->t_cycle_count = 0;
-    env->memop_pc.set = false;
     env->vtcm_pending = false;
 
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
