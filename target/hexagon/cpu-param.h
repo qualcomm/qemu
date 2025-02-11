@@ -26,7 +26,6 @@
 #else
 #define TARGET_PAGE_BITS 12     /* 4K pages */
 #endif
-#define TARGET_LONG_BITS 32
 
 /*
  * Hexagon processors have a strong memory model.
