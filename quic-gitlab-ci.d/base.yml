@@ -526,6 +526,7 @@ mac_test_hexagon_perf:
   tags:
     - mac
   variables:
+    # TODO: see note on test_hexagon_perf above
     INSPECTOR: none
     QEMU_USER_BIN_DIR: none
     QEMU_BIN_DIR: hexagon-mac_build
@@ -544,8 +545,6 @@ test_hexagon_perf_ml:
             PERF_TEST_ITERS="3";
         fi
   script:
-    - echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl ;
-      perf stat /bin/true
     - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
@@ -556,7 +555,7 @@ test_hexagon_perf_ml:
           --output-file ./perf-results-hex_nn.json
           --test-cfg ${PERF_TEST_CFG}
           --iters ${PERF_TEST_ITERS}
-          --inspector none
+          --inspector ${INSPECTOR}
           --sys-args="-accel tcg,thread=multi"
   artifacts:
     when: always
