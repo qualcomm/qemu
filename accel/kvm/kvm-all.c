@@ -435,8 +435,14 @@ static int do_kvm_destroy_vcpu(CPUState *cpu)
     if (ret < 0) {
         goto err;
     }
-
-    kvm_state->coalesced_mmio_ring = NULL;
+#ifdef CONFIG_LIBQEMU
+/*
+ * kvm_flush_coalesced_mmio_buffer explicity checks for this to
+ * be non-null.  Since kvm_init_vcpu sets this as an offset to
+ * the mapped cpu->kvm_run it must be reset to NULL after we unmap it.
+ */
+    s->coalesced_mmio_ring = NULL;
+#endif
 
     if (cpu->kvm_dirty_gfns) {
         ret = munmap(cpu->kvm_dirty_gfns, s->kvm_dirty_ring_bytes);
