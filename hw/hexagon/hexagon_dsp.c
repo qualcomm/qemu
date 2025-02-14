@@ -349,7 +349,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             g_string_append(argv, machine->kernel_cmdline);
             qdev_prop_set_string(DEVICE(cpu), "cmdline", argv->str);
             g_string_free(argv, true);
-            env->dir_list = NULL;
         } else {
             if (cpu_0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu_0->usefs);

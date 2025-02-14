@@ -420,7 +420,7 @@ typedef struct CPUArchState {
     int32_t tlb_lock_count;
     uint16_t nmi_threads;
     uint32_t last_cpu;
-    GList *dir_list;
+    GList **g_dir_list;
     uint32_t exe_arch;
     gchar *lib_search_dir;
     PMUState pmu;

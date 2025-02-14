@@ -618,8 +618,8 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
         dir = opendir(buf);
         if (dir != NULL) {
-            env->dir_list = g_list_append(env->dir_list, dir);
-            dir_index = g_list_index(env->dir_list, dir) + DIR_INDEX_OFFSET;
+            *env->g_dir_list = g_list_append(*env->g_dir_list, dir);
+            dir_index = g_list_index(*env->g_dir_list, dir) + DIR_INDEX_OFFSET;
         } else
             arch_set_thread_reg(env, HEX_REG_R01, MapError(errno));
 
@@ -631,7 +631,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         struct dirent *host_dir_entry = NULL;
         int dir_index = swi_info - DIR_INDEX_OFFSET;
-        DIR *dir = g_list_nth_data(env->dir_list, dir_index);
+        DIR *dir = g_list_nth_data(*env->g_dir_list, dir_index);
 
         if (dir) {
             errno = 0;
@@ -666,7 +666,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         int ret = 0;
         int dir_index = swi_info - DIR_INDEX_OFFSET;
 
-        dir = g_list_nth_data(env->dir_list, dir_index);
+        dir = g_list_nth_data(*env->g_dir_list, dir_index);
         if (dir != NULL) {
             ret = closedir(dir);
             if (ret != 0) {
