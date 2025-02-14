@@ -790,6 +790,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
+        env->g_dir_list = g_malloc0(sizeof(GList *));
 
         if (cpu->num_coproc_instance) {
 #if !defined(_WIN32)
@@ -824,6 +825,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->g_sreg = env0->g_sreg;
         env->g_gcycle = env0->g_gcycle;
         env->cmdline = env0->cmdline;
+        env->g_dir_list = env0->g_dir_list;
         env->lib_search_dir = env0->lib_search_dir;
         env->g_pcycle_base = env0->g_pcycle_base;
         env->pmu.g_ctrs_off = env0->pmu.g_ctrs_off;
