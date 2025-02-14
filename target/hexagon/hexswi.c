@@ -664,8 +664,9 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         DIR *dir;
         int ret = 0;
+        int dir_index = swi_info - DIR_INDEX_OFFSET;
 
-        dir = g_list_nth_data(env->dir_list, swi_info);
+        dir = g_list_nth_data(env->dir_list, dir_index);
         if (dir != NULL) {
             ret = closedir(dir);
             if (ret != 0) {
