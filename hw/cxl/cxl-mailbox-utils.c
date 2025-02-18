@@ -86,6 +86,7 @@ enum {
         #define GET_LOG       0x1
         #define GET_LOG_CAPABILITIES   0x2
         #define CLEAR_LOG     0x3
+        #define POPULATE_LOG  0x4
     FEATURES    = 0x05,
         #define GET_SUPPORTED 0x0
         #define GET_FEATURE   0x1
@@ -1284,6 +1285,30 @@ static CXLRetCode cmd_logs_clear_log(const struct cxl_cmd *cmd,
         return CXL_MBOX_UNSUPPORTED;
     }
     return CXL_MBOX_SUCCESS;
+}
+
+/* CXL r3.2 Section 8.2.10.5.5: Populate log (Opcode 0404h) */
+static CXLRetCode cmd_logs_populate_log(const struct cxl_cmd *cmd,
+                                        uint8_t *payload_in,
+                                        size_t len_in,
+                                        uint8_t *payload_out,
+                                        size_t *len_out,
+                                        CXLCCI *cci)
+{
+    const CXLLogCapabilities *cap;
+    struct {
+        QemuUUID uuid;
+    } QEMU_PACKED QEMU_ALIGNED(8) * populate_log = (void *)payload_in;
+
+    cap = find_log_index(&populate_log->uuid, cci);
+    if (!cap) {
+        return CXL_MBOX_INVALID_LOG;
+    }
+
+    if (!(cap->param_flags & CXL_LOG_CAP_POPULATE_SUPPORTED)) {
+        return CXL_MBOX_UNSUPPORTED;
+    }
+    return CXL_MBOX_UNSUPPORTED;
 }
 
 /* CXL r3.1 section 8.2.9.6: Features */
@@ -4531,6 +4556,9 @@ static const struct cxl_cmd cxl_cmd_set[256][256] = {
                                      cmd_logs_get_log_capabilities, 0x10, 0 },
     [LOGS][CLEAR_LOG] = { "LOGS_CLEAR_LOG", cmd_logs_clear_log, 0x10,
                           CXL_MBOX_IMMEDIATE_LOG_CHANGE},
+    [LOGS][POPULATE_LOG] = { "LOGS_POPULATE_LOG", cmd_logs_populate_log, 0x10,
+                             (CXL_MBOX_IMMEDIATE_LOG_CHANGE |
+                              CXL_MBOX_BACKGROUND_OPERATION)},
     [FEATURES][GET_SUPPORTED] = { "FEATURES_GET_SUPPORTED",
                                   cmd_features_get_supported, 0x8, 0 },
     [FEATURES][GET_FEATURE] = { "FEATURES_GET_FEATURE",
