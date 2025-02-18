@@ -85,6 +85,7 @@ enum {
         #define GET_SUPPORTED 0x0
         #define GET_LOG       0x1
         #define GET_LOG_CAPABILITIES   0x2
+        #define CLEAR_LOG     0x3
     FEATURES    = 0x05,
         #define GET_SUPPORTED 0x0
         #define GET_FEATURE   0x1
@@ -1258,6 +1259,30 @@ static CXLRetCode cmd_logs_get_log_capabilities(const struct cxl_cmd *cmd,
     memcpy(get_log_capabilities_out, &cap->param_flags,
            sizeof(cap->param_flags));
     *len_out = sizeof(*get_log_capabilities_out);
+    return CXL_MBOX_SUCCESS;
+}
+
+/* CXL r3.2 Section 8.2.10.5.4: Clear Log (Opcode 0403h) */
+static CXLRetCode cmd_logs_clear_log(const struct cxl_cmd *cmd,
+                                     uint8_t *payload_in,
+                                     size_t len_in,
+                                     uint8_t *payload_out,
+                                     size_t *len_out,
+                                     CXLCCI *cci)
+{
+    const CXLLogCapabilities *cap;
+    struct {
+        QemuUUID uuid;
+    } QEMU_PACKED QEMU_ALIGNED(8) * clear_log = (void *)payload_in;
+
+    cap = find_log_index(&clear_log->uuid, cci);
+    if (!cap) {
+        return CXL_MBOX_INVALID_LOG;
+    }
+
+    if (!(cap->param_flags & CXL_LOG_CAP_CLEAR_SUPPORTED)) {
+        return CXL_MBOX_UNSUPPORTED;
+    }
     return CXL_MBOX_SUCCESS;
 }
 
@@ -4504,6 +4529,8 @@ static const struct cxl_cmd cxl_cmd_set[256][256] = {
     [LOGS][GET_LOG] = { "LOGS_GET_LOG", cmd_logs_get_log, 0x18, 0 },
     [LOGS][GET_LOG_CAPABILITIES] = { "LOGS_GET_LOG_CAPABILITIES",
                                      cmd_logs_get_log_capabilities, 0x10, 0 },
+    [LOGS][CLEAR_LOG] = { "LOGS_CLEAR_LOG", cmd_logs_clear_log, 0x10,
+                          CXL_MBOX_IMMEDIATE_LOG_CHANGE},
     [FEATURES][GET_SUPPORTED] = { "FEATURES_GET_SUPPORTED",
                                   cmd_features_get_supported, 0x8, 0 },
     [FEATURES][GET_FEATURE] = { "FEATURES_GET_FEATURE",
