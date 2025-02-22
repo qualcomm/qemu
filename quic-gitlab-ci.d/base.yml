@@ -540,6 +540,9 @@ test_hexagon_perf_ml:
   needs: [hexagon_and_coproc_build]
   tags:
      - performance-hardware
+  variables:
+    # TODO: see note on test_hexagon_perf above
+    INSPECTOR: none
   # We'll execute a smaller subset of tests, fewer iters for routine
   # commits/MRs.  In a nightly build we can run a comprehensive test.
   before_script:
