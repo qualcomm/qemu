@@ -204,14 +204,18 @@ variables:
     when: on_failure
     paths: [ "*_build" ]
     expire_in: 4 days
-  # FIXME: For now, only aus-qemu-lab-2 can run `make check` in the
+  # FIXME: For now, only hosts with a new enough libseccomp2 (2.5.x+) so that it
+  # supports `close_range` system call is able to run qemu's `make check` in the
   # Ubuntu 22 container due to a bizarre issue with glib and docker:
   #
   # check-qjson: GLib-ERROR **: g_test_trap_subprocess() failed:
   # Failed to close file descriptor for child process (Operation not permitted)
   #
   # More info: https://gist.github.com/nathabonfim59/b088db8752673e1e7acace8806390242
-  tags: [ aus-qemu-lab-2 ]
+  # Yet more info:
+  # * https://github.com/moby/moby/issues/43595#issuecomment-1346939700
+  # * https://github.com/seccomp/libseccomp/pull/322
+  tags: [ new-libseccomp ]
 
 .base-functional-test:
   extends: .after-build
