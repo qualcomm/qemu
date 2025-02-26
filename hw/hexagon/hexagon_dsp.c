@@ -423,7 +423,6 @@ static void init_mc(MachineClass *mc)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_serial = 1;
-    mc->no_sdcard = 1;
     mc->is_default = false;
     mc->max_cpus = THREADS_MAX;
 }
