@@ -60,7 +60,7 @@
 
 #define fNOTQ(VAL) \
     ({ \
-        MMQReg _ret;  \
+        MMQReg _ret = {0};  \
         int _i_;  \
         for (_i_ = 0; _i_ < fVECSIZE() / 64; _i_++) { \
             _ret.ud[_i_] = ~VAL.ud[_i_]; \
