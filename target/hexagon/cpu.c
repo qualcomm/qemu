@@ -831,14 +831,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
             coproc(&args);
         }
     } else {
-        CPUState *cpu0_s = NULL;
-        CPUHexagonState *env0 = NULL;
-        CPU_FOREACH (cpu0_s) {
-            assert(cpu0_s->cpu_index == 0);
-            env0 = &(HEXAGON_CPU(cpu0_s)->env);
-
-            break;
-        }
+        CPUState *cpu0 = qemu_get_cpu(0);
+        CPUHexagonState *env0 = cpu_env(cpu0);
         env->g_sreg = env0->g_sreg;
         env->g_gcycle = env0->g_gcycle;
         env->g_dir_list = env0->g_dir_list;
