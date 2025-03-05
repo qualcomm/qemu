@@ -290,7 +290,7 @@ static uint64_t load_kernel(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
     uint64_t entry = 0;
-    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, NULL, &entry,
+    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, &entry, NULL,
                          NULL, NULL, 0, EM_HEXAGON, 0, 0, &address_space_memory,
                          false, NULL) > 0) {
         return entry;
