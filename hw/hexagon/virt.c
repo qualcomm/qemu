@@ -279,8 +279,6 @@ void hexagon_load_fdt(const HexagonVirtMachineState *vms)
     uint32_t fdtsize = vms->fdt_size;
 
     /* copy in the device tree */
-    qemu_fdt_dumpdtb(ms->fdt, fdtsize);
-
     rom_add_blob_fixed_as("fdt", ms->fdt, fdtsize, fdt_addr,
                           &address_space_memory);
     qemu_register_reset_nosnapshotload(
