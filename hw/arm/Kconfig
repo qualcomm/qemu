@@ -2,6 +2,7 @@ config ARM_VIRT
     bool
     default y
     depends on ARM
+    depends on TCG || KVM || HVF
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VFIO_AMD_XGBE
@@ -303,7 +304,7 @@ config ZYNQ
     select PL330
     select SDHCI
     select SSI_M25P80
-    select USB_EHCI_SYSBUS
+    select USB_CHIPIDEA
     select XILINX # UART
     select XILINX_AXI
     select XILINX_SPI
@@ -481,6 +482,19 @@ config NPCM7XX
     select PCA954X
     select USB_OHCI_SYSBUS
 
+config NPCM8XX
+    bool
+    default y
+    depends on TCG && AARCH64
+    select ARM_GIC
+    select SMBUS
+    select PL310  # cache controller
+    select NPCM7XX
+    select SERIAL
+    select SSI
+    select UNIMP
+
+
 config FSL_IMX25
     bool
     default y
@@ -489,6 +503,7 @@ config FSL_IMX25
     select IMX
     select IMX_FEC
     select IMX_I2C
+    select USB_CHIPIDEA
     select WDT_IMX2
     select SDHCI
 
@@ -516,6 +531,7 @@ config FSL_IMX6
     select PL310  # cache controller
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
+    select USB_CHIPIDEA
     select OR_IRQ
 
 config ASPEED_SOC
@@ -576,6 +592,31 @@ config FSL_IMX7
     select SDHCI
     select OR_IRQ
     select UNIMP
+    select USB_CHIPIDEA
+
+config FSL_IMX8MP
+    bool
+    imply I2C_DEVICES
+    imply PCI_DEVICES
+    select ARM_GIC
+    select FSL_IMX8MP_ANALOG
+    select FSL_IMX8MP_CCM
+    select IMX
+    select IMX_FEC
+    select IMX_I2C
+    select OR_IRQ
+    select PCI_EXPRESS_DESIGNWARE
+    select PCI_EXPRESS_FSL_IMX8M_PHY
+    select SDHCI
+    select UNIMP
+    select USB_DWC3
+    select WDT_IMX2
+
+config FSL_IMX8MP_EVK
+    bool
+    default y
+    depends on TCG && AARCH64
+    select FSL_IMX8MP
 
 config ARM_SMMUV3
     bool
@@ -591,6 +632,7 @@ config FSL_IMX6UL
     select IMX_I2C
     select WDT_IMX2
     select SDHCI
+    select USB_CHIPIDEA
     select UNIMP
 
 config MICROBIT

@@ -2,32 +2,30 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
     os::raw::{c_int, c_void},
+    ptr::{addr_of, addr_of_mut, NonNull},
 };
 
 use qemu_api::{
     bindings::{
-        error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_new,
-        qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
-        qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq, sysbus_mmio_map,
-        sysbus_realize_and_unref, CharBackend, Chardev, Clock, ClockEvent, MemoryRegion,
-        QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+        qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
+        qemu_chr_fe_write_all, CharBackend, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
     },
-    c_str, impl_vmstate_forward,
-    irq::InterruptSource,
+    chardev::Chardev,
+    impl_vmstate_forward,
+    irq::{IRQState, InterruptSource},
+    memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property},
-    qom::{ClassInitImpl, ObjectImpl, ParentField},
-    sysbus::{SysBusDevice, SysBusDeviceClass},
+    qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
+    qom::{ObjectImpl, Owned, ParentField},
+    sysbus::{SysBusDevice, SysBusDeviceImpl},
     vmstate::VMStateDescription,
 };
 
 use crate::{
     device_class,
-    memory_ops::PL011_OPS,
     registers::{self, Interrupt},
     RegisterOffset,
 };
@@ -50,11 +48,6 @@ impl std::ops::Index<hwaddr> for DeviceId {
     fn index(&self, idx: hwaddr) -> &Self::Output {
         &self.0[idx as usize]
     }
-}
-
-impl DeviceId {
-    const ARM: Self = Self(&[0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1]);
-    const LUMINARY: Self = Self(&[0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1]);
 }
 
 // FIFOs use 32-bit indices instead of usize, for compatibility with
@@ -131,7 +124,7 @@ pub struct PL011State {
     #[doc(alias = "irq")]
     pub interrupts: [InterruptSource; IRQMASK.len()],
     #[doc(alias = "clk")]
-    pub clock: NonNull<Clock>,
+    pub clock: Owned<Clock>,
     #[doc(alias = "migrate_clk")]
     pub migrate_clock: bool,
 }
@@ -145,16 +138,24 @@ pub struct PL011Class {
     device_id: DeviceId,
 }
 
+trait PL011Impl: SysBusDeviceImpl + IsA<PL011State> {
+    const DEVICE_ID: DeviceId;
+}
+
+impl PL011Class {
+    fn class_init<T: PL011Impl>(&mut self) {
+        self.device_id = T::DEVICE_ID;
+        self.parent_class.class_init::<T>();
+    }
+}
+
 unsafe impl ObjectType for PL011State {
     type Class = PL011Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
 }
 
-impl ClassInitImpl<PL011Class> for PL011State {
-    fn class_init(klass: &mut PL011Class) {
-        klass.device_id = DeviceId::ARM;
-        <Self as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut klass.parent_class);
-    }
+impl PL011Impl for PL011State {
+    const DEVICE_ID: DeviceId = DeviceId(&[0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1]);
 }
 
 impl ObjectImpl for PL011State {
@@ -162,6 +163,7 @@ impl ObjectImpl for PL011State {
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
     const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
+    const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
 
 impl DeviceImpl for PL011State {
@@ -172,8 +174,13 @@ impl DeviceImpl for PL011State {
         Some(&device_class::VMSTATE_PL011)
     }
     const REALIZE: Option<fn(&Self)> = Some(Self::realize);
-    const RESET: Option<fn(&Self)> = Some(Self::reset);
 }
+
+impl ResettablePhasesImpl for PL011State {
+    const HOLD: Option<fn(&Self, ResetType)> = Some(Self::reset_hold);
+}
+
+impl SysBusDeviceImpl for PL011State {}
 
 impl PL011Registers {
     pub(self) fn read(&mut self, offset: RegisterOffset) -> (bool, u32) {
@@ -485,43 +492,39 @@ impl PL011State {
     /// location/instance. All its fields are expected to hold unitialized
     /// values with the sole exception of `parent_obj`.
     unsafe fn init(&mut self) {
-        const CLK_NAME: &CStr = c_str!("clk");
+        static PL011_OPS: MemoryRegionOps<PL011State> = MemoryRegionOpsBuilder::<PL011State>::new()
+            .read(&PL011State::read)
+            .write(&PL011State::write)
+            .native_endian()
+            .impl_sizes(4, 4)
+            .build();
 
         // SAFETY:
         //
         // self and self.iomem are guaranteed to be valid at this point since callers
         // must make sure the `self` reference is valid.
-        unsafe {
-            memory_region_init_io(
-                addr_of_mut!(self.iomem),
-                addr_of_mut!(*self).cast::<Object>(),
-                &PL011_OPS,
-                addr_of_mut!(*self).cast::<c_void>(),
-                Self::TYPE_NAME.as_ptr(),
-                0x1000,
-            );
-        }
+        MemoryRegion::init_io(
+            unsafe { &mut *addr_of_mut!(self.iomem) },
+            addr_of_mut!(*self),
+            &PL011_OPS,
+            "pl011",
+            0x1000,
+        );
 
         self.regs = Default::default();
 
         // SAFETY:
         //
-        // self.clock is not initialized at this point; but since `NonNull<_>` is Copy,
-        // we can overwrite the undefined value without side effects. This is
-        // safe since all PL011State instances are created by QOM code which
-        // calls this function to initialize the fields; therefore no code is
-        // able to access an invalid self.clock value.
-        unsafe {
-            let dev: &mut DeviceState = self.upcast_mut();
-            self.clock = NonNull::new(qdev_init_clock_in(
-                dev,
-                CLK_NAME.as_ptr(),
-                None, /* pl011_clock_update */
-                addr_of_mut!(*self).cast::<c_void>(),
-                ClockEvent::ClockUpdate.0,
-            ))
-            .unwrap();
-        }
+        // self.clock is not initialized at this point; but since `Owned<_>` is
+        // not Drop, we can overwrite the undefined value without side effects;
+        // it's not sound but, because for all PL011State instances are created
+        // by QOM code which calls this function to initialize the fields, at
+        // leastno code is able to access an invalid self.clock value.
+        self.clock = self.init_clock_in("clk", &Self::clock_update, ClockEvent::ClockUpdate);
+    }
+
+    const fn clock_update(&self, _event: ClockEvent) {
+        /* pl011_trace_baudrate_change(s); */
     }
 
     fn post_init(&self) {
@@ -531,7 +534,7 @@ impl PL011State {
         }
     }
 
-    pub fn read(&mut self, offset: hwaddr, _size: u32) -> u64 {
+    pub fn read(&self, offset: hwaddr, _size: u32) -> u64 {
         match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
@@ -546,7 +549,7 @@ impl PL011State {
                 if update_irq {
                     self.update();
                     unsafe {
-                        qemu_chr_fe_accept_input(&mut self.char_backend);
+                        qemu_chr_fe_accept_input(addr_of!(self.char_backend) as *mut _);
                     }
                 }
                 result.into()
@@ -554,7 +557,7 @@ impl PL011State {
         }
     }
 
-    pub fn write(&mut self, offset: hwaddr, value: u64) {
+    pub fn write(&self, offset: hwaddr, value: u64, _size: u32) {
         let mut update_irq = false;
         if let Ok(field) = RegisterOffset::try_from(offset) {
             // qemu_chr_fe_write_all() calls into the can_receive
@@ -567,14 +570,15 @@ impl PL011State {
                 // XXX this blocks entire thread. Rewrite to use
                 // qemu_chr_fe_write and background I/O callbacks
                 unsafe {
-                    qemu_chr_fe_write_all(&mut self.char_backend, &ch, 1);
+                    qemu_chr_fe_write_all(addr_of!(self.char_backend) as *mut _, &ch, 1);
                 }
             }
 
-            update_irq = self
-                .regs
-                .borrow_mut()
-                .write(field, value as u32, &mut self.char_backend);
+            update_irq = self.regs.borrow_mut().write(
+                field,
+                value as u32,
+                addr_of!(self.char_backend) as *mut _,
+            );
         } else {
             eprintln!("write bad offset {offset} value {value}");
         }
@@ -631,7 +635,7 @@ impl PL011State {
         }
     }
 
-    pub fn reset(&self) {
+    pub fn reset_hold(&self, _type: ResetType) {
         self.regs.borrow_mut().reset();
     }
 
@@ -698,23 +702,27 @@ pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
 
 /// # Safety
 ///
-/// We expect the FFI user of this function to pass a valid pointer for `chr`.
+/// We expect the FFI user of this function to pass a valid pointer for `chr`
+/// and `irq`.
 #[no_mangle]
 pub unsafe extern "C" fn pl011_create(
     addr: u64,
-    irq: qemu_irq,
+    irq: *mut IRQState,
     chr: *mut Chardev,
 ) -> *mut DeviceState {
-    unsafe {
-        let dev: *mut DeviceState = qdev_new(PL011State::TYPE_NAME.as_ptr());
-        let sysbus: *mut SysBusDevice = dev.cast::<SysBusDevice>();
+    // SAFETY: The callers promise that they have owned references.
+    // They do not gift them to pl011_create, so use `Owned::from`.
+    let irq = unsafe { Owned::<IRQState>::from(&*irq) };
+    let chr = unsafe { Owned::<Chardev>::from(&*chr) };
 
-        qdev_prop_set_chr(dev, c_str!("chardev").as_ptr(), chr);
-        sysbus_realize_and_unref(sysbus, addr_of_mut!(error_fatal));
-        sysbus_mmio_map(sysbus, 0, addr);
-        sysbus_connect_irq(sysbus, 0, irq);
-        dev
-    }
+    let dev = PL011State::new();
+    dev.prop_set_chr("chardev", &chr);
+    dev.sysbus_realize();
+    dev.mmio_map(0, addr);
+    dev.connect_irq(0, &irq);
+
+    // The pointer is kept alive by the QOM tree; drop the owned ref
+    dev.as_mut_ptr()
 }
 
 #[repr(C)]
@@ -722,13 +730,6 @@ pub unsafe extern "C" fn pl011_create(
 /// PL011 Luminary device model.
 pub struct PL011Luminary {
     parent_obj: ParentField<PL011State>,
-}
-
-impl ClassInitImpl<PL011Class> for PL011Luminary {
-    fn class_init(klass: &mut PL011Class) {
-        klass.device_id = DeviceId::LUMINARY;
-        <Self as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut klass.parent_class);
-    }
 }
 
 qom_isa!(PL011Luminary : PL011State, SysBusDevice, DeviceState, Object);
@@ -740,6 +741,14 @@ unsafe impl ObjectType for PL011Luminary {
 
 impl ObjectImpl for PL011Luminary {
     type ParentType = PL011State;
+
+    const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
+}
+
+impl PL011Impl for PL011Luminary {
+    const DEVICE_ID: DeviceId = DeviceId(&[0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1]);
 }
 
 impl DeviceImpl for PL011Luminary {}
+impl ResettablePhasesImpl for PL011Luminary {}
+impl SysBusDeviceImpl for PL011Luminary {}

@@ -319,7 +319,6 @@ F: tests/functional/test_ppc_74xx.py
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <alistair.francis@wdc.com>
-M: Bin Meng <bmeng.cn@gmail.com>
 R: Weiwei Li <liwei1518@gmail.com>
 R: Daniel Henrique Barboza <dbarboza@ventanamicro.com>
 R: Liu Zhiwei <zhiwei_liu@linux.alibaba.com>
@@ -820,6 +819,19 @@ F: hw/pci-host/designware.c
 F: include/hw/pci-host/designware.h
 F: docs/system/arm/mcimx7d-sabre.rst
 
+MCIMX8MP-EVK / i.MX8MP
+M: Bernhard Beschow <shentey@gmail.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/imx8mp-evk.c
+F: hw/arm/fsl-imx8mp.c
+F: hw/misc/imx8mp_*.c
+F: hw/pci-host/fsl_imx8m_phy.c
+F: include/hw/arm/fsl-imx8mp.h
+F: include/hw/misc/imx8mp_*.h
+F: include/hw/pci-host/fsl_imx8m_phy.h
+F: docs/system/arm/imx8mp-evk.rst
+
 MPS2 / MPS3
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
@@ -878,6 +890,7 @@ F: include/hw/*/npcm*
 F: tests/qtest/npcm*
 F: tests/qtest/adm1266-test.c
 F: pc-bios/npcm7xx_bootrom.bin
+F: pc-bios/npcm8xx_bootrom.bin
 F: roms/vbootrom
 F: docs/system/arm/nuvoton.rst
 F: tests/functional/test_arm_quanta_gsj.py
@@ -1604,7 +1617,6 @@ F: include/hw/riscv/opentitan.h
 F: include/hw/*/ibex_*.h
 
 Microchip PolarFire SoC Icicle Kit
-M: Bin Meng <bmeng.cn@gmail.com>
 L: qemu-riscv@nongnu.org
 S: Supported
 F: docs/system/riscv/microchip-icicle-kit.rst
@@ -1631,7 +1643,6 @@ F: include/hw/char/shakti_uart.h
 
 SiFive Machines
 M: Alistair Francis <Alistair.Francis@wdc.com>
-M: Bin Meng <bmeng.cn@gmail.com>
 M: Palmer Dabbelt <palmer@dabbelt.com>
 L: qemu-riscv@nongnu.org
 S: Supported
@@ -2220,12 +2231,16 @@ M: Michael S. Tsirkin <mst@redhat.com>
 R: Stefano Garzarella <sgarzare@redhat.com>
 S: Supported
 F: hw/*/*vhost*
-F: docs/interop/vhost-user.json
-F: docs/interop/vhost-user.rst
+F: docs/interop/vhost-user*
+F: docs/system/devices/vhost-user*
 F: contrib/vhost-user-*/
-F: backends/vhost-user.c
+F: backends/*vhost*
 F: include/system/vhost-user-backend.h
+F: include/hw/virtio/vhost*
+F: include/*/vhost*
 F: subprojects/libvhost-user/
+F: block/export/vhost-user*
+F: util/vhost-user-server.c
 
 vhost-shadow-virtqueue
 R: Eugenio Pérez <eperezma@redhat.com>
@@ -2254,6 +2269,7 @@ F: include/hw/virtio/virtio-balloon.h
 F: system/balloon.c
 F: include/system/balloon.h
 F: tests/qtest/virtio-balloon-test.c
+F: tests/functional/test_virtio_balloon.py
 
 virtio-9p
 M: Christian Schoenebeck <qemu_oss@crudebyte.com>
@@ -2800,6 +2816,20 @@ S: Maintained
 F: hw/misc/ivshmem-flat.c
 F: include/hw/misc/ivshmem-flat.h
 F: docs/system/devices/ivshmem-flat.rst
+
+UEFI variable service
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Maintained
+F: hw/uefi/
+F: include/hw/uefi/
+
+VMapple
+M: Alexander Graf <agraf@csgraf.de>
+M: Phil Dennis-Jordan <phil@philjordan.eu>
+S: Maintained
+F: hw/vmapple/*
+F: include/hw/vmapple/*
+F: docs/system/arm/vmapple.rst
 
 Subsystems
 ----------
@@ -3728,7 +3758,7 @@ S: Orphan
 F: hw/i386/amd_iommu.?
 
 OpenSBI Firmware
-M: Bin Meng <bmeng.cn@gmail.com>
+L: qemu-riscv@nongnu.org
 S: Supported
 F: pc-bios/opensbi-*
 F: .gitlab-ci.d/opensbi.yml

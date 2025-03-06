@@ -2,9 +2,13 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![doc(hidden)]
 //! This module provides macros to check the equality of types and
 //! the type of `struct` fields.  This can be useful to ensure that
 //! types match the expectations of C code.
+//!
+//! Documentation is hidden because it only exposes macros, which
+//! are exported directly from `qemu_api`.
 
 // Based on https://stackoverflow.com/questions/64251852/x/70978292#70978292
 // (stackoverflow answers are released under MIT license).
@@ -86,5 +90,33 @@ macro_rules! assert_field_type {
                 types_must_be_equal::<_, $ti>(v.$i);
             }
         };
+    };
+}
+
+/// Assert that an expression matches a pattern.  This can also be
+/// useful to compare enums that do not implement `Eq`.
+///
+/// # Examples
+///
+/// ```
+/// # use qemu_api::assert_match;
+/// // JoinHandle does not implement `Eq`, therefore the result
+/// // does not either.
+/// let result: Result<std::thread::JoinHandle<()>, u32> = Err(42);
+/// assert_match!(result, Err(42));
+/// ```
+#[macro_export]
+macro_rules! assert_match {
+    ($a:expr, $b:pat) => {
+        assert!(
+            match $a {
+                $b => true,
+                _ => false,
+            },
+            "{} = {:?} does not match {}",
+            stringify!($a),
+            $a,
+            stringify!($b)
+        );
     };
 }

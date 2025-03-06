@@ -3,19 +3,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use std::{
-    ffi::CStr,
-    os::raw::c_void,
+    ffi::{c_void, CStr},
     ptr::{addr_of, addr_of_mut},
 };
 
 use qemu_api::{
-    bindings::*,
+    bindings::{module_call_init, module_init_type, object_new, object_unref, qdev_prop_bool},
     c_str,
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceClass, DeviceImpl, DeviceState, Property},
-    qom::{ClassInitImpl, ObjectImpl, ParentField},
+    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
+    qom::{ObjectImpl, ParentField},
+    sysbus::SysBusDevice,
     vmstate::VMStateDescription,
     zeroable::Zeroable,
 };
@@ -41,6 +41,12 @@ pub struct DummyClass {
     parent_class: <DeviceState as ObjectType>::Class,
 }
 
+impl DummyClass {
+    pub fn class_init<T: DeviceImpl>(self: &mut DummyClass) {
+        self.parent_class.class_init::<T>();
+    }
+}
+
 declare_properties! {
     DUMMY_PROPERTIES,
         define_property!(
@@ -60,7 +66,10 @@ unsafe impl ObjectType for DummyState {
 impl ObjectImpl for DummyState {
     type ParentType = DeviceState;
     const ABSTRACT: bool = false;
+    const CLASS_INIT: fn(&mut DummyClass) = DummyClass::class_init::<Self>;
 }
+
+impl ResettablePhasesImpl for DummyState {}
 
 impl DeviceImpl for DummyState {
     fn properties() -> &'static [Property] {
@@ -68,14 +77,6 @@ impl DeviceImpl for DummyState {
     }
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE)
-    }
-}
-
-// `impl<T> ClassInitImpl<DummyClass> for T` doesn't work since it violates
-// orphan rule.
-impl ClassInitImpl<DummyClass> for DummyState {
-    fn class_init(klass: &mut DummyClass) {
-        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
     }
 }
 
@@ -100,19 +101,15 @@ unsafe impl ObjectType for DummyChildState {
 impl ObjectImpl for DummyChildState {
     type ParentType = DummyState;
     const ABSTRACT: bool = false;
+    const CLASS_INIT: fn(&mut DummyChildClass) = DummyChildClass::class_init::<Self>;
 }
 
+impl ResettablePhasesImpl for DummyChildState {}
 impl DeviceImpl for DummyChildState {}
 
-impl ClassInitImpl<DummyClass> for DummyChildState {
-    fn class_init(klass: &mut DummyClass) {
-        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
-    }
-}
-
-impl ClassInitImpl<DummyChildClass> for DummyChildState {
-    fn class_init(klass: &mut DummyChildClass) {
-        <Self as ClassInitImpl<DummyClass>>::class_init(&mut klass.parent_class);
+impl DummyChildClass {
+    pub fn class_init<T: DeviceImpl>(self: &mut DummyChildClass) {
+        self.parent_class.class_init::<T>();
     }
 }
 
@@ -132,22 +129,26 @@ fn init_qom() {
 /// Create and immediately drop an instance.
 fn test_object_new() {
     init_qom();
-    unsafe {
-        object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
-        object_unref(object_new(DummyChildState::TYPE_NAME.as_ptr()).cast());
-    }
+    drop(DummyState::new());
+    drop(DummyChildState::new());
+}
+
+#[test]
+#[allow(clippy::redundant_clone)]
+/// Create, clone and then drop an instance.
+fn test_clone() {
+    init_qom();
+    let p = DummyState::new();
+    assert_eq!(p.clone().typename(), "dummy");
+    drop(p);
 }
 
 #[test]
 /// Try invoking a method on an object.
 fn test_typename() {
     init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
-    let p_ref: &DummyState = unsafe { &*p };
-    assert_eq!(p_ref.typename(), "dummy");
-    unsafe {
-        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
-    }
+    let p = DummyState::new();
+    assert_eq!(p.typename(), "dummy");
 }
 
 // a note on all "cast" tests: usually, especially for downcasts the desired
@@ -162,24 +163,23 @@ fn test_typename() {
 /// Test casts on shared references.
 fn test_cast() {
     init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+    let p = DummyState::new();
+    let p_ptr: *mut DummyState = p.as_mut_ptr();
+    let p_ref: &mut DummyState = unsafe { &mut *p_ptr };
 
-    let p_ref: &DummyState = unsafe { &*p };
     let obj_ref: &Object = p_ref.upcast();
-    assert_eq!(addr_of!(*obj_ref), p.cast());
+    assert_eq!(addr_of!(*obj_ref), p_ptr.cast());
 
     let sbd_ref: Option<&SysBusDevice> = obj_ref.dynamic_cast();
     assert!(sbd_ref.is_none());
 
     let dev_ref: Option<&DeviceState> = obj_ref.downcast();
-    assert_eq!(addr_of!(*dev_ref.unwrap()), p.cast());
+    assert_eq!(addr_of!(*dev_ref.unwrap()), p_ptr.cast());
 
     // SAFETY: the cast is wrong, but the value is only used for comparison
     unsafe {
         let sbd_ref: &SysBusDevice = obj_ref.unsafe_cast();
-        assert_eq!(addr_of!(*sbd_ref), p.cast());
-
-        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
+        assert_eq!(addr_of!(*sbd_ref), p_ptr.cast());
     }
 }
 

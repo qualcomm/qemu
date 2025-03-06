@@ -139,16 +139,22 @@ anymore.
 Writing Rust code in QEMU
 -------------------------
 
-Right now QEMU includes three crates:
+QEMU includes four crates:
 
 * ``qemu_api`` for bindings to C code and useful functionality
 
 * ``qemu_api_macros`` defines several procedural macros that are useful when
   writing C code
 
-* ``pl011`` (under ``rust/hw/char/pl011``) is the sample device that is being
-  used to further develop ``qemu_api`` and ``qemu_api_macros``.  It is a functional
-  replacement for the ``hw/char/pl011.c`` file.
+* ``pl011`` (under ``rust/hw/char/pl011``) and ``hpet`` (under ``rust/hw/timer/hpet``)
+  are sample devices that demonstrate ``qemu_api`` and ``qemu_api_macros``, and are
+  used to further develop them.  These two crates are functional\ [#issues]_ replacements
+  for the ``hw/char/pl011.c`` and ``hw/timer/hpet.c`` files.
+
+.. [#issues] The ``pl011`` crate is synchronized with ``hw/char/pl011.c``
+   as of commit 02b1f7f61928.  The ``hpet`` crate is synchronized as of
+   commit f32352ff9e.  Both are lacking tracing functionality; ``hpet``
+   is also lacking support for migration.
 
 This section explains how to work with them.
 
@@ -179,12 +185,15 @@ module           status
 ``callbacks``    complete
 ``cell``         stable
 ``c_str``        complete
+``errno``        complete
 ``irq``          complete
+``memory``       stable
 ``module``       complete
 ``offset_of``    stable
 ``qdev``         stable
 ``qom``          stable
 ``sysbus``       stable
+``timer``        stable
 ``vmstate``      proof of concept
 ``zeroable``     stable
 ================ ======================
@@ -193,6 +202,50 @@ module           status
   API stability is not a promise, if anything because the C APIs are not a stable
   interface either.  Also, ``unsafe`` interfaces may be replaced by safe interfaces
   later.
+
+Naming convention
+'''''''''''''''''
+
+C function names usually are prefixed according to the data type that they
+apply to, for example ``timer_mod`` or ``sysbus_connect_irq``.  Furthermore,
+both function and structs sometimes have a ``qemu_`` or ``QEMU`` prefix.
+Generally speaking, these are all removed in the corresponding Rust functions:
+``QEMUTimer`` becomes ``timer::Timer``, ``timer_mod`` becomes ``Timer::modify``,
+``sysbus_connect_irq`` becomes ``SysBusDeviceMethods::connect_irq``.
+
+Sometimes however a name appears multiple times in the QOM class hierarchy,
+and the only difference is in the prefix.  An example is ``qdev_realize`` and
+``sysbus_realize``.  In such cases, whenever a name is not unique in
+the hierarchy, always add the prefix to the classes that are lower in
+the hierarchy; for the top class, decide on a case by case basis.
+
+For example:
+
+========================== =========================================
+``device_cold_reset()``    ``DeviceMethods::cold_reset()``
+``pci_device_reset()``     ``PciDeviceMethods::pci_device_reset()``
+``pci_bridge_reset()``     ``PciBridgeMethods::pci_bridge_reset()``
+========================== =========================================
+
+Here, the name is not exactly the same, but nevertheless ``PciDeviceMethods``
+adds the prefix to avoid confusion, because the functionality of
+``device_cold_reset()`` and ``pci_device_reset()`` is subtly different.
+
+In this case, however, no prefix is needed:
+
+========================== =========================================
+``device_realize()``       ``DeviceMethods::realize()``
+``sysbus_realize()``       ``SysbusDeviceMethods::sysbus_realize()``
+``pci_realize()``          ``PciDeviceMethods::pci_realize()``
+========================== =========================================
+
+Here, the lower classes do not add any functionality, and mostly
+provide extra compile-time checking; the basic *realize* functionality
+is the same for all devices.  Therefore, ``DeviceMethods`` does not
+add the prefix.
+
+Whenever a name is unique in the hierarchy, instead, you should
+always remove the class name prefix.
 
 Common pitfalls
 '''''''''''''''
@@ -247,7 +300,7 @@ to a Rust mutable reference, and use a shared reference instead.  Rust code
 will then have to use QEMU's ``BqlRefCell`` and ``BqlCell`` type, which
 enforce that locking rules for the "Big QEMU Lock" are respected.  These cell
 types are also known to the ``vmstate`` crate, which is able to "look inside"
-them when building an in-memory representation of a ``struct``s layout.
+them when building an in-memory representation of a ``struct``'s layout.
 Note that the same is not true of a ``RefCell`` or ``Mutex``.
 
 In the future, similar cell types might also be provided for ``AioContext``-based
@@ -303,7 +356,7 @@ Writing procedural macros
 '''''''''''''''''''''''''
 
 By conventions, procedural macros are split in two functions, one
-returning ``Result<proc_macro2::TokenStream, MacroError>` with the body of
+returning ``Result<proc_macro2::TokenStream, MacroError>`` with the body of
 the procedural macro, and the second returning ``proc_macro::TokenStream``
 which is the actual procedural macro.  The former's name is the same as
 the latter with the ``_or_error`` suffix.  The code for the latter is more

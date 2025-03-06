@@ -287,6 +287,8 @@ enum loongarch_features {
     LOONGARCH_FEATURE_LASX,
     LOONGARCH_FEATURE_LBT, /* loongson binary translation extension */
     LOONGARCH_FEATURE_PMU,
+    LOONGARCH_FEATURE_PV_IPI,
+    LOONGARCH_FEATURE_STEALTIME,
 };
 
 typedef struct  LoongArchBT {
@@ -310,6 +312,7 @@ typedef struct CPUArchState {
     lbt_t  lbt;
 
     uint32_t cpucfg[21];
+    uint32_t pv_features;
 
     /* LoongArch CSRs */
     uint64_t CSR_CRMD;
@@ -390,6 +393,12 @@ typedef struct CPUArchState {
 #endif
 } CPULoongArchState;
 
+typedef struct LoongArchCPUTopo {
+    int32_t socket_id;  /* socket-id of this VCPU */
+    int32_t core_id;    /* core-id of this VCPU */
+    int32_t thread_id;  /* thread-id of this VCPU */
+} LoongArchCPUTopo;
+
 /**
  * LoongArchCPU:
  * @env: #CPULoongArchState
@@ -406,6 +415,12 @@ struct ArchCPU {
     OnOffAuto pmu;
     OnOffAuto lsx;
     OnOffAuto lasx;
+    OnOffAuto kvm_pv_ipi;
+    OnOffAuto kvm_steal_time;
+    int32_t socket_id;  /* socket-id of this CPU */
+    int32_t core_id;    /* core-id of this CPU */
+    int32_t thread_id;  /* thread-id of this CPU */
+    int32_t node_id;    /* NUMA node of this CPU */
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
@@ -424,6 +439,7 @@ struct LoongArchCPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
 };
 
@@ -490,5 +506,13 @@ static inline void cpu_get_tb_cpu_state(CPULoongArchState *env, vaddr *pc,
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
 void loongarch_cpu_post_init(Object *obj);
+
+#ifdef CONFIG_KVM
+void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu);
+#else
+static inline void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
+{
+}
+#endif
 
 #endif /* LOONGARCH_CPU_H */
