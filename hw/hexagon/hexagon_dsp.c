@@ -314,7 +314,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", machine->smp.cpus);
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_rg0);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_region);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
@@ -398,9 +398,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
 
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0,
-                    0xfab20000);
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
                        qdev_get_gpio_in(dev, QTMR0_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
