@@ -27,8 +27,6 @@
 #define SLOTS_MAX 4
 
 /* #define PROCESSORS_MAX 1 */
-#define REG_WRITES_MAX 32		/*?? */
-#define PRED_WRITES_MAX 5		/* 4 insns + endloop */
 #define STORES_MAX 2
 #define LOADS_MAX 2
 #define MAX_PRED 4
