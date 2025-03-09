@@ -1352,3 +1352,33 @@
 
 #define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)
 #define fGEN_TCG_SA1_setin1(SHORTCODE) tcg_gen_movi_tl(RdV, -1)
+
+/*
+ * DMA stubs: return 0 (idle/done) to prevent firmware from
+ * spinning on dmpoll/dmwait when DMA engine is not modeled.
+ */
+#define fGEN_TCG_Y6_dmpoll(SHORTCODE) \
+    tcg_gen_movi_tl(RdV, 0)
+
+#define fGEN_TCG_Y6_dmwait(SHORTCODE) \
+    tcg_gen_movi_tl(RdV, 0)
+
+#define fGEN_TCG_Y6_dmsyncht(SHORTCODE) \
+    tcg_gen_movi_tl(RdV, 0)
+
+#define fGEN_TCG_Y6_dmtlbsynch(SHORTCODE) \
+    tcg_gen_movi_tl(RdV, 0)
+
+#define fGEN_TCG_Y6_dmcfgrd(SHORTCODE) \
+    do { (void)RsV; tcg_gen_movi_tl(RdV, 0); } while (0)
+
+#define fGEN_TCG_Y6_dmpause(SHORTCODE) \
+    tcg_gen_movi_tl(RdV, 0)
+
+#ifdef CONFIG_USER_ONLY
+#define fGEN_TCG_Y6_dmstart(SHORTCODE) \
+    do { (void)RsV; } while (0)
+#else
+#define fGEN_TCG_Y6_dmstart(SHORTCODE) \
+    gen_helper_dmstart(tcg_env, RsV)
+#endif

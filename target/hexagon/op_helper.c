@@ -25,6 +25,7 @@
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 #include "exec/cpu-interrupt.h"
+#include "exec/target_page.h"
 #include "internal.h"
 #include "macros.h"
 #include "sys_macros.h"
@@ -133,9 +134,36 @@ void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
     mem_gather_store(env, addr, slot);
 }
 
+static void *probe_hvx_contiguous(CPUHexagonState *env, target_ulong addr,
+                                   uint32_t nb, MMUAccessType access_type,
+                                   int mmu_idx, uintptr_t raddr)
+{
+    void *host1, *host2;
+    uint32_t nb_pg1;
+
+    nb_pg1 = -(addr | TARGET_PAGE_MASK);
+    if (likely(nb <= nb_pg1)) {
+        /* The entire operation is on a single page. */
+        return probe_access(env, addr, nb, access_type, mmu_idx, raddr);
+    }
+
+    /* The operation spans two pages. */
+    uint32_t nb_pg2 = nb - nb_pg1;
+    host1 = probe_access(env, addr, nb_pg1, access_type, mmu_idx, raddr);
+    host2 = probe_access(env, addr + nb_pg1, nb_pg2, access_type, mmu_idx,
+                         raddr);
+
+    /* If the two host pages are contiguous, optimize. */
+    if (host2 == (char *)host1 + nb_pg1) {
+        return host1;
+    }
+    return NULL;
+}
+
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     uintptr_t ra = GETPC();
+    int mmu_idx = cpu_mmu_index(env_cpu(env), false);
 
     /* Normal (possibly masked) vector store */
     for (int i = 0; i < VSTORES_MAX; i++) {
@@ -143,9 +171,23 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
             env->vstore_pending[i] = 0;
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
-            for (int j = 0; j < size; j++) {
-                if (test_bit(j, env->vstore[i].mask)) {
-                    cpu_stb_data_ra(env, va + j, env->vstore[i].data.ub[j], ra);
+            uint8_t *host = probe_hvx_contiguous(env, va, size,
+                                                 MMU_DATA_STORE,
+                                                 mmu_idx, ra);
+            if (likely(host)) {
+                /* Fast path: direct host memory access */
+                for (int j = 0; j < size; j++) {
+                    if (test_bit(j, env->vstore[i].mask)) {
+                        *(host + j) = env->vstore[i].data.ub[j];
+                    }
+                }
+            } else {
+                /* Slow path: byte-by-byte through softmmu */
+                for (int j = 0; j < size; j++) {
+                    if (test_bit(j, env->vstore[i].mask)) {
+                        cpu_stb_data_ra(env, va + j,
+                                        env->vstore[i].data.ub[j], ra);
+                    }
                 }
             }
         }
@@ -1774,6 +1816,8 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     /* if read-only are currently set in syscfg keep them set. */
     val |= (old & syscfg_read_only_mask);
 
+    /* GIE transition is logged below for debug but not blocked */
+
     arch_set_system_reg(env, HEX_SREG_SYSCFG, val);
 
     /* Check for change in MMU enable */
@@ -1791,8 +1835,13 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     }
 
     /* See if global interrupts are turned on */
+    if (old_gie != new_gie) {
+        qemu_log_mask(CPU_LOG_INT,
+                      "%s: GIE %d->%d thread=%d PC=0x%x\n",
+                      __func__, old_gie, new_gie,
+                      (int)env->threadId, env->gpr[HEX_REG_PC]);
+    }
     if (!old_gie && new_gie) {
-        qemu_log_mask(CPU_LOG_INT, "%s: global interrupts enabled\n", __func__);
         hex_interrupt_update(env);
     }
 
@@ -2021,6 +2070,44 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
     hex_interrupt_update(env);
+}
+
+/*
+ * DMA start helper: read type0 descriptors at the given VA and perform
+ * memcpy from src to dst for 'length' bytes.  Walk the linked list
+ * of descriptors (via 'next' field) until next==0.
+ * Mark each descriptor as DONE (set bit 31 of word[1]).
+ */
+void HELPER(dmstart)(CPUHexagonState *env, uint32_t desc_va)
+{
+    uint32_t va = desc_va;
+    uint32_t desc[4];
+    uint32_t next, length, src, dst;
+    uint32_t off;
+    int i;
+
+    while (va != 0) {
+        for (i = 0; i < 4; i++) {
+            desc[i] = cpu_ldl_data(env, va + i * 4);
+        }
+
+        next = desc[0];
+        length = desc[1] & 0x00FFFFFF;
+        src = desc[2];
+        dst = desc[3];
+
+        /* Perform the DMA copy */
+        for (off = 0; off < length; off++) {
+            uint8_t byte = cpu_ldub_data(env, src + off);
+            cpu_stb_data(env, dst + off, byte);
+        }
+
+        /* Mark descriptor as DONE (bit 31 of word[1]) */
+        desc[1] |= 0x80000000;
+        cpu_stl_data(env, va + 4, desc[1]);
+
+        va = next;
+    }
 }
 #endif
 
