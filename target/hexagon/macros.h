@@ -688,3 +688,5 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #endif
 
 #define fPREDUSE_TIMING()
+
+#define fUNIMP() qemu_log_mask(LOG_UNIMP, "Unimplemented instruction\n")
