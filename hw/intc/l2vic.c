@@ -18,7 +18,7 @@
 #define L2VICA(s, n) (s[(n) >> 2])
 
 #define TYPE_L2VIC "l2vic"
-#define L2VIC(obj) OBJECT_CHECK(L2VICState, (obj), TYPE_L2VIC)
+OBJECT_DECLARE_SIMPLE_TYPE(L2VICState, L2VIC)
 
 #define SLICE_MAX (L2VIC_INTERRUPT_MAX / 32)
 
