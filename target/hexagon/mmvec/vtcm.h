@@ -20,7 +20,6 @@
 
 #include "../hex_arch_types.h"
 #include <stdint.h>
-#include "../max.h"
 #include "macros_auto.h"
 #include "../arch.h"
 

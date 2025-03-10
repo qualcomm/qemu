@@ -36,7 +36,6 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "hw/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "coproc_rpc.h"
-#include "max.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
