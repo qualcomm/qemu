@@ -1175,7 +1175,6 @@ class GuestDest(GuestRegister, Single, Dest):
         self.gen_check_impl(f, regno)
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = tcg_temp_new();
-            gen_read_greg({self.reg_tcg()}, {self.reg_num});
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
@@ -1201,7 +1200,6 @@ class GuestPairDest(GuestRegister, Pair, Dest):
         self.gen_check_impl(f, regno)
         f.write(code_fmt(f"""\
             TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
-            gen_read_greg_pair({self.reg_tcg()}, {self.reg_num});
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
@@ -1226,7 +1224,6 @@ class SystemDest(Register, Single, Dest):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = tcg_temp_new();
-            gen_read_sreg({self.reg_tcg()}, {self.reg_num});
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
@@ -1250,7 +1247,6 @@ class SystemPairDest(Register, Pair, Dest):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
-            gen_read_sreg_pair({self.reg_tcg()}, {self.reg_num});
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
