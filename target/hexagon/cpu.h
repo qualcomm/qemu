@@ -21,9 +21,9 @@
 #include "fpu/softfloat-types.h"
 
 #define NUM_GREGS 32
-#define GREG_WRITES_MAX 32
+#define GREG_WRITES_MAX 2
 #define NUM_SREGS 64
-#define SREG_WRITES_MAX 64
+#define SREG_WRITES_MAX 2
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
@@ -40,9 +40,8 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
 
-#define SLOTS_MAX 4
 #define STORES_MAX 2
-#define REG_WRITES_MAX 32
+#define REG_WRITES_MAX 12                   /* 4 pairs + endloop(sa[01], lc[01])*/
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
 #define THREADS_MAX 8
