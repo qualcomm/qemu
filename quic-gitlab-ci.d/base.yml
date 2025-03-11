@@ -154,7 +154,7 @@ variables:
       mkdir -p $TARBALLS_PATH
       tar --exclude-vcs -zcf $installdir/$src_tarball_name \
           --exclude $installdir --exclude $TARBALLS_PATH . \
-          --transform "s/\./${CI_PROJECT_NAME}/"
+          --transform "s/^\.\//${CI_PROJECT_NAME}\//"
 
       if test -n "$CUSTOM_INSTALL_SCRIPT"
       then
