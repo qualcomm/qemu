@@ -396,16 +396,12 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     if (cs->cpu_index == 0) {
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
-    }
-    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
-    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
-
-    if (cs->cpu_index == 0) {
         arch_set_system_reg(env, HEX_SREG_REV, cpu->rev_reg);
         arch_set_system_reg(env, HEX_SREG_MODECTL, 0x1);
         *(env->g_pcycle_base) = 0;
     }
-
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
     memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
     memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
