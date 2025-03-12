@@ -30,6 +30,7 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "exec/cputlb.h"
 #include "mmvec/mmvec.h"
 #include "dma/dma.h"
 #include "hw/registerfields.h"

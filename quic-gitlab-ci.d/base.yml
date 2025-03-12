@@ -48,6 +48,7 @@ variables:
 
   HEX_CONFIG_OPTS_WIN: >-
     --qemu-testing-path="wine $$installdir/qemu-system-hexagon.exe"
+    --disable-split-debug
 
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # AArch64

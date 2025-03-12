@@ -27,13 +27,12 @@ from qemu.utils import kvm_available, tcg_available
 
 from .archive import archive_extract
 from .asset import Asset
-from .config import BUILD_DIR
+from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
 
 class QemuBaseTest(unittest.TestCase):
 
-    qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
     arch = None
 
     workdir = None
@@ -184,6 +183,16 @@ class QemuBaseTest(unittest.TestCase):
     def log_file(self, *args):
         return str(Path(self.outputdir, *args))
 
+    '''
+    @params plugin name
+
+    Return the full path to the plugin taking into account any host OS
+    specific suffixes.
+    '''
+    def plugin_file(self, plugin_name):
+        sfx = dso_suffix()
+        return os.path.join('tests', 'tcg', 'plugins', f'{plugin_name}.{sfx}')
+
     def assets_available(self):
         for name, asset in vars(self.__class__).items():
             if name.startswith("ASSET_") and type(asset) == Asset:
@@ -192,7 +201,8 @@ class QemuBaseTest(unittest.TestCase):
                     return False
         return True
 
-    def setUp(self, bin_prefix):
+    def setUp(self):
+        self.qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
         self.socketdir = None
@@ -254,7 +264,7 @@ class QemuBaseTest(unittest.TestCase):
 class QemuUserTest(QemuBaseTest):
 
     def setUp(self):
-        super().setUp('qemu-')
+        super().setUp()
         self._ldpath = []
 
     def add_ldpath(self, ldpath):
@@ -277,7 +287,7 @@ class QemuSystemTest(QemuBaseTest):
     def setUp(self):
         self._vms = {}
 
-        super().setUp('qemu-system-')
+        super().setUp()
 
         console_log = logging.getLogger('console')
         console_log.setLevel(logging.DEBUG)

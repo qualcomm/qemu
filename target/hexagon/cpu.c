@@ -703,6 +703,7 @@ static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     HexagonCPU *hex_cpu = env_archcpu(cpu_env(s));
     info->target_info = (void *)(uintptr_t)hex_cpu->rev_reg;
     info->print_insn = print_insn_hexagon;
+    info->endian = BFD_ENDIAN_LITTLE;
 }
 
 dma_t *dma_adapter_init(processor_t *proc, int dmanum);
@@ -913,7 +914,6 @@ static void hexagon_cpu_init(Object *obj)
 #endif
 }
 
-
 #ifndef CONFIG_USER_ONLY
 
 static bool get_physical_address(CPUHexagonState *env, hwaddr *phys,
@@ -1086,10 +1086,11 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
     .get_phys_page_debug = hexagon_cpu_get_phys_page_debug,
+    .has_work = hexagon_cpu_has_work,
 };
 #endif
 
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 
 #define CHECK_EX 0
 #ifndef CONFIG_USER_ONLY
@@ -1196,9 +1197,6 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
-#if !defined(CONFIG_USER_ONLY)
-    cc->has_work = hexagon_cpu_has_work;
-#endif
     cc->mmu_index = hexagon_cpu_mmu_index;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
