@@ -47,6 +47,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define VSTORES_MAX 2
 #define THREADS_MAX 8
 #define VECTOR_UNIT_MAX 8
+#define MAX_TLB_ENTRIES 1024
 
 #ifndef CONFIG_USER_ONLY
 #define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0

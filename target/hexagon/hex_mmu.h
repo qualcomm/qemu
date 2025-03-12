@@ -7,7 +7,7 @@
 #ifndef HEXAGON_MMU_H
 #define HEXAGON_MMU_H
 
-#include "max.h"
+#include "cpu.h"
 
 struct CPUHexagonTLBContext {
     uint64_t entries[MAX_TLB_ENTRIES];

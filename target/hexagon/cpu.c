@@ -27,7 +27,6 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "cpu_helper.h"
-#include "max.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon.h"
 
