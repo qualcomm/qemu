@@ -424,7 +424,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->k0_lock_count = 0;
     env->next_PC = 0;
     env->wait_next_pc = 0;
-    env->cause_code = -1;
+    env->cause_code = HEX_CAUSE_NONE;
     arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
     arch_set_system_reg(env, HEX_SREG_CFGBASE,
                         HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
