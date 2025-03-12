@@ -67,6 +67,16 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define THREADS_MAX 16
 #define VECTOR_UNIT_MAX 8
 #define PARANOID_VALUE (~0)
+#define MAX_TLB_ENTRIES 1024
+#define MAX_TLB_GUESS_ENTRIES (1024) /* power of 2 */
+
+#define MAX_CORES 4 /* Cores per shared L2 */
+#define MAX_CLUSTERS_DMA 2
+#define MAX_THREADS_PER_CLUSTER 4
+#define THREADS_PER_CORE \
+    (MAX_CLUSTERS_DMA * MAX_THREADS_PER_CLUSTER) /* HW threads in a core */
+#define THREADS_MAX_DMA (MAX_CORES * THREADS_PER_CORE)
+#define DMA_MAX THREADS_MAX_DMA /* DMA: make this independent */
 
 #define VTCM_SIZE              0x40000LL
 #define VTCM_OFFSET            0x200000LL
