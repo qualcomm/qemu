@@ -514,14 +514,13 @@ aarch64_check:
   extends: .base-check
 
 test_hexagon_perf:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   extends: .test_hexagon_perf
   needs: [hexagon_and_coproc_build]
   tags:
     - performance-hardware
   variables:
-    # TODO: re-enabled this once we update the performance node to Ubuntu 22
-    # and install the matching linux-tools- packages on the U22 container
-    INSPECTOR: none
+    INSPECTOR: perf-stat
     QEMU_USER_BIN_DIR: hexagon_build
     QEMU_BIN_DIR: hexagon_build
 
@@ -531,19 +530,18 @@ mac_test_hexagon_perf:
   tags:
     - mac
   variables:
-    # TODO: see note on test_hexagon_perf above
     INSPECTOR: none
     QEMU_USER_BIN_DIR: none
     QEMU_BIN_DIR: hexagon-mac_build
 
 test_hexagon_perf_ml:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   extends: .after-build
   needs: [hexagon_and_coproc_build]
   tags:
      - performance-hardware
   variables:
-    # TODO: see note on test_hexagon_perf above
-    INSPECTOR: none
+    INSPECTOR: perf-stat
   # We'll execute a smaller subset of tests, fewer iters for routine
   # commits/MRs.  In a nightly build we can run a comprehensive test.
   before_script:
