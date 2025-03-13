@@ -422,6 +422,7 @@ libqemu_build:
     expire_in: 7 days
 
 test_hexagon_perf:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   extends: .test_hexagon_perf
   needs: [hexagon_and_coproc_build]
   tags:
@@ -442,10 +443,13 @@ mac_test_hexagon_perf:
     QEMU_BIN_DIR: hexagon-mac_build
 
 test_hexagon_perf_ml:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   extends: .after-build
   needs: [hexagon_and_coproc_build]
   tags:
      - performance-hardware
+  variables:
+    INSPECTOR: perf-stat
   # We'll execute a smaller subset of tests, fewer iters for routine
   # commits/MRs.  In a nightly build we can run a comprehensive test.
   before_script:
