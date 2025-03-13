@@ -141,6 +141,7 @@ bool is_gather_store_insn(DisasContext *ctx);
 static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
 {
     if (rnum <= HEX_GREG_G3) {
+        g_assert(ctx->greg_log_idx < GREG_WRITES_MAX);
         ctx->greg_log[ctx->greg_log_idx] = rnum;
         ctx->greg_log_idx++;
     }
@@ -154,6 +155,7 @@ static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
 
 static inline void ctx_log_sreg_write(DisasContext *ctx, int rnum)
 {
+    g_assert(ctx->sreg_log_idx < SREG_WRITES_MAX);
     ctx->sreg_log[ctx->sreg_log_idx] = rnum;
     ctx->sreg_log_idx++;
 }
@@ -168,6 +170,7 @@ static inline void ctx_log_sreg_write_pair(DisasContext *ctx, int rnum)
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
     if (!test_bit(pnum, ctx->pregs_written)) {
+        g_assert(ctx->preg_log_idx < PRED_WRITES_MAX);
         ctx->preg_log[ctx->preg_log_idx] = pnum;
         ctx->preg_log_idx++;
         set_bit(pnum, ctx->pregs_written);
@@ -195,6 +198,7 @@ static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
         }
     } else {
         if (!test_bit(rnum, ctx->regs_written)) {
+            g_assert(ctx->reg_log_idx < REG_WRITES_MAX);
             ctx->reg_log[ctx->reg_log_idx] = rnum;
             ctx->reg_log_idx++;
             set_bit(rnum, ctx->regs_written);

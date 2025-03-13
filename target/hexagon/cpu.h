@@ -61,7 +61,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 
 #define SLOTS_MAX 4
 #define STORES_MAX 2
-#define REG_WRITES_MAX 12                   /* 4 pairs + endloop(sa[01], lc[01])*/
+#define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
 #define THREADS_MAX 16
