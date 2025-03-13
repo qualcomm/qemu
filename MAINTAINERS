@@ -827,10 +827,12 @@ F: hw/arm/imx8mp-evk.c
 F: hw/arm/fsl-imx8mp.c
 F: hw/misc/imx8mp_*.c
 F: hw/pci-host/fsl_imx8m_phy.c
+F: hw/rtc/rs5c372.c
 F: include/hw/arm/fsl-imx8mp.h
 F: include/hw/misc/imx8mp_*.h
 F: include/hw/pci-host/fsl_imx8m_phy.h
 F: docs/system/arm/imx8mp-evk.rst
+F: tests/qtest/rs5c372-test.c
 
 MPS2 / MPS3
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1407,12 +1409,6 @@ F: hw/openrisc/openrisc_sim.c
 
 PowerPC Machines
 ----------------
-405 (ref405ep)
-L: qemu-ppc@nongnu.org
-S: Orphan
-F: hw/ppc/ppc405*
-F: tests/functional/test_ppc_405.py
-
 Bamboo
 L: qemu-ppc@nongnu.org
 S: Orphan
@@ -1543,6 +1539,7 @@ F: include/hw/ppc/pnv*
 F: include/hw/pci-host/pnv*
 F: include/hw/ssi/pnv_spi*
 F: pc-bios/skiboot.lid
+F: pc-bios/pnv-pnor.bin
 F: tests/qtest/pnv*
 F: tests/functional/test_ppc64_powernv.py
 
@@ -4325,6 +4322,7 @@ S: Orphan
 F: po/*.po
 
 Sphinx documentation configuration and build machinery
+M: John Snow <jsnow@redhat.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: docs/conf.py
