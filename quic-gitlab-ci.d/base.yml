@@ -271,7 +271,7 @@ variables:
       if test "$INSPECTOR" == perf-stat
       then
         echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl
-        perf stat /bin/true
+        perf stat --event instructions:u,cache-misses,cache-references,branch-misses,branches,iTLB-load-misses,iTLB-loads,dTLB-store-misses,dTLB-stores,dTLB-load-misses,dTLB-loads /bin/true
       fi
     - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
