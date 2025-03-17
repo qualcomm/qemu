@@ -101,6 +101,19 @@ typedef struct {
     MMVector data QEMU_ALIGNED(16);
 } VStoreLog;
 
+#define TYPE_GLOBAL_SYSTEM_REGISTERS "global-system-registers"
+OBJECT_DECLARE_SIMPLE_TYPE(GlobalSystemRegisters, GLOBAL_SYSTEM_REGISTERS)
+
+// No new virtual functions: we can reuse the typedef for the
+// superclass.
+typedef DeviceClass GlobalSystemRegisterClass;
+typedef struct GlobalSystemRegisters
+{
+    DeviceState parent_obj;
+    target_ulong reg[64];
+} GlobalSystemRegisters;
+
+
 #define EXEC_STATUS_OK          0x0000
 #define EXEC_STATUS_STOP        0x0002
 #define EXEC_STATUS_REPLAY      0x0010
@@ -132,6 +145,7 @@ typedef struct CPUArchState {
     /* Some system registers are per thread and some are global. */
     target_ulong t_sreg[NUM_SREGS];
     target_ulong *g_sreg;
+    GlobalSystemRegisters *gsr;
 
     target_ulong greg[NUM_GREGS];
     target_ulong wait_next_pc;
@@ -191,6 +205,7 @@ struct ArchCPU {
     uint32_t rev_reg;
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
+    GlobalSystemRegisters *gsr;
     bool short_circuit;
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;

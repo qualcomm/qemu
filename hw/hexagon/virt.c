@@ -20,10 +20,25 @@
 #include "qemu/units.h"
 #include "elf.h"
 #include "machine_cfg_v68n_1024.h.inc"
+#include "qom/object.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "system/system.h"
 #include <libfdt.h>
+
+static const TypeInfo global_system_register_info = {
+    .name = TYPE_GLOBAL_SYSTEM_REGISTERS,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(GlobalSystemRegisters),
+};
+
+static void global_system_registers(void)
+{
+    type_register_static(&global_system_register_info);
+}
+
+type_init(global_system_registers)
+
 
 static const int VIRTIO_DEV_COUNT = 2;
 
@@ -335,9 +350,12 @@ static void virt_init(MachineState *ms)
         cpu_model = HEXAGON_CPU_TYPE_NAME("v73");
     }
 
+    GlobalSystemRegisters *mydev = GLOBAL_SYSTEM_REGISTERS(qdev_new(TYPE_GLOBAL_SYSTEM_REGISTERS));
+
     HexagonCPU *cpu_0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
+        cpu->gsr = GLOBAL_SYSTEM_REGISTERS(OBJECT(mydev));
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
@@ -347,6 +365,8 @@ static void virt_init(MachineState *ms)
 
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
             }
+            cpu->gsr->reg[HEX_SREG_REV] = cpu->rev_reg;
+            cpu->gsr->reg[HEX_SREG_MODECTL] = 1;
         }
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
@@ -361,6 +381,7 @@ static void virt_init(MachineState *ms)
             return;
         }
     }
+
     vms->l2vic = sysbus_create_varargs(
         "l2vic", m_cfg->l2vic_base, qdev_get_gpio_in(DEVICE(cpu_0), 0),
         qdev_get_gpio_in(DEVICE(cpu_0), 1), qdev_get_gpio_in(DEVICE(cpu_0), 2),

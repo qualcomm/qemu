@@ -393,6 +393,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
+    cpu->env.gsr =  GLOBAL_SYSTEM_REGISTERS(OBJECT(cpu->gsr));
+    env->g_sreg = cpu->env.gsr->reg;
 
     if (cs->cpu_index == 0) {
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
@@ -471,13 +473,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     CPUHexagonState *env = cpu_env(cs);
 #ifndef CONFIG_USER_ONLY
     hex_mmu_realize(env);
-    if (cs->cpu_index == 0) {
-        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
-    } else {
-        CPUState *cpu0 = qemu_get_cpu(0);
-        CPUHexagonState *env0 = cpu_env(cpu0);
-        env->g_sreg = env0->g_sreg;
-    }
 #endif
     if (cs->cpu_index == 0) {
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
