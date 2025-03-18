@@ -80,6 +80,11 @@ void cpu_loop(CPUHexagonState *env)
                     env->gpr[HEX_REG_PC]);
 
             break;
+            case HEX_CAUSE_PRIV_USER_NO_GINSN:
+            case HEX_CAUSE_PRIV_USER_NO_SINSN:
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
+                    env->gpr[HEX_REG_PC]);
+            break;
             default:
                 EXCP_DUMP(env, "\nqemu: unhandled CPU precise exception "
                     "cause code 0x%x - aborting\n",
