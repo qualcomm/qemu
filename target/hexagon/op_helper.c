@@ -473,7 +473,7 @@ void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
     hex_clear_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
-static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, int val)
+static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, uint32_t val)
 {
     g_assert((offset == L2VIC_VID_0) || (offset == L2VIC_VID_1));
     CPUState *cs = env_cpu(env);
@@ -484,13 +484,18 @@ static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, int val)
 
 static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
 {
-    /*
-     * currently only l2vic is the only attached it uses vid0, remove
-     * the assert below if anther is added
-     */
     hexagon_set_vid(env, offset, L2VIC_CIAD_INSTRUCTION);
 }
 
+/*
+ * ciad - clear interrupt auto disable
+ *  - When taking an interrupt the hardware will set ipend.iad to
+ *    prevent another thread from servicing the interrupt.  At the completion
+ *    of service software uses ciad to clear the bit indicating the
+ *    interrupt can be accepted again.
+ *  - ciad also handshakes with the l2vic allowing a new vid on the vector
+ *    port.
+ */
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
     uint32_t iad;
