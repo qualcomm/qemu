@@ -57,6 +57,7 @@ if (GS_ENABLE_VIRCLRENDERER)
 endif()
 
 if (GS_ENABLE_VIRQNNRENDERER)
+    message(STATUS "libqemu: enabling virqnnrender")
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virqnnrenderer)
     list(APPEND QEMU_DEPENDENCIES virqnnrenderer qnn_sdk_path)
 endif()
