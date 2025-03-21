@@ -183,8 +183,8 @@ uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
     uint64_t cycles = 0;
     CPUState *cs;
     CPU_FOREACH(cs) {
-        CPUHexagonState *env_ = cpu_env(cs);
-        cycles += env_->t_cycle_count;
+        CPUHexagonState *thread_env = cpu_env(cs);
+        cycles += thread_env->t_cycle_count;
     }
     return *(env->g_pcycle_base) + cycles;
 }
@@ -222,8 +222,8 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 
     CPUState *cs;
     CPU_FOREACH(cs) {
-        CPUHexagonState *env_ = cpu_env(cs);
-        env_->t_cycle_count = 0;
+        CPUHexagonState *thread_env = cpu_env(cs);
+        thread_env->t_cycle_count = 0;
     }
 }
 
@@ -344,17 +344,17 @@ static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
 
     CPUState *cs;
     CPU_FOREACH(cs) {
-        CPUHexagonState *env_ = cpu_env(cs);
-        if (env_ == env) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        if (thread_env == env) {
             continue;
         }
         /* Check if another thread has the XE bit set and same XA */
-        uint32_t ssr_ = arch_get_system_reg(env_, HEX_SREG_SSR);
-        if (GET_SSR_FIELD(SSR_XE2, ssr_) && GET_FIELD(SSR_XA, ssr_) == XA) {
+        uint32_t thread_ssr = arch_get_system_reg(thread_env, HEX_SREG_SSR);
+        if (GET_SSR_FIELD(SSR_XE, thread_ssr) && GET_FIELD(SSR_XA, thread_ssr) == XA) {
             qemu_log_mask(LOG_GUEST_ERROR,
                     "setting SSR.XA '%d' on thread %d but thread"
                     " %d has same extension active\n", XA, env->threadId,
-                    env_->threadId);
+                    thread_env->threadId);
         }
     }
 }
