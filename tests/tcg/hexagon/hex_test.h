@@ -32,6 +32,17 @@ static inline void __check32(int line, uint32_t val, uint32_t expect)
 
 #define check32(RES, EXP) __check32(__LINE__, RES, EXP)
 
+static inline void __check32_range(int line, uint32_t val, uint32_t min, uint32_t max)
+{
+    if (val < min || val > max) {
+        printf("ERROR at line %d: 0x%08"PRIx32" not in [0x%08"PRIx32", 0x%08"PRIx32"]\n",
+               line, val, min, max);
+        err++;
+    }
+}
+
+#define check32_range(RES, EMIN, EMAX) __check32_range(__LINE__, RES, EMIN, EMAX)
+
 static inline void __check64(int line, uint64_t val, uint64_t expect)
 {
     if (val != expect) {
