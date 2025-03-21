@@ -24,6 +24,8 @@
 #
 # @avr: since 5.1
 #
+# @hexagon: since 10.x
+#
 # @loongarch64: since 7.1
 #
 # .. note:: The resulting QMP strings can be appended to the
