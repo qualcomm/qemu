@@ -321,11 +321,8 @@ test_timeouts += {
   'hexagon_minivm': 180,
 }
 
-tests_hexagon_system_quick = [
-  'hexagon_minivm',
-]
-
 tests_hexagon_system_thorough = [
+  'hexagon_minivm',
   'hexagon_sival',
   'hexagon_qurt',
 ]
