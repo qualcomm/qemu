@@ -2287,7 +2287,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
         qemu_log_mask(CPU_LOG_INT,
                       "%s: raising resched int %d, cur PC 0x%08x\n", __func__,
                       int_number, arch_get_thread_reg(env, HEX_REG_PC));
-        SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, 0x1ff);
+        SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, ~0);
         hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
     }
 }
