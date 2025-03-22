@@ -1689,7 +1689,9 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
             return;
         }
     }
-    hex_interrupt_update(env);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "setimask used with an invalid predicate near PC: 0x%x\n",
+                  env->next_PC);
 }
 
 static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
