@@ -5,12 +5,18 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-from glob import glob
+from os.path import join
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 
 class MiniVMTest(QemuSystemTest):
-
+    '''
+    minivm is a Hexagon hypervisor that implements the Hexagon VM
+    specification.  These test cases boot minivm and then load test cases
+    to the address specified by MiniVMTest.GUEST_ENTRY and
+    execute a minvm-guest program to exercise minivm virtualization
+    features.
+    '''
     timeout = 180
     GUEST_ENTRY = 0xc0000000
 
@@ -20,23 +26,33 @@ class MiniVMTest(QemuSystemTest):
                '19.1.5/hexagon_minivm_2024_Dec_15.tar.gz',
         'd7920b5ff14bed5a10b23ada7d4eb927ede08635281f25067e0d5711feee2c2a')
 
-    def test_minivm(self):
+    def test_minivm_mmu(self):
+        self.common_hexagon_minivm('test_mmu')
+
+    def test_minivm_interrupts(self):
+        self.common_hexagon_minivm('test_interrupts')
+
+    def test_minivm_processors(self):
+        self.common_hexagon_minivm('test_processors')
+
+    def common_hexagon_minivm(self, test_case):
+        """
+        Common code to launch a basic machine with minivm and a guest
+        test case.
+        """
         self.set_machine('SA8775P_CDSP0')
         self.archive_extract(self.ASSET_TARBALL)
         rootfs_path = f'{self.workdir}/hexagon-unknown-linux-musl-rootfs'
         kernel_path = f'{rootfs_path}/boot/minivm'
 
         assert(os.path.exists(kernel_path))
-        for test_bin_path in glob(f'{rootfs_path}/boot/test_*'):
-            print(f'# Testing "{os.path.basename(test_bin_path)}"')
-
-            vm = self.get_vm()
-            vm.add_args('-kernel', kernel_path,
-                  '-device',
-                  f'loader,addr={hex(self.GUEST_ENTRY)},file={test_bin_path}')
-            vm.launch()
-            vm.wait()
-            self.assertEqual(vm.exitcode(), 0)
+        test_bin_path = join(f'{rootfs_path}/boot', test_case)
+        vm = self.get_vm()
+        vm.add_args('-kernel', kernel_path, '-device',
+              f'loader,addr={hex(self.GUEST_ENTRY)},file={test_bin_path}')
+        vm.launch()
+        vm.wait()
+        self.assertEqual(vm.exitcode(), 0)
 
 if __name__ == '__main__':
     QemuSystemTest.main()
