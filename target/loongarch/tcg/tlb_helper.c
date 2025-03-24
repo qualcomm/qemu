@@ -19,12 +19,12 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 
-bool check_ps(CPULoongArchState *env, int tlb_ps)
+bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 {
-     if (tlb_ps > 64) {
-         return false;
-     }
-     return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
+    if (tlb_ps >= 64) {
+        return false;
+    }
+    return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
 }
 
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
@@ -543,7 +543,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
                           target_ulong level, uint32_t mem_idx)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong badvaddr, index, phys, ret;
+    target_ulong badvaddr, index, phys;
     uint64_t dir_base, dir_width;
 
     if (unlikely((level == 0) || (level > 4))) {
@@ -571,8 +571,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
-    ret = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
-    return ret;
+    return ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
 }
 
 void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
