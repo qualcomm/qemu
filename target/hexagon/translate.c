@@ -1592,7 +1592,6 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->pmu_hvx_packets = 0;
     ctx->num_coproc_instance = hex_cpu->num_coproc_instance;
 #endif
-    ctx->need_next_pc = false;
 
     ctx->mem_idx = FIELD_EX32(hex_flags, TB_FLAGS, MMU_INDEX);
 
