@@ -92,6 +92,13 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
     hw_display_modules += {'virtio-gpu-cl': virtio_gpu_gl_ss}
   endif
 
+  if vqnn.found() and opengl.found()
+    virtio_gpu_gl_ss = ss.source_set()
+    virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', vqnn, opengl],
+                         if_true: [files('virtio-gpu-qnn.c', 'virtio-gpu-virqnn.c'), pixman, vqnn])
+    hw_display_modules += {'virtio-gpu-qnn': virtio_gpu_gl_ss}
+  endif
+
   if rutabaga.found()
     virtio_gpu_rutabaga_ss = ss.source_set()
     virtio_gpu_rutabaga_ss.add(when: ['CONFIG_VIRTIO_GPU', rutabaga],
@@ -120,6 +127,13 @@ if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
     virtio_gpu_pci_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_PCI', vcl, opengl],
                              if_true: [files('virtio-gpu-pci-cl.c'), pixman])
     hw_display_modules += {'virtio-gpu-pci-cl': virtio_gpu_pci_gl_ss}
+  endif
+
+  if vqnn.found() and opengl.found()
+    virtio_gpu_pci_gl_ss = ss.source_set()
+    virtio_gpu_pci_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_PCI', vqnn, opengl],
+                             if_true: [files('virtio-gpu-pci-qnn.c'), pixman])
+    hw_display_modules += {'virtio-gpu-pci-qnn': virtio_gpu_pci_gl_ss}
   endif
 
   if rutabaga.found()

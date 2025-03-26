@@ -207,6 +207,7 @@ meson_options_help() {
   printf "%s\n" '  vhost-vdpa      vhost-vdpa kernel backend support'
   printf "%s\n" '  virclrenderer   vircl rendering support'
   printf "%s\n" '  virglrenderer   virgl rendering support'
+  printf "%s\n" '  virqnnrenderer  virqnn rendering support'
   printf "%s\n" '  virtfs          virtio-9p support'
   printf "%s\n" '  virtfs-proxy-helper'
   printf "%s\n" '                  virtio-9p proxy helper support'
@@ -537,6 +538,8 @@ _meson_option_parse() {
     --disable-virclrenderer) printf "%s" -Dvirclrenderer=disabled ;;
     --enable-virglrenderer) printf "%s" -Dvirglrenderer=enabled ;;
     --disable-virglrenderer) printf "%s" -Dvirglrenderer=disabled ;;
+    --enable-virqnnrenderer) printf "%s" -Dvirqnnrenderer=enabled ;;
+    --disable-virqnnrenderer) printf "%s" -Dvirqnnrenderer=disabled ;;
     --enable-virtfs) printf "%s" -Dvirtfs=enabled ;;
     --disable-virtfs) printf "%s" -Dvirtfs=disabled ;;
     --enable-virtfs-proxy-helper) printf "%s" -Dvirtfs_proxy_helper=enabled ;;

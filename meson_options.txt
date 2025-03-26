@@ -238,6 +238,8 @@ option('rutabaga_gfx', type : 'feature', value : 'auto',
        description: 'rutabaga_gfx support')
 option('virclrenderer', type : 'feature', value : 'auto',
        description: 'vircl rendering support')
+option('virqnnrenderer', type : 'feature', value : 'auto',
+       description: 'virqnn rendering support')
 option('png', type : 'feature', value : 'auto',
        description: 'PNG support with libpng')
 option('vnc', type : 'feature', value : 'auto',

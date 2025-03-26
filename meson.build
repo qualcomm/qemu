@@ -1318,6 +1318,19 @@ if not get_option('virclrenderer').auto() or have_system or have_vhost_user_gpu
   endif
 endif
 
+vqnn = not_found
+if not get_option('virqnnrenderer').auto() or have_system or have_vhost_user_gpu
+  vqnn = dependency('virqnnrenderer',
+                   fallback: ['virqnnrenderer', 'libvirqnnrenderer_dep'],
+                   default_options: ['vqnn=true'],
+                   required: get_option('virqnnrenderer'),
+                   static: true)
+  if vqnn.found()
+    vqnn = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                             dependencies: vqnn)
+  endif
+endif
+
 rutabaga = not_found
 if not get_option('rutabaga_gfx').auto() or have_system or have_vhost_user_gpu
   rutabaga = dependency('rutabaga_gfx_ffi',

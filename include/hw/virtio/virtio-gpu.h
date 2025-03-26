@@ -38,6 +38,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUGL, VIRTIO_GPU_GL)
 #define TYPE_VIRTIO_GPU_CL "virtio-gpu-cl-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUCL, VIRTIO_GPU_CL)
 
+#define TYPE_VIRTIO_GPU_QNN "virtio-gpu-qnn-device"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUQNN, VIRTIO_GPU_QNN)
+
 #define TYPE_VHOST_USER_GPU "vhost-user-gpu"
 OBJECT_DECLARE_SIMPLE_TYPE(VhostUserGPU, VHOST_USER_GPU)
 
@@ -256,6 +259,15 @@ struct VirtIOGPUCL {
     int capset_ids[VIRTIO_GPU_MAX_CAPSETS];
 };
 
+struct VirtIOGPUQNN {
+    struct VirtIOGPU parent_obj;
+
+    bool renderer_inited;
+    bool renderer_reset;
+
+    int capset_ids[VIRTIO_GPU_MAX_CAPSETS];
+};
+
 struct VhostUserGPU {
     VirtIOGPUBase parent_obj;
 
@@ -382,5 +394,17 @@ int virtio_gpu_vircl_get_num_capsets(VirtIOGPU *g);
 int virtio_gpu_vircl_resource_unmap(VirtIOGPU *g,
                                     struct virtio_gpu_simple_resource *res);
 #endif /* HAVE_VCL_RESOURCE_BLOB */
+
+void virtio_gpu_virqnn_process_cmd(VirtIOGPU *g,
+                                  struct virtio_gpu_ctrl_command *cmd);
+void virtio_gpu_virqnn_fence_poll(VirtIOGPU *g);
+void virtio_gpu_virqnn_reset_scanout(VirtIOGPU *g);
+void virtio_gpu_virqnn_reset(VirtIOGPU *g);
+int virtio_gpu_virqnn_init(VirtIOGPU *g);
+int virtio_gpu_virqnn_get_num_capsets(VirtIOGPU *g);
+#ifdef HAVE_VQNN_RESOURCE_BLOB
+int virtio_gpu_virqnn_resource_unmap(VirtIOGPU *g,
+                                    struct virtio_gpu_simple_resource *res);
+#endif /* HAVE_VQNN_RESOURCE_BLOB */
 
 #endif
