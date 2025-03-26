@@ -61,6 +61,11 @@ void cpu_loop(CPUHexagonState *env)
                 env->gpr[0] = ret;
             }
             break;
+        case HEX_EVENT_TRAP1:
+            EXCP_DUMP(env, "\nqemu: trap1 exception 0x%x - aborting\n",
+                     trapnr);
+            exit(EXIT_FAILURE);
+            break;
         case HEX_EVENT_PRECISE:
             switch (env->cause_code) {
             case HEX_CAUSE_PRIV_USER_NO_GINSN:
