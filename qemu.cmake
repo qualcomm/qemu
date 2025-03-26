@@ -35,6 +35,7 @@ set(QEMU_CONF_ARGS
     --disable-nettle
     --disable-virglrenderer
     --disable-virclrenderer
+    --disable-virqnnrenderer
     --enable-opengl
     --enable-slirp
     --disable-vde
@@ -55,6 +56,11 @@ set(QEMU_CONF_ARGS
 if (GS_ENABLE_VIRCLRENDERER)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virclrenderer)
     list(APPEND QEMU_DEPENDENCIES virclrenderer)
+endif()
+
+if (GS_ENABLE_VIRQNNRENDERER)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virqnnrenderer)
+    list(APPEND QEMU_DEPENDENCIES virqnnrenderer qnn_sdk_path)
 endif()
 
 if (GS_ENABLE_VIRGLRENDERER)
