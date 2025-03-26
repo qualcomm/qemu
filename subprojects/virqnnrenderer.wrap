@@ -1,0 +1,5 @@
+[wrap-git]
+directory = virqnnrenderer
+
+url = https://git.codelinaro.org/clo/vcl/virglrenderer
+revision = virqnnrenderer-0.10.4.1
