@@ -314,6 +314,7 @@ struct virtio_gpu_cmd_submit {
 #define VIRTIO_GPU_CAPSET_CROSS_DOMAIN 5
 #define VIRTIO_GPU_CAPSET_DRM 6
 #define VIRTIO_GPU_CAPSET_VCL 7
+#define VIRTIO_GPU_CAPSET_VQNN 127
 
 /* VIRTIO_GPU_CMD_GET_CAPSET_INFO */
 struct virtio_gpu_get_capset_info {
