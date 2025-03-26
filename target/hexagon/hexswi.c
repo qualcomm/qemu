@@ -120,17 +120,13 @@ static void sim_handle_trap0(CPUHexagonState *env)
         target_ulong bufsize;
         int i;
         HexagonCPU *cpu = env_archcpu(env);
-        size_t cmdline_size = strlen(cpu->cmdline);
+        size_t cmdline_size = (cpu->cmdline != NULL) ? strlen(cpu->cmdline)
+            : 0;
 
         DEBUG_MEMORY_READ(swi_info, 4, &bufptr);
         DEBUG_MEMORY_READ(swi_info + 4, 4, &bufsize);
 
-        const target_ulong to_copy =
-            (cpu->cmdline != NULL) ?
-                ((bufsize <= (unsigned int)cmdline_size) ?
-                     (bufsize - 1) :
-                     strlen(cpu->cmdline)) :
-                0;
+        const target_ulong to_copy = MIN(bufsize - 1, cmdline_size);
 
         for (i = 0; i < (int) to_copy; i++) {
             DEBUG_MEMORY_WRITE(bufptr + i, 1, (size8u_t) cpu->cmdline[i]);
