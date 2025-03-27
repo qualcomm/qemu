@@ -49,6 +49,13 @@ variables:
   HEX_CONFIG_OPTS_WIN: >-
     --qemu-testing-path="wine $$installdir/qemu-system-hexagon.exe"
 
+  HEX_WIN_AARCH64_CONFIG_OPTS: >-
+    --without-default-features --disable-werror
+    --cross-prefix=aarch64-w64-mingw32-
+    --extra-cflags="-isystem /clangarm64/include"
+    --extra-ldflags="-L/clangarm64/lib"
+
+
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # AArch64
   AARCH64_CONFIG_OPTS: >-
@@ -61,6 +68,10 @@ variables:
   AARCH64_CONFIG_CMD: $GENERIC_CONFIG_CMD $DEFAULT_CONFIG_OPTS $AARCH64_CONFIG_OPTS --target-list=aarch64-softmmu,aarch64-linux-user
   HEX_MAC_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS_MAC --disable-strip --disable-pie --disable-virglrenderer --disable-opengl --target-list=hexagon-softmmu
   HEX_WIN_CONFIG_CMD: $GENERIC_CONFIG_CMD $HEX_CONFIG_OPTS_WIN --without-default-features --assert-target-compiler --cross-prefix=x86_64-w64-mingw32- --target-list=hexagon-softmmu
+  HEX_WIN_AARCH64_CONFIG_CMD: >-
+    ${GENERIC_CONFIG_CMD} ${HEX_WIN_AARCH64_CONFIG_OPTS}
+    --target-list=hexagon-softmmu
+
 
   GITLAB_URL: echo "$CI_SERVER_URL" | sed -e 's/^.*:\/\///g' -e 's/:[0-9]*$//g'
 
@@ -423,6 +434,25 @@ hexagon-win_tarball:
     CUSTOM_INSTALL_SCRIPT: "quic/install_win_deps.bat"
 hexagon-win_tarball_tag:
   needs: [hexagon-win_tarball]
+  extends: .base-tarball-tag
+
+hexagon-win-aarch64_build:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
+  extends: .base-build
+  variables: { CONFIG_CMD: $HEX_WIN_AARCH64_CONFIG_CMD }
+hexagon-win-aarch64_install:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
+  needs: [hexagon-win-aarch64_build]
+  extends: .base-install
+hexagon-win-aarch64_tarball:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
+  needs: [hexagon-win-aarch64_install]
+  extends: .base-tarball
+  variables:
+    TARBALL_PREFIX: "windows-aarch64-"
+    CUSTOM_INSTALL_SCRIPT: "quic/install_win_aarch64_deps.bat"
+hexagon-win-aarch64_tarball_tag:
+  needs: [hexagon-win-aarch64_tarball]
   extends: .base-tarball-tag
 
 hexagon-mac_build:
