@@ -42,7 +42,7 @@ variables:
   # Can be used for overriding DEFAULT_CONFIG_OPTS with options specific to
   # Hexagon
   HEX_CONFIG_OPTS: >-
-    --extra-ldflags=-lrt
+    --extra-ldflags=-lrt --enable-fdt --enable-slirp
 
   HEX_CONFIG_OPTS_MAC: >-
 
