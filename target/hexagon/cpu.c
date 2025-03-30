@@ -1078,6 +1078,11 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"
 
+static int64_t hexagon_get_arch_id(CPUState *cs)
+{
+    return cpu_env(cs)->threadId;
+}
+
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
     .get_phys_page_debug = hexagon_cpu_get_phys_page_debug,
     .has_work = hexagon_cpu_has_work,
@@ -1202,6 +1207,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->disas_set_info = hexagon_cpu_disas_set_info;
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &hexagon_sysemu_ops;
+    cc->get_arch_id = hexagon_get_arch_id;
     dc->vmsd = &vmstate_hexagon_cpu;
 #endif
 #ifdef CONFIG_TCG
