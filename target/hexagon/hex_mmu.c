@@ -231,13 +231,8 @@ void hex_mmu_realize(CPUHexagonState *env)
     if (cs->cpu_index == 0) {
         env->hex_tlb = g_malloc0(sizeof(CPUHexagonTLBContext));
     } else {
-        CPUState *cpu0_s = NULL;
-        CPUHexagonState *env0 = NULL;
-        CPU_FOREACH (cpu0_s) {
-            assert(cpu0_s->cpu_index == 0);
-            env0 = &(HEXAGON_CPU(cpu0_s)->env);
-            break;
-        }
+        CPUState *cpu0 = qemu_get_cpu(0);
+        CPUHexagonState *env0 = cpu_env(cpu0);
         env->hex_tlb = env0->hex_tlb;
     }
 }
