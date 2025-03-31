@@ -274,8 +274,12 @@ static MemTxResult hex_timer_read(void *opaque,
             if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
                 return MEMTX_ACCESS_ERROR;
             }
-
-            *data = s->int_level;
+            /* The register CTNP_CTL has 3 bis [0:2]
+             * Bit 2: ISTAT (Interrupt is pending or not)
+             * Bit 1: IMSK (Mask Interrupt or UnMask)
+             * Bit 0: EN (Enable or Disable the timer)
+             */
+            *data = s->control | ((s->int_level & 0x1) << 2);
             return MEMTX_OK;
         case QCT_QTIMER_CNTPL0ACR:
             if (view) {
