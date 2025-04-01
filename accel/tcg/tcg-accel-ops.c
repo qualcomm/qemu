@@ -198,11 +198,17 @@ static inline void tcg_remove_all_breakpoints(CPUState *cpu)
     cpu_watchpoint_remove_all(cpu, BP_GDB);
 }
 
+static int64_t tcg_get_virtual_clock(void)
+{
+    return cpu_get_clock();
+}
+
 static void tcg_accel_ops_init(AccelClass *ac)
 {
     AccelOpsClass *ops = ac->ops;
     /* Common TCG ops, unless overridden by icount later */
     ops->handle_interrupt = tcg_handle_interrupt;
+    ops->get_virtual_clock = tcg_get_virtual_clock;
 
     if (qemu_tcg_mttcg_enabled()) {
         ops->create_vcpu_thread = mttcg_start_vcpu_thread;
