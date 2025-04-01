@@ -31,7 +31,7 @@ QEMU interface matches the Hexagon simulator interface.
 Releases of QEMU are provided for Linux and Windows 10 or 11. Starting with
 QEMU Hexagon 10.0, the Linux binaries will work on Ubuntu 22.
 
-### Windows dependencies
+### Windows x86_64 dependencies
 
 1. First download and install msys2: [https://www.msys2.org/](https://www.msys2.org/)
 2. On a msys2 shell, install the dependencies:
@@ -53,6 +53,9 @@ pacman -S mingw-w64-x86_64-libwinpthread-git mingw-w64-x86_64-glib2 \
     ```
     And hit "OK" in all the windows to save.
 
+There is a script called `install_win_deps.bat` which is included with QEMU
+Hexagon and can be used to download the required dependencies.
+
 You should now be able to open CMD or PowerShell and run
 `qemu-system-hexagon --help`.
 
@@ -61,6 +64,46 @@ When installing dependencies, if you get errors like
 have a corporate networking environment where all of the secure traffic is
 diverted, defeating the trust feature of the msys2 package manager.  See
 ["How can I make MSYS2/pacman trust my company's custom TLS CA certificate" in the MSYS2 FAQ](https://www.msys2.org/docs/faq/#how-can-i-make-msys2pacman-trust-my-companys-custom-tls-ca-certificate) for more info.
+
+### Windows aarch64 dependencies
+
+Dependencies need to be downloaded manually for now, because there is no stable
+msys2 distribution for Windows on aarch64 yet.
+
+The required libraries (and their corresponding packages) are:
+- libglib-2.0-0.dll (mingw-w64-clang-aarch64-glib2)
+- libiconv-2.dll (mingw-w64-clang-aarch64-libiconv)
+- libintl-8.dll (mingw-w64-clang-aarch64-gettext)
+- libpcre2-8-0.dll (mingw-w64-clang-aarch64-pcre2)
+- libwinpthread-1.dll (mingw-w64-clang-aarch64-libwinpthread-git)
+- zlib1.dll (mingw-w64-clang-aarch64-zlib)
+
+The code snippet below shows an example for how to download the glibc2 package,
+but the other libraries can be downloaded in the same way. From the directory
+QEMU is located in run:
+
+```
+curl --output glib2.pkg.tar.zst "https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-glib2-2.84.0-1-any.pkg.tar.zst"
+tar --extract --file=glib2.pkg.tar.zst clangarm64/bin/libglib-2.0-0.dll
+```
+
+This downloads the `mingw-w64-clang-aarch64-glib2` package from the main msys2
+package repository server at `https://repo.msys2.org/mingw/clangarm64/` and
+renames the archive to `glib2.pkg.tar.zst`. Afterwards, only the required
+library `libglib-2.0-0.dll` is unpacked.
+
+There is a script called `install_win_aarch64_deps.bat` which is included with
+QEMU Hexagon and can be used to download the required dependencies.
+
+IMPORTANT: In case `install_win_aarch64_deps.bat` is used, it is possible that
+the versions it contains are outdated and need to be updated.
+
+A common error related to libraries is that QEMU immediately exits. Either with
+or without showing an error message box. In both cases a [dependency
+walker](https://github.com/lucasg/Dependencies) will show which dependency
+couldn't be resolved properly. If an error message box does appear, it usually
+includes the name of a missing library, so a dependency walker might not be
+necessary.
 
 ## Coprocessor plugin
 
