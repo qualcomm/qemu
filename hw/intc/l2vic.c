@@ -318,7 +318,7 @@ static const MemoryRegionOps fastl2vic_ops = {
     .valid.unaligned = false,
 };
 
-static void l2vic_reset_hold(Object *obj, ResetType)
+static void l2vic_reset_hold(Object *obj, ResetType type G_GNUC_UNUSED)
 {
     L2VICState *s = L2VIC(obj);
     memset(s->int_clear, 0, sizeof(s->int_clear));
