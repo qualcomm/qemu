@@ -65,6 +65,7 @@ union qemu_plugin_cb_sig {
     qemu_plugin_vcpu_syscall_cb_t        vcpu_syscall;
     qemu_plugin_vcpu_syscall_ret_cb_t    vcpu_syscall_ret;
     qemu_plugin_vcpu_syscall_filter_cb_t vcpu_syscall_filter;
+    qemu_plugin_time_cb_t                time;
     void *generic;
 };
 
@@ -184,6 +185,14 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
 void qemu_plugin_flush_cb(void);
 
 void qemu_plugin_atexit_cb(void);
+
+/**
+ * qemu_plugin_maybe_fetch_time() - fetch virtual time from plugin
+ * @tptr: pointer to int64_t for result
+ *
+ * Returns true if the plugin has set time, otherwise false
+ */
+bool qemu_plugin_maybe_fetch_time(int64_t *tptr);
 
 void qemu_plugin_add_dyn_cb_arr(GArray *arr);
 
