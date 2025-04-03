@@ -34,6 +34,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qemu/timer.h"
+#include "qemu/plugin.h"
 #include "exec/cputlb.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
@@ -200,6 +201,33 @@ static inline void tcg_remove_all_breakpoints(CPUState *cpu)
 
 static int64_t tcg_get_virtual_clock(void)
 {
+    int64_t from_plugin;
+    if (qemu_plugin_maybe_fetch_time(&from_plugin)) {
+        static int64_t bias = 0;
+        static int64_t last_reported_time = 0;
+        /*
+         * If the plugin reports negative time its because everything
+         * is sleeping (or we haven't started yet). We ignore that
+         * case for now and check for the next device related timer to
+         * trigger. If there is one we update the bias and allow time
+         * to roll forward.
+         */
+        if (from_plugin < 0) {
+            int64_t next = qemu_clock_deadline_ns_all_with_ts(QEMU_CLOCK_VIRTUAL,
+                                                              ~QEMU_TIMER_ATTR_EXTERNAL,
+                                                              /* QEMU_TIMER_ATTR_ALL, */
+                                                              last_reported_time);
+            /* account for calls before we've started */
+            if (next > 0 && last_reported_time) {
+                fprintf(stderr, "%s: next is %ld\n", __func__, next);
+                bias += next;
+            } else if (next == 0) {
+                fprintf(stderr, "%s: timer ready to fire!\n", __func__);
+            }
+        }
+        last_reported_time = from_plugin + bias;
+        return last_reported_time;
+    }
     return cpu_get_clock();
 }
 
