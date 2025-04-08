@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "system/cpus.h"
 #include "internal.h"
@@ -390,6 +391,13 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
         ? DMA_TLB_OFFSET + cpu->dma_jtlb_entries
         : cpu->jtlb_entries;
 
+    if (extended && VA < 4 * GiB) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "tlbpp (TLB Probe64) with size less than "
+                      "4G. VA: 0x%016"PRIx64" PC: 0x%x\n", VA,
+                      env->gpr[HEX_REG_PC]);
+    }
+
     env->imprecise_exception = 0;
     for (uint32_t i = init_tlb_reg; i < max_tlb_reg; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
@@ -406,6 +414,11 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
     if (idx == not_found) {
         qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => NOT FOUND\n",
                       __func__, asid, VA);
+    } else if (idx >= cpu->dma_jtlb_entries && idx <  DMA_TLB_OFFSET) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "tlb_lookup found an entry that is neither ordinary"
+                      " TLB nor extended TLB. VA: 0x%016"PRIx64" PC: 0x%x\n",
+                      VA, env->gpr[HEX_REG_PC]);
     } else {
         qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => %d\n",
                       __func__, asid, VA, idx);
