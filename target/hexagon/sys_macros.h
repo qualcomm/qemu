@@ -145,10 +145,16 @@
 #define fDMATLB_IDXMASK(INDEX) \
        ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->dma_jtlb_entries)) - 1))
 
-#define fTLB_NONPOW2WRAP(INDEX)                 \
-    (((INDEX) >= env_archcpu(env)->jtlb_entries) ?  \
-         ((INDEX) - env_archcpu(env)->jtlb_entries) : \
-         (INDEX))
+#define fTLB_NONPOW2WRAP(INDEX) ({ \
+    uint32_t _wrapped_idx = (INDEX); \
+    if ((INDEX) >= env_archcpu(env)->jtlb_entries) { \
+        qemu_log_mask(LOG_GUEST_ERROR, \
+                      "TLB index beyond limit, wrapping around. PC: 0x%x\n", \
+                      env->gpr[HEX_REG_PC]); \
+        _wrapped_idx = ((INDEX) - env_archcpu(env)->jtlb_entries); \
+    } \
+    _wrapped_idx; \
+})
 
 #define fTLBW(INDEX, VALUE) \
     hex_tlbw(env, (INDEX), (VALUE))
