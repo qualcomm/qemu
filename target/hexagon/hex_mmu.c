@@ -211,7 +211,7 @@ static inline void hex_log_tlbw(uint32_t index, uint64_t entry)
 
 void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
 {
-    uint32_t myidx = fTLB_NONPOW2WRAP(fTLB_IDXMASK(index));
+    uint32_t myidx = TLB_WRAP_INDEX(index);
     bool old_entry_valid = GET_TLB_FIELD(env->hex_tlb->entries[myidx], PTE_V);
     if (old_entry_valid && hexagon_cpu_mmu_enabled(env)) {
         /* FIXME - Do we have to invalidate everything here? */

@@ -141,11 +141,13 @@
 #define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
 
 #define fTLB_IDXMASK(INDEX) \
-    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->num_tlbs)) - 1))
+    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->jtlb_entries)) - 1))
+#define fDMATLB_IDXMASK(INDEX) \
+       ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->dma_jtlb_entries)) - 1))
 
 #define fTLB_NONPOW2WRAP(INDEX)                 \
-    (((INDEX) >= env_archcpu(env)->num_tlbs) ?  \
-         ((INDEX) - env_archcpu(env)->num_tlbs) : \
+    (((INDEX) >= env_archcpu(env)->jtlb_entries) ?  \
+         ((INDEX) - env_archcpu(env)->jtlb_entries) : \
          (INDEX))
 
 #define fTLBW(INDEX, VALUE) \
@@ -156,10 +158,15 @@
     (hex_tlb_check_overlap(env, VALUE, INDEX) != -2)
 #define fTLB_ENTRY_OVERLAP_IDX(VALUE, INDEX) \
     hex_tlb_check_overlap(env, VALUE, INDEX)
+#define TLB_WRAP_INDEX(INDEX) \
+       (((INDEX >= DMA_TLB_OFFSET) && (env_archcpu(env)->dma_jtlb_entries > 0)) \
+        ? fTLB_NONPOW2WRAP(fDMATLB_IDXMASK(INDEX - DMA_TLB_OFFSET)) + DMA_TLB_OFFSET \
+        : fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX)))
 #define fTLBR(INDEX) \
-    (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
+    (env->hex_tlb->entries[TLB_WRAP_INDEX(INDEX)])
 #define fTLBR_EXTENDED(INDEX) \
-    (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
+    fTLBR(INDEX)
+
 #define fTLBP(TLBHI) \
     hex_tlb_lookup(env, ((TLBHI) >> 12), ((TLBHI) << 12))
 #define fTLBPP(TLBHI) \
