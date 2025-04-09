@@ -37,6 +37,7 @@
 #include "mmvec/macros_auto.h"
 #ifndef CONFIG_USER_ONLY
 #include "hex_mmu.h"
+#include "trace.h"
 #endif
 #include "sysemu/runstate.h"
 #include <dirent.h>
@@ -1110,6 +1111,14 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_DIAG, env->cause_code);
         env->cause_code = HEX_CAUSE_DOUBLE_EXCEPT;
         cs->exception_index = HEX_EVENT_PRECISE;
+
+        trace_hexagon_critical("Double Exception", env->threadId,
+            arch_get_thread_reg(env, HEX_REG_PC),
+            arch_get_thread_reg(env, HEX_REG_R29),
+            arch_get_system_reg(env, HEX_SREG_SSR),
+            arch_get_system_reg(env, HEX_SREG_BADVA),
+            arch_get_system_reg(env, HEX_SREG_ELR),
+            arch_get_system_reg(env, HEX_SREG_DIAG));
     }
 
     switch (cs->exception_index) {
