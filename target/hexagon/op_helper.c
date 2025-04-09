@@ -2302,6 +2302,14 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
     bool found = false;
     CPUState *cs = NULL;
 
+    trace_hexagon_critical("NMI (Non Maskable Interrupt)", env->threadId,
+        arch_get_thread_reg(env, HEX_REG_PC),
+        arch_get_thread_reg(env, HEX_REG_R29),
+        arch_get_system_reg(env, HEX_SREG_SSR),
+        arch_get_system_reg(env, HEX_SREG_BADVA),
+        arch_get_system_reg(env, HEX_SREG_ELR),
+        arch_get_system_reg(env, HEX_SREG_DIAG));
+
     BQL_LOCK_GUARD();
     CPU_FOREACH (cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
