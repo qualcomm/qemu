@@ -146,6 +146,7 @@ static void dumb_hdm_handler(CXLComponentState *cxl_cstate, hwaddr offset,
 
     if (should_commit) {
         cfmws_update_non_interleaved(true);
+        cxl_update_isp();
     } else if (should_uncommit) {
         cfmws_update_non_interleaved(false);
     }

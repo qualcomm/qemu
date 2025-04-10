@@ -16,6 +16,7 @@
 #include "hw/pci/pci_host.h"
 #include "cxl_pci.h"
 #include "cxl_component.h"
+#include "cxl_chmu.h"
 #include "cxl_device.h"
 
 #define CXL_CACHE_LINE_SIZE 64
@@ -84,4 +85,5 @@ typedef struct CXLDownstreamPort CXLDownstreamPort;
 DECLARE_INSTANCE_CHECKER(CXLDownstreamPort, CXL_DSP, TYPE_CXL_DSP)
 
 void cfmws_update_non_interleaved(bool commit);
+void cxl_update_isp(void);
 #endif
