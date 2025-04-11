@@ -99,17 +99,17 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h)
 /*
  * Time control
  */
-static bool has_control;
+static qemu_plugin_id_t controlling_plugin;
 static Error *migration_blocker;
 
-const void *qemu_plugin_request_time_control(void)
+const void *qemu_plugin_request_time_control(qemu_plugin_id_t id)
 {
-    if (!has_control) {
-        has_control = true;
+    if (!controlling_plugin) {
+        controlling_plugin = id;
         error_setg(&migration_blocker,
                    "TCG plugin time control does not support migration");
         migrate_add_blocker(&migration_blocker, NULL);
-        return &has_control;
+        return &controlling_plugin;
     }
     return NULL;
 }
@@ -122,7 +122,7 @@ static void advance_virtual_time__async(CPUState *cpu, run_on_cpu_data data)
 
 void qemu_plugin_update_ns(const void *handle, int64_t new_time)
 {
-    if (handle == &has_control) {
+    if (handle == &controlling_plugin) {
         /* Need to execute out of cpu_exec, so bql can be locked. */
         async_run_on_cpu(current_cpu,
                          advance_virtual_time__async,

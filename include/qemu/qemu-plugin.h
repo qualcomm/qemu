@@ -706,7 +706,9 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
     uint64_t imm);
 
 /**
- * qemu_plugin_request_time_control() - request the ability to control time
+ * qemu_plugin_request_time_control() - request the ability to control
+ * time
+ * @id: plugin ID
  *
  * This grants the plugin the ability to control system time. Only one
  * plugin can control time so if multiple plugins request the ability
@@ -715,7 +717,7 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
  * Returns an opaque handle or NULL if fails
  */
 QEMU_PLUGIN_API
-const void *qemu_plugin_request_time_control(void);
+const void *qemu_plugin_request_time_control(qemu_plugin_id_t id);
 
 /**
  * qemu_plugin_update_ns() - update system emulation time
