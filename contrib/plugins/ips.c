@@ -37,6 +37,7 @@ typedef struct {
     uint64_t total_insn;
     uint64_t quantum_insn; /* insn in last quantum */
     int64_t last_quantum_time; /* time when last quantum started */
+    bool sleeping; /* is vCPU sleeping? */
 } vCPUTime;
 
 struct qemu_plugin_scoreboard *vcpus;
@@ -90,7 +91,26 @@ static void update_system_time(vCPUTime *vcpu)
     g_mutex_unlock(&global_state_lock);
 }
 
-static void vcpu_init(unsigned int cpu_index, void *userdata)
+/*
+ * When we report system time we need to check if all vCPUs are
+ * sleeping. If they are we move time forward so things don't stall.
+ */
+static int64_t report_system_time(void *userdata)
+{
+    bool all_sleeping = true;
+    for (int i = 0, n = qemu_plugin_num_vcpus(); i < n; ++i) {
+        vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, i);
+        all_sleeping &= vcpu->sleeping;
+    }
+
+    /* If every vCPU is asleep we should let QEMU decide what to do */
+    if (all_sleeping) {
+        return -1;
+    }
+
+    return virtual_time_ns;
+}
+
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->total_insn = 0;
@@ -99,6 +119,19 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
 }
 
 static void vcpu_exit(unsigned int cpu_index, void *userdata)
+static void vcpu_idle(unsigned int cpu_index, void *userdata)
+{
+    vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
+    vcpu->sleeping = true;
+    update_system_time(vcpu);
+}
+
+static void vcpu_resume(unsigned int cpu_index, void *userdata)
+{
+    vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
+    vcpu->sleeping = false;
+}
+
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     update_system_time(vcpu);
@@ -204,8 +237,19 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         return -1;
     }
 
-    time_handle = qemu_plugin_request_time_control();
-    g_assert(time_handle);
+    /*
+     * For user-mode we can simply slow down execution without control
+     * of time to meet a nominal target speed. However for system mode
+     * we need to handle sleeping vCPUs and provide a callback for
+     * time to advance.
+     */
+    time_handle = qemu_plugin_request_time_control(id);
+    if (time_handle) {
+        g_assert(info->system_emulation);
+        qemu_plugin_register_time_cb(time_handle, report_system_time, NULL);
+        qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle, NULL);
+        qemu_plugin_register_vcpu_resume_cb(id, vcpu_resume, NULL);
+    }
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_vcpu_init_cb(id, vcpu_init, NULL);

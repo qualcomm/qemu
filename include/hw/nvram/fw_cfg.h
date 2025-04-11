@@ -340,7 +340,6 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, AddressSpace *dma_as);
  */
 FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
                                   unsigned data_width);
-<<<<<<< HEAD
 /**
  * fw_cfg_init_mem_dma:
  * @base_addr: address to map the device at
