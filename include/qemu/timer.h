@@ -191,6 +191,24 @@ bool qemu_clock_use_for_deadline(QEMUClockType type);
 int64_t qemu_clock_deadline_ns_all(QEMUClockType type, int attr_mask);
 
 /**
+ * qemu_clock_deadline_ns_all_with_ts:
+ * @type: the clock type
+ * @attr_mask: mask for the timer attributes that are included
+ *             in deadline calculation
+ * @ts: the current time
+ *
+ * Calculate the deadline across all timer lists associated
+ * with a clock (as opposed to just the default one)
+ * in nanoseconds, or -1 if no timer is set to expire.
+ *
+ * This passes the current clock time to avoid recursion for TCG
+ * plugin time.
+ *
+ * Returns: time until expiry in nanoseconds or -1
+ */
+int64_t qemu_clock_deadline_ns_all_with_ts(QEMUClockType type, int attr_mask, int64_t ts);
+
+/**
  * qemu_clock_nofify:
  * @type: the clock type
  *
