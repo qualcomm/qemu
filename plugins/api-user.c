@@ -46,7 +46,7 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h)
  * which doesn't require the ability to mess with the clock.
  */
 
-const void *qemu_plugin_request_time_control(void)
+const void *qemu_plugin_request_time_control(qemu_plugin_id_t id)
 {
     return NULL;
 }
