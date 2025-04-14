@@ -130,6 +130,7 @@ def calculate_attribs():
     add_qemu_macro_attrib("fLOAD_LOCKED", "A_LLSC")
     add_qemu_macro_attrib("fSTORE_LOCKED", "A_LLSC")
     add_qemu_macro_attrib("fCLEAR_RTE_EX", "A_IMPLICIT_WRITES_SSR")
+    add_qemu_macro_attrib('fCLEAR_RTE_EX', 'A_RTE')
     add_qemu_macro_attrib("fLOAD", "A_SCALAR_LOAD")
     add_qemu_macro_attrib("fSTORE", "A_SCALAR_STORE")
     add_qemu_macro_attrib("fSET_K0_LOCK", "A_IMPLICIT_READS_PC")
@@ -291,8 +292,8 @@ def need_pkt_has_multi_cof(tag):
     return (
         "A_JUMP" in attribdict[tag]
         or "A_CALL" in attribdict[tag]
-        or "J2_rte" == tag
-    ) and tag != "J2_hintjumpr"
+        or "A_RTE" in attribdict[tag]
+    ) and "A_HINTJR" not in attribdict[tag]
 
 def need_pkt_need_commit(tag):
     return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]

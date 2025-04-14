@@ -27,6 +27,7 @@ DEF_ATTRIB(SHARED_EXTENSION, "Shared extension instruction", "", "")
 DEF_ATTRIB(CABAC,"Cabac Instruction. Used in conjuction with QDSP6_CABAC_PRESENT","","")
 DEF_ATTRIB(EXPERIMENTAL,"This may not work correctly not supported by RTL.","","")
 DEF_ATTRIB(TLBPP_INSN, "This is 64 bit DMA TLB probe insn", "", "")
+DEF_ATTRIB(RTE, "Return from exception", "", "")
 
 DEF_ATTRIB(PRIV, "Not available in user or guest mode", "", "")
 DEF_ATTRIB(GUEST, "Not available in user mode", "", "")
