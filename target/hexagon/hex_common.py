@@ -47,6 +47,7 @@ def tag_ignore(tag):
     attr_skips = (
         "A_FAKEINSN",
         "A_MAPPING",
+        "A_CONDMAPPING",
     )
     return tag in tag_skips or \
         any(attr in attribdict[tag] for attr in attr_skips)
