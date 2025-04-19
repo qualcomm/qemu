@@ -1,3 +1,8 @@
+/*
+ *  Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 static hexagon_machine_config SA8540P_cdsp0 = {
     .cfgbase =         0x1a000000 + 0x180000,

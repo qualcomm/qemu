@@ -1,4 +1,8 @@
-
+/*
+ *  Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 static hexagon_machine_config SA8797P_nsp0 = {
     .cfgbase =         0x30000000 + 0x180000,

@@ -1,3 +1,8 @@
+/*
+ *  Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 static hexagon_machine_config v68n_1024 = {
     .cfgbase =           0xde000000,
