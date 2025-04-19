@@ -746,6 +746,44 @@ static void v81qa_1_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 4 * GiB;
 }
 
+static void v81na_2_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81na_2_rev, &v81na_2);
+}
+
+static void v81na_2_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V81NA_2";
+    mc->init = v81na_2_config_init;
+    mc->is_default = false;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
+static void v81dgb_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1);
+}
+
+static void v81dgb_1_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V81DGB_1";
+    mc->init = v81dgb_1_config_init;
+    mc->is_default = false;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
 static void sim_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -820,6 +858,14 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V81QA_1"),
         .parent = TYPE_MACHINE,
         .class_init = v81qa_1_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V81NA_2"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81na_2_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("V81DGB_1"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81dgb_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V66_Linux"),
         .parent = TYPE_MACHINE,

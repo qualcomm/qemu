@@ -25,6 +25,8 @@
 #include "machine_cfg_v79na_1.h.inc"
 #include "machine_cfg_v79m_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
+#include "machine_cfg_v81na_2.h.inc"
+#include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_sa8540p_cdsp0.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 #include "machine_cfg_v68n_1024.h.inc"

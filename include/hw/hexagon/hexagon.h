@@ -41,7 +41,10 @@ typedef enum {
     v75_rev = 0x8c75,
     v79_rev = 0x8c79,
     v79m_1_rev = 0xdc79,
-    v81_rev = 0x8781,
+    v81qa_1_rev = 0x8781,
+    v81_rev = 0x8781, /* alias for v81qa_1 */
+    v81na_2_rev = 0x8081,
+    v81dgb_1_rev = 0xcc81,
 } Rev_t;
 
 #define HEXAGON_LATEST_REV v81

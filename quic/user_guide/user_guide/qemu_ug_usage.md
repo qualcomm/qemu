@@ -245,6 +245,14 @@ might show more consistency.
         - 12
         - Yes
 
+      * - V81NA_2
+        - 12
+        - Yes
+
+      * - V81DGB_1
+        - 12
+        - Yes
+
       * - virt
         - 16
         - No
