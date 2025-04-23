@@ -168,6 +168,7 @@ ExternalProject_Get_Property(qemu INSTALL_DIR)
 set(QEMU_INSTALL_DIR ${INSTALL_DIR})
 
 install(DIRECTORY ${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${QEMU_INSTALL_DIR}/share/ DESTINATION ${CMAKE_INSTALL_DATAROOTDIR})
 
 if(WIN32)
     set(LIBEXE "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/Hostx64/x64/lib.exe")
