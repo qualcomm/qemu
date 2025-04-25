@@ -7,10 +7,10 @@ set(QEMU_CONF_ARGS
     --disable-sparse
     --enable-sdl
     --enable-vnc
+    --enable-vnc-jpeg
+    --disable-vnc-sasl
     --disable-xen
     --disable-brlapi
-    --disable-vnc-sasl
-    --disable-vnc-jpeg
     --disable-png
     --disable-curses
     --disable-curl
