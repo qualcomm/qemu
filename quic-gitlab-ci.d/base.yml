@@ -97,6 +97,7 @@ variables:
       if test "$tag" != no
       then
         OVERRIDE_REF="$(echo "qemu-coproc-plugin-$tag" | sed -e 's/qemu-hexagon-//')"
+        OVERRIDE_BIN="${HEX_COPROC_BIN}*"
       fi
   script:
     - |
@@ -106,7 +107,7 @@ variables:
       git -C $repo checkout ${OVERRIDE_REF:-$HEX_COPROC_SHA}
       make -C $repo/hexagon/coprocs -j
       mkdir -p $HEX_COPROC_DIR
-      mv $repo/hexagon/coprocs/$HEX_COPROC_BIN $HEX_COPROC_DIR/
+      mv $repo/hexagon/coprocs/${OVERRIDE_BIN:-$HEX_COPROC_BIN} $HEX_COPROC_DIR/
       if test -f $repo/docs/RELEASE-NOTES.txt
       then
         cp $repo/docs/RELEASE-NOTES.txt $HEX_COPROC_DIR/
