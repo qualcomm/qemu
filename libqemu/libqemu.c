@@ -67,6 +67,22 @@ struct LibQemuContext {
  */
 static LibQemuContext context;
 
+/*
+ * This function must be called by libqemu io threads when they
+ * need a glib main context. It ensures that the default global
+ * main context is acquired by one and only one instance.
+ * The default main context must not be dangling because some
+ * qemu features (VNC) will use it to handle network communicaitons
+ */
+static GMainContext *get_context_conditional(void)
+{
+    if (g_main_context_acquire(g_main_context_default()) == TRUE) {
+        return g_main_context_default();
+    }
+
+    return g_main_context_new();
+}
+
 /* This is the entry function for the thread which call QEMU constructors and
  * main function. The main function calls the main loop so this thread becomes
  * the iothread.
@@ -75,6 +91,7 @@ static void *iothread_entry(void *arg)
 {
     LibQemuContext *context = (LibQemuContext *)arg;
 
+    context->iothread_context = get_context_conditional();
     g_main_context_push_thread_default(context->iothread_context);
 
     libqemu_call_ctors();
@@ -84,6 +101,14 @@ static void *iothread_entry(void *arg)
     qemu_cleanup(status);
 
     g_main_context_pop_thread_default(context->iothread_context);
+
+    /*
+     * The global defaults main context was acquired at
+     * get_context_conditional()
+     */
+    if (context->iothread_context == g_main_context_default()) {
+        g_main_context_release(context->iothread_context);
+    }
 
     exit(status);
     return NULL;
@@ -124,7 +149,6 @@ static void start_iothread(int argc, char **argv)
 {
     context.argc = argc;
     context.argv = argv;
-    context.iothread_context = g_main_context_new();
 
     qemu_thread_create(&context.iothread, "qemu-iothread", iothread_entry,
                        &context, QEMU_THREAD_JOINABLE);
