@@ -17,7 +17,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 #include "hw/misc/ivshmem-flat.h"
@@ -289,8 +289,6 @@ static void ivshmem_flat_iomem_write(void *opaque, hwaddr offset,
         trace_ivshmem_flat_read_write_mmr_invalid(offset);
         break;
     }
-
-    return;
 }
 
 static const MemoryRegionOps ivshmem_flat_ops = {

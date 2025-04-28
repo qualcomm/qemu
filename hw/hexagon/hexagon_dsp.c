@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"

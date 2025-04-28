@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "exec/exec-all.h"
+#include "exec/target_page.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "qemu/host-utils.h"
@@ -3627,7 +3628,6 @@ static void pmu_count_insns(DisasContext *ctx)
 #else
 static void pmu_count_insns(DisasContext *ctx)
 {
-    return;
 }
 #endif /* #if defined(TARGET_PPC64) */
 

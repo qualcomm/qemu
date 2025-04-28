@@ -20,11 +20,13 @@
 
 #include "qemu/host-utils.h"
 #include "cpu.h"
+#include "accel/tcg/cpu-mmu-index.h"
 #include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/translator.h"
+#include "exec/target_page.h"
 #include "fpu/softfloat.h"
 
 #include "exec/helper-proto.h"
@@ -3640,7 +3642,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
     return;
  illegal_op:
     gen_illegal_opcode(s);
-    return;
 }
 
 #include "decode-new.c.inc"

@@ -15,7 +15,7 @@
 #include "hw/hexagon/hexagon.h"
 #endif
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "qemu/log.h"
 #include "tcg/tcg-op.h"
 #include "internal.h"

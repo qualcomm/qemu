@@ -12,8 +12,8 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
-#include "arch.h"
 #include "cpu.h"
+#include "arch.h"
 #include "hex_mmu.h"
 #include "internal.h"
 #endif

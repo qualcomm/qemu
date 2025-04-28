@@ -48,7 +48,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
-#include "exec/ram_addr.h"
+#include "system/ram_addr.h"
 #include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
@@ -3963,8 +3963,6 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
 
     /* Skip pages array */
     qemu_set_offset(f, block->pages_offset + length, SEEK_SET);
-
-    return;
 }
 
 static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)

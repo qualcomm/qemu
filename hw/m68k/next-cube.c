@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
+#include "exec/cpu-interrupt.h"
 #include "system/system.h"
 #include "system/qtest.h"
 #include "hw/irq.h"
@@ -899,7 +900,6 @@ static void next_dummy_en_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
     /* Do nothing */
-    return;
 }
 
 static uint64_t next_dummy_en_read(void *opaque, hwaddr addr, unsigned size)

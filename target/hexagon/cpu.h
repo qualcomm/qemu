@@ -29,7 +29,10 @@ typedef struct ProcessorState processor_t;
 uint8_t hexagon_rev_byte(CPUHexagonState *env);
 
 #include "cpu-qom.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
+#include "exec/target_page.h"
 #include "exec/cputlb.h"
 #include "mmvec/mmvec.h"
 #include "dma/dma.h"
@@ -278,6 +281,7 @@ typedef struct {
 #define EXEC_STATUS_LOCKED      0x0020
 #define EXEC_STATUS_EXCEPTION   0x0100
 
+#include "accel/tcg/cpu-ldst.h"
 
 #define EXCEPTION_DETECTED      (env->status & EXEC_STATUS_EXCEPTION)
 #define REPLAY_DETECTED         (env->status & EXEC_STATUS_REPLAY)
@@ -650,7 +654,5 @@ void hexagon_dump_json(CPUHexagonState *env);
 
 void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
                             int *max_insns, vaddr pc, void *host_pc);
-
-#include "exec/cpu-all.h"
 
 #endif /* HEXAGON_CPU_H */

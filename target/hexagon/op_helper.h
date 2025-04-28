@@ -19,7 +19,7 @@
 #define HEXAGON_OP_HELPER_H
 
 #include "internal.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/exec-all.h"
 
 #define CPU_MMU_INDEX(ENV) cpu_mmu_index(env_cpu(ENV), false)

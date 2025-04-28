@@ -20,7 +20,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "migration/blocker.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
@@ -288,8 +288,6 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
 
     QLIST_INSERT_HEAD(&s->iommu_list, iommu, iommu_next);
     memory_region_iommu_replay(iommu->iommu_mr, &iommu->n);
-
-    return;
 }
 
 static void vhost_vdpa_iommu_region_del(MemoryListener *listener,

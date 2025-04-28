@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "exec/target_page.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-kvm.h"
@@ -597,7 +598,6 @@ static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
      * zpci device" construct. But when we support migration of vfio-pci
      * devices in future, we need to revisit this.
      */
-    return;
 }
 
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,

@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "exec/exec-all.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -1143,23 +1143,6 @@ static void G_NORETURN hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
 #endif
 
-#ifdef CONFIG_TCG
-static const TCGCPUOps hexagon_tcg_ops = {
-    .initialize = hexagon_translate_init,
-    .translate_code = hexagon_translate_code,
-    .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
-    .restore_state_to_opc = hexagon_restore_state_to_opc,
-
-#if !defined(CONFIG_USER_ONLY)
-    .tlb_fill = hexagon_tlb_fill,
-    .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
-    .cpu_exec_halt = hexagon_cpu_has_work,
-    .do_interrupt = hexagon_cpu_do_interrupt,
-    .do_unaligned_access = hexagon_cpu_do_unaligned_access,
-#endif /* !CONFIG_USER_ONLY */
-};
-#endif
-
 static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
 #ifndef CONFIG_USER_ONLY
@@ -1181,6 +1164,27 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
     return MMU_USER_IDX;
 }
 
+#ifdef CONFIG_TCG
+static const TCGCPUOps hexagon_tcg_ops = {
+    /* MTTCG not yet supported: require strict ordering */
+    .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
+    .initialize = hexagon_translate_init,
+    .translate_code = hexagon_translate_code,
+    .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
+    .restore_state_to_opc = hexagon_restore_state_to_opc,
+    .mmu_index = hexagon_cpu_mmu_index,
+
+#if !defined(CONFIG_USER_ONLY)
+    .tlb_fill = hexagon_tlb_fill,
+    .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
+    .cpu_exec_halt = hexagon_cpu_has_work,
+    .do_interrupt = hexagon_cpu_do_interrupt,
+    .do_unaligned_access = hexagon_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif
+
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 {
     HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
@@ -1196,7 +1200,6 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
-    cc->mmu_index = hexagon_cpu_mmu_index;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->get_pc = hexagon_cpu_get_pc;
