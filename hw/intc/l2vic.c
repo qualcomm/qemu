@@ -392,7 +392,7 @@ static const VMStateDescription vmstate_l2vic = {
             VMSTATE_END_OF_LIST() }
 };
 
-static void l2vic_class_init(ObjectClass *klass, void *data)
+static void l2vic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

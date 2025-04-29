@@ -1185,7 +1185,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
 };
 #endif
 
-static void hexagon_cpu_class_init(ObjectClass *c, void *data)
+static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 {
     HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);

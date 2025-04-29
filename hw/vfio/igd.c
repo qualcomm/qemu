@@ -200,7 +200,7 @@ static bool vfio_pci_igd_setup_opregion(VFIOPCIDevice *vdev, Error **errp)
         return false;
     }
 
-    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+    ret = vfio_device_get_region_info_type(&vdev->vbasedev,
                     VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                     VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
     if (ret) {
@@ -301,7 +301,8 @@ static void vfio_pci_igd_lpc_bridge_realize(PCIDevice *pdev, Error **errp)
     }
 }
 
-static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass, void *data)
+static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -317,7 +318,7 @@ static const TypeInfo vfio_pci_igd_lpc_bridge_info = {
     .name = "vfio-pci-igd-lpc-bridge",
     .parent = TYPE_PCI_DEVICE,
     .class_init = vfio_pci_igd_lpc_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -385,7 +386,7 @@ static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
      * Check whether we have all the vfio device specific regions to
      * support LPC quirk (added in Linux v4.6).
      */
-    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+    ret = vfio_device_get_region_info_type(&vdev->vbasedev,
                         VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                         VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG, &lpc);
     if (ret) {
@@ -393,7 +394,7 @@ static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
         return false;
     }
 
-    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+    ret = vfio_device_get_region_info_type(&vdev->vbasedev,
                         VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                         VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG, &host);
     if (ret) {
@@ -542,8 +543,8 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * there's no ROM, there's no point in setting up this quirk.
          * NB. We only seem to get BIOS ROMs, so UEFI VM would need CSM support.
          */
-        ret = vfio_get_region_info(&vdev->vbasedev,
-                                   VFIO_PCI_ROM_REGION_INDEX, &rom);
+        ret = vfio_device_get_region_info(&vdev->vbasedev,
+                                          VFIO_PCI_ROM_REGION_INDEX, &rom);
         if ((ret || !rom->size) && !vdev->pdev.romfile) {
             error_setg(&err, "Device has no ROM");
             goto error;

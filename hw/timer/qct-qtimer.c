@@ -528,7 +528,7 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
 };
 
-static void qct_qtimer_class_init(ObjectClass *klass, void *data)
+static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 

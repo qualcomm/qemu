@@ -448,7 +448,7 @@ static void v66g_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, v66_rev, &v66g_1024);
 }
 
-static void v66g_1024_init(ObjectClass *oc, void *data)
+static void v66g_1024_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -467,7 +467,7 @@ static void v66g_1024_linux_init(MachineState *machine)
     v66g_1024_config_init(machine);
 }
 
-static void v66g_linux_init(ObjectClass *oc, void *data)
+static void v66g_linux_init(ObjectClass *oc, const void *data)
 {
     v66g_1024_init(oc, data);
 
@@ -482,7 +482,7 @@ static void v68n_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, v68_rev, &v68n_1024);
 }
 
-static void v68n_1024_init(ObjectClass *oc, void *data)
+static void v68n_1024_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -499,7 +499,7 @@ static void v68g_1024_h2_init(MachineState *machine)
     v68n_1024_config_init(machine);
 }
 
-static void v68n_h2_init(ObjectClass *oc, void *data)
+static void v68n_h2_init(ObjectClass *oc, const void *data)
 {
     v68n_1024_init(oc, data);
 
@@ -517,7 +517,7 @@ static void v69na_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, v69_rev, &v69na_1024);
 }
 
-static void v69na_1024_init(ObjectClass *oc, void *data)
+static void v69na_1024_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -543,7 +543,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
 }
 
-static void SA8775P_cdsp0_init(ObjectClass *oc, void *data)
+static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -560,7 +560,7 @@ static void SA8540P_cdsp0_config_init(MachineState *machine)
     hexagon_common_init(machine, v68_rev, &SA8540P_cdsp0);
 }
 
-static void SA8540P_cdsp0_init(ObjectClass *oc, void *data)
+static void SA8540P_cdsp0_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -577,7 +577,7 @@ static void SA8797P_nsp0_config_init(MachineState *machine)
     hexagon_common_init(machine, v81_rev, &SA8797P_nsp0);
 }
 
-static void SA8797P_nsp0_init(ObjectClass *oc, void *data)
+static void SA8797P_nsp0_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -597,7 +597,7 @@ static void v73na_1024_linux_config_init(MachineState *machine)
     v73na_1024_config_init(machine);
 }
 
-static void v73na_1024_linux_init(ObjectClass *oc, void *data)
+static void v73na_1024_linux_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -608,7 +608,7 @@ static void v73na_1024_linux_init(ObjectClass *oc, void *data)
     mc->default_cpus = 6;
 }
 
-static void v73na_1024_init(ObjectClass *oc, void *data)
+static void v73na_1024_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -619,7 +619,7 @@ static void v73na_1024_init(ObjectClass *oc, void *data)
     mc->default_cpus = 6;
 }
 
-static void v73m_init(ObjectClass *oc, void *data)
+static void v73m_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -655,7 +655,7 @@ static void v75na_1024_linux_config_init(MachineState *machine)
     v75na_1024_config_init(machine);
 }
 
-static void v75na_1024_linux_init(ObjectClass *oc, void *data)
+static void v75na_1024_linux_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -666,7 +666,7 @@ static void v75na_1024_linux_init(ObjectClass *oc, void *data)
     mc->default_cpus = 6;
 }
 
-static void v75na_1024_init(ObjectClass *oc, void *data)
+static void v75na_1024_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -694,7 +694,7 @@ static void v79m_1_config_init(MachineState *machine)
     hexagon_common_init(machine, v79m_1_rev, &v79m_1);
 }
 
-static void v79na_1_linux_init(ObjectClass *oc, void *data)
+static void v79na_1_linux_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -705,7 +705,7 @@ static void v79na_1_linux_init(ObjectClass *oc, void *data)
     mc->default_cpus = 8;
 }
 
-static void v79na_1_init(ObjectClass *oc, void *data)
+static void v79na_1_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -716,7 +716,7 @@ static void v79na_1_init(ObjectClass *oc, void *data)
     mc->default_cpus = 8;
 }
 
-static void v79m_1_init(ObjectClass *oc, void *data)
+static void v79m_1_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -732,7 +732,7 @@ static void v81qa_1_config_init(MachineState *machine)
     hexagon_common_init(machine, v81_rev, &v81qa_1);
 }
 
-static void v81qa_1_init(ObjectClass *oc, void *data)
+static void v81qa_1_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -751,7 +751,7 @@ static void v81na_2_config_init(MachineState *machine)
     hexagon_common_init(machine, v81na_2_rev, &v81na_2);
 }
 
-static void v81na_2_init(ObjectClass *oc, void *data)
+static void v81na_2_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -770,7 +770,7 @@ static void v81dgb_1_config_init(MachineState *machine)
     hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1);
 }
 
-static void v81dgb_1_init(ObjectClass *oc, void *data)
+static void v81dgb_1_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -784,7 +784,7 @@ static void v81dgb_1_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 4 * GiB;
 }
 
-static void sim_init(ObjectClass *oc, void *data)
+static void sim_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -797,7 +797,7 @@ static void sim_init(ObjectClass *oc, void *data)
     mc->default_cpus = 6;
 }
 
-static void sim_coproc_init(ObjectClass *oc, void *data)
+static void sim_coproc_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
