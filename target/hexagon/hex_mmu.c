@@ -421,7 +421,7 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
                       ", VA: 0x%016"PRIx64", PC: 0x%x\n",
                       idx, VA, env->gpr[HEX_REG_PC]);
     } else {
-        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => %d\n",
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => %"PRId32"\n",
                       __func__, asid, VA, idx);
     }
 
