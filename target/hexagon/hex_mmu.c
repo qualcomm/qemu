@@ -414,11 +414,12 @@ static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
     if (idx == not_found) {
         qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => NOT FOUND\n",
                       __func__, asid, VA);
-    } else if (idx >= cpu->dma_jtlb_entries && idx <  DMA_TLB_OFFSET) {
+    } else if (idx >= cpu->jtlb_entries && idx <  DMA_TLB_OFFSET) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "tlb_lookup found an entry that is neither ordinary"
-                      " TLB nor extended TLB. VA: 0x%016"PRIx64" PC: 0x%x\n",
-                      VA, env->gpr[HEX_REG_PC]);
+                      " TLB nor extended TLB. Index: %"PRId32
+                      ", VA: 0x%016"PRIx64", PC: 0x%x\n",
+                      idx, VA, env->gpr[HEX_REG_PC]);
     } else {
         qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%016"PRIx64" => %d\n",
                       __func__, asid, VA, idx);
