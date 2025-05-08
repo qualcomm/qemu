@@ -17,7 +17,6 @@
 
 #include "qemu/osdep.h"
 #ifndef CONFIG_USER_ONLY
-#include "exec/exec-all.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/log.h"

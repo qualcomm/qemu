@@ -19,7 +19,6 @@
 #define thread_t CPUHexagonState
 #endif
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
 #include "opcodes.h"
 #include "insn.h"
 #include "arch_options_calc.h"

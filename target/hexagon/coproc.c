@@ -8,7 +8,6 @@
 #include "hex_arch_types.h"
 #else
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "cpu.h"
 #include "trace.h"

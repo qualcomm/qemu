@@ -11,7 +11,6 @@
 #include "cpu.h"
 #include "system/cpus.h"
 #include "internal.h"
-#include "exec/exec-all.h"
 #include "hex_mmu.h"
 #include "macros.h"
 #include "sys_macros.h"

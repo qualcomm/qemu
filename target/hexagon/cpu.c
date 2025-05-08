@@ -19,7 +19,6 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "internal.h"
-#include "exec/exec-all.h"
 #include "system/memory.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
@@ -31,6 +30,7 @@
 #include "trace.h"
 #include "hw/hexagon/hexagon.h"
 #include "macros.h"
+#include "accel/tcg/cpu-ops.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "migration/vmstate.h"
@@ -543,6 +543,71 @@ static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
 static vaddr hexagon_cpu_get_pc(CPUState *cs)
 {
     return cpu_env(cs)->gpr[HEX_REG_PC];
+}
+
+static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    vaddr pc = env->gpr[HEX_REG_PC];
+    uint32_t hex_flags = 0;
+
+#ifndef CONFIG_USER_ONLY
+    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+
+    bool pcycle_enabled = extract32(syscfg,
+                                    reg_field_info[SYSCFG_PCYCLEEN].offset,
+                                    reg_field_info[SYSCFG_PCYCLEEN].width);
+
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+                           cpu_mmu_index(env_cpu(env), false));
+
+    if (pcycle_enabled) {
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
+    }
+
+    bool hvx_enabled = extract32(ssr, reg_field_info[SSR_XE].offset,
+                                 reg_field_info[SSR_XE].width);
+    hex_flags =
+        FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, hvx_enabled);
+
+    if (rev_implements_64b_hvx(env)) {
+        int v2x = extract32(syscfg, reg_field_info[SYSCFG_V2X].offset,
+                            reg_field_info[SYSCFG_V2X].width);
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_64B_MODE, !v2x);
+    }
+
+    bool pmu_enabled = extract32(syscfg,
+                                 reg_field_info[SYSCFG_PM].offset,
+                                 reg_field_info[SYSCFG_PM].width);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PMU_ENABLED, pmu_enabled);
+#else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, true);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, true);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_64B_MODE,
+                           rev_implements_64b_hvx(env));
+#endif
+
+    if (pc == env->gpr[HEX_REG_SA0]) {
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
+    }
+
+#ifndef CONFIG_USER_ONLY
+    bool ss_active = extract32(ssr,
+                                 reg_field_info[SSR_SS].offset,
+                                 reg_field_info[SSR_SS].width);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE, ss_active);
+
+    bool ss_pending = env->ss_pending;
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_PENDING, ss_pending);
+#endif
+
+    if (pc & PCALIGN_MASK) {
+        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
+    }
+
+    return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
 
 static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
@@ -1089,8 +1154,6 @@ static const struct SysemuCPUOps hexagon_sysemu_ops = {
 };
 #endif
 
-#include "accel/tcg/cpu-ops.h"
-
 #define CHECK_EX 0
 #ifndef CONFIG_USER_ONLY
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
@@ -1171,6 +1234,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .mttcg_supported = false,
     .initialize = hexagon_translate_init,
     .translate_code = hexagon_translate_code,
+    .get_tb_cpu_state = hexagon_get_tb_cpu_state,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,
     .mmu_index = hexagon_cpu_mmu_index,
@@ -1179,6 +1243,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .tlb_fill = hexagon_tlb_fill,
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
     .cpu_exec_halt = hexagon_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = hexagon_cpu_do_interrupt,
     .do_unaligned_access = hexagon_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */

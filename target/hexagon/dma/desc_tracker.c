@@ -8,7 +8,6 @@
 #include "arch/thread.h"
 #else
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/log.h"

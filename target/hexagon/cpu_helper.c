@@ -25,7 +25,6 @@
 #include "hw/boards.h"
 #include "hw/hexagon/hexagon.h"
 #endif
-#include "exec/exec-all.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "qemu/log.h"
 #include "tcg/tcg-op.h"
