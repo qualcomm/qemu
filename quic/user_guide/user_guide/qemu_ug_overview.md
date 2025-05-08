@@ -26,6 +26,17 @@ system via a set of semi- hosted *angel calls*, which are system calls
 that the emulator handles to access the file system or console. The
 QEMU interface matches the Hexagon simulator interface.
 
+# Emulated Hardware
+
+Like the Hexagon simulator, some hardware components of the DSP subsystem
+are modeled.  Instead of being provided externally as co-simulation libraries,
+they are include in QEMU hexagon.  The specific components and their layout
+in memory are designed to match the real device on which they're based.  These
+emulated DSP subsystem models are called "machines" in the QEMU vocabulary.
+The machines without real Qualcomm part numbers are not based on real devices
+but instead synthetic ones that are intended to match a corresponding one from
+the Hexagon simulator.
+
 ## Host system requirements
 
 Releases of QEMU are provided for Linux and Windows 10 or 11. Starting with
