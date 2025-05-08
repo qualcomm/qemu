@@ -135,3 +135,5 @@ system libraries to be installed:
 -   libpulse
 -   libutil
 -   libz
+-   libfdt
+-   libvirglrenderer
