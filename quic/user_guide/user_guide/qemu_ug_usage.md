@@ -260,7 +260,9 @@ might show more consistency.
 
 - `-monitor [none|stdio]`
 
-  Specify how to set QEMU's interactive monitor.
+  Specify how to set QEMU's interactive monitor.  For more detail on how to
+  use the monitor, see
+  [the QEMU project documentation for the monitor](https://qemu-project.gitlab.io/qemu/system/monitor.html).
 
   - *none*
   - *stdio*
