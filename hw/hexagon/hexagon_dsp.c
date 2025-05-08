@@ -637,10 +637,10 @@ static void v75na_1024_config_init(MachineState *machine)
 
 static void sim_nocoproc_config_init(MachineState *machine)
 {
-    hexagon_machine_config v75na_1024_nocoproc;
-    memcpy(&v75na_1024_nocoproc, &v75na_1024, sizeof(v75na_1024));
-    machcfg_disable_coproc(&v75na_1024_nocoproc);
-    hexagon_common_init(machine, unknown_rev, &v75na_1024_nocoproc);
+    hexagon_machine_config v81dgb_1_nocoproc;
+    memcpy(&v81dgb_1_nocoproc, &v81dgb_1, sizeof(v81dgb_1));
+    machcfg_disable_coproc(&v81dgb_1_nocoproc);
+    hexagon_common_init(machine, unknown_rev, &v81dgb_1_nocoproc);
 }
 
 static void sim_coproc_config_init(MachineState *machine)
