@@ -336,6 +336,28 @@ Process 1 stopped
 ->  0x0: { jump 0x44 }
 :::
 
+### Tracing
+
+Several device emulation and instruction execution features can be traced
+using the `-trace` option.  Since tracing execution of the entire system
+bootup can generate enormous output, these can also be enabled after boot,
+at any time using the monitor.  The `-trace` option accepts wildcards, so
+many general logs can be gathered using `-trace "hexagon*"`.  In the event
+of an unresponsive system or hang, the `hexagon_critical` trace can be useful
+for understanding some fatal errors / NMIs.  Not all of the trace options
+start with "`hexagon`", so you can review the ones available with `-trace help`.
+
+Below is an example of a test case from the Hexagon SDK, exhibiting a fault
+that occurs very early in the guest OS boot.  Without the `-trace` option,
+it would just appear to hang before any semihosting output is emitted.
+
+:::{code-block}
+qemu-system-hexagon -kernel runelf.pbn -append './run_main_on_hexagon_sim -- ./libqprintf_example_q.so' -display none   -trace hexagon_critical
+hexagon_critical NMI (Non Maskable Interrupt) HTID: 0: PC: 0xfe000350, LR: 0xfe00b200, SSR: 0x00000000, BADVA: 0x00000000 ELR: 0x00000000 DIAG: 0x00000000
+:::
+
+
+
 ### Plug-ins
 
 QEMU plug-ins allow you to add new functionality to QEMU. You can
