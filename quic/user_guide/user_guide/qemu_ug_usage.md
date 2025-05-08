@@ -264,20 +264,21 @@ might show more consistency.
   use the monitor, see
   [the QEMU project documentation for the monitor](https://qemu-project.gitlab.io/qemu/system/monitor.html).
 
-  - *none*
-  - *stdio*
+  - `-monitor=none`
 
-- `-S`
+    Disable the interactive monitor.
 
-  Disable the interactive monitor.
+    When the monitor is enabled, it consumes stdin, which will conflict
+    with your guest program's use of stdin.
 
-  When the monitor is enabled, it consumes stdin, which will conflict
-  with your guest program's use of stdin.
+  - `-monitor=stdio`
 
-  Connect the monitor to the console. Use the interactive module to
-  investigate and trace the guest program execution.
+    Connect the monitor to the console. Use the interactive module to
+    investigate and trace the guest program execution.
 
   Several features of this monitor are also available in hexagon-lldb.
+
+- `-S`
 
   Halt execution at the startup point. This option is useful when using
   a debugger.
