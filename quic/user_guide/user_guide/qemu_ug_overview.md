@@ -30,7 +30,7 @@ QEMU interface matches the Hexagon simulator interface.
 
 Like the Hexagon simulator, some hardware components of the DSP subsystem
 are modeled.  Instead of being provided externally as co-simulation libraries,
-they are include in QEMU hexagon.  The specific components and their layout
+they are included in QEMU hexagon.  The specific components and their layout
 in memory are designed to match the real device on which they're based.  These
 emulated DSP subsystem models are called "machines" in the QEMU vocabulary.
 The machines without real Qualcomm part numbers are not based on real devices

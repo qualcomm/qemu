@@ -374,7 +374,8 @@ intended to count cycles that have elapsed:
 
 -   `pcycleNt`
 -   `gpcycleNt` -- Are expensive to model, so they are off by default.
-    They can be enabled using a CPU property.
+    They can be enabled using the `count-gcycle-xt` CPU property.  For more
+    information, see [the section on system configuration](#system-configuration).
 -   `gpcyclelo/gpcyclehi -- Mirror `PCYCLEHI/PCYCLELO` registers in Guest
     mode. The values are only valid when the CE bit in SSR is set.
 -   `pcyclelo/pcyclehi` -- Are incremented each time a packet starts. If
