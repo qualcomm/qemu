@@ -15,4 +15,5 @@ tests_hexagon_system_thorough = [
   'qurt',
   'virtio',
   'systests',
+  'sdk',
 ]
