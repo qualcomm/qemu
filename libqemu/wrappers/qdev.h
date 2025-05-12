@@ -1,7 +1,7 @@
 /*
  * libqemu
  *
- * Copyright (c) 2023 Qualcomm
+ * Copyright (c) 2023-2025 Qualcomm
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,5 +22,8 @@
 
 void libqemu_qdev_prop_set_uint_array(DeviceState *dev, const char *label,
                                       unsigned int *arr, int size);
+
+
+void libqemu_qdev_set_id(DeviceState *dev, const char *id);
 
 #endif

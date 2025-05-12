@@ -1,7 +1,7 @@
 /*
  * libqemu
  *
- * Copyright (c) 2023 Qualcomm
+ * Copyright (c) 2023-2025 Qualcomm
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qobject/qlist.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-core.h"
 
 #include "qdev.h"
 
@@ -31,4 +32,10 @@ void libqemu_qdev_prop_set_uint_array(DeviceState *dev, const char *label,
         qlist_append_int(list, arr[i]);
     }
     return qdev_prop_set_array(dev, label, list);
+}
+
+void libqemu_qdev_set_id(DeviceState *dev, const char *id)
+{
+    assert(!dev->id && !dev->realized);
+    dev->id = id;
 }
