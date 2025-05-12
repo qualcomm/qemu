@@ -207,7 +207,10 @@ PrivateInclude('libqemu/wrappers/qdev.h')
 ExportedFct('qdev_prop_set_uint_array', 'void', [ 'DeviceState *', 'const char *', 'unsigned int *', 'int'],
             priv = 'libqemu_qdev_prop_set_uint_array')
 
-PrivateInclude('hw/sysbus.h')
+ExportedFct('qdev_set_id', 'void', ['DeviceState *', 'const char *'],
+            priv= 'libqemu_qdev_set_id')
+
+PrivateInclude('hw/core/sysbus.h')
 ExportedType('QemuSysBusDevice', 'SysBusDevice')
 
 ExportedFct('sysbus_mmio_get_region', 'MemoryRegion *', [ 'SysBusDevice *', 'int' ])
