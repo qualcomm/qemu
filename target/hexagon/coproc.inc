@@ -10,15 +10,9 @@
 static const char *get_coproc_relative_install_path(void)
 {
     struct stat st;
-    /*
-     * By default, qemu is installed at:
-     * <install-dir>/Tools/QEMUHexagon/bin/qemu-system-hexagon
-     * And the coproc at:
-     * <install-dir>/Tools/QEMUCoprocPlugin/
-     */
-    char *path = get_relocated_path(CONFIG_BINDIR "/../../QEMUCoprocPlugin/");
+    char *path = get_relocated_path(CONFIG_BINDIR);
     if (stat(path, &st) || !S_ISDIR(st.st_mode)) {
-	free(path);
+    free(path);
         return NULL;
     }
     return path;
