@@ -98,12 +98,13 @@ checkpatch:
   script: quic-gitlab-ci.d/checkpatch.sh $TARGET_REF $SOURCE_REF
   allow_failure: true
 
-hexagon_build_ug:
+user_guide:
+  stage: build
   script:
     - make -C quic/user_guide/ html latexpdf
   artifacts:
     paths: [ quic/user_guide/_build/html, quic/user_guide/_build/latex ]
-    expire_in: 2 days
+    expire_in: 1 days
 
 hexagon_build:
   extends: .base-build
@@ -154,7 +155,7 @@ hexagon_publish:
     PUBLISH_PATH: /prj/qct/llvm/target/vp_qemu_llvm/qemu_builds/
     QEMU_RELPATH: Tools/QEMUHexagon
     MAX_PUBLISH_NR: 90 # 3 months
-  needs: [hexagon_tarball, hexagon_build_ug]
+  needs: [hexagon_tarball, user_guide]
   script:
     - |
       rel_publishdir="build-$(date +%Y%m%d)"
