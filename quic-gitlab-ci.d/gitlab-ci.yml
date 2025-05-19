@@ -218,6 +218,10 @@ variables:
   extends: .base-functional-test
   variables: {TEST_CASE: func-hexagon-hexagon_sival}
 
+.base-linux-boot-test:
+  extends: .base-functional-test
+  variables: {TEST_CASE: func-hexagon-hexagon_linux}
+
 .test_hexagon_perf:
   extends: .after-build
   # We'll execute a smaller subset of tests, fewer iters for routine
@@ -336,6 +340,9 @@ hexagon_qurt-tests:
   needs: [hexagon_and_coproc_build]
 hexagon_sival-tests:
   extends: .base-sival-tests
+  needs: [hexagon_and_coproc_build]
+hexagon_linux-boot-test:
+  extends: .base-linux-boot-test
   needs: [hexagon_and_coproc_build]
 hexagon_publish:
   tags: [publish_runner]
@@ -463,6 +470,9 @@ san-hexagon_qurt-tests:
   needs: [san-hexagon_and_coproc_build]
 san-hexagon_sival-tests:
   extends: .base-sival-tests
+  needs: [san-hexagon_and_coproc_build]
+san-hexagon_linux-boot-test:
+  extends: .base-linux-boot-test
   needs: [san-hexagon_and_coproc_build]
 
 no-idef-parser-hexagon_build:

@@ -8,18 +8,18 @@ import os
 from glob import glob
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-
+from unittest import skipUnless
 
 class HexagonLinuxDevsTest(LinuxKernelTest):
-    timeout = 120
     GUEST_ENTRY = 0xa0000000
 
     REPO = 'https://gitlab.qualcomm.com/qqvp/testing/qemu-linux-tests'
-    GIT_REF = 'v0.1.0'
+    GIT_REF = 'buildroot-v0.3'
     ASSET_TARBALL = \
         Asset(f'{REPO}/-/archive/{GIT_REF}/qemu-linux-tests-{GIT_REF}.tar.gz',
-              '598738ec39e718023c314bc22a8c185f2e72ebd1377f444e7e2aa0e0ea174e42')
+              '53f80959bc4367cc836222b30220c78e03385f178b2c01aac7d6e501112fa516')
 
+    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_linux_devs(self):
         self.set_machine('virt')
         self.require_netdev('user')
@@ -46,6 +46,9 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
         self.wait_for_console_pattern(
             "clocksource: Switched to clocksource HVM timer")
         self.wait_for_console_pattern("bash-4.3#")
+
+        # Small sanity check
+        exec_command_and_wait_for_pattern(self, "ls", "bin")
 
         # Test that virtio-net and virtio-blk devices are functional:
         exec_command_and_wait_for_pattern(self, "ip addr",
