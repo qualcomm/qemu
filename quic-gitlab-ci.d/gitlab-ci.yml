@@ -93,10 +93,13 @@ download_coproc_mac:
     - mac
 
 checkpatch:
-  extends: .mr-job
-  stage: test
-  script: quic-gitlab-ci.d/checkpatch.sh $TARGET_REF $SOURCE_REF
-  allow_failure: true
+  stage: .pre
+  variables:
+    GIT_DEPTH: 50
+    GIT_FETCH_EXTRA_FLAGS: --filter=blob:none --filter=tree:0 --prune --quiet
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script: quic-gitlab-ci.d/checkpatch.sh
 
 user_guide:
   stage: build
