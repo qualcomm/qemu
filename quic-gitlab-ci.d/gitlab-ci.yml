@@ -77,7 +77,7 @@ variables:
 
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
-  HEX_COPROC_SHA: 7a535682cbfe1aa0733e81ffc7a9575782c35c90
+  HEX_COPROC_REF: v10.2.3
 
   HEX_INSTALL_PREFIX: "Tools"
   HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
@@ -270,13 +270,17 @@ variables:
 ###################################################################
 
 download_coproc_linux_x86:
-  script: quic/scripts/download-coproc.sh linux-x86 . $CI_SERVER_URL $CI_JOB_TOKEN
+  script:
+    - quic/scripts/download-coproc.sh linux-x86-tag . $CI_SERVER_URL
+      $CI_JOB_TOKEN $HEX_COPROC_REF
   artifacts:
     when: on_success
     paths: [ $HEX_COPROC_BIN ]
 
 download_coproc_mac:
-  script: quic/scripts/download-coproc.sh mac . $CI_SERVER_URL $CI_JOB_TOKEN
+  script:
+    - quic/scripts/download-coproc.sh mac-tag . $CI_SERVER_URL $CI_JOB_TOKEN
+      $HEX_COPROC_REF
   artifacts:
     when: on_success
     paths: [ $HEX_COPROC_BIN ]
