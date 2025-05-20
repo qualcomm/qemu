@@ -14,11 +14,6 @@ variables:
   HEX_COPROC_BIN: coproc_rpc_remote
   HEX_COPROC_REF: v10.2.3
 
-  HEX_INSTALL_PREFIX: "Tools"
-  HEX_COPROC_DIR: "$HEX_INSTALL_PREFIX/QEMUCoprocPlugin"
-  HEX_QEMU_DIR: "$HEX_INSTALL_PREFIX/QEMUHexagon"
-  TARBALLS_PATH: tarball-artifacts
-
 ###################################################################
 #    Base templates
 ###################################################################
@@ -33,56 +28,6 @@ variables:
     - builddir="$(echo $CI_JOB_NAME | cut -d_ -f1)_build"
     - sleep 1 # Give a small time difference for touch below
     - find $builddir -type f,d -exec touch {} +
-
-.base-tarball:
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: 1
-  variables:
-    TARBALL_PREFIX: ""
-    CUSTOM_INSTALL_SCRIPT: ""
-  script:
-    - |
-      tagname="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
-                 { echo -n "qemu-hexagon-" && git rev-parse --short HEAD; } )"
-      tarball_name=${TARBALL_PREFIX}${tagname}.tgz
-      src_tarball_name=${tagname}-src.tgz
-      installdir="$(echo $CI_JOB_NAME | cut -d_ -f1)_install"
-
-      mkdir -p $TARBALLS_PATH
-      tar --exclude-vcs -zcf $installdir/$src_tarball_name \
-          --exclude $installdir --exclude $TARBALLS_PATH . \
-          --transform "s/^\.\//${CI_PROJECT_NAME}\//"
-
-      if test -n "$CUSTOM_INSTALL_SCRIPT"
-      then
-        mv "$CUSTOM_INSTALL_SCRIPT" $installdir
-      fi
-
-      mv quic/RELEASE-NOTES.txt $installdir
-
-      mkdir -p $(dirname $HEX_QEMU_DIR)
-      mv $installdir $HEX_QEMU_DIR
-
-      tar --exclude-vcs -zcf ${TARBALLS_PATH}/$tarball_name \
-          --exclude="$HEX_QEMU_DIR/bin/qemu-hexagon" $HEX_INSTALL_PREFIX
-  artifacts:
-    paths: [ $TARBALLS_PATH ]
-    expire_in: 1 month
-  only:
-    - tags
-    - web
-    - schedules
-
-# A small job only to make sure we keep artifacts for tags forever
-.base-tarball-tag:
-  script:
-    - echo OK
-  artifacts:
-    paths: [ $TARBALLS_PATH ]
-    expire_in: never
-  only:
-    - tags
 
 .base-check-tcg:
   extends: .after-build
