@@ -328,6 +328,7 @@ F: include/hw/char/riscv_htif.h
 F: include/hw/riscv/
 F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
+F: common-user/host/riscv*
 F: tests/functional/test_riscv*
 F: tests/tcg/riscv64/
 
@@ -525,6 +526,7 @@ R: Phil Dennis-Jordan <phil@philjordan.eu>
 W: https://wiki.qemu.org/Features/HVF
 S: Maintained
 F: accel/hvf/
+F: accel/stubs/hvf-stub.c
 F: include/system/hvf.h
 F: include/system/hvf_int.h
 
@@ -730,6 +732,16 @@ F: include/hw/timer/arm_mptimer.h
 F: include/hw/timer/armv7m_systick.h
 F: include/hw/misc/armv7m_ras.h
 F: tests/qtest/test-arm-mptimer.c
+
+Bananapi M2U
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: docs/system/arm/bananapi_m2u.rst
+F: hw/*/allwinner-r40*.c
+F: hw/arm/bananapi_m2u.c
+F: include/hw/*/allwinner-r40*.h
+F: tests/functional/test_arm_bpim2u.py
 
 B-L475E-IOT01A IoT Node
 M: Samuel Tardieu <sam@rfc1149.net>
@@ -2057,6 +2069,7 @@ F: hw/pci-bridge/*
 F: qapi/pci.json
 F: docs/pci*
 F: docs/specs/*pci*
+F: docs/system/sriov.rst
 
 PCIE DOE
 M: Huai-Cheng Kuo <hchkuo@avery-design.com.tw>
