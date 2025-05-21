@@ -32,9 +32,29 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
         disk_path = self.archive_extract(self.ASSET_TARBALL,
             member=f'qemu-linux-tests-{self.GIT_REF}/disk.qcow2')
         self.vm.set_console()
+
+        # Workaround: guest limitation -- linux kernel in use doesn't
+        # consume the generated fdt.  So when we have more devices
+        # available, we have to push extra ones in so that the devices
+        # below appear at the expected address.
+        self.vm.add_args(
+            '-netdev', 'type=user,id=net1,hostfwd=tcp::10023-:23',
+            '-device', 'virtio-net-device,netdev=net1',
+            '-netdev', 'type=user,id=net2,hostfwd=tcp::10024-:24',
+            '-device', 'virtio-net-device,netdev=net2',
+            '-netdev', 'type=user,id=net3,hostfwd=tcp::10025-:25',
+            '-device', 'virtio-net-device,netdev=net3',
+            '-netdev', 'type=user,id=net4,hostfwd=tcp::10026-:26',
+            '-device', 'virtio-net-device,netdev=net4',
+            '-netdev', 'type=user,id=net5,hostfwd=tcp::10027-:27',
+            '-device', 'virtio-net-device,netdev=net5',
+            '-netdev', 'type=user,id=net6,hostfwd=tcp::10028-:28',
+            '-device', 'virtio-net-device,netdev=net6',
+            )
         self.vm.add_args(
             '-kernel', booter_path,
-            '-device', f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
+            '-device',
+                f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
             '-m', '4G',
             '-accel', 'tcg,thread=multi',
             '-drive', f'if=none,file={disk_path},id=hd0',
