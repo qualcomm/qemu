@@ -60,31 +60,6 @@ variables:
   # * https://github.com/seccomp/libseccomp/pull/322
   tags: [ new-libseccomp ]
 
-.base-functional-test:
-  extends: .after-build
-  script:
-    - test -n "$TEST_CASE"
-    - QEMU_TEST_ALLOW_UNTRUSTED_CODE=1 HEXAGON_TEST_DEBUG=1
-      $builddir/pyvenv/bin/meson test -C $builddir --no-rebuild --verbose
-        --print-errorlogs --suite func --suite func-quick --suite func-thorough
-        $TEST_CASE
-
-.base-qurt-tests:
-  extends: .base-functional-test
-  variables: {TEST_CASE: func-hexagon-hexagon_qurt}
-
-.base-sival-tests:
-  extends: .base-functional-test
-  variables: {TEST_CASE: func-hexagon-hexagon_sival}
-
-.base-linux-boot-test:
-  extends: .base-functional-test
-  variables: {TEST_CASE: func-hexagon-hexagon_linux}
-
-.base-hexagon-virtio-devices-test:
-  extends: .base-functional-test
-  variables: {TEST_CASE: func-hexagon-hexagon_virtio}
-
 .test_hexagon_perf:
   extends: .after-build
   # We'll execute a smaller subset of tests, fewer iters for routine
