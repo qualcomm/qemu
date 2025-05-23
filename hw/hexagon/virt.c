@@ -25,7 +25,7 @@
 #include "system/system.h"
 #include <libfdt.h>
 
-static const int VIRTIO_DEV_COUNT = 8;
+static const int VIRTIO_DEV_COUNT = 2;
 
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
