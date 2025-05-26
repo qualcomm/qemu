@@ -9,6 +9,7 @@ from glob import glob
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from unittest import skipUnless
+import logging
 
 class HexagonLinuxDevsTest(LinuxKernelTest):
     GUEST_ENTRY = 0xa0000000
@@ -58,4 +59,6 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
 
 
 if __name__ == '__main__':
+    if os.getenv("HEXAGON_TEST_DEBUG"):
+        logging.basicConfig(level=logging.DEBUG)
     LinuxKernelTest.main()
