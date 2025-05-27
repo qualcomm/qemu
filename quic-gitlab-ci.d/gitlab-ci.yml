@@ -8,8 +8,6 @@ image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u22:latest
 # - Cache builds to avoid re-building same commit
 
 variables:
-  GITLAB_URL: echo "$CI_SERVER_URL" | sed -e 's/^.*:\/\///g' -e 's/:[0-9]*$//g'
-
   HEX_COPROC_PROJ: qemu/quic-qemu-plugins
   HEX_COPROC_BIN: coproc_rpc_remote
   HEX_COPROC_REF: v10.2.3
@@ -59,53 +57,6 @@ variables:
   # * https://github.com/moby/moby/issues/43595#issuecomment-1346939700
   # * https://github.com/seccomp/libseccomp/pull/322
   tags: [ new-libseccomp ]
-
-.test_hexagon_perf:
-  extends: .after-build
-  # We'll execute a smaller subset of tests, fewer iters for routine
-  # commits/MRs.  In a nightly build we can run a comprehensive test.
-  before_script:
-    -   PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/minimal_test_config.py" ;
-        PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_min_test_config.py" ;
-        PERF_TEST_ITERS="3" ;
-        if [[ "${CI_PIPELINE_SOURCE}" == "schedule" ]] || [[ "${CI_PIPELINE_SOURCE}" == "web" ]]; then
-            PERF_TEST_CFG="${PWD}/quic-gitlab-ci.d/default_test_config.py" ;
-            PERF_TEST_CFG_MTTCG="${PWD}/quic-gitlab-ci.d/mttcg_full_test_config.py" ;
-            PERF_TEST_ITERS="6";
-        fi
-  script:
-    - |
-      if test "$INSPECTOR" == perf-stat
-      then
-        echo test for perf - if this fails, check qqvp-dev kernel ver and perf host sysctl
-        perf stat --event instructions:u,cache-misses,cache-references,branch-misses,branches,iTLB-load-misses,iTLB-loads,dTLB-store-misses,dTLB-stores,dTLB-load-misses,dTLB-loads /bin/true
-      fi
-    - QQVP_PROJECT_URL="$(eval "$GITLAB_URL")/$CI_PROJECT_ROOT_NAMESPACE"
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-perf.git
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${QQVP_PROJECT_URL}/testing/qemu-hexagon-benchmarks.git
-    - res=0 ;
-      for mode in default mttcg; do
-          cfg=${PERF_TEST_CFG} ;
-          if test $mode = mttcg; then
-              sys_args='-accel tcg,thread=multi' ;
-              cfg=${PERF_TEST_CFG_MTTCG} ;
-          fi ;
-          ./qemu-hexagon-perf/customer_test_suite.py
-              --bench-dir ./qemu-hexagon-benchmarks/
-              --qemu-user-bin-dir $QEMU_USER_BIN_DIR
-              --qemu-bin-dir $QEMU_BIN_DIR
-              --output-file ./perf-results-$mode.json
-              --test-cfg ${cfg}
-              --iters ${PERF_TEST_ITERS}
-              --inspector $INSPECTOR
-              --sys-args="$sys_args" ;
-          res=$(( ${res} + ${?})) ;
-      done ;
-      exit ${res}
-  artifacts:
-    when: always
-    paths: [ "perf-results-default.json", "perf-results-mttcg.json" ]
-    expire_in: 4 days
 
 ##################################################################
 #    Jobs
