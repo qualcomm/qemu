@@ -224,6 +224,23 @@ hexagon-linux-x86_64-perf-ml:
     - when: manual
       allow_failure: true
 
+# QEMU Hexagon for macOS
+hexagon-mac:
+  stage: build
+  script: quic-gitlab-ci.d/scripts/build.sh -j mac-tag -r $HEX_COPROC_REF hexagon,mac
+  artifacts:
+    paths: [ build ]
+    expire_in: 1 day
+  tags:
+    - mac
+
+hexagon-mac-tag:
+  extends: hexagon-mac
+  rules:
+    - if: $CI_COMMIT_TAG
+  artifacts:
+    expire_in: never
+
 hexagon-win_build:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
   extends: .base-build
@@ -268,20 +285,7 @@ hexagon-win-aarch64_tarball_tag:
   needs: [hexagon-win-aarch64_tarball]
   extends: .base-tarball-tag
 
-hexagon-mac_build:
-  tags:
-    - mac
-  extends: .base-build
-  variables: { CONFIG_CMD: $HEX_MAC_CONFIG_CMD }
-mac_hexagon_and_coproc_build:
-  needs: [hexagon-mac_build, download_coproc_mac]
-  variables: { BUILDDIR: hexagon-mac_build }
-  script:
-    - mv ${HEX_COPROC_BIN} ${BUILDDIR}
-    - quic/scripts/create-qpm-layout.sh ${BUILDDIR}
-  artifacts:
-    paths: [ $BUILDDIR ]
-    expire_in: 1 day
+
 
 san-hexagon_build:
   extends: .base-build
