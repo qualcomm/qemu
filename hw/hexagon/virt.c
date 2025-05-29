@@ -32,6 +32,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
     [VIRT_FDT] = { 0x99900000, 0x00000200 },
+    [VIRT_BOOT] = { 0x99d00000, 0x00000200 },
 };
 
 static const int irqmap[] = {
@@ -285,6 +286,37 @@ void hexagon_load_fdt(const HexagonVirtMachineState *vms)
         rom_ptr_for_as(&address_space_memory, fdt_addr, fdtsize));
 }
 
+static uint32_t bootloader[] = {
+    /* Load fdt_base_low value into r0: */
+    0x099d4000, /* { immext(#0x99d00000) */
+    0x7800c606, /*   r6 = ##-0x662fffd0 } */
+    0x9186c000, /* { r0 = memw(r6+#0x0) } */
+
+    /* Load fdt_base_high value into r1: */
+    0x099d4000, /* { immext(#0x99d00000) */
+    0x7800c586, /*   r6 = ##-0x662fffd4 } */
+    0x9186c001, /* { r1 = memw(r6+#0x0) } */
+
+    /* Load next_stage_entry value into r7: */
+    0x099d4000, /* { immext(#0x99d00000) */
+    0x7800c687, /*   r7 = ##-0x662fffcc } */
+    0x9187c007, /* { r7 = memw(r7+#0x0) } */
+
+    /* Jump to next_stage_entry, r1:0 now contains fdt_base: */
+    0x5287c000, /* { jumpr r7 } */
+    0x0, /* Invalid packet */
+    0x0, /* Pad for fdt_base_high */
+    0x0, /* Pad for fdt_base_low */
+    0x0, /* Pad for next_stage_entry */
+};
+
+enum {
+    FDT_HI = 11,
+    FDT_LO,
+    ENTRY_ADDR,
+};
+
+
 static uint64_t load_kernel(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -311,6 +343,26 @@ static uint64_t load_bios(HexagonVirtMachineState *vms)
     }
 
     return bios_addr;  /* Return entry point at address 0x0 */
+}
+
+static uint64_t setup_boot(const HexagonVirtMachineState *vms)
+{
+    uint64_t entry_addr = load_kernel(vms);
+    uint32_t entry_addr_low = extract64(entry_addr, 0, 32);
+
+    uint64_t fdt_base = base_memmap[VIRT_FDT].base;
+    uint32_t fdt_base_low = extract64(fdt_base, 0, 32);
+    uint32_t fdt_base_high = extract64(fdt_base, 32, 32);
+    bootloader[FDT_LO] = fdt_base_low;
+    bootloader[FDT_HI] = fdt_base_high;
+    bootloader[ENTRY_ADDR] = entry_addr_low;
+
+    uint64_t bootl_base = base_memmap[VIRT_BOOT].base;
+    g_assert(sizeof(bootloader) <= base_memmap[VIRT_BOOT].size);
+    rom_add_blob_fixed_as("bootloader", bootloader, sizeof(bootloader),
+        bootl_base, &address_space_memory);
+
+    return bootl_base;
 }
 
 static void do_cpu_reset(void *opaque)
@@ -364,7 +416,7 @@ static void virt_init(MachineState *ms)
         if (i == 0) {
             cpu_0 = cpu;
             if (ms->kernel_filename) {
-                uint64_t entry = load_kernel(vms);
+                uint64_t entry = setup_boot(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
