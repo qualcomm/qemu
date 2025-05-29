@@ -342,6 +342,7 @@ tests_hexagon_system_thorough = [
   'hexagon_linux',
   'hexagon_sival',
   'hexagon_qurt',
+  'hexagon_virtio',
 ]
 # end of QUIC-specific
 
