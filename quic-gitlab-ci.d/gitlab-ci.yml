@@ -222,6 +222,10 @@ variables:
   extends: .base-functional-test
   variables: {TEST_CASE: func-hexagon-hexagon_linux}
 
+.base-hexagon-virtio-devices-test:
+  extends: .base-functional-test
+  variables: {TEST_CASE: func-hexagon-hexagon_virtio}
+
 .test_hexagon_perf:
   extends: .after-build
   # We'll execute a smaller subset of tests, fewer iters for routine
@@ -343,6 +347,9 @@ hexagon_sival-tests:
   needs: [hexagon_and_coproc_build]
 hexagon_linux-boot-test:
   extends: .base-linux-boot-test
+  needs: [hexagon_and_coproc_build]
+hexagon_virtio-test:
+  extends: .base-hexagon-virtio-devices-test
   needs: [hexagon_and_coproc_build]
 hexagon_publish:
   tags: [publish_runner]
