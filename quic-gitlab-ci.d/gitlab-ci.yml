@@ -325,6 +325,7 @@ hexagon-windows-aarch64-tag:
   artifacts:
     expire_in: never
 
+# QEMU Hexagon for Linux on x86_64 without idef parser
 no-idef-parser-hexagon_build:
   extends: .base-build
   variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --disable-hexagon-idef-parser" }
@@ -362,15 +363,17 @@ no-idef-parser-hexagon_check:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-aarch64_build:
-  extends: .base-build
-  variables: { CONFIG_CMD: $AARCH64_CONFIG_CMD }
-aarch64_install:
-  needs: [aarch64_build]
-  extends: .base-install
-aarch64_check-tcg:
-  needs: [aarch64_build]
-  extends: .base-check-tcg
-aarch64_check:
-  needs: [aarch64_build]
-  extends: .base-check
+# QEMU Hexagon for Linux on aarch64
+aarch64-linux:
+  stage: build
+  script: quic-gitlab-ci.d/scripts/build.sh aarch64,linux-x86_64
+  artifacts:
+    paths: [ build ]
+    expire_in: 1 day
+
+aarch64-linux-tag:
+  extends: aarch64-linux
+  rules:
+    - if: $CI_COMMIT_TAG
+  artifacts:
+    expire_in: never
