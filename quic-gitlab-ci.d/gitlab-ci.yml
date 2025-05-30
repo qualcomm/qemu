@@ -265,27 +265,22 @@ hexagon-windows-x86_64-check-tcg:
   script: quic/scripts/run-check-tcg.sh
 
 # QEMU Hexagon for Windows on aarch64
-hexagon-win-aarch64_build:
+hexagon-windows-aarch64:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
-  extends: .base-build
-  variables: { CONFIG_CMD: $HEX_WIN_AARCH64_CONFIG_CMD }
-hexagon-win-aarch64_install:
-  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
-  needs: [hexagon-win-aarch64_build]
-  extends: .base-install
-hexagon-win-aarch64_tarball:
-  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
-  needs: [hexagon-win-aarch64_install]
-  extends: .base-tarball
-  variables:
-    TARBALL_PREFIX: "windows-aarch64-"
-    CUSTOM_INSTALL_SCRIPT: "quic/install_win_aarch64_deps.bat"
-hexagon-win-aarch64_tarball_tag:
-  needs: [hexagon-win-aarch64_tarball]
-  extends: .base-tarball-tag
+  stage: build
+  script: quic-gitlab-ci.d/scripts/build.sh -p windows-aarch64 -s quic/install_win_aarch64_deps.bat hexagon,windows-aarch64
+  artifacts:
+    paths: [ build ]
+    expire_in: 1 day
 
+hexagon-windows-aarch64-tag:
+  extends: hexagon-windows-aarch64
+  rules:
+    - if: $CI_COMMIT_TAG
+  artifacts:
+    expire_in: never
 
-
+# QEMU Hexagon for Linux on x86_64 with sanatizers enabled
 san-hexagon_build:
   extends: .base-build
   variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --enable-asan --enable-ubsan" }
