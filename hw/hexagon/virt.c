@@ -31,7 +31,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
-    [VIRT_FDT] = { 0x99900000, 0x00000200 },
+    [VIRT_FDT] = { 0x99900000, 0x00400000 },
     [VIRT_BOOT] = { 0x99d00000, 0x00000200 },
 };
 
@@ -278,6 +278,7 @@ void hexagon_load_fdt(const HexagonVirtMachineState *vms)
     hwaddr fdt_addr = base_memmap[VIRT_FDT].base;
     uint32_t fdtsize = vms->fdt_size;
 
+    g_assert(fdtsize <= base_memmap[VIRT_FDT].size);
     /* copy in the device tree */
     rom_add_blob_fixed_as("fdt", ms->fdt, fdtsize, fdt_addr,
                           &address_space_memory);
