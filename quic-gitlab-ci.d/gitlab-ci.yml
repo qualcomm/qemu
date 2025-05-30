@@ -326,39 +326,31 @@ hexagon-windows-aarch64-tag:
     expire_in: never
 
 # QEMU Hexagon for Linux on x86_64 without idef parser
-no-idef-parser-hexagon_build:
-  extends: .base-build
-  variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --disable-hexagon-idef-parser" }
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_PIPELINE_SOURCE == "web"
-no-idef-parser-hexagon_and_coproc_build:
-  needs: [no-idef-parser-hexagon_build, download_coproc_linux_x86]
-  variables: { BUILDDIR: no-idef-parser-hexagon_build }
-  script:
-    - mv ${HEX_COPROC_BIN} ${BUILDDIR}
-    - quic/scripts/create-qpm-layout.sh ${BUILDDIR}
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_PIPELINE_SOURCE == "web"
+hexagon-linux-x86_64-no-idef-parser:
+  stage: build
+  script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,no-idef-parser
   artifacts:
-    paths: [ $BUILDDIR ]
+    paths: [ build ]
     expire_in: 1 day
-no-idef-parser-hexagon_install:
-  needs: [no-idef-parser-hexagon_build]
-  extends: .base-install
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
-no-idef-parser-hexagon_check-tcg:
-  needs: [no-idef-parser-hexagon_and_coproc_build]
-  extends: .base-check-tcg
+
+hexagon-linux-x86_64-no-idef-parser-check-tcg:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64-no-idef-parser
+  script: quic/scripts/run-check-tcg.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
-no-idef-parser-hexagon_check:
-  needs: [no-idef-parser-hexagon_and_coproc_build]
-  extends: .base-check
+
+hexagon-linux-x86_64-no-idef-parser-check:
+  stage: test
+  tags: [ new-libseccomp ]
+  dependencies:
+    - hexagon-linux-x86_64-no-idef-parser
+  script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
