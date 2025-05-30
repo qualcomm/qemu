@@ -224,6 +224,51 @@ hexagon-linux-x86_64-perf-ml:
     - when: manual
       allow_failure: true
 
+# QEMU Hexagon for Linux on x86_64 with sanatizers enabled
+hexagon-linux-x86_64-san:
+  stage: build
+  script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,san
+  artifacts:
+    paths: [ build ]
+    expire_in: 1 day
+
+hexagon-linux-x86_64-san-check-tcg:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64
+  script: quic/scripts/run-check-tcg.sh
+
+hexagon-linux-x86_64-san-check:
+  stage: test
+  tags: [ new-libseccomp ]
+  dependencies:
+    - hexagon-linux-x86_64-san
+  script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
+
+hexagon-linux-x86_64-san-qurt:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64-san
+  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
+
+hexagon-linux-x86_64-san-sival:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64-san
+  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
+
+hexagon-linux-x86_64-san-boot:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64-san
+  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
+
+hexagon-linux-x86_64-san-virtio:
+  stage: test
+  dependencies:
+    - hexagon-linux-x86_64-san
+  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
+
 # QEMU Hexagon for macOS
 hexagon-mac:
   stage: build
@@ -279,38 +324,6 @@ hexagon-windows-aarch64-tag:
     - if: $CI_COMMIT_TAG
   artifacts:
     expire_in: never
-
-# QEMU Hexagon for Linux on x86_64 with sanatizers enabled
-san-hexagon_build:
-  extends: .base-build
-  variables: { CONFIG_CMD: "$HEX_CONFIG_CMD --enable-asan --enable-ubsan" }
-san-hexagon_and_coproc_build:
-  needs: [san-hexagon_build, download_coproc_linux_x86]
-  variables: { BUILDDIR: san-hexagon_build }
-  script:
-    - mv ${HEX_COPROC_BIN} ${BUILDDIR}
-    - quic/scripts/create-qpm-layout.sh ${BUILDDIR}
-  artifacts:
-    paths: [ $BUILDDIR ]
-    expire_in: 1 day
-san-hexagon_install:
-  needs: [san-hexagon_build]
-  extends: .base-install
-san-hexagon_check-tcg:
-  needs: [san-hexagon_and_coproc_build]
-  extends: .base-check-tcg
-san-hexagon_check:
-  needs: [san-hexagon_and_coproc_build]
-  extends: .base-check
-san-hexagon_qurt-tests:
-  extends: .base-qurt-tests
-  needs: [san-hexagon_and_coproc_build]
-san-hexagon_sival-tests:
-  extends: .base-sival-tests
-  needs: [san-hexagon_and_coproc_build]
-san-hexagon_linux-boot-test:
-  extends: .base-linux-boot-test
-  needs: [san-hexagon_and_coproc_build]
 
 no-idef-parser-hexagon_build:
   extends: .base-build
