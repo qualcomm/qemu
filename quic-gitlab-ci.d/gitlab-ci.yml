@@ -7,9 +7,21 @@ image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u22:latest
 # TODO
 # - Cache builds to avoid re-building same commit
 
+workflow:
+  auto_cancel:
+    on_job_failure: all
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "pipeline"
+    - if: $CI_COMMIT_TAG
+
 variables:
-  HEX_COPROC_PROJ: qemu/quic-qemu-plugins
-  HEX_COPROC_BIN: coproc_rpc_remote
+  FF_SCRIPT_SECTIONS: True
+  GIT_DEPTH: 1
+
   HEX_COPROC_REF: v10.2.3
 
 ###################################################################
