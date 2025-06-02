@@ -367,13 +367,3 @@ aarch64_check-tcg:
 aarch64_check:
   needs: [aarch64_build]
   extends: .base-check
-
-mac_test_hexagon_perf:
-  extends: .test_hexagon_perf
-  needs: [mac_hexagon_and_coproc_build]
-  tags:
-    - mac
-  variables:
-    INSPECTOR: none
-    QEMU_USER_BIN_DIR: none
-    QEMU_BIN_DIR: hexagon-mac_build
