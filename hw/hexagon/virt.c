@@ -31,8 +31,8 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
-    [VIRT_FDT] = { 0x99900000, 0x00400000 },
-    [VIRT_BOOT] = { 0x99d00000, 0x00000200 },
+    [VIRT_FDT] = { 0x99800000, 0x00400000 },
+    [VIRT_BOOT] = { 0x99c00000, 0x00000200 },
 };
 
 static const int irqmap[] = {
@@ -289,17 +289,17 @@ void hexagon_load_fdt(const HexagonVirtMachineState *vms)
 
 static uint32_t bootloader[] = {
     /* Load fdt_base_low value into r0: */
-    0x099d4000, /* { immext(#0x99d00000) */
+    0x099c4000, /* { immext(#0x99c00000) */
     0x7800c606, /*   r6 = ##-0x662fffd0 } */
     0x9186c000, /* { r0 = memw(r6+#0x0) } */
 
     /* Load fdt_base_high value into r1: */
-    0x099d4000, /* { immext(#0x99d00000) */
+    0x099c4000, /* { immext(#0x99c00000) */
     0x7800c586, /*   r6 = ##-0x662fffd4 } */
     0x9186c001, /* { r1 = memw(r6+#0x0) } */
 
     /* Load next_stage_entry value into r7: */
-    0x099d4000, /* { immext(#0x99d00000) */
+    0x099c4000, /* { immext(#0x99c00000) */
     0x7800c687, /*   r7 = ##-0x662fffcc } */
     0x9187c007, /* { r7 = memw(r7+#0x0) } */
 
