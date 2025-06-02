@@ -1,4 +1,23 @@
 ===========
+QEMU fork for Qualcomm Android support
+===========
+
+This is the Qualcomm-specific part of the README.
+Please find the generic QEMU README below.
+
+Building
+========
+
+All the usual stuff for QEMU works, only a few additional options should be added to the generic call to `configure` to get Qualcomm board support:
+
+.. code-block:: shell
+
+  mkdir build
+  cd build
+  ../configure --target-list=aarch64-softmmu --enable-rust --with-devices-aarch64=qcom
+  make -j
+
+===========
 QEMU README
 ===========
 

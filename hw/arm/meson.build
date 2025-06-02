@@ -76,3 +76,6 @@ system_ss.add(when: 'CONFIG_VERSATILE', if_true: files('versatilepb.c'))
 system_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.c'))
 
 hw_arch += {'arm': arm_ss}
+
+# Qualcomm-specific configuration.
+arm_ss.add(when: ['CONFIG_ARM_VIRT_QCOM', 'TARGET_AARCH64'], if_true: files('virt-qcom.c'))
