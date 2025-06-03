@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#![allow(
-    dead_code,
+#![expect(
     improper_ctypes_definitions,
     improper_ctypes,
     non_camel_case_types,
@@ -8,11 +7,11 @@
     non_upper_case_globals,
     unsafe_op_in_unsafe_fn,
     clippy::pedantic,
-    clippy::restriction,
-    clippy::style,
+    clippy::empty_structs_with_brackets,
     clippy::missing_const_for_fn,
     clippy::useless_transmute,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_offset_with_cast,
 )]
 
 //! `bindgen`-generated declarations.
