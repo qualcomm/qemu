@@ -1,3 +1,4 @@
 # devices Kconfig
 source char/Kconfig
+source qcom/Kconfig
 source timer/Kconfig

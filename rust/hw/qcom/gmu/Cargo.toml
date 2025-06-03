@@ -1,0 +1,29 @@
+[package]
+name = "gmu"
+version = "0.1.0"
+edition = "2021"
+authors = ["Romain Malmain <rmalmain@qti.qualcomm.com>"]
+license = "GPL-2.0-or-later"
+description = "Qualcomm GMU device for QEMU"
+resolver = "2"
+publish = false
+keywords = []
+categories = []
+rust-version = "1.63.0"
+
+[features]
+
+default = ["gen8"]
+
+# GMU Version
+gen8 = []
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+qemu_api = { path = "../../../qemu-api" }
+qemu_api_macros = { path = "../../../qemu-api-macros" }
+
+[lints]
+workspace = true
