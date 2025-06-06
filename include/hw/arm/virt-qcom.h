@@ -40,10 +40,21 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 
+struct QcomVirtDevice;
+
 /* Qualcomm-specific devices */
-enum {
-    VIRT_QCOM_GMU = VIRT_HIGHMEMMAP_LAST,
+enum QcomVirtDeviceType {
+    VIRT_QCOM_GPU,
+    VIRT_QCOM_GMU,
     VIRT_QCOM_SMMU,
 };
+
+struct QcomVirtDevice {
+    MemMapEntry memmap;
+
+    void (*device_create)(struct QcomVirtDevice* qcom_device, VirtMachineState* vms);
+    void (*udpate_fdt)(struct QcomVirtDevice* qcom_device, void* fdt, VirtMachineState* vms);
+};
+
 
 #endif /* QEMU_ARM_VIRT_QCOM_H */

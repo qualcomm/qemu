@@ -182,7 +182,7 @@ struct VirtMachineClass {
     bool no_ns_el2_virt_timer_irq;
     bool no_nested_smmu;
 
-    const MemMapEntry *base_memmap;
+    void (*create_extra_devices)(MachineState* ms);
 };
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)

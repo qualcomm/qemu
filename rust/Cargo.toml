@@ -5,7 +5,7 @@ members = [
     "qemu-api",
     "hw/char/pl011",
     "hw/timer/hpet",
-    "hw/qcom/gmu",
+    "hw/qcom/gpu",
 ]
 
 [workspace.lints.rust]

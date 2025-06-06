@@ -1,1 +1,1 @@
-subdir('gmu')
+subdir('gpu')

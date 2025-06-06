@@ -1846,14 +1846,13 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
 {
     MachineState *ms = MACHINE(vms);
-    VirtMachineClass* vmc = VIRT_MACHINE_GET_CLASS(vms);
     hwaddr base, device_memory_base, device_memory_size, memtop;
     int i;
 
     vms->memmap = extended_memmap;
 
     for (i = 0; i < ARRAY_SIZE(base_memmap); i++) {
-        vms->memmap[i] = vmc->base_memmap[i];
+        vms->memmap[i] = base_memmap[i];
     }
 
     if (ms->ram_slots > ACPI_MAX_RAM_SLOTS) {
@@ -2439,6 +2438,10 @@ static void machvirt_init(MachineState *machine)
 
     create_platform_bus(vms);
 
+    if (vmc->create_extra_devices) {
+        vmc->create_extra_devices(machine);
+    }
+
     if (machine->nvdimms_state->is_enabled) {
         const struct AcpiGenericAddress arm_virt_nvdimm_acpi_dsmio = {
             .space_id = AML_AS_SYSTEM_MEMORY,
@@ -2904,7 +2907,6 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_memory_pre_plug(hotplug_dev, dev, errp);
@@ -2925,14 +2927,14 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
             return;
         case VIRT_MSI_CTRL_ITS:
             /* GITS_TRANSLATER page */
-            db_start = vmc->base_memmap[VIRT_GIC_ITS].base + 0x10000;
-            db_end = vmc->base_memmap[VIRT_GIC_ITS].base +
-                     vmc->base_memmap[VIRT_GIC_ITS].size - 1;
+            db_start = base_memmap[VIRT_GIC_ITS].base + 0x10000;
+            db_end = base_memmap[VIRT_GIC_ITS].base +
+                     base_memmap[VIRT_GIC_ITS].size - 1;
             break;
         case VIRT_MSI_CTRL_GICV2M:
             /* MSI_SETSPI_NS page */
-            db_start = vmc->base_memmap[VIRT_GIC_V2M].base;
-            db_end = db_start + vmc->base_memmap[VIRT_GIC_V2M].size - 1;
+            db_start = base_memmap[VIRT_GIC_V2M].base;
+            db_end = db_start + base_memmap[VIRT_GIC_V2M].size - 1;
             break;
         }
         resv_prop_str = g_strdup_printf("0x%"PRIx64":0x%"PRIx64":%u",
@@ -3129,7 +3131,6 @@ static int virt_hvf_get_physical_address_range(MachineState *ms)
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     static const char * const valid_cpu_types[] = {
 #ifdef CONFIG_TCG
@@ -3202,8 +3203,6 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_cluster_has_numa_boundary = true;
     mc->default_ram_id = "mach-virt.ram";
     mc->default_nic = "virtio-net-pci";
-
-    vmc->base_memmap = base_memmap;
 
     object_class_property_add(oc, "acpi", "OnOffAuto",
         virt_get_acpi, virt_set_acpi,

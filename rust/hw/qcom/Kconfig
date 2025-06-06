@@ -1,2 +1,3 @@
-config GMU
+config QCOM_GRAPHICS
     bool
+    depends on ARM_VIRT_QCOM

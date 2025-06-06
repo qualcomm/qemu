@@ -99,57 +99,71 @@
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
 
-/* Legacy RAM limit in GB (< version 4.0) */
-#define LEGACY_RAMLIMIT_GB 255
-#define LEGACY_RAMLIMIT_BYTES (LEGACY_RAMLIMIT_GB * GiB)
+static void gpu_create(struct QcomVirtDevice* qcom_device, VirtMachineState* vms, MemoryRegion* mem, hwaddr base)
+{
+    const char compat[] = "qcom,adreno-gpu-gen8-2-0\0qcom,kgsl-3d0";
 
-/* Addresses and sizes of our components.
- * 0..128MB is space for a flash device so we can run bootrom code such as UEFI.
- * 128MB..256MB is used for miscellaneous device I/O.
- * 256MB..1GB is reserved for possible future PCI support (ie where the
- * PCI memory window will go if we add a PCI host controller).
- * 1GB and up is RAM (which may happily spill over into the
- * high memory region beyond 4GB).
- * This represents a compromise between how much RAM can be given to
- * a 32 bit VM and leaving space for expansion and in particular for PCI.
- * Note that devices should generally be placed at multiples of 0x10000,
- * to accommodate guests using 64K pages.
- */
-static const MemMapEntry qcom_base_memmap[] = {
-    /* Space up to 0x8000000 is reserved for a boot ROM */
-    [VIRT_FLASH] =              { 0x1000000000, 0x08000000 },
-    [VIRT_CPUPERIPHS] =         { 0x1008000000, 0x00020000 },
-    /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
-    [VIRT_GIC_DIST] =           { 0x1008000000, 0x00010000 },
-    [VIRT_GIC_CPU] =            { 0x1008010000, 0x00010000 },
-    [VIRT_GIC_V2M] =            { 0x1008020000, 0x00001000 },
-    [VIRT_GIC_HYP] =            { 0x1008030000, 0x00010000 },
-    [VIRT_GIC_VCPU] =           { 0x1008040000, 0x00010000 },
-    /* The space in between here is reserved for GICv3 CPU/vCPU/HYP */
-    [VIRT_GIC_ITS] =            { 0x1008080000, 0x00020000 },
-    /* This redistributor space allows up to 2*64kB*123 CPUs */
-    [VIRT_GIC_REDIST] =         { 0x10080A0000, 0x00F60000 },
-    [VIRT_UART0] =              { 0x1009000000, 0x00001000 },
-    [VIRT_RTC] =                { 0x1009010000, 0x00001000 },
-    [VIRT_FW_CFG] =             { 0x1009020000, 0x00000018 },
-    [VIRT_GPIO] =               { 0x1009030000, 0x00001000 },
-    [VIRT_UART1] =              { 0x1009040000, 0x00001000 },
-    [VIRT_SMMU] =               { 0x1009050000, 0x00020000 },
-    [VIRT_PCDIMM_ACPI] =        { 0x1009070000, MEMORY_HOTPLUG_IO_LEN },
-    [VIRT_ACPI_GED] =           { 0x1009080000, ACPI_GED_EVT_SEL_LEN },
-    [VIRT_NVDIMM_ACPI] =        { 0x1009090000, NVDIMM_ACPI_IO_LEN},
-    [VIRT_PVTIME] =             { 0x10090a0000, 0x00010000 },
-    [VIRT_SECURE_GPIO] =        { 0x10090b0000, 0x00001000 },
-    [VIRT_MMIO] =               { 0x100a000000, 0x00000200 },
-    /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
-    [VIRT_PLATFORM_BUS] =       { 0x100c000000, 0x02000000 },
-    [VIRT_SECURE_MEM] =         { 0x100e000000, 0x01000000 },
-    [VIRT_PCIE_MMIO] =          { 0x1010000000, 0x2eff0000 },
-    [VIRT_PCIE_PIO] =           { 0x103eff0000, 0x00010000 },
-    [VIRT_PCIE_ECAM] =          { 0x103f000000, 0x01000000 },
-    /* Actual RAM size depends on initial RAM and device memory settings */
-    [VIRT_MEM] =                { 0x1100000000, LEGACY_RAMLIMIT_BYTES },
+    DeviceState* dev = qdev_new("qcom_gpu");
+    SysBusDevice* s = SYS_BUS_DEVICE(dev);
+
+    static hwaddr base_addresses[4] = {
+        0x3d00000,
+        0x3d50000,
+        0x3d61000,
+        0x3d9e000,
+    };
+
+    static hwaddr irqs[2] = {
+        300,
+        80
+    };
+
+    for (unsigned i = 0; i < 4; ++i) {
+        memory_region_add_subregion(mem, base_addresses[i], sysbus_mmio_get_region(s, i));
+    }
+
+    for (unsigned i = 0; i < 2; ++i) {
+        sysbus_connect_irq(s, 0, qdev_get_gpio_in(dev, irqs[i]));
+    }
+}
+
+static void gmu_create(struct QcomVirtDevice* qcom_device, VirtMachineState* vms)
+{
+
+}
+
+static void gmu_update_fdt(struct QcomVirtDevice* qcom_device, void* fdt, VirtMachineState* vms)
+{
+
+}
+ 
+// TODO: Update the sizes...
+static const struct QcomVirtDevice qcom_devices[] = {
+    [VIRT_QCOM_GPU] = {
+        .memmap = { 0x3d37000, 0 },
+        .device_create = gpu_create,
+    },
+
+    [VIRT_QCOM_GMU] = {
+        .memmap = { 0x3d37000, 0 },
+        .device_create = gmu_create,
+        .udpate_fdt = gmu_update_fdt,
+    },
+
+    [VIRT_QCOM_SMMU] = {
+        .memmap = { 0x3da0000, 0 },
+        .device_create = gmu_create,
+        .udpate_fdt = gmu_update_fdt,
+    },
 };
+
+static void qcom_create_devices(MachineState* machine)
+{
+    VirtMachineState* vms = VIRT_MACHINE(machine);
+    MemoryRegion* sysmem = get_system_memory();
+
+    gpu_create(qcom_devices[VIRT_QCOM_GPU], vms, sysmem);
+}
 
 static void virt_qcom_machine_class_init(ObjectClass *oc, void *data)
 {
@@ -157,7 +171,7 @@ static void virt_qcom_machine_class_init(ObjectClass *oc, void *data)
     VirtMachineClass* vmc = VIRT_MACHINE_CLASS(oc);
     mc->desc = "QEMU ARM Virtual Machine for Qualcomm SoC";
 
-    vmc->base_memmap = qcom_base_memmap;
+    vmc->create_extra_devices = qcom_create_devices;
 }
 
 static const TypeInfo virt_qcom_machine_info = {
