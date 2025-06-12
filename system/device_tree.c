@@ -733,14 +733,12 @@ static void qemu_fdt_copy_node_recursive(void *out_fdt, void *in_fdt, const char
     const void *prop;
 
     // first, add the node and the missing subnodes.
-    info_report("Subnode: %s", in_node_path);
     int out_node_offset = qemu_fdt_add_subnode(out_fdt, in_node_path);
 
     // next, add all the missing properties
     int prop_offset;
     fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
         prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
-        info_report("\tProperty: %s", prop_name);
         fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
     }
 
@@ -770,7 +768,6 @@ void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path, Erro
     int prop_offset;
     fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
         prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
-        info_report("Property: %s", prop_name);
         fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
     }
 
