@@ -16,6 +16,7 @@
 
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
+void save_device_tree(void *fdt, const char* filename_path, Error **errp);
 #ifdef CONFIG_LINUX
 /**
  * load_device_tree_from_sysfs: reads the device tree information in the
@@ -233,15 +234,16 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
 void qemu_fdt_randomize_seeds(void *fdt);
 
 /**
- * qemu_fdt_merge_node: merge a node from an input fdt to an
- * output fdt. All the subnodes and properties get copied over
- * the output fdt.
+ * qemu_fdt_copy_node: copy a node from an input fdt to an
+ * output fdt. All the subnodes and properties get recursively
+ * copied over the output fdt as well.
  * 
  * @out_fdt: pointer to the output dt blob
  * @in_fdt: pointer to the input dt blob, with the given node path.
  * @errp: handle to an error object
  */
-void qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp);
+void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path,
+                        Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

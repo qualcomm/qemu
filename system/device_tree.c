@@ -128,6 +128,17 @@ fail:
     return NULL;
 }
 
+void save_device_tree(void *fdt, const char* filename_path, Error **errp)
+{
+    uint32_t dt_size = fdt_totalsize(fdt);
+    int fd = qemu_create(filename_path, O_WRONLY | O_BINARY, 0644, errp);
+
+    int ret = qemu_write_full(fd, fdt, dt_size);
+    assert(ret == dt_size);
+
+    qemu_close(fd);
+}
+
 #ifdef CONFIG_LINUX
 
 #define SYSFS_DT_BASEDIR "/proc/device-tree"
@@ -713,8 +724,62 @@ void qemu_fdt_randomize_seeds(void *fdt)
     }
 }
 
-void qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
+static void qemu_fdt_copy_node_recursive(void *out_fdt, void *in_fdt, const char* in_node_path, int in_node_offset, Error **errp)
 {
-    // int subnode;
-    // fdt_for
+    int len;
+    const char *subnode_name;
+    char *subnode_path;
+    const char *prop_name;
+    const void *prop;
+
+    // first, add the node and the missing subnodes.
+    info_report("Subnode: %s", in_node_path);
+    int out_node_offset = qemu_fdt_add_subnode(out_fdt, in_node_path);
+
+    // next, add all the missing properties
+    int prop_offset;
+    fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
+        prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
+        info_report("\tProperty: %s", prop_name);
+        fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+    }
+
+    // add the subnodes recursively
+    int subnode_offset;
+    fdt_for_each_subnode(subnode_offset, in_fdt, in_node_offset) {
+        subnode_name = fdt_get_name(in_fdt, subnode_offset, &len);
+        subnode_path = g_strdup_printf("%s/%s", in_node_path, subnode_name);
+        qemu_fdt_copy_node_recursive(out_fdt, in_fdt, subnode_path, subnode_offset, errp);
+        g_free(subnode_path);
+    }
+}
+
+void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
+{
+    int in_node_offset = findnode_nofail(in_fdt, node_path);
+    int len;
+    const char *subnode_name;
+    char *subnode_path;
+    const char *prop_name;
+    const void* prop;
+
+    // first, add the node and the missing subnodes.
+    int out_node_offset = qemu_fdt_add_path(out_fdt, node_path);
+
+    // next, add all the missing properties
+    int prop_offset;
+    fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
+        prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
+        info_report("Property: %s", prop_name);
+        fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+    }
+
+    // now, we can add all the subnodes recursively, since the root node is set.
+    int subnode_offset;
+    fdt_for_each_subnode(subnode_offset, in_fdt, in_node_offset) {
+        subnode_name = fdt_get_name(in_fdt, subnode_offset, &len);
+        subnode_path = g_strdup_printf("%s/%s", node_path, subnode_name);
+        qemu_fdt_copy_node_recursive(out_fdt, in_fdt, subnode_path, subnode_offset, errp);
+        g_free(subnode_path);
+    }
 }

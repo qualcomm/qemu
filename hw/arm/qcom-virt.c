@@ -70,8 +70,10 @@
 // Qualcomm peripherals
 #include "hw/qcom/graphics.h"
 
-static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem, hwaddr machine_base)
+static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
+    hwaddr machine_base = qvms->base_addr;
+
     DeviceState* dev = qdev_new(TYPE_QCOM_GRAPHICS);
     SysBusDevice* s = SYS_BUS_DEVICE(dev);
 
@@ -79,74 +81,19 @@ static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem, hwadd
     memory_region_add_subregion(mem, machine_base + QCOM_GRAPHICS_BASE, sysbus_mmio_get_region(s, 0));
 }
 
-// // TODO: move this to a function of a common qcom device, taking base as paramter.
-// // TODO: use dtsi files directly? for now we create a minimal fdt configuration to check if it works.
-// static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms, hwaddr machine_base)
-// {
-//     const char nodename[] = "/msm_gpu";
-//     static const char* compat[] = {
-//         "qcom,adreno-gpu-gen8-2-0",
-//         "qcom,kgsl-3d0",
-//     };
-//     static const char* reg_names[] = {
-//         "kgsl_3d0_reg_memory",
-//         "rscc",
-//         "cx_dbgc",
-//         "cx_misc",
-//     };
-// 
-//     hwaddr graphics_base = base + QCOM_GRAPHICS_BASE;
-//     uint32_t address_cells_sz = qemu_fdt_getprop_cell(
-//         fdt, "/", "#address-cells", NULL, &error_fatal
-//     );
-//     uint32_t size_cells_sz = qemu_fdt_getprop_cell(
-//         fdt, "/", "#size-cells", NULL, &error_fatal
-//     );
-// 
-// 
-//     // === kgsl ====
-//     qemu_fdt_add_subnode(fdt, nodename);
-//     qemu_fdt_setprop_string_array(fdt, nodename, "compatible",
-//         (char**) compat,
-//         ARRAY_SIZE(compat)
-//     );
-//     qemu_fdt_setprop_string(fdt, nodename, "status", "ok");
-//     qemu_fdt_setprop_string_array(
-//         fdt, nodename, "reg-names",
-//         (char**) reg_names, ARRAY_SIZE(reg_names)
-//     );
-//     qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
-//             // kgsl_3d0_reg_memory
-//             address_cells_sz, graphics_base + QCOM_GRAPHICS_KGSL_OFFSET,
-//             size_cells_sz, QCOM_GRAPHICS_KGSL_SIZE,
-// 
-//             // rscc
-//             address_cells_sz, graphics_base + QCOM_GRAPHICS_RSCC_OFFSET,
-//             size_cells_sz, QCOM_GRAPHICS_RSCC_SIZE,
-// 
-//             // cx_dbgc
-//             address_cells_sz, graphics_base + QCOM_GRAPHICS_CX_DBGC_OFFSET,
-//             size_cells_sz, QCOM_GRAPHICS_CX_DBGC_SIZE,
-// 
-//             // cx_misc
-//             address_cells_sz, graphics_base + QCOM_GRAPHICS_CX_MISC_OFFSET,
-//             size_cells_sz, QCOM_GRAPHICS_CX_MISC_SIZE,
-//     );
-//     // === kgsl end ====
-// }
-
-static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms, hwaddr machine_base)
+static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {
     void* qcom_fdt = qvms->fdt;
 
-    // extract interesting nodes from qcom dtb
+    // extract interesting nodes from qcom dtb.
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
     const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
     const char* gmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "gmu", &error_abort);
 
-    info_report("gpu node: %s\n", gpu_node);
-    info_report("smmu node: %s\n", smmu_node);
-    info_report("gmu node: %s\n", gmu_node);
+    // copy nodes from qemu dtb to out dtb.
+    qemu_fdt_copy_node(fdt, qcom_fdt, gpu_node, &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, smmu_node, &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, gmu_node, &error_abort);
 }
 
 static const struct QcomVirtDevice qcom_devices[] = {
@@ -201,8 +148,8 @@ static void qcom_create_devices(MachineState* machine)
 
     // initialize qualcomm devices
     for (size_t i = 0; i < ARRAY_SIZE(qcom_devices); ++i) {
-        qcom_devices[i].device_create(qvms, sysmem, qvms->base_addr);
-        qcom_devices[i].update_fdt(machine->fdt, qvms, qvms->base_addr);
+        qcom_devices[i].device_create(qvms, sysmem);
+        qcom_devices[i].update_fdt(machine->fdt, qvms);
     }
 }
 

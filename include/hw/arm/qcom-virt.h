@@ -55,14 +55,16 @@ enum QcomVirtDeviceType {
 struct QcomVirtDevice;
 
 struct QcomVirtDevice {
-    void (*device_create)(QcomVirtMachineState* vms, MemoryRegion* mem, hwaddr machine_base);
-    void (*update_fdt)(void* fdt, QcomVirtMachineState* vms, hwaddr machine_base);
+    void (*device_create)(QcomVirtMachineState* vms, MemoryRegion* mem);
+    void (*update_fdt)(void* fdt, QcomVirtMachineState* vms);
 };
 
 struct QcomVirtMachineState {
     VirtMachineState parent;
 
+    // base address of the qcom soc
     hwaddr base_addr;
+    // highest address of the qcom soc
     hwaddr highest_gpa;
 
     // path to qualcomm's dtb
