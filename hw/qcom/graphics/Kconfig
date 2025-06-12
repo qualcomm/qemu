@@ -1,0 +1,2 @@
+config QCOM_GRAPHICS
+    bool

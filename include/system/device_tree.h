@@ -47,6 +47,23 @@ char **qemu_fdt_node_path(void *fdt, const char *name, const char *compat,
                           Error **errp);
 
 /**
+ * qemu_fdt_find_node_path_by_label: return the node path of a label,
+ * if the symbol table is present.
+ * @fdt: pointer to the dt blob
+ * @label: label name
+ * @errp: handle to an error object
+ * 
+ * dt blobs often contain a symbol table linking label names with
+ * nodes. This function retrives the symbol table, and returns the
+ * node linked to the label.
+ * 
+ * If the symbol table is not present, or another error is found,
+ * NULL is returned.
+ */
+const char *qemu_fdt_node_path_by_label(void *fdt, const char *label,
+                          Error **errp);
+
+/**
  * qemu_fdt_node_unit_path: return the paths of nodes matching a given
  * node-name, ie. node-name and node-name@unit-address
  * @fdt: pointer to the dt blob
@@ -103,6 +120,20 @@ int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
 const void *qemu_fdt_getprop(void *fdt, const char *node_path,
                              const char *property, int *lenp,
                              Error **errp);
+
+/**
+ * qemu_fdt_getprop_string: retrieve the value of a given property as a string
+ * @fdt: pointer to the device tree blob
+ * @node_path: node path
+ * @property: name of the property to find
+ * @lenp: fdt error if any or length of the property on success
+ * @errp: handle to an error object
+ *
+ * returns a string pointer to the property on success and NULL on failure
+ */
+const char *qemu_fdt_getprop_string(void *fdt, const char *node_path,
+                             const char *property, Error **errp);
+
 /**
  * qemu_fdt_getprop_cell: retrieve the value of a given 4 byte property
  * @fdt: pointer to the device tree blob
@@ -200,6 +231,17 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
  * Re-randomize all "rng-seed" properties with new seeds.
  */
 void qemu_fdt_randomize_seeds(void *fdt);
+
+/**
+ * qemu_fdt_merge_node: merge a node from an input fdt to an
+ * output fdt. All the subnodes and properties get copied over
+ * the output fdt.
+ * 
+ * @out_fdt: pointer to the output dt blob
+ * @in_fdt: pointer to the input dt blob, with the given node path.
+ * @errp: handle to an error object
+ */
+void qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

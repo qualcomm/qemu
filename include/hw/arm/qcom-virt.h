@@ -27,8 +27,8 @@
  * This is essentially the same approach kvmtool uses.
  */
 
-#ifndef QEMU_ARM_VIRT_QCOM_H
-#define QEMU_ARM_VIRT_QCOM_H
+#ifndef QEMU_QCOM_VIRT_H
+#define QEMU_QCOM_VIRT_H
 
 #include "exec/hwaddr.h"
 #include "qemu/notify.h"
@@ -40,21 +40,42 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 
-struct QcomVirtDevice;
+// Top address of the real hardware
+// Depends on the board being emulated
+#define QCOM_VIRT_HW_TOP_ADDR  0x1000000000
+
+#define TYPE_QCOM_VIRT_MACHINE MACHINE_TYPE_NAME("qcom-virt")
+OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHINE)
 
 /* Qualcomm-specific devices */
 enum QcomVirtDeviceType {
-    VIRT_QCOM_GPU,
-    VIRT_QCOM_GMU,
-    VIRT_QCOM_SMMU,
+    VIRT_QCOM_GRAPHICS,
 };
+
+struct QcomVirtDevice;
 
 struct QcomVirtDevice {
-    MemMapEntry memmap;
-
-    void (*device_create)(struct QcomVirtDevice* qcom_device, VirtMachineState* vms);
-    void (*udpate_fdt)(struct QcomVirtDevice* qcom_device, void* fdt, VirtMachineState* vms);
+    void (*device_create)(QcomVirtMachineState* vms, MemoryRegion* mem, hwaddr machine_base);
+    void (*update_fdt)(void* fdt, QcomVirtMachineState* vms, hwaddr machine_base);
 };
 
+struct QcomVirtMachineState {
+    VirtMachineState parent;
 
-#endif /* QEMU_ARM_VIRT_QCOM_H */
+    hwaddr base_addr;
+    hwaddr highest_gpa;
+
+    // path to qualcomm's dtb
+    char* dtb;
+
+    // fdt blob
+    void* fdt;
+    // fdt blob size
+    int fdt_sz;
+};
+
+struct QcomVirtMachineClass {
+    VirtMachineClass parent;
+};
+
+#endif /* QEMU_QCOM_VIRT_H */

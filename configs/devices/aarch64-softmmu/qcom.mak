@@ -1,5 +1,7 @@
 # Include default config
 include default.mak
 
-# Enable QCOM virt board
-CONFIG_ARM_VIRT_QCOM=y
+# Qualcomm virt board
+CONFIG_QCOM_VIRT=y
+# Graphics device
+CONFIG_QCOM_GRAPHICS=y

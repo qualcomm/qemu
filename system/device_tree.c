@@ -351,6 +351,19 @@ char **qemu_fdt_node_path(void *fdt, const char *name, const char *compat,
     return path_array;
 }
 
+const char *qemu_fdt_node_path_by_label(void *fdt, const char *label,
+                          Error **errp)
+{
+    const void *label_node = qemu_fdt_getprop_string(fdt, "/__symbols__", label, errp);
+    if (!label) {
+        error_setg(errp, "%s: Couldn't find the symbol table, "
+                         "or the label %s does not exist",
+                         __func__, label);
+    }
+
+    return label_node;
+}
+
 int qemu_fdt_setprop(void *fdt, const char *node_path,
                      const char *property, const void *val, int size)
 {
@@ -443,6 +456,28 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
                   node_path, property, fdt_strerror(*lenp));
     }
     return r;
+}
+
+const char *qemu_fdt_getprop_string(void *fdt, const char *node_path,
+                             const char* property, Error **errp)
+{
+    int len;
+    const void* ret = qemu_fdt_getprop(fdt, node_path, property, &len, errp);
+
+    // exit early if there was an error while parsing @property
+    if (!ret) {
+        return ret;
+    }
+
+    // cast to string, and check correctness
+    const char* ret_str = (const char*) ret;
+    if (ret_str[len - 1] != '\0') {
+        error_setg(errp, "%s: Could not cast %s as string - "
+                         "property is not NULL-terminated (len: %d, end char: %c)",
+                         __func__, ret_str, len, ret_str[len - 1]);
+    }
+
+    return ret_str;
 }
 
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
@@ -676,4 +711,10 @@ void qemu_fdt_randomize_seeds(void *fdt)
             qemu_guest_getrandom_nofail(data, len);
         }
     }
+}
+
+void qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
+{
+    int subnode;
+    fdt_for
 }
