@@ -715,6 +715,6 @@ void qemu_fdt_randomize_seeds(void *fdt)
 
 void qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
 {
-    int subnode;
-    fdt_for
+    // int subnode;
+    // fdt_for
 }
