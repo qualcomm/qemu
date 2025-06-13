@@ -512,6 +512,63 @@ uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
     return be32_to_cpu(*p);
 }
 
+bool qemu_fdt_getprop_reg(void *fdt,
+                          int node_offset,
+                          uint32_t *nb_reg_cells,
+                          uint32_t *nb_size_cells,
+                          uint32_t *total_nb_regs,
+                          uint32_t **reg,
+                          Error **errp)
+{
+    int parent_node = fdt_parent_offset(fdt, node_offset);
+    int len;
+
+    const uint32_t *address_cells = fdt_getprop(fdt, parent_node, FDT_ADDRESS_CELLS, &len);
+    assert(len == 4);
+    *nb_reg_cells = be32_to_cpu(*address_cells);
+
+    const uint32_t *size_cells = fdt_getprop(fdt, parent_node, FDT_SIZE_CELLS, &len);
+    assert(len == 4);
+    *nb_size_cells = be32_to_cpu(*size_cells);
+
+    uint32_t cell_size = (*nb_reg_cells + *nb_size_cells) * sizeof(uint32_t);
+
+    const uint32_t *in_reg = fdt_getprop(fdt, node_offset, FDT_REG, &len);
+    *total_nb_regs = len / cell_size;
+    *reg = g_new(uint32_t, *total_nb_regs * (*nb_reg_cells + *nb_size_cells));
+
+    assert(len == sizeof(uint32_t) * *total_nb_regs * (*nb_reg_cells + *nb_size_cells));
+
+    memcpy(*reg, in_reg, len);
+
+    return true;
+}
+
+bool qemu_fdt_getprop_reg_as_u64(void* fdt, int node_offset, uint64_t** reg, uint32_t* nb_regs, Error **errp)
+{
+    uint32_t nb_reg_cells, nb_size_cells;
+
+    uint32_t *reg_32 = NULL;
+    qemu_fdt_getprop_reg(fdt, node_offset, &nb_reg_cells, &nb_size_cells, nb_regs, &reg_32, errp);
+    assert(nb_reg_cells == 1 || nb_reg_cells == 2);
+    assert(nb_size_cells == 1 || nb_size_cells == 2);
+
+    uint64_t *new_reg = g_new(uint64_t, *nb_regs * 4);
+
+    for (size_t i = 0; i < *nb_regs * 4; i += 4) {
+        new_reg[i + 0] = nb_reg_cells;
+        new_reg[i + 1] = (((uint64_t) be32_to_cpu(reg_32[i + 0])) << 32) + be32_to_cpu(reg_32[i + 1]);
+        new_reg[i + 2] = nb_size_cells;
+        new_reg[i + 3] = (((uint64_t) be32_to_cpu(reg_32[i + 2])) << 32) + be32_to_cpu(reg_32[i + 3]);
+    }
+
+    g_free(reg_32);
+
+    *reg = new_reg;
+
+    return true;
+}
+
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 {
     uint32_t r;
@@ -754,12 +811,13 @@ static void qemu_fdt_copy_node_recursive(void *out_fdt, void *in_fdt, const char
 
 void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
 {
-    int in_node_offset = findnode_nofail(in_fdt, node_path);
     int len;
     const char *subnode_name;
     char *subnode_path;
     const char *prop_name;
     const void* prop;
+    int in_node_offset = findnode_nofail(in_fdt, node_path);
+    int ret = 0;
 
     // first, add the node and the missing subnodes.
     int out_node_offset = qemu_fdt_add_path(out_fdt, node_path);
@@ -768,15 +826,158 @@ void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path, Erro
     int prop_offset;
     fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
         prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
-        fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+
+        if (!prop) {
+            ret = len;
+            goto fail;
+        }
+
+        ret = fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     // now, we can add all the subnodes recursively, since the root node is set.
     int subnode_offset;
     fdt_for_each_subnode(subnode_offset, in_fdt, in_node_offset) {
         subnode_name = fdt_get_name(in_fdt, subnode_offset, &len);
+
+        if (!subnode_name) {
+            ret = len;
+            goto fail;
+        }
+
         subnode_path = g_strdup_printf("%s/%s", node_path, subnode_name);
         qemu_fdt_copy_node_recursive(out_fdt, in_fdt, subnode_path, subnode_offset, errp);
         g_free(subnode_path);
     }
+
+    return;
+
+fail:
+    error_setg(errp, "%s: Couldn't copy node %s: %s", __func__, node_path, fdt_strerror(ret));
+}
+
+void qemu_fdt_copy_node_properties(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)
+{
+    int len;
+    const char *prop_name;
+    const void* prop;
+    int in_node_offset = findnode_nofail(in_fdt, node_path);
+    int out_node_offset = findnode_nofail(out_fdt, node_path);
+    int ret = 0;
+
+    // next, add all the missing properties
+    int prop_offset;
+    fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
+        prop = fdt_getprop_by_offset(in_fdt, prop_offset, &prop_name, &len);
+
+        if (!prop) {
+            ret = len;
+            goto fail;
+        }
+
+        ret = fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
+    return;
+
+fail:
+    error_setg(errp, "%s: Couldn't copy node %s: %s", __func__, node_path, fdt_strerror(ret));
+}
+
+void qemu_fdt_delprop(void *fdt, const char *node_path, const char *property, Error **errp)
+{
+    int ret;
+    int node_offset = findnode_nofail(fdt, node_path);
+
+    ret = fdt_delprop(fdt, node_offset, property);
+
+    if (ret < 0) {
+        error_setg(errp, "%s: Couldn't delete propert %s from node %s: %s", __func__, property, node_path, fdt_strerror(ret));
+    }
+}
+
+bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Error **errp)
+{
+    const char* last_node = strrchr(node_path, '/');
+    const char* addr_str = strrchr(node_path, '@');
+
+    if (!addr_str || addr_str < last_node) {
+        error_setg(errp, "%s: Could not find an address for node %s", __func__, node_path);
+        return false;
+    }
+
+    addr_str++;
+
+    // note on dt spec v0.4: not clear it should always be in base 16
+    int ret = parse_uint(addr_str, NULL, 16, addr);
+
+    if (ret < 0) {
+        error_setg(errp, "%s: Could not parse integer: %s", __func__, addr_str);
+        return false;
+    }
+
+    return true;
+}
+
+bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp)
+{
+    int node_offset = findnode_nofail(fdt, node_path);
+    const char* node_name = strrchr(node_path, '/') + 1; // cannot fail
+    const char* addr_str = strrchr(node_path, '@');
+    hwaddr old_base_addr;
+    char* new_name = NULL;
+
+    if (!addr_str || addr_str < node_name) {
+        return false;
+    }
+
+    // note on dt spec v0.4: not clear it should always be in base 16
+    int ret = parse_uint(addr_str + 1, NULL, 16, &old_base_addr);
+
+    size_t str_len = addr_str - node_name;
+    char* stripped_name = g_new0(char, str_len + 1); // null terminated
+
+    strncpy(stripped_name, node_name, str_len);
+
+    new_name = g_strdup_printf("%s@%lx", stripped_name, node_base_addr);
+    assert(new_name);
+
+    // first, edit registers.
+    // the dt specification v0.4 enforces the first register to be equal to the new addr.
+    // we will try to edit every register as well, if applicable.
+    uint64_t* reg;
+    uint32_t nb_cells;
+    qemu_fdt_getprop_reg_as_u64(fdt, node_offset, &reg, &nb_cells, errp);
+
+    for (size_t i = 0; i < nb_cells; i++) {
+        size_t idx = 4 * i + 1;
+        assert(reg[idx] >= old_base_addr);
+        reg[idx] = reg[idx] - old_base_addr + node_base_addr;
+    }
+
+    qemu_fdt_setprop_sized_cells_from_array(fdt, node_path, "reg", nb_cells * 2, reg);
+    
+    // then, change the final name
+    // we do it after so that "node_path" remains valid
+    // until this point.
+    ret = fdt_set_name(fdt, node_offset, new_name);
+
+    g_free(reg);
+    g_free(new_name);
+
+    if (ret < 0) {
+        error_setg(errp, "%s: Could not set addr 0x%lx for node %s: %s", __func__, node_base_addr, node_path, fdt_strerror(ret));
+        return false;
+    }
+
+
+    return true;
 }

@@ -6,13 +6,20 @@
  * Copyright 2008 IBM Corporation.
  * Authors: Jerone Young <jyoung5@us.ibm.com>
  *          Hollis Blanchard <hollisb@us.ibm.com>
+ *          Romain Malmain <rmalmain@qti.qualcomm.com>
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
  */
 
+#include "exec/hwaddr.h"
+
 #ifndef DEVICE_TREE_H
 #define DEVICE_TREE_H
+
+#define FDT_ADDRESS_CELLS   "#address-cells"
+#define FDT_SIZE_CELLS      "#size-cells"
+#define FDT_REG             "reg"
 
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
@@ -136,6 +143,48 @@ const char *qemu_fdt_getprop_string(void *fdt, const char *node_path,
                              const char *property, Error **errp);
 
 /**
+ * qemu_fdt_getprop_reg: retrieve the value of a given property as a "reg"
+ * according to dt specification v0.4.
+ * 
+ * @fdt: pointer to the device tree blob
+ * @node_path: node path
+ * @nb_addr_cells: set to the number of u32 per addr cell.
+ * @nb_size_cells: set to the number of u32 per size cell.
+ * @total_nb_regs: set to the number of registers found. It is the number of (addr, size) pairs.
+ * @values: set to an array containing the value of each register
+ * @errp: handle to an error object
+ *
+ * returns true on success and false on failure.
+ */
+bool qemu_fdt_getprop_reg(void *fdt,
+                          int node_offset,
+                          uint32_t *nb_reg_cells,
+                          uint32_t *nb_size_cells,
+                          uint32_t *total_nb_regs,
+                          uint32_t **reg,
+                          Error **errp);
+
+/**
+ * qemu_fdt_getprop_reg_as_u64: retrieve the value of a given property as a "reg"
+ * in the same format as for the "qemu_fdt_setprop_sized_cells_from_array" function.
+ * 
+ * @fdt: pointer to the device tree blob
+ * @node_offset: offset in the tdb to the node.
+ * @nb_addr_cells: set to the number of u32 per addr cell.
+ * @nb_size_cells: set to the number of u32 per size cell.
+ * @total_nb_regs: set to the number of registers found. It is the number of (addr, size) pairs.
+ * @values: set to an array containing the value of each register
+ * @errp: handle to an error object
+ *
+ * returns true on success and false on failure.
+ */
+bool qemu_fdt_getprop_reg_as_u64(void* fdt,
+                          int node_offset,
+                          uint64_t** reg,
+                          uint32_t* nb_regs,
+                          Error **errp);
+
+/**
  * qemu_fdt_getprop_cell: retrieve the value of a given 4 byte property
  * @fdt: pointer to the device tree blob
  * @node_path: node path
@@ -240,10 +289,56 @@ void qemu_fdt_randomize_seeds(void *fdt);
  * 
  * @out_fdt: pointer to the output dt blob
  * @in_fdt: pointer to the input dt blob, with the given node path.
+ * @node_path: path to the target node
  * @errp: handle to an error object
  */
 void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path,
                         Error **errp);
+
+/**
+ * qemu_fdt_copy_node_properties: copy a node's properties from an input fdt
+ * to an output fdt.
+ * 
+ * @out_fdt: pointer to the output dt blob
+ * @in_fdt: pointer to the input dt blob, with the given node path.
+ * @node_path: path to the target node
+ * @errp: handle to an error object
+ */
+void qemu_fdt_copy_node_properties(void *out_fdt, void *in_fdt, const char *node_path,
+                        Error **errp);
+
+/**
+ * qemu_fdt_delprop: delete a node's property.
+ * 
+ * @fdt: pointer to the dt blob
+ * @node_path: path to the target node
+ * @property: the property to delete
+ * @errp: handle to an error object
+ */
+void qemu_fdt_delprop(void *fdt, const char *node_path, const char *property, Error **errp);
+
+/**
+ * qemu_fdt_get_node_addr: get a node's address, if there is one.
+ * An error is raised if no address can be found.
+ * 
+ * @fdt: pointer to the dt blob
+ * @node_path: path to the target node
+ * @addr: the addr, if any
+ * @errp: handle to an error object
+ * 
+ * returns true if the address was found, false otherwise.
+ */
+bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Error **errp);
+
+/**
+ * qemu_fdt_set_node_addr: set a node's address.
+ * 
+ * @fdt: pointer to the dt blob
+ * @node_path: path to the target node
+ * @addr: the address to set
+ * @errp: handle to an error object
+ */
+bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000
