@@ -342,12 +342,12 @@ bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Erro
  * @addr: the address to set
  * @errp: handle to an error object
  */
-bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp);
+char* qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp);
 
 /**
  * use the current node addr (if there is any) as offset addr.
  */
-bool qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp);
+void qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

@@ -83,7 +83,6 @@ static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
 
 static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {
-    hwaddr addr;
     void* qcom_fdt = qvms->fdt;
 
     // extract interesting nodes from qcom dtb.
@@ -104,8 +103,10 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     qemu_fdt_delprop(fdt, "/soc", "interrupt-parent", &error_abort);
 
     // edit base addresses with the new one
-    qemu_fdt_get_node_addr(fdt, gpu_node, &addr, &error_abort);
-    qemu_fdt_set_node_addr(fdt, gpu_node, qvms->base_addr + addr, &error_abort);
+    qemu_fdt_set_nodes_addr(fdt, "/soc", qvms->base_addr, &error_abort);
+
+    // qemu_fdt_get_node_addr(fdt, gpu_node, &addr, &error_abort);
+    // qemu_fdt_set_node_addr(fdt, gpu_node, qvms->base_addr + addr, &error_abort);
 
     // qemu_fdt_get_node_addr(fdt, smmu_node, &addr, &error_abort);
     // qemu_fdt_set_node_addr(fdt, smmu_node, qvms->base_addr + addr, &error_abort);

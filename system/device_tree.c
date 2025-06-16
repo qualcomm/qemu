@@ -595,9 +595,14 @@ bool qemu_fdt_getprop_reg(void *fdt,
                           Error **errp)
 {
     int parent_node = fdt_parent_offset(fdt, node_offset);
-    int len;
+    int len, err;
 
     const uint32_t *address_cells = fdt_getprop(fdt, parent_node, FDT_ADDRESS_CELLS, &len);
+    if (len != 4) {
+        err = len;
+        goto fail;
+    }
+
     assert(len == 4);
     *nb_reg_cells = be32_to_cpu(*address_cells);
 
@@ -616,6 +621,11 @@ bool qemu_fdt_getprop_reg(void *fdt,
     memcpy(*reg, in_reg, len);
 
     return true;
+
+fail:
+    error_setg(errp, "%s: Couldn't get property: %s", __func__, fdt_strerror(err));
+
+    return false;
 }
 
 bool qemu_fdt_getprop_reg_as_u64(void* fdt, int node_offset, uint64_t** reg, uint32_t* nb_regs, Error **errp)
@@ -1124,7 +1134,6 @@ bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Erro
     const char* addr_str = strrchr(node_path, '@');
 
     if (!addr_str || addr_str < last_node) {
-        error_setg(errp, "%s: Could not find an address for node %s", __func__, node_path);
         return false;
     }
 
@@ -1141,20 +1150,28 @@ bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Erro
     return true;
 }
 
-bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp)
+char* qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp)
 {
+    printf("1- node_path = %s\n", node_path);
     int node_offset = findnode_nofail(fdt, node_path);
+    printf("2- node_path = %s\n", node_path);
     const char* node_name = strrchr(node_path, '/') + 1; // cannot fail
     const char* addr_str = strrchr(node_path, '@');
     hwaddr old_base_addr;
     char* new_name = NULL;
 
     if (!addr_str || addr_str < node_name) {
-        return false;
+        return NULL;
     }
 
     // note on dt spec v0.4: not clear it should always be in base 16
     int ret = parse_uint(addr_str + 1, NULL, 16, &old_base_addr);
+
+    // dirty fix to pass illegal addresses used by some nodes.
+    // TODO: remove when fixed in the actual specification.
+    if (old_base_addr <= 128) {
+        return NULL;
+    }
 
     size_t str_len = addr_str - node_name;
     char* stripped_name = g_new0(char, str_len + 1); // null terminated
@@ -1185,18 +1202,82 @@ bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_a
     ret = fdt_set_name(fdt, node_offset, new_name);
 
     g_free(reg);
-    g_free(new_name);
 
     if (ret < 0) {
+        g_free(new_name);
         error_setg(errp, "%s: Could not set addr 0x%lx for node %s: %s", __func__, node_base_addr, node_path, fdt_strerror(ret));
-        return false;
+        return NULL;
     }
 
 
-    return true;
+    return new_name;
 }
 
-bool qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp)
+static char* get_root_node(const char* node_path)
 {
-    return true;
+    char *root_pos = strrchr(node_path, '/');
+    if (root_pos == node_path) {
+        return NULL;
+    }
+
+    char* root_path = g_new0(char, root_pos - node_path + 1);
+    memcpy(root_path, node_path, root_pos - node_path);
+
+
+    return root_path;
+}
+
+void qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp)
+{
+    int len;
+    const char *subnode_name;
+    char* subnode_path;
+    int node_offset = findnode_nofail(fdt, node_path);
+    char* new_node_path = NULL;
+    int ret = 0;
+    hwaddr addr;
+
+    // check if the current node has an address to reset.
+    if (qemu_fdt_get_node_addr(fdt, node_path, &addr, errp)) {
+        char* node_root = get_root_node(node_path);
+        char* new_node_name = qemu_fdt_set_node_addr(fdt, node_path, root_node_base_addr + addr, errp);
+        if (new_node_name) {
+            if (node_root) {
+                new_node_path = g_strdup_printf("%s/%s", node_root, new_node_name);
+                g_free(node_root);
+            } else {
+                new_node_path = g_strdup_printf("/%s", new_node_name);
+            }
+            g_free(new_node_name);
+        }
+    }
+
+    // now, we can add all the subnodes recursively, since the root node is set.
+    int subnode_offset;
+    fdt_for_each_subnode(subnode_offset, fdt, node_offset) {
+        subnode_name = fdt_get_name(fdt, subnode_offset, &len);
+
+        if (!subnode_name) {
+            ret = len;
+            goto fail;
+        }
+
+        if (new_node_path) {
+            subnode_path = g_strdup_printf("%s/%s", new_node_path, subnode_name);
+        } else {
+            subnode_path = g_strdup_printf("%s/%s", node_path, subnode_name);
+        }
+
+        qemu_fdt_set_nodes_addr(fdt, subnode_path, root_node_base_addr, errp);
+        g_free(subnode_path);
+    }
+
+    if (new_node_path) {
+        g_free(new_node_path);
+    }
+
+    return;
+
+fail:
+    error_setg(errp, "%s: Couldn't copy node %s: %s", __func__, node_path, fdt_strerror(ret));
 }
