@@ -97,7 +97,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     qemu_fdt_copy_node(fdt, qcom_fdt, gmu_node, &error_abort);
 
     // copy soc properties
-    qemu_fdt_copy_node_properties(fdt, qcom_fdt, "/soc", &error_abort);
+    // qemu_fdt_copy_node_properties(fdt, qcom_fdt, "/soc", &error_abort);
 
     // delete interrupt parent to inherit from virt board's interrupt phandle
     // (dt specification v0.4 section 2.4)
@@ -107,11 +107,14 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     qemu_fdt_get_node_addr(fdt, gpu_node, &addr, &error_abort);
     qemu_fdt_set_node_addr(fdt, gpu_node, qvms->base_addr + addr, &error_abort);
 
-    qemu_fdt_get_node_addr(fdt, smmu_node, &addr, &error_abort);
-    qemu_fdt_set_node_addr(fdt, smmu_node, qvms->base_addr + addr, &error_abort);
+    // qemu_fdt_get_node_addr(fdt, smmu_node, &addr, &error_abort);
+    // qemu_fdt_set_node_addr(fdt, smmu_node, qvms->base_addr + addr, &error_abort);
 
-    qemu_fdt_get_node_addr(fdt, gmu_node, &addr, &error_abort);
-    qemu_fdt_set_node_addr(fdt, gmu_node, qvms->base_addr + addr, &error_abort);
+    // qemu_fdt_get_node_addr(fdt, gmu_node, &addr, &error_abort);
+    // qemu_fdt_set_node_addr(fdt, gmu_node, qvms->base_addr + addr, &error_abort);
+
+    save_device_tree(fdt, "/tmp/qemu.dtb", &error_abort);
+    exit(0);
 }
 
 static const struct QcomVirtDevice qcom_devices[] = {

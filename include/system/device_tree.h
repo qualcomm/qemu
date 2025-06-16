@@ -287,12 +287,16 @@ void qemu_fdt_randomize_seeds(void *fdt);
  * output fdt. All the subnodes and properties get recursively
  * copied over the output fdt as well.
  * 
+ * Returns false if the node already exists in out_fdt, true otherwise.
+ * 
+ * TODO: rename phandles to avoid collision with existing phandles...
+ * 
  * @out_fdt: pointer to the output dt blob
  * @in_fdt: pointer to the input dt blob, with the given node path.
  * @node_path: path to the target node
  * @errp: handle to an error object
  */
-void qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path,
+bool qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path,
                         Error **errp);
 
 /**
@@ -339,6 +343,11 @@ bool qemu_fdt_get_node_addr(void *fdt, const char *node_path, hwaddr *addr, Erro
  * @errp: handle to an error object
  */
 bool qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_addr, Error **errp);
+
+/**
+ * use the current node addr (if there is any) as offset addr.
+ */
+bool qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000
