@@ -35,6 +35,7 @@
 #include "hw/boards.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
+#include "hw/arm/virt.h"
 #include "hw/block/flash.h"
 #include "system/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
@@ -42,13 +43,15 @@
 
 // Top address of the real hardware
 // Depends on the board being emulated
-#define QCOM_VIRT_HW_TOP_ADDR  0x1000000000
+#define QCOM_VIRT_HW_BASE_ADDR  0x0000000000
+#define QCOM_VIRT_HW_TOP_ADDR   0x1000000000
 
 #define TYPE_QCOM_VIRT_MACHINE MACHINE_TYPE_NAME("qcom-virt")
 OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHINE)
 
 /* Qualcomm-specific devices */
 enum QcomVirtDeviceType {
+    VIRT_QCOM_LOGGER,
     VIRT_QCOM_GRAPHICS,
 };
 

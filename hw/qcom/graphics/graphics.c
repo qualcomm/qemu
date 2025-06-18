@@ -3,17 +3,14 @@
 
 static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
 {
+    printf("[*] graphics read detected @addr 0x%lx\n", addr);
     return 0;
 }
 
 static void qcom_graphics_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-}
-
-DeviceState* qcom_graphics_create(hwaddr base_addr)
-{
-    return NULL;
+    printf("[*] graphics write detected @addr 0x%lx\n", addr);
 }
 
 static void qcom_graphics_init(Object* obj)

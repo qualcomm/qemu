@@ -33,6 +33,4 @@ struct QcomGraphicsState {
     // qemu_irq irqs[2];
 };
 
-DeviceState* qcom_graphics_create(hwaddr base_addr);
-
 #endif

@@ -21,6 +21,20 @@
 #define FDT_SIZE_CELLS      "#size-cells"
 #define FDT_REG             "reg"
 
+struct fdt_reg_u64 {
+    // ordering matters, it is used to work with qemu_fdt_setprop_sized_cells_from_array.
+    union {
+        struct {
+            uint64_t address_cells;
+            uint64_t addr;
+            uint64_t size_cells;
+            uint64_t size;
+        };
+
+        uint64_t raw[4];
+    };
+};
+
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 void save_device_tree(void *fdt, const char* filename_path, Error **errp);
@@ -89,6 +103,8 @@ char **qemu_fdt_node_unit_path(void *fdt, const char *name, Error **errp);
 
 int qemu_fdt_setprop(void *fdt, const char *node_path,
                      const char *property, const void *val, int size);
+int qemu_fdt_setprop_bool(void *fdt, const char *node_path,
+                     const char *property);
 int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
                           const char *property, uint32_t val);
 int qemu_fdt_setprop_u64(void *fdt, const char *node_path,
@@ -167,22 +183,21 @@ bool qemu_fdt_getprop_reg(void *fdt,
 /**
  * qemu_fdt_getprop_reg_as_u64: retrieve the value of a given property as a "reg"
  * in the same format as for the "qemu_fdt_setprop_sized_cells_from_array" function.
+ * it is wrapped around an equivalent struct.
  * 
  * @fdt: pointer to the device tree blob
  * @node_offset: offset in the tdb to the node.
- * @nb_addr_cells: set to the number of u32 per addr cell.
- * @nb_size_cells: set to the number of u32 per size cell.
- * @total_nb_regs: set to the number of registers found. It is the number of (addr, size) pairs.
- * @values: set to an array containing the value of each register
+ * @reg: register array.
+ * @nb_regs: nb of registers in the array.
  * @errp: handle to an error object
  *
  * returns true on success and false on failure.
  */
 bool qemu_fdt_getprop_reg_as_u64(void* fdt,
-                          int node_offset,
-                          uint64_t** reg,
-                          uint32_t* nb_regs,
-                          Error **errp);
+                                    int node_offset,
+                                    struct fdt_reg_u64** reg,
+                                    uint32_t* nb_regs,
+                                    Error **errp);
 
 /**
  * qemu_fdt_getprop_cell: retrieve the value of a given 4 byte property
@@ -246,6 +261,12 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                             const char *property,
                                             int numvalues,
                                             uint64_t *values);
+
+bool qemu_fdt_setprop_reg_as_u64(void* fdt,
+                                  const char* node_path,
+                                  struct fdt_reg_u64* reg,
+                                  uint32_t nb_regs,
+                                  Error **errp);
 
 /**
  * qemu_fdt_setprop_sized_cells:
@@ -348,6 +369,8 @@ char* qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_
  * use the current node addr (if there is any) as offset addr.
  */
 void qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_base_addr, Error **errp);
+
+void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryRegion* root_mem, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

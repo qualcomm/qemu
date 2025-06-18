@@ -12,7 +12,7 @@
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
  * 
- * The global memory organization is as follow (addresses may change in the future):
+ * The global memory organization is as follow (addresses may be different in your case):
  * 
  * +----------------------------------------+   <---    0x00000000000000
  * |                                        |
@@ -21,13 +21,13 @@
  * |       Virt board memory region         |
  * |                                        |
  * |                                        |
- * |                                        |
+ * +----------------------------------------+   <---    0x00011000000000
+ * |         Unused padding space           |
  * +----------------------------------------+   <---    0x00010000000000 (must be aligned on qcom soc size)
  * |                                        |
  * |      Qualcomm SoC memory region        |
  * |                                        |
  * +----------------------------------------+   <---    0x00011000000000
- * |                                        |
  * |                                        |
  * |                                        |
  * |                                        |
@@ -68,7 +68,22 @@
 #include "hw/arm/qcom-virt.h"
 
 // Qualcomm peripherals
+#include "hw/qcom/logger.h"
 #include "hw/qcom/graphics.h"
+
+static void logger_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+
+    DeviceState* dev = qdev_new(TYPE_QCOM_LOGGER);
+    SysBusDevice* s = SYS_BUS_DEVICE(dev);
+
+    sysbus_realize_and_unref(s, &error_fatal);
+    memory_region_add_subregion_overlap(mem, machine_base, sysbus_mmio_get_region(s, 0), -1);
+}
+
+static void logger_update_fdt(void* fdt, QcomVirtMachineState* qvms)
+{}
 
 static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -85,6 +100,16 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {
     void* qcom_fdt = qvms->fdt;
 
+    // graphics dependencies
+    const char* cam_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_rsc", &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, cam_rsc_node, &error_abort);
+
+    const char* disp_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm", &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, disp_crm_node, &error_abort);
+
+    const char* cam_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_crm", &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, cam_crm_node, &error_abort);
+
     // extract interesting nodes from qcom dtb.
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
     const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
@@ -94,19 +119,13 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     qemu_fdt_copy_node(fdt, qcom_fdt, gpu_node, &error_abort);
     qemu_fdt_copy_node(fdt, qcom_fdt, smmu_node, &error_abort);
     qemu_fdt_copy_node(fdt, qcom_fdt, gmu_node, &error_abort);
-
-    // delete interrupt parent to inherit from virt board's interrupt phandle
-    // (dt specification v0.4 section 2.4)
-    qemu_fdt_delprop(fdt, "/soc", "interrupt-parent", &error_abort);
-
-    // edit base addresses with the new one
-    qemu_fdt_set_nodes_addr(fdt, "/soc", qvms->base_addr, &error_abort);
-
-    // save_device_tree(fdt, "/tmp/qemu.dtb", &error_abort);
-    // exit(0);
 }
 
 static const struct QcomVirtDevice qcom_devices[] = {
+    [VIRT_QCOM_LOGGER] = {
+        .device_create = logger_create,
+        .update_fdt = logger_update_fdt,
+    },
     [VIRT_QCOM_GRAPHICS] = {
         .device_create = graphics_create,
         .update_fdt = graphics_update_fdt,
@@ -161,6 +180,25 @@ static void qcom_create_devices(MachineState* machine)
         qcom_devices[i].device_create(qvms, sysmem);
         qcom_devices[i].update_fdt(machine->fdt, qvms);
     }
+
+    // delete interrupt parent to inherit from virt board's interrupt phandle
+    // (dt specification v0.4 section 2.4)
+    qemu_fdt_delprop(machine->fdt, "/soc", "interrupt-parent", &error_abort);
+
+    // replace the range with an empty range, so that the kernel is happy.
+    // otherwise, the kernel thinks the soc is mapped at address 0 and does not
+    // map the devices at all...
+    // TODO: check ranges correctly in the DT!
+    qemu_fdt_delprop(machine->fdt, "/soc", "ranges", &error_abort);
+    qemu_fdt_setprop_bool(machine->fdt, "/soc", "ranges");
+
+    // edit base addresses with the new one
+    qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);
+
+    // check global fdt consistency
+    qemu_fdt_check_memory_consistency(machine->fdt, "/soc", get_system_io(), &error_abort);
+
+    save_device_tree(machine->fdt, "/tmp/qemu.dtb", &error_abort);
 }
 
 static char *qcom_machine_get_dtb(Object *obj, Error **errp)
