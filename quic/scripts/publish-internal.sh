@@ -41,13 +41,17 @@ readonly PUBLISHDIR="${PUBLISH_PATH}/${REL_PUBLISHDIR}"
 mkdir --parents "${PUBLISHDIR}"
 ln --force --symbolic "${REL_PUBLISHDIR}" "${PUBLISH_PATH}/build-latest"
 
-tar -xf "${BUILD_DIR}/qemu-hexagon-*-.tar.gz" -C "${PUBLISHDIR}"
+TARBALL="$(find "${BUILD_DIR}" -mindepth 1 -maxdepth 1 -name "qemu-hexagon-*.tar.gz")"
+readonly TARBALL
+
+tar --directory="${PUBLISHDIR}" --extract --file="${TARBALL}"
 
 readonly UG_DIR="${PUBLISHDIR}/user_guide"
 mkdir --parents "${UG_DIR}/pdf"
 
-cp quic/user_guide/_build/html "${UG_DIR}/"
-cp quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "${UG_DIR}/pdf/"
+cp --archive quic/user_guide/_build/html "${UG_DIR}/"
+cp --archive quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf \
+    "${UG_DIR}/pdf/"
 
 NR="$(find "${PUBLISH_PATH}" -mindepth 1 -maxdepth 1 | wc --lines)"
 readonly NR
