@@ -85,6 +85,7 @@ struct OfSysBusDevice {
     const void* data;
 
     // the label to the target node.
+    // may be NULL
     const char* node_label;
 
     // the node full path, used if no label is provided.

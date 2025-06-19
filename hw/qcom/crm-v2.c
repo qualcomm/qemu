@@ -613,7 +613,6 @@ static void qcom_crm_write(void *opaque, hwaddr addr,
     printf("[*] crm write detected @addr 0x%lx\n", addr);
 }
 
-
 QcomCrmState* crm_v2_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_CRM);
 	QcomCrmState* cdev = QCOM_CRM(dev);
@@ -664,6 +663,9 @@ static void qcom_crm_realize(OfSysBusDevice* ofdev, Error **errp)
 {
     QcomCrmState *s = QCOM_CRM(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
+
+	// according to the driver
+	assert(ofdev->nb_regs == 6);
 
 	assert(s->mem_size);
     memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_crm_ops, s, TYPE_QCOM_CRM, s->mem_size);

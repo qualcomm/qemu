@@ -67,10 +67,10 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
     assert(ofdev->node_path || ofdev->node_label);
 
     if (ofdev->node_label) {
-        of_node_path = qemu_fdt_node_path_by_label(ofdev->in_fdt, ofdev->node_label, errp);
-    } else {
-        of_node_path = ofdev->node_path;
+        ofdev->node_path = qemu_fdt_node_path_by_label(ofdev->in_fdt, ofdev->node_label, errp);
     }
+
+    of_node_path = ofdev->node_path;
 
     assert(of_node_path);
 
@@ -91,7 +91,7 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
         *ofdev->base_addr = base_addr;
     }
 
-    qemu_fdt_getprop_reg(ofdev->fdt, ofdev->node_path, &ofdev->regs, &ofdev->nb_regs, errp);
+    qemu_fdt_getprop_reg(ofdev->fdt, of_node_path, &ofdev->regs, &ofdev->nb_regs, errp);
 
     if(kofdev->realize) {
         kofdev->realize(ofdev, errp);

@@ -690,8 +690,8 @@ bool qemu_fdt_getprop_reg(void* fdt,
         *regs = g_new(struct fdt_reg, *nb_regs);
 
         for (size_t i = 0; i < *nb_regs; ++i) {
-            regs[i]->addr = regs_64[i].addr;
-            regs[i]->size = regs_64[i].size;
+            (*regs)[i].addr = regs_64[i].addr;
+            (*regs)[i].size = regs_64[i].size;
         }
 
         g_free(regs_64);
