@@ -54,9 +54,9 @@ readonly NR
 
 readonly MAX_PUBLISH_NR=90 # 3 months
 
-if test "${NR}" -gt $(("${MAX_PUBLISH_NR}" + 1))
+if test "${NR}" -gt $((MAX_PUBLISH_NR + 1))
 then
-    TO_RM=$(( "${NR}" - "${MAX_PUBLISH_NR}" - 1 ))
+    TO_RM=$(( NR - MAX_PUBLISH_NR - 1 ))
     (
         cd "${PUBLISH_PATH}"
         for file in $(find "$(pwd)" -mindepth 1 -maxdepth 1 | head --lines="${TO_RM}")
