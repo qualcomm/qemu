@@ -38,18 +38,18 @@ readonly REL_PUBLISHDIR
 
 readonly PUBLISHDIR="${PUBLISH_PATH}/${REL_PUBLISHDIR}"
 
-mkdir "${PUBLISHDIR}"
-ln -sf "${REL_PUBLISHDIR}" "${PUBLISH_PATH}/build-latest"
+mkdir --parents "${PUBLISHDIR}"
+ln --force --symbolic "${REL_PUBLISHDIR}" "${PUBLISH_PATH}/build-latest"
 
 tar -xf "${BUILD_DIR}/qemu-hexagon-*-.tar.gz" -C "${PUBLISHDIR}"
 
 readonly UG_DIR="${PUBLISHDIR}/user_guide"
-mkdir -p "${UG_DIR}/pdf"
+mkdir --parents "${UG_DIR}/pdf"
 
 mv quic/user_guide/_build/html "${UG_DIR}/"
 mv quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "${UG_DIR}/pdf/"
 
-NR="$(find "${PUBLISH_PATH}" -mindepth 1 -maxdepth 1 | wc -l)"
+NR="$(find "${PUBLISH_PATH}" -mindepth 1 -maxdepth 1 | wc --lines)"
 readonly NR
 
 readonly MAX_PUBLISH_NR: 90 # 3 months
@@ -59,10 +59,10 @@ then
     TO_RM=$(( "${NR}" - "${MAX_PUBLISH_NR}" - 1 ))
     (
         cd "${PUBLISH_PATH}"
-        for file in $(find "$(pwd)" -mindepth 1 -maxdepth 1 | head -n "${TO_RM}")
+        for file in $(find "$(pwd)" -mindepth 1 -maxdepth 1 | head --lines="${TO_RM}")
         do
             echo "Removing old ${file}"
-            rm -rf "${file}"
+            rm --force --recursive "${file}"
         done
     )
 fi
