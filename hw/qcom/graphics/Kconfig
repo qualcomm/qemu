@@ -1,2 +1,3 @@
 config QCOM_GRAPHICS
     bool
+    select QCOM_CRM_V2

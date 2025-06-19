@@ -866,6 +866,11 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
     object_property_set_str(OBJECT(dev), name, value, &error_abort);
 }
 
+void qdev_prop_set_ptr(DeviceState *dev, const char *name, void* value)
+{
+    qdev_prop_set_uint64(dev, name, (uint64_t)value);
+}
+
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
 {
     const Property *prop;

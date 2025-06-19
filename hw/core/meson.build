@@ -43,6 +43,7 @@ system_ss.add(files(
   'qdev-properties-system.c',
   'reset.c',
   'sysbus.c',
+  'sysbus-of.c',
   'vm-change-state-handler.c',
   'clock-vmstate.c',
 ))

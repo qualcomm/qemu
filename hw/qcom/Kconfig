@@ -1,0 +1,4 @@
+source graphics/Kconfig
+
+config QCOM_CRM_V2
+    bool

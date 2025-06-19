@@ -24,7 +24,7 @@ static const MemoryRegionOps qcom_logger_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
-        .max_access_size = 1,
+        .max_access_size = 8,
     },
 };
 

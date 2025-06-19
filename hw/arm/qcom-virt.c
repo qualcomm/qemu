@@ -70,8 +70,9 @@
 // Qualcomm peripherals
 #include "hw/qcom/logger.h"
 #include "hw/qcom/graphics.h"
+#include "hw/qcom/crm-v2.h"
 
-static void logger_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
+static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
 
@@ -85,7 +86,25 @@ static void logger_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
 static void logger_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {}
 
-static void graphics_create(QcomVirtMachineState* qvms, MemoryRegion* mem)
+static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+
+    qvms->crm_disp = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm_disp);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    // a base address should have been found.
+    assert(ofdev->base_addr);
+
+    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+}
+
+static void crm_disp_update_fdt(void* fdt, QcomVirtMachineState* qvms)
+{}
+
+static void graphics_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
 
@@ -101,14 +120,14 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     void* qcom_fdt = qvms->fdt;
 
     // graphics dependencies
-    const char* cam_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_rsc", &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, cam_rsc_node, &error_abort);
+    // const char* cam_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_rsc", &error_abort);
+    // qemu_fdt_copy_node(fdt, qcom_fdt, cam_rsc_node, &error_abort);
 
-    const char* disp_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm", &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, disp_crm_node, &error_abort);
+    // const char* disp_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm", &error_abort);
+    // qemu_fdt_copy_node(fdt, qcom_fdt, disp_crm_node, &error_abort);
 
-    const char* cam_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_crm", &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, cam_crm_node, &error_abort);
+    // const char* cam_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_crm", &error_abort);
+    // qemu_fdt_copy_node(fdt, qcom_fdt, cam_crm_node, &error_abort);
 
     // extract interesting nodes from qcom dtb.
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
@@ -129,6 +148,12 @@ static const struct QcomVirtDevice qcom_devices[] = {
     [VIRT_QCOM_GRAPHICS] = {
         .device_create = graphics_create,
         .update_fdt = graphics_update_fdt,
+    },
+    [VIRT_QCOM_CRM_DISP] = {
+        .label = "disp_crm",
+        .mem_size = 0xd000,
+        .device_create = crm_disp_create,
+        .update_fdt = crm_disp_update_fdt,
     },
 };
 
@@ -176,8 +201,9 @@ static void qcom_create_devices(MachineState* machine)
     }
 
     // initialize qualcomm devices
+    // TODO: change by incorporating this in the new qemu object.
     for (size_t i = 0; i < ARRAY_SIZE(qcom_devices); ++i) {
-        qcom_devices[i].device_create(qvms, sysmem);
+        qcom_devices[i].device_create(&qcom_devices[i], machine->fdt, qvms, sysmem);
         qcom_devices[i].update_fdt(machine->fdt, qvms);
     }
 

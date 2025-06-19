@@ -37,6 +37,20 @@
 
 #define FDT_PATH_MAX_LEN 512
 
+struct reg64 {
+    // ordering matters, it is used to work with qemu_fdt_setprop_sized_cells_from_array.
+    union {
+        struct {
+            uint64_t address_cells;
+            uint64_t addr;
+            uint64_t size_cells;
+            uint64_t size;
+        };
+
+        uint64_t raw[4];
+    };
+};
+
 struct phandle_entry {
     const char* name;
     const char* size_name;
@@ -594,7 +608,7 @@ uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
     return be32_to_cpu(*p);
 }
 
-bool qemu_fdt_getprop_reg(void *fdt,
+static bool getprop_reg(void *fdt,
                           int node_offset,
                           uint32_t *nb_reg_cells,
                           uint32_t *nb_size_cells,
@@ -635,18 +649,19 @@ bool qemu_fdt_getprop_reg(void *fdt,
     return true;
 }
 
-bool qemu_fdt_getprop_reg_as_u64(void* fdt, int node_offset, struct fdt_reg_u64** reg, uint32_t* nb_regs, Error **errp)
+static bool getprop_reg_as_u64(void* fdt, int node_offset, struct reg64** reg, uint32_t* nb_regs, Error **errp)
 {
     uint32_t nb_reg_cells, nb_size_cells;
 
     uint32_t *reg_32 = NULL;
-    if (!qemu_fdt_getprop_reg(fdt, node_offset, &nb_reg_cells, &nb_size_cells, nb_regs, &reg_32, errp)) {
+    if (!getprop_reg(fdt, node_offset, &nb_reg_cells, &nb_size_cells, nb_regs, &reg_32, errp)) {
+        *nb_regs = 0;
         return false;
     }
     assert(nb_reg_cells == 1 || nb_reg_cells == 2);
     assert(nb_size_cells <= 2);
 
-    struct fdt_reg_u64 *new_reg = g_new(struct fdt_reg_u64, *nb_regs);
+    struct reg64 *new_reg = g_new(struct reg64, *nb_regs);
 
     for (size_t i = 0; i < *nb_regs; i++) {
         new_reg[i].address_cells = nb_reg_cells;
@@ -660,6 +675,31 @@ bool qemu_fdt_getprop_reg_as_u64(void* fdt, int node_offset, struct fdt_reg_u64*
     *reg = new_reg;
 
     return true;
+}
+
+bool qemu_fdt_getprop_reg(void* fdt,
+                            const char* node_path,
+                            struct fdt_reg** regs,
+                            uint32_t* nb_regs,
+                            Error **errp)
+{
+    int node_offset = findnode_nofail(fdt, node_path);
+    struct reg64* regs_64;
+
+    if (getprop_reg_as_u64(fdt, node_offset, &regs_64, nb_regs, errp)) {
+        *regs = g_new(struct fdt_reg, *nb_regs);
+
+        for (size_t i = 0; i < *nb_regs; ++i) {
+            regs[i]->addr = regs_64[i].addr;
+            regs[i]->size = regs_64[i].size;
+        }
+
+        g_free(regs_64);
+
+        return true;
+    }
+
+    return false;
 }
 
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
@@ -829,7 +869,7 @@ out:
     return ret;
 }
 
-bool qemu_fdt_setprop_reg_as_u64(void* fdt, const char* node_path, struct fdt_reg_u64* reg, uint32_t nb_regs, Error **errp)
+static bool qemu_fdt_setprop_reg_as_u64(void* fdt, const char* node_path, struct reg64* reg, uint32_t nb_regs, Error **errp)
 {
     return qemu_fdt_setprop_sized_cells_from_array(fdt, node_path, FDT_REG, nb_regs * 2, (uint64_t*) reg) >= 0;
 }
@@ -1194,9 +1234,9 @@ char* qemu_fdt_set_node_addr(void *fdt, const char *node_path, hwaddr node_base_
     // first, edit register addresses.
     // the dt specification v0.4 enforces the first register to be equal to the new addr.
     // we will try to edit every register as well, if applicable.
-    struct fdt_reg_u64* reg;
+    struct reg64* reg;
     uint32_t nb_regs;
-    assert(qemu_fdt_getprop_reg_as_u64(fdt, node_offset, &reg, &nb_regs, errp));
+    assert(getprop_reg_as_u64(fdt, node_offset, &reg, &nb_regs, errp));
 
     for (size_t i = 0; i < nb_regs; i++) {
         reg[i].addr = reg[i].addr - old_base_addr + node_base_addr;
@@ -1298,7 +1338,7 @@ fail:
 void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryRegion* root_mem, Error **errp)
 {
     int node_offset = findnode_nofail(fdt, node_path);
-    struct fdt_reg_u64* regs;
+    struct reg64* regs;
     uint32_t nb_regs;
     const char *subnode_name;
     char* subnode_path;
@@ -1310,7 +1350,7 @@ void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryR
     }
 
     bool is_mapped = true;
-    if (qemu_fdt_getprop_reg_as_u64(fdt, node_offset, &regs, &nb_regs, errp)) {
+    if (getprop_reg_as_u64(fdt, node_offset, &regs, &nb_regs, errp)) {
         for (size_t i = 0; i < nb_regs; ++i) {
             hwaddr addr = regs[i].addr;
             uint64_t size = regs[i].size;
@@ -1363,4 +1403,82 @@ void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryR
     return;
 fail:
     error_setg(errp, "%s: Couldn't check node %s: %s", __func__, node_path, fdt_strerror(ret));
+}
+
+/**
+ * qemu_fdt_of_is_compatible() - Check if the node matches given constraints
+ * @compat: required compatible string, NULL or "" for any match
+ * @type: required device_type value, NULL or "" for any match
+ * @name: required node name, NULL or "" for any match
+ * 
+ * Adapted from the linux kernel, may change in the future.
+ *
+ * Checks if the given @compat, @type and @name strings match the
+ * properties of the given @device. A constraints can be skipped by
+ * passing NULL or an empty string as the constraint.
+ *
+ * Returns 0 for no match, and a positive integer on match. The return
+ * value is a relative score with larger values indicating better
+ * matches. The score is weighted for the most specific compatible value
+ * to get the highest score. Matching type is next, followed by matching
+ * name. Practically speaking, this results in the following priority
+ * order for matches:
+ *
+ * 1. specific compatible && type && name
+ * 2. specific compatible && type
+ * 3. specific compatible && name
+ * 4. specific compatible
+ * 5. general compatible && type && name
+ * 6. general compatible && type
+ * 7. general compatible && name
+ * 8. general compatible
+ * 9. type && name
+ * 10. type
+ * 11. name
+ */
+int qemu_fdt_of_is_compatible(void *fdt, const char* node_path, const char* compat, const char* type, const char* name)
+{
+    const void* prop;
+    int len;
+	int index = 0, score = 0;
+
+    int node_offset = fdt_path_offset(fdt, node_path);
+    assert(node_offset >= 0);
+
+	/* Compatible match has highest priority */
+	if (compat && compat[0]) {
+        if (fdt_node_check_compatible(fdt, node_offset, compat) == 0) {
+            score = INT_MAX/2 - (index << 2);
+        }
+
+		if (!score) {
+			return 0;
+        }
+	}
+
+	/* Matching type is better than matching name */
+	if (type && type[0]) {
+        prop = fdt_getprop(fdt, node_offset, "device_type", &len);
+        bool is_type = prop && !strcmp((const char*) prop, type);
+        if (!is_type) {
+            return 0;
+        }
+
+        score += 2;
+	}
+
+	/* Matching name is a bit better than not */
+	if (name && name[0]) {
+        const char* node_name = fdt_get_name(fdt, node_offset, &len);
+
+        len = strchrnul(node_name, '@') - node_name;
+        bool name_matches = strlen(name) == len && strncmp(node_name, name, len) == 0;
+
+		if (!name_matches) {
+			return 0;
+        }
+		score++;
+	}
+
+	return score;
 }

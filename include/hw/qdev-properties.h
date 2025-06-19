@@ -105,6 +105,11 @@ extern const PropertyInfo qdev_prop_link;
                 .set_default = true,                         \
                 .defval.u    = (bool)_defval)
 
+#define DEFINE_PROP_PTR(_name, _state, _field, _defval, _prop, _type)  \
+    DEFINE_PROP(_name, _state, _field, _prop, _type *,                       \
+                .set_default = true,                                       \
+                .defval.u  = (uint64_t)(_type *)_defval)
+
 /**
  * The DEFINE_PROP_UINT64_CHECKMASK macro checks a user-supplied value
  * against corresponding bitmask, rejects the value if it violates.
@@ -164,12 +169,16 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP_SIGNED(_n, _s, _f, _d, qdev_prop_int64, int64_t)
 #define DEFINE_PROP_SIZE(_n, _s, _f, _d)                       \
     DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_size, uint64_t)
+#define DEFINE_PROP_CONST_STRING(_n, _s, _f)             \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_string, const char*)
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_string, char*)
 #define DEFINE_PROP_ON_OFF_AUTO(_n, _s, _f, _d) \
     DEFINE_PROP_SIGNED(_n, _s, _f, _d, qdev_prop_on_off_auto, OnOffAuto)
 #define DEFINE_PROP_SIZE32(_n, _s, _f, _d)                       \
     DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_size32, uint32_t)
+#define DEFINE_PROP_PTR_VOID(_n, _s, _f, _d) \
+    DEFINE_PROP_PTR(_n, _s, _f, _d, qdev_prop_usize, void)
 
 /*
  * Set properties between creation and realization.
@@ -189,6 +198,7 @@ void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
+void qdev_prop_set_ptr(DeviceState *dev, const char *name, void* value);
 void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, Chardev *value);
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value);

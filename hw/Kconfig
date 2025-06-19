@@ -45,6 +45,7 @@ source vfio/Kconfig
 source vmapple/Kconfig
 source xen/Kconfig
 source watchdog/Kconfig
+source qcom/Kconfig
 
 # arch Kconfig
 source arm/Kconfig

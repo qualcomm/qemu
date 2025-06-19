@@ -41,6 +41,8 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 
+#include "hw/qcom/crm-v2.h"
+
 // Top address of the real hardware
 // Depends on the board being emulated
 #define QCOM_VIRT_HW_BASE_ADDR  0x0000000000
@@ -49,16 +51,24 @@
 #define TYPE_QCOM_VIRT_MACHINE MACHINE_TYPE_NAME("qcom-virt")
 OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHINE)
 
-/* Qualcomm-specific devices */
+/*
+ * Qualcomm-specific devices
+ *
+ * Note that order matters.
+ */
 enum QcomVirtDeviceType {
     VIRT_QCOM_LOGGER,
+    VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_GRAPHICS,
 };
 
 struct QcomVirtDevice;
 
 struct QcomVirtDevice {
-    void (*device_create)(QcomVirtMachineState* vms, MemoryRegion* mem);
+    uint64_t mem_size;
+    const char* label;
+
+    void (*device_create)(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* vms, MemoryRegion* mem);
     void (*update_fdt)(void* fdt, QcomVirtMachineState* vms);
 };
 
@@ -77,6 +87,9 @@ struct QcomVirtMachineState {
     void* fdt;
     // fdt blob size
     int fdt_sz;
+
+    // Devices
+    QcomCrmState* crm_disp;
 };
 
 struct QcomVirtMachineClass {
