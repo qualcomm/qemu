@@ -46,8 +46,8 @@ tar -xf "${BUILD_DIR}/qemu-hexagon-*-.tar.gz" -C "${PUBLISHDIR}"
 readonly UG_DIR="${PUBLISHDIR}/user_guide"
 mkdir --parents "${UG_DIR}/pdf"
 
-mv quic/user_guide/_build/html "${UG_DIR}/"
-mv quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "${UG_DIR}/pdf/"
+cp quic/user_guide/_build/html "${UG_DIR}/"
+cp quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "${UG_DIR}/pdf/"
 
 NR="$(find "${PUBLISH_PATH}" -mindepth 1 -maxdepth 1 | wc --lines)"
 readonly NR
