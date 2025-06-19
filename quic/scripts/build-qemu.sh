@@ -24,6 +24,7 @@ print_help()
     echo "Options:"
     echo "    -b    name of the build directory"
     echo "          (default: ${BUILD_DIR})"
+    echo "    -c    only configure"
     echo "    -i    name of the install directory"
     echo "          (default: ${INSTALL_DIR})"
     echo "    -s    name of the source directory"
@@ -62,10 +63,11 @@ print_help()
     echo "        on x86_64 hardware. It will also enable various sanitziers"
 }
 
-readonly OPTIONS="hb:i:s:"
+readonly OPTIONS="hb:ci:s:"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
+        "c") readonly ONLY_CONFIGURE="y";;
         "i") readonly INSTALL_DIR="${OPTARG}";;
         "s") readonly SOURCE_DIR="${OPTARG}";;
         "h") print_help; exit 0;;
@@ -290,5 +292,7 @@ cd "${BUILD_DIR}" || exit 1
 
 eval "${CONFIG_CMD}"
 
-make --jobs "$(getconf _NPROCESSORS_ONLN)"
-make install
+if [ -z "${ONLY_CONFIGURE}" ]; then
+    make --jobs "$(getconf _NPROCESSORS_ONLN)"
+    make install
+fi
