@@ -52,7 +52,7 @@ cp quic/user_guide/_build/latex/qualcommhexagonqemu-vpuserguide.pdf "${UG_DIR}/p
 NR="$(find "${PUBLISH_PATH}" -mindepth 1 -maxdepth 1 | wc --lines)"
 readonly NR
 
-readonly MAX_PUBLISH_NR: 90 # 3 months
+readonly MAX_PUBLISH_NR=90 # 3 months
 
 if test "${NR}" -gt $(("${MAX_PUBLISH_NR}" + 1))
 then
