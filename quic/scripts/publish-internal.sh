@@ -23,7 +23,7 @@ readonly OPTIONS="hb:l:"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
-        "p") readonly PUBLISH_PATH="${OPTARG}";;
+        "l") readonly PUBLISH_PATH="${OPTARG}";;
         "h") print_help; exit 0;;
         "*") print_help; exit 1;;
     esac
