@@ -34,18 +34,6 @@ user_guide:
     paths: [ quic/user_guide/_build/html, quic/user_guide/_build/latex ]
     expire_in: 1 days
 
-publish-internal:
-  stage: deploy
-  tags: [publish_runner]
-  dependencies:
-    - hexagon-linux-x86_64
-    - user_guide
-  script: quic/scripts/publish-internal.sh
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_PIPELINE_SOURCE == "web"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-
 # QEMU Hexagon for Linux on x86_64
 hexagon-linux-x86_64:
   stage: build
