@@ -71,6 +71,8 @@
 #include "hw/qcom/logger.h"
 #include "hw/qcom/graphics.h"
 #include "hw/qcom/crm-v2.h"
+#include "hw/qcom/cmd-db.h"
+#include "hw/qcom/rpmh-rsc.h"
 
 static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -91,8 +93,51 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
 
+    const char* cluster_pd2 = qemu_fdt_node_path_by_label(qcom_fdt, "CLUSTER_PD2", &error_abort);
+    const char* pcie_0_pipe_clk = qemu_fdt_node_path_by_label(qcom_fdt, "pcie_0_pipe_clk", &error_abort);
+    const char* ufs_phy_rx_symbol_0_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_rx_symbol_0_clk", &error_abort);
+    const char* ufs_phy_rx_symbol_1_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_rx_symbol_1_clk", &error_abort);
+    const char* ufs_phy_tx_symbol_0_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_tx_symbol_0_clk", &error_abort);
+    const char* usb3_phy_wrapper_gcc_usb30_pipe_clk = qemu_fdt_node_path_by_label(qcom_fdt, "usb3_phy_wrapper_gcc_usb30_pipe_clk", &error_abort);
+
+    const char* apps_rsc = qemu_fdt_node_path_by_label(qcom_fdt, "apps_rsc", &error_abort);
+    const char* sleep_clk = qemu_fdt_node_path_by_label(qcom_fdt, "sleep_clk", &error_abort);
+    const char* gcc = qemu_fdt_node_path_by_label(qcom_fdt, "gcc", &error_abort);
+
+    const char* cmd_db_node_dependencies[] = {
+        // clocks
+        pcie_0_pipe_clk,
+        ufs_phy_rx_symbol_0_clk,
+        ufs_phy_rx_symbol_1_clk,
+        ufs_phy_tx_symbol_0_clk,
+        usb3_phy_wrapper_gcc_usb30_pipe_clk,
+        sleep_clk,
+
+        cluster_pd2,
+        apps_rsc,
+        gcc,
+        NULL,
+    };
+
+    qemu_fdt_copy_nodes(fdt, qcom_fdt, cmd_db_node_dependencies, &error_abort);
+
     qvms->cmd_db = cmd_db_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->cmd_db);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    // a base address should have been found.
+    assert(ofdev->base_addr);
+
+    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+}
+
+static void add_rpmh_rsc_cam(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+
+    qvms->rpmh_rsc_cam = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_cam);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
     // a base address should have been found.
@@ -105,6 +150,9 @@ static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVi
 {
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
+
+    const char* dispcc = qemu_fdt_node_path_by_label(qcom_fdt, "dispcc", &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, dispcc, &error_abort);
 
     qvms->crm_disp = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm_disp);
@@ -141,25 +189,64 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {
     void* qcom_fdt = qvms->fdt;
 
-    // graphics dependencies
-    const char* apps_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "apps_rsc", &error_abort);
-    assert(qemu_fdt_copy_node(fdt, qcom_fdt, apps_rsc_node, &error_abort));
+    // dependencies
+    // TODO: mode that at some point.
+    const char* ipcc_mproc = qemu_fdt_node_path_by_label(qcom_fdt, "ipcc_mproc", &error_abort);
+    const char* aoss_qmp = qemu_fdt_node_path_by_label(qcom_fdt, "aoss_qmp", &error_abort);
+    const char* gpucc = qemu_fdt_node_path_by_label(qcom_fdt, "gpucc", &error_abort);
+    const char* gxclkctl = qemu_fdt_node_path_by_label(qcom_fdt, "gxclkctl", &error_abort);
+    const char* mc_virt = qemu_fdt_node_path_by_label(qcom_fdt, "mc_virt", &error_abort);
+    const char* gem_noc = qemu_fdt_node_path_by_label(qcom_fdt, "gem_noc", &error_abort);
 
-    // const char* disp_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm", &error_abort);
-    // qemu_fdt_copy_node(fdt, qcom_fdt, disp_crm_node, &error_abort);
+    const char* bcm_voter0 = qemu_fdt_node_path_by_label(qcom_fdt, "pcie_crm_hw_0_bcm_voter", &error_abort);
+    const char* bcm_voter1 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_0_bcm_voter", &error_abort);
+    const char* bcm_voter2 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_1_bcm_voter", &error_abort);
+    const char* bcm_voter3 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_2_bcm_voter", &error_abort);
+    const char* bcm_voter4 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_3_bcm_voter", &error_abort);
+    const char* bcm_voter5 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_4_bcm_voter", &error_abort);
+    const char* bcm_voter6 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_5_bcm_voter", &error_abort);
+    const char* bcm_voter7 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_6_bcm_voter", &error_abort);
+    const char* bcm_voter8 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_7_bcm_voter", &error_abort);
+    const char* bcm_voter9 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_8_bcm_voter", &error_abort);
+    const char* bcm_voter10 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_sw_0_bcm_voter", &error_abort);
 
-    // const char* cam_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_crm", &error_abort);
-    // qemu_fdt_copy_node(fdt, qcom_fdt, cam_crm_node, &error_abort);
-
-    // extract interesting nodes from qcom dtb.
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
     const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
+    const char* iommu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_smmu", &error_abort);
     const char* gmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "gmu", &error_abort);
 
     // copy nodes from qemu dtb to qcom virt dtb.
-    qemu_fdt_copy_node(fdt, qcom_fdt, gpu_node, &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, smmu_node, &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, gmu_node, &error_abort);
+    const char* graphics_nodes[] = {
+        // bcm voters
+        bcm_voter0,
+        bcm_voter1,
+        bcm_voter2,
+        bcm_voter3,
+        bcm_voter4,
+        bcm_voter5,
+        bcm_voter6,
+        bcm_voter7,
+        bcm_voter8,
+        bcm_voter9,
+        bcm_voter10,
+
+        ipcc_mproc,
+
+        aoss_qmp,
+        gpucc,
+        gxclkctl,
+        mc_virt,
+        gem_noc,
+
+        // the gpu itself
+        gpu_node,
+        smmu_node,
+        gmu_node,
+        iommu_node,
+        NULL
+    };
+
+    qemu_fdt_copy_nodes(fdt, qcom_fdt, graphics_nodes, &error_abort);
 }
 
 static const struct QcomVirtDevice qcom_devices[] = {
@@ -171,6 +258,11 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .label = "aop_cmd_db_mem",
         .mem_size = 0x20000,
         .device_create = add_cmd_db,
+    },
+    [VIRT_QCOM_RPMH_RSC_CAM] = {
+        .label = "cam_rsc",
+        .mem_size = 0x3000,
+        .device_create = add_rpmh_rsc_cam,
     },
     [VIRT_QCOM_CRM_DISP] = {
         .label = "disp_crm",

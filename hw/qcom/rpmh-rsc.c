@@ -1,0 +1,122 @@
+#include "qemu/osdep.h"
+#include "hw/sysbus-of.h"
+#include "qapi/error.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-properties.h"
+#include "hw/qcom/rpmh-rsc.h"
+
+/* === Linux kernel copy paste start ===*/
+
+/* === Linux kernel copy paste ends ===*/
+
+QcomRpmhRscState* rpmh_rsc_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
+	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
+	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
+
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
+
+	cdev->mem_size = mem_size;
+	cdev->name = name;
+
+	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+	return cdev;
+}
+
+QcomRpmhRscState* rpmh_rsc_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
+	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
+	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
+
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
+
+	cdev->mem_size = mem_size;
+	cdev->name = label;
+
+	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+	return cdev;
+}
+
+static void qcom_rpmh_rsc_init(Object* obj)
+{
+}
+
+static uint64_t qcom_rpmh_rsc_read(void *opaque, hwaddr addr, unsigned size)
+{
+    printf("[*] read detected to RPMH RSC @addr 0x%lx (size %d)\n", addr, size);
+
+    uint32_t ro_values[] = {
+        0x00040300, // ID_DRV
+        0x00010100, // SOLVER_CONFIG
+        0x03100214, // CONFIG
+        0x60004104, // PARENTCHILD_CONFIG
+    };
+
+    // for now, we keep the same behavior for all drvs
+    addr %= 0x1000;
+
+    assert(addr % 4 == 0);
+
+    if (addr < 0x10) {
+        size_t idx = addr / 4;
+        return ro_values[idx];
+    } else {
+        printf("[*] read detected to RPMH RSC @addr 0x%lx (size %d)\n", addr, size);
+    }
+
+    return 0;
+}
+
+static void qcom_rpmh_rsc_write(void *opaque, hwaddr addr,
+                              uint64_t value, unsigned int size)
+{
+    printf("[*] write detected to RPMH RSC @addr 0x%lx (size %d) of value 0x%lx\n", addr, size, value);
+}
+
+static const MemoryRegionOps qcom_rpmh_rsc_ops = {
+    .read = qcom_rpmh_rsc_read,
+    .write = qcom_rpmh_rsc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
+{
+    QcomRpmhRscState *s = QCOM_RPMH_RSC(ofdev);
+    SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
+
+    printf("[%s] Adding device at address 0x%lx\n", s->name, *ofdev->base_addr);
+
+	assert(s->mem_size);
+    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_rpmh_rsc_ops, s, TYPE_QCOM_RPMH_RSC, s->mem_size);
+    sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void qcom_rpmh_rsc_class_init(ObjectClass* oc, void* data)
+{
+	OfSysBusDeviceClass* kofdev = OF_SYS_BUS_DEVICE_CLASS(oc);
+
+    kofdev->realize = qcom_rpmh_rsc_realize;
+}
+
+static const TypeInfo qcom_rpmh_rsc_info = {
+    .name = TYPE_QCOM_RPMH_RSC,
+    .parent = TYPE_OF_SYS_BUS_DEVICE,
+    .instance_size = sizeof(QcomRpmhRscState),
+    .instance_init = qcom_rpmh_rsc_init,
+    .class_init = qcom_rpmh_rsc_class_init,
+};
+
+static void qcom_rpmh_rsc_register_types(void)
+{
+    type_register_static(&qcom_rpmh_rsc_info);
+}
+
+type_init(qcom_rpmh_rsc_register_types);

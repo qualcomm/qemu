@@ -297,6 +297,8 @@ void qemu_fdt_randomize_seeds(void *fdt);
 bool qemu_fdt_copy_node(void *out_fdt, void *in_fdt, const char *node_path,
                         Error **errp);
 
+bool qemu_fdt_copy_nodes(void *out_fdt, void *in_fdt, const char* nodes_path[], Error **errp);
+
 /**
  * qemu_fdt_copy_node_properties: copy a node's properties from an input fdt
  * to an output fdt.

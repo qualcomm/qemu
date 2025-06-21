@@ -5,3 +5,7 @@ config QCOM_CRM_V2
 
 config QCOM_CMD_DB
     bool
+
+config QCOM_RPMH_RSC
+    bool
+
