@@ -9,6 +9,7 @@
 #ifndef QEMU_QCOM_CRM_H
 #define QEMU_QCOM_CRM_H
 
+#include "qemu/osdep.h"
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
@@ -22,6 +23,8 @@ struct QcomCrmState {
     uint64_t mem_size;
 
     MemoryRegion iomem;
+
+    qemu_irq irq[6];
 };
 
 QcomCrmState* crm_v2_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);

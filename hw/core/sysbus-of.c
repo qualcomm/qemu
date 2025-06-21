@@ -21,12 +21,24 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "hw/sysbus-of.h"
 #include "hw/qdev-properties.h"
 
 #include "system/device_tree.h"
 
+bool of_sysbus_access_in_reg(OfSysBusDevice* ofdev, uint32_t reg_idx, hwaddr addr, unsigned size)
+{
+    if (reg_idx >= ofdev->nb_regs) {
+        return false;
+    }
+
+    hwaddr reg_base = ofdev->regs[reg_idx].addr;
+    uint64_t reg_size = ofdev->regs[reg_idx].size;
+
+    return addr >= reg_base && (addr + size) < (reg_base + reg_size);
+}
 
 // returns the matching device id from the list.
 // this is compatible with the linux way of matching nodes.
@@ -82,8 +94,6 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
     if (dev_table) {
         ofdev->dev_id = of_match_node(ofdev->fdt, of_node_path, dev_table);
         ofdev->data = ofdev->dev_id->data;
-    } else {
-        abort();
     }
 
     if (qemu_fdt_get_node_addr(ofdev->fdt, of_node_path, &base_addr, errp)) {
@@ -92,6 +102,19 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
     }
 
     qemu_fdt_getprop_reg(ofdev->fdt, of_node_path, &ofdev->regs, &ofdev->nb_regs, errp);
+
+    // set the base at 0
+    for(size_t i = 0; i < ofdev->nb_regs; ++i) {
+        ofdev->regs[i].addr -= base_addr;
+    }
+
+    // find the parent interrupt phandle, if there is any.
+    qemu_fdt_getprop_interrupts(
+        ofdev->fdt,
+        of_node_path,
+        &ofdev->interrupts,
+        errp
+    );
 
     if(kofdev->realize) {
         kofdev->realize(ofdev, errp);

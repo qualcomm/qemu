@@ -30,18 +30,14 @@
 #ifndef QEMU_QCOM_VIRT_H
 #define QEMU_QCOM_VIRT_H
 
+#include "qemu/osdep.h"
 #include "exec/hwaddr.h"
-#include "qemu/notify.h"
 #include "hw/boards.h"
-#include "hw/arm/boot.h"
-#include "hw/arm/bsa.h"
 #include "hw/arm/virt.h"
-#include "hw/block/flash.h"
-#include "system/kvm.h"
-#include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 
 #include "hw/qcom/crm-v2.h"
+#include "hw/qcom/cmd-db.h"
 
 // Top address of the real hardware
 // Depends on the board being emulated
@@ -58,6 +54,7 @@ OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHIN
  */
 enum QcomVirtDeviceType {
     VIRT_QCOM_LOGGER,
+    VIRT_QCOM_CMD_DB,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_GRAPHICS,
 };
@@ -89,6 +86,7 @@ struct QcomVirtMachineState {
     int fdt_sz;
 
     // Devices
+    QcomCmdDbState* cmd_db;
     QcomCrmState* crm_disp;
 };
 

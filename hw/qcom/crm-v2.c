@@ -1,11 +1,16 @@
+#include "hw/sysbus-of.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "hw/qcom/crm-v2.h"
 
+#define field_set(_mask, _val) (((_val) & (_mask >> (ffs(_mask) - 1))) << (ffs(_mask) - 1))
+
 // === taken from drivers/soc/qcom/crm-v2.c  ===
 // === copy from the kernel tree starts here ===
+
+#define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 /* Capability flags  */
 #define PERF_OL_VOTING_FLAG	BIT(0)
@@ -592,19 +597,172 @@ static const struct crm_desc pcie_crm_desc_v3 = {
 
 // === copy from the kernel tree ends here ===
 
-// static uint32_t decode_addr()
+enum {
+	CRM_DRV_BASE,
+	CRM_CRMB_MGR,
+	CRM_CRMB_PT_MGR,
+	CRM_CRMC_MGR,
+	CRM_CRMV_MGR,
+	CRM_COMMON,
+};
+
+static uint64_t read_drv_base(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    printf("[%s - drv_base]: read detected @idx %d\n", cdev->name, enum_idx);
+
+	return 0;
+}
+
+static void write_drv_base(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[*] crm-v2 (drv_base): write@idx %d of value 0x%lx\n", enum_idx, value);
+}
+
+static uint64_t read_crmb_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    printf("[%s - crmb_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+
+	return 0;
+}
+
+static void write_crmb_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[*] crm-v2 (crmb_mgr): write@idx %d of value 0x%lx\n", enum_idx, value);
+}
+
+static uint64_t read_crmb_pt_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    printf("[%s - crmb_pt_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+
+	return 0;
+}
+
+static void write_crmb_pt_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[*] crm-v2 (crmb_pt_mgr): write@idx %d of value 0x%lx\n", enum_idx, value);
+}
+
+static uint64_t read_crmc_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    printf("[%s - crmc_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+
+	return 0;
+}
+
+static void write_crmc_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[*] crm-v2 (crmc_mgr): write@idx %d of value 0x%lx\n", enum_idx, value);
+}
+
+static uint64_t read_crmv_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    printf("[%s - crmv_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+
+	return 0;
+}
+
+static void write_crmv_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[*] crm-v2 (crmv_mgr): write@idx %d of value 0x%lx\n", enum_idx, value);
+}
+
+static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
+{
+    switch(enum_idx) {
+		case CRM_ENABLE:
+            printf("[%s - common] CRM enabled.\n", cdev->name);
+            return 1;
+        case CRM_VERSION:
+            printf("[%s - common] Version skipped - unused in driver.\n", cdev->name);
+            return 0;
+        case CRM_CFG_PARAM_1: {
+            uint32_t cfg = 0;
+            cfg |= field_set(reg_param[NUM_HW_DRVS], 9);
+            cfg |= field_set(reg_param[NUM_SW_DRVS], 9);
+            cfg |= field_set(reg_param[NUM_CHANNELS], 2);
+
+            printf("[%s - common] param 1 cfg = 0x%x\n", cdev->name, cfg);
+            return cfg;
+        }
+        default:
+            printf("[%s - common]: read detected @idx %d\n", cdev->name, enum_idx);
+            return 0;
+    }
+
+    abort();
+}
+
+static void write_common(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
+{
+    printf("[%s] crm-v2 (common): write@idx %d of value 0x%lx\n", cdev->name, enum_idx, value);
+}
+
+typedef uint64_t(*CrmRdHdlr)(QcomCrmState*, const uint32_t*, int);
+typedef void(*CrmWrHdlr)(QcomCrmState*, const uint32_t*, int, uint64_t);
+
+struct crm_kind_handlers {
+	CrmRdHdlr read_handler;
+	CrmWrHdlr write_handler;
+    const uint32_t* reg_array;
+    size_t reg_array_size;
+};
+
+struct crm_kind_handlers crm_regs_handlers[] = {
+	[CRM_DRV_BASE] = {
+		.read_handler = read_drv_base,
+		.write_handler = write_drv_base,
+	},
+	[CRM_CRMB_MGR] = {
+		.read_handler = read_crmb_mgr,
+		.write_handler = write_crmb_mgr,
+	},
+	[CRM_CRMB_PT_MGR] = {
+		.read_handler = read_crmb_pt_mgr,
+		.write_handler = write_crmb_pt_mgr,
+	},
+	[CRM_CRMC_MGR] = {
+		.read_handler = read_crmc_mgr,
+		.write_handler = write_crmc_mgr,
+	},
+	[CRM_CRMV_MGR] = {
+		.read_handler = read_crmv_mgr,
+		.write_handler = write_crmv_mgr,
+	},
+	[CRM_COMMON] = {
+		.read_handler = read_common,
+		.write_handler = write_common,
+	},
+};
+
 
 static uint64_t qcom_crm_read(void *opaque, hwaddr addr, unsigned size)
 {
 	QcomCrmState* cs = QCOM_CRM(opaque);
 	OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cs);
+    // const struct crm_desc* desc = ofdev->data;
 
-    printf("[*] crm read detected @addr 0x%lx (size %d)\n", addr, size);
-    printf("[*] data: %p\n", ofdev->data);
+	hwaddr offset = -1;
+	size_t i;
+	for (i = 0; i < ARRAY_SIZE(crm_regs_handlers); ++i) {
+		if (of_sysbus_access_in_reg(ofdev, i, addr, size)) {
+			offset = addr - ofdev->regs[i].addr;
+			break;
+		}
+	}
 
-	// struct crm_desc* desc = (struct crm_desc*) ofdev->data;
+	assert(offset != -1);
 
-    return 0;
+    // now, search for the offset in the reg table
+    size_t j;
+    for (j = 0; j < crm_regs_handlers[i].reg_array_size; ++j) {
+        if (crm_regs_handlers[i].reg_array[j] == offset) {
+            break;
+        }
+    }
+
+    assert(j != crm_regs_handlers[i].reg_array_size);
+
+	return crm_regs_handlers[i].read_handler(cs, crm_regs_handlers[i].reg_array, j);
 }
 
 static void qcom_crm_write(void *opaque, hwaddr addr,
@@ -647,6 +805,12 @@ QcomCrmState* crm_v2_create_by_label(void* fdt, void* in_fdt, const char* label,
 
 static void qcom_crm_init(Object* obj)
 {
+    QcomCrmState* cdev = QCOM_CRM(obj);
+    SysBusDevice* sbd = SYS_BUS_DEVICE(obj);
+
+    for (size_t i = 0; i < ARRAY_SIZE(cdev->irq); i++) {
+        sysbus_init_irq(sbd, &cdev->irq[i]);
+    }
 }
 
 static const MemoryRegionOps qcom_crm_ops = {
@@ -664,8 +828,30 @@ static void qcom_crm_realize(OfSysBusDevice* ofdev, Error **errp)
     QcomCrmState *s = QCOM_CRM(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
+    const struct crm_desc* desc = ofdev->data;
+
+    printf("[%s] Adding CRM device at address 0x%lx\n", s->name, *ofdev->base_addr);
+
 	// according to the driver
 	assert(ofdev->nb_regs == 6);
+
+    crm_regs_handlers[CRM_DRV_BASE].reg_array = desc->chn_regs;
+    crm_regs_handlers[CRM_DRV_BASE].reg_array_size = ARRAY_SIZE(desc->chn_regs);
+
+    crm_regs_handlers[CRM_CRMB_MGR].reg_array = desc->crmb_regs;
+    crm_regs_handlers[CRM_CRMB_MGR].reg_array_size = ARRAY_SIZE(desc->crmb_regs);
+
+    crm_regs_handlers[CRM_CRMB_PT_MGR].reg_array = desc->crmb_pt_regs;
+    crm_regs_handlers[CRM_CRMB_PT_MGR].reg_array_size = ARRAY_SIZE(desc->crmb_pt_regs);
+
+    crm_regs_handlers[CRM_CRMC_MGR].reg_array = desc->crmc_regs;
+    crm_regs_handlers[CRM_CRMC_MGR].reg_array_size = ARRAY_SIZE(desc->crmc_regs);
+
+    crm_regs_handlers[CRM_CRMV_MGR].reg_array = desc->crmv_regs;
+    crm_regs_handlers[CRM_CRMV_MGR].reg_array_size = ARRAY_SIZE(desc->crmv_regs);
+
+    crm_regs_handlers[CRM_COMMON].reg_array = desc->cfg_regs;
+    crm_regs_handlers[CRM_COMMON].reg_array_size = ARRAY_SIZE(desc->cfg_regs);
 
 	assert(s->mem_size);
     memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_crm_ops, s, TYPE_QCOM_CRM, s->mem_size);

@@ -12,14 +12,27 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "exec/hwaddr.h"
 
 #ifndef DEVICE_TREE_H
 #define DEVICE_TREE_H
 
-#define FDT_ADDRESS_CELLS   "#address-cells"
-#define FDT_SIZE_CELLS      "#size-cells"
-#define FDT_REG             "reg"
+#define QEMU_FDT_PROP_ADDRESS_CELLS         "#address-cells"
+#define QEMU_FDT_PROP_SIZE_CELLS            "#size-cells"
+#define QEMU_FDT_PROP_REG                   "reg"
+#define QEMU_FDT_PROP_INTERRUPT_PARENT      "interrupt-parent"
+#define QEMU_FDT_PROP_INTERRUPTS            "interrupts"
+#define QEMU_FDT_PROP_INTERRUPT_CELLS       "#interrupt-cells"
+#define QEMU_FDT_PROP_RANGES                "ranges"
+#define QEMU_FDT_PROP_COMPATIBLE            "compatible"
+#define QEMU_FDT_PROP_PHANDLE               "phandle"
+
+struct fdt_interrupts {
+    uint32_t interrupt_controller_phandle;
+    size_t nb_interrupts;
+    uint32_t* interrupts;
+};
 
 struct fdt_reg {
     hwaddr addr;
@@ -337,6 +350,21 @@ void qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_
 void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryRegion* root_mem, Error **errp);
 
 int qemu_fdt_of_is_compatible(void *fdt, const char* node_path, const char* compat, const char* type, const char* name);
+
+/*
+ * Find the parent interrupt phandle.
+ * Recursively search through the parent nodes if necessary, according to the
+ * device tree specification (v0.4).
+ *
+ * @fdt: Pointer to the dt blob
+ * @node_path: node to look for.
+ * @phandle: if the property is found, contains the parent interrupt phandle.
+ *
+ * returns true on success, and false otherwise.
+ */
+bool qemu_fdt_find_parent_interrupt_phandle(void* fdt, const char* node_path, uint32_t* phandle);
+
+bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_interrupts** interrupts, Error** errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

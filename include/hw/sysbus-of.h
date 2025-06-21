@@ -22,6 +22,7 @@
 #ifndef HW_SYSBUS_OF_H
 #define HW_SYSBUS_OF_H
 
+#include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "exec/memory.h"
 #include "qom/object.h"
@@ -102,8 +103,16 @@ struct OfSysBusDevice {
     const struct of_device_id* dev_id;
 
     // registers
+    // addresses are normalized at 0.
+    // in other words, the first register always starts at 0
     struct fdt_reg* regs;
     uint32_t nb_regs;
+
+    // iterrupts
+    // it is the device parent responsibility to interpret and plug interrupts accordingly.
+    struct fdt_interrupts* interrupts;
 };
+
+bool of_sysbus_access_in_reg(OfSysBusDevice* ofdev, uint32_t reg_idx, hwaddr addr, unsigned size);
 
 #endif /* HW_SYSBUS_H */

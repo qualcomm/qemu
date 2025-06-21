@@ -86,13 +86,13 @@ static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirt
 static void logger_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 {}
 
-static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
 
-    qvms->crm_disp = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm_disp);
+    qvms->cmd_db = cmd_db_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->cmd_db);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
     // a base address should have been found.
@@ -101,8 +101,30 @@ static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVi
     memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
 }
 
-static void crm_disp_update_fdt(void* fdt, QcomVirtMachineState* qvms)
-{}
+static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+
+    qvms->crm_disp = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm_disp);
+    VirtMachineState* vms = VIRT_MACHINE(qvms);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    // a base address should have been found.
+    assert(ofdev->base_addr);
+
+    // interrupts should be set for this device
+    assert(ofdev->interrupts);
+    assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
+
+    for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
+        int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
+        sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, interrupt));
+    }
+
+    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+}
 
 static void graphics_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -120,8 +142,8 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     void* qcom_fdt = qvms->fdt;
 
     // graphics dependencies
-    // const char* cam_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "cam_rsc", &error_abort);
-    // qemu_fdt_copy_node(fdt, qcom_fdt, cam_rsc_node, &error_abort);
+    const char* apps_rsc_node = qemu_fdt_node_path_by_label(qcom_fdt, "apps_rsc", &error_abort);
+    assert(qemu_fdt_copy_node(fdt, qcom_fdt, apps_rsc_node, &error_abort));
 
     // const char* disp_crm_node = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm", &error_abort);
     // qemu_fdt_copy_node(fdt, qcom_fdt, disp_crm_node, &error_abort);
@@ -145,15 +167,19 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .device_create = logger_create,
         .update_fdt = logger_update_fdt,
     },
-    [VIRT_QCOM_GRAPHICS] = {
-        .device_create = graphics_create,
-        .update_fdt = graphics_update_fdt,
+    [VIRT_QCOM_CMD_DB] = {
+        .label = "aop_cmd_db_mem",
+        .mem_size = 0x20000,
+        .device_create = add_cmd_db,
     },
     [VIRT_QCOM_CRM_DISP] = {
         .label = "disp_crm",
         .mem_size = 0xd000,
         .device_create = crm_disp_create,
-        .update_fdt = crm_disp_update_fdt,
+    },
+    [VIRT_QCOM_GRAPHICS] = {
+        .device_create = graphics_create,
+        .update_fdt = graphics_update_fdt,
     },
 };
 
@@ -204,12 +230,10 @@ static void qcom_create_devices(MachineState* machine)
     // TODO: change by incorporating this in the new qemu object.
     for (size_t i = 0; i < ARRAY_SIZE(qcom_devices); ++i) {
         qcom_devices[i].device_create(&qcom_devices[i], machine->fdt, qvms, sysmem);
-        qcom_devices[i].update_fdt(machine->fdt, qvms);
+        if (qcom_devices[i].update_fdt) {
+            qcom_devices[i].update_fdt(machine->fdt, qvms);
+        }
     }
-
-    // delete interrupt parent to inherit from virt board's interrupt phandle
-    // (dt specification v0.4 section 2.4)
-    qemu_fdt_delprop(machine->fdt, "/soc", "interrupt-parent", &error_abort);
 
     // replace the range with an empty range, so that the kernel is happy.
     // otherwise, the kernel thinks the soc is mapped at address 0 and does not
@@ -220,6 +244,8 @@ static void qcom_create_devices(MachineState* machine)
 
     // edit base addresses with the new one
     qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);
+    // TODO: find a better way to do that...
+    qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);
 
     // check global fdt consistency
     qemu_fdt_check_memory_consistency(machine->fdt, "/soc", get_system_io(), &error_abort);

@@ -19,17 +19,13 @@
 
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "qemu/guest-random.h"
 #include "system/device_tree.h"
 #include "hw/loader.h"
 #include "hw/boards.h"
-#include "qemu/config-file.h"
 #include "qapi/qapi-commands-machine.h"
-#include "qobject/qdict.h"
-#include "monitor/hmp.h"
 
 #include <libfdt.h>
 
@@ -111,6 +107,18 @@ static bool get_u32(struct prop_iter* iter, uint32_t* val) {
     }
     
     return ret;
+}
+
+static inline uint32_t prop_to_u32(const void* prop_data) {
+    return be32_to_cpu(*(const uint32_t*) prop_data);
+}
+
+static inline uint32_t prop_to_phandle(const void* prop_data) {
+    return prop_to_u32(prop_data);
+}
+
+static inline const char* prop_to_string(const void* prop_data) {
+    return (const char*)prop_data;
 }
 
 static void skip_u32(struct prop_iter* iter, uint32_t nb_skips) {
@@ -619,7 +627,7 @@ static bool getprop_reg(void *fdt,
     int parent_node = fdt_parent_offset(fdt, node_offset);
     int len;
 
-    const uint32_t *address_cells = fdt_getprop(fdt, parent_node, FDT_ADDRESS_CELLS, &len);
+    const uint32_t *address_cells = fdt_getprop(fdt, parent_node, QEMU_FDT_PROP_ADDRESS_CELLS, &len);
     if (len != 4) {
         return false;
     }
@@ -627,13 +635,13 @@ static bool getprop_reg(void *fdt,
     assert(len == 4);
     *nb_reg_cells = be32_to_cpu(*address_cells);
 
-    const uint32_t *size_cells = fdt_getprop(fdt, parent_node, FDT_SIZE_CELLS, &len);
+    const uint32_t *size_cells = fdt_getprop(fdt, parent_node, QEMU_FDT_PROP_SIZE_CELLS, &len);
     assert(len == 4);
     *nb_size_cells = be32_to_cpu(*size_cells);
 
     uint32_t cell_size = (*nb_reg_cells + *nb_size_cells) * sizeof(uint32_t);
 
-    const uint32_t *in_reg = fdt_getprop(fdt, node_offset, FDT_REG, &len);
+    const uint32_t *in_reg = fdt_getprop(fdt, node_offset, QEMU_FDT_PROP_REG, &len);
 
     if (len < 0) {
         return false;
@@ -871,7 +879,7 @@ out:
 
 static bool qemu_fdt_setprop_reg_as_u64(void* fdt, const char* node_path, struct reg64* reg, uint32_t nb_regs, Error **errp)
 {
-    return qemu_fdt_setprop_sized_cells_from_array(fdt, node_path, FDT_REG, nb_regs * 2, (uint64_t*) reg) >= 0;
+    return qemu_fdt_setprop_sized_cells_from_array(fdt, node_path, QEMU_FDT_PROP_REG, nb_regs * 2, (uint64_t*) reg) >= 0;
 }
 
 void qmp_dumpdtb(const char *filename, Error **errp)
@@ -947,12 +955,14 @@ static bool copy_phandle_node(void *out_fdt, void *in_fdt, struct phandle_entry*
         // in theory, we should dereference after the assert...
         int cell_size;
         if (pentry->size_name) {
-            cell_size = be32_to_cpu(*(uint32_t*)fdt_getprop(in_fdt, in_node_offset, pentry->size_name, &len));
+            cell_size = prop_to_u32(fdt_getprop(in_fdt, in_node_offset, pentry->size_name, &len));
             assert(len == 4);
         } else {
             cell_size = 0;
         }
         
+        updated |= copy_node_by_offset(out_fdt, in_fdt, in_node_offset, errp);
+
         skip_u32(&iter, cell_size);
 
         // sometimes there is a 0 that should not be there...
@@ -961,8 +971,6 @@ static bool copy_phandle_node(void *out_fdt, void *in_fdt, struct phandle_entry*
         if (peek_u32(&iter, &val) && val == 0) {
             skip_u32(&iter, 1);
         }
-
-        updated |= copy_node_by_offset(out_fdt, in_fdt, in_node_offset, errp);
     }
 
     return updated;
@@ -1002,9 +1010,45 @@ static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int
 
         // add nodes by phandle if they are not there.
         bool out_fdt_updated = false;
-        for (size_t i = 0; i < ARRAY_SIZE(phandle_entries); ++i) {
-            if (!strcmp(prop_name, phandle_entries[i].name)) {
-                out_fdt_updated |= copy_phandle_node(out_fdt, in_fdt, &phandle_entries[i], prop_offset, errp);
+        if (!strcmp(prop_name, QEMU_FDT_PROP_INTERRUPT_PARENT)) {
+            // when an interrupt parent property is met, try to update the phandle
+            // to a compatible interrupt controller.
+            int in_ic_node_offset = fdt_node_offset_by_phandle(in_fdt, prop_to_phandle(prop));
+            int compatible_prop_len;
+
+            const char* ic_compatible = prop_to_string(
+                fdt_getprop(in_fdt, in_ic_node_offset, QEMU_FDT_PROP_COMPATIBLE, &compatible_prop_len)
+            );
+            assert(ic_compatible);
+            assert(compatible_prop_len > 0);
+
+            int compatible_out_ic_node_offset;
+            int offset = 0;
+            while(offset < compatible_prop_len) {
+                compatible_out_ic_node_offset = fdt_node_offset_by_compatible(out_fdt, -1, ic_compatible);
+                if (compatible_out_ic_node_offset >= 0) {
+                    break;
+                }
+
+                size_t compatible_len = strlen(ic_compatible) + 1;
+
+                ic_compatible += compatible_len;
+                offset += compatible_len;
+            }
+
+            if (compatible_out_ic_node_offset < 0) {
+                warn_report("The interrupt controller %s from the input DT did not find a compatible IC in the output DT.", node_path);
+            } else {
+                // we found a compatible node in the out DT, update the phandle accordingly.
+                uint32_t out_phandle = fdt_get_phandle(out_fdt, compatible_out_ic_node_offset);
+                fdt_setprop_inplace_cell(out_fdt, out_node_offset, QEMU_FDT_PROP_PHANDLE, out_phandle);
+                prop = NULL;
+            }
+        } else {
+            for (size_t i = 0; i < ARRAY_SIZE(phandle_entries); ++i) {
+                if (!strcmp(prop_name, phandle_entries[i].name)) {
+                    out_fdt_updated |= copy_phandle_node(out_fdt, in_fdt, &phandle_entries[i], prop_offset, errp);
+                }
             }
         }
 
@@ -1013,10 +1057,12 @@ static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int
             out_node_offset = fdt_path_offset(out_fdt, path);
         }
 
-        ret = fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
+        if (prop) {
+            ret = fdt_setprop(out_fdt, out_node_offset, prop_name, prop, len);
 
-        if (ret < 0) {
-            goto fail;
+            if (ret < 0) {
+                goto fail;
+            }
         }
     }
 
@@ -1481,4 +1527,63 @@ int qemu_fdt_of_is_compatible(void *fdt, const char* node_path, const char* comp
 	}
 
 	return score;
+}
+
+bool qemu_fdt_find_parent_interrupt_phandle(void* fdt, const char* node_path, uint32_t* phandle)
+{
+    int node_offset = findnode_nofail(fdt, node_path);
+    int len;
+    const void* prop_data;
+
+    while(!(prop_data = fdt_getprop(fdt, node_offset, QEMU_FDT_PROP_INTERRUPT_PARENT, &len))) {
+        node_offset = fdt_parent_offset(fdt, node_offset);
+        if (node_offset < 0) {
+            return false;
+        }
+    }
+    assert(len == 4);
+
+    *phandle = prop_to_u32(prop_data);
+
+    return true;
+}
+
+bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_interrupts** interrupts, Error** errp)
+{
+    int node_offset = findnode_nofail(fdt, node_path);
+    const void* prop_data;
+    uint32_t interrupt_size;
+    int interrupts_len, len;
+    int controller_node_offset;
+
+    if (!(prop_data = fdt_getprop(fdt, node_offset, QEMU_FDT_PROP_INTERRUPTS, &interrupts_len))) {
+        *interrupts = NULL;
+        return false;
+    }
+
+    *interrupts = g_new(struct fdt_interrupts, 1);
+    struct fdt_interrupts* _interrupts = *interrupts;
+
+    // find interrupt controller phandle
+    assert(qemu_fdt_find_parent_interrupt_phandle(fdt, node_path, &_interrupts->interrupt_controller_phandle));
+
+    // get interrupt controller node offset
+    // printf("phandle: 0x%x\n", _interrupts->interrupt_controller_phandle);
+    // save_device_tree(fdt, "/tmp/lol.dtb", errp);
+    controller_node_offset = fdt_node_offset_by_phandle(fdt, _interrupts->interrupt_controller_phandle);
+    assert(controller_node_offset >= 0);
+
+    // find the cell size for interrupts
+    interrupt_size = prop_to_u32(fdt_getprop(fdt, controller_node_offset, QEMU_FDT_PROP_INTERRUPT_CELLS, &len));
+    assert(len == 4);
+
+    _interrupts->nb_interrupts = interrupts_len / (sizeof(uint32_t) * interrupt_size);
+    _interrupts->interrupts = g_new(uint32_t, interrupts_len / sizeof(uint32_t));
+
+    for (size_t i = 0; i < interrupts_len / sizeof(uint32_t); ++i) {
+        _interrupts->interrupts[i] = prop_to_u32(prop_data);
+        prop_data += sizeof(uint32_t);
+    }
+
+    return true;
 }

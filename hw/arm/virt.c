@@ -138,7 +138,7 @@ static void arm_virt_compat_set(MachineClass *mc)
 
 
 /* Number of external interrupt lines to configure the GIC with */
-#define NUM_IRQS 256
+#define NUM_IRQS (992 - 32)
 
 #define PLATFORM_BUS_NUM_IRQS 64
 

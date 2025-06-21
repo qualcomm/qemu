@@ -1439,7 +1439,7 @@ static void icc_deactivate_irq(GICv3CPUState *cs, int irq)
     if (irq < GIC_INTERNAL) {
         cs->gicr_iactiver0 = deposit32(cs->gicr_iactiver0, irq, 1, 0);
         gicv3_redist_update(cs);
-    } else {
+    } else if (irq < GICV3_LPI_INTID_START) {
         gicv3_gicd_active_clear(cs->gic, irq);
         gicv3_update(cs->gic, irq, 1);
     }
