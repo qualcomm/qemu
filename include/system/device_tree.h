@@ -321,6 +321,8 @@ void qemu_fdt_copy_node_properties(void *out_fdt, void *in_fdt, const char *node
  */
 void qemu_fdt_delprop(void *fdt, const char *node_path, const char *property, Error **errp);
 
+void qemu_fdt_delnode(void *fdt, const char *node_path, Error **errp);
+
 /**
  * qemu_fdt_get_node_addr: get a node's address, if there is one.
  * An error is raised if no address can be found.

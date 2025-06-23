@@ -1622,3 +1622,9 @@ bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_in
 
     return true;
 }
+
+void qemu_fdt_delnode(void *fdt, const char *node_path, Error **errp)
+{
+    int node_offset = findnode_nofail(fdt, node_path);
+    assert(fdt_del_node(fdt, node_offset) == 0);
+}

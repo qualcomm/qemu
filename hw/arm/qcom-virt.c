@@ -100,7 +100,6 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
     const char* ufs_phy_tx_symbol_0_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_tx_symbol_0_clk", &error_abort);
     const char* usb3_phy_wrapper_gcc_usb30_pipe_clk = qemu_fdt_node_path_by_label(qcom_fdt, "usb3_phy_wrapper_gcc_usb30_pipe_clk", &error_abort);
 
-    const char* apps_rsc = qemu_fdt_node_path_by_label(qcom_fdt, "apps_rsc", &error_abort);
     const char* sleep_clk = qemu_fdt_node_path_by_label(qcom_fdt, "sleep_clk", &error_abort);
     const char* gcc = qemu_fdt_node_path_by_label(qcom_fdt, "gcc", &error_abort);
 
@@ -114,7 +113,6 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
         sleep_clk,
 
         cluster_pd2,
-        apps_rsc,
         gcc,
         NULL,
     };
@@ -139,6 +137,29 @@ static void add_rpmh_rsc_cam(const struct QcomVirtDevice* qdev, void* fdt, QcomV
     qvms->rpmh_rsc_cam = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_cam);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    // a base address should have been found.
+    assert(ofdev->base_addr);
+
+    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+}
+
+static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+
+    // replace psci by the right one, otherwise it will not be matched in the kernel.
+    // qemu_fdt_delnode(fdt, "/psci", &error_abort);
+    qemu_fdt_copy_node(fdt, qcom_fdt, "/soc/psci", &error_abort);
+
+    qvms->rpmh_rsc_apps = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_apps);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    // otherwise, the device is skipped silently by the kernel...
+    // TODO: find out how to get the phandle to get initialized by the kernel correctly.
+    // qemu_fdt_delprop(fdt, "/soc/rsc@18900000", "power-domains", &error_fatal);
 
     // a base address should have been found.
     assert(ofdev->base_addr);
@@ -263,6 +284,11 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .label = "cam_rsc",
         .mem_size = 0x3000,
         .device_create = add_rpmh_rsc_cam,
+    },
+    [VIRT_QCOM_RPMH_RSC_APPS] = {
+        .label = "apps_rsc",
+        .mem_size = 0x40000,
+        .device_create = add_rpmh_rsc_apps,
     },
     [VIRT_QCOM_CRM_DISP] = {
         .label = "disp_crm",

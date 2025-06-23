@@ -54,9 +54,11 @@ OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHIN
  * Note that order matters.
  */
 enum QcomVirtDeviceType {
+    // fallthrough device, to get some logs on unhandled accesses on the soc
     VIRT_QCOM_LOGGER,
-    VIRT_QCOM_CMD_DB,
     VIRT_QCOM_RPMH_RSC_CAM,
+    VIRT_QCOM_RPMH_RSC_APPS,
+    VIRT_QCOM_CMD_DB,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_GRAPHICS,
 };
@@ -90,6 +92,7 @@ struct QcomVirtMachineState {
     // Devices
     QcomCmdDbState* cmd_db;
     QcomRpmhRscState* rpmh_rsc_cam;
+    QcomRpmhRscState* rpmh_rsc_apps;
     QcomCrmState* crm_disp;
 };
 
