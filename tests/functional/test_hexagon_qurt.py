@@ -17,10 +17,10 @@ class QURTTests(QemuSystemTest):
     QURT_TIMEOUT_SEC = 300
 
     REPO = 'https://gitlab.qualcomm.com/qqvp/testing/qemu-qurt-tests'
-    GIT_REF = '9cd4b3283920c52111032252e4ead0ee8c657a2d'
+    GIT_REF = 'ce04ebfc31b0f278242090cb85efbe44adf6bcfc'
     ASSET_TARBALL = \
         Asset(f'{REPO}/-/archive/{GIT_REF}/qemu-qurt-tests-{GIT_REF}.tar.gz',
-              '8ba5191ba01df3603831aeead163d90206837c13788a35480bb7e0160e353f04')
+              'ea9755fb648833c8e0ccb0a611b8e77e9cddab9d396e5153f07f9080e1b5b5c3')
 
     QURT_MACHINES = {
         "nspv79NA_1": "V79NA_1",
