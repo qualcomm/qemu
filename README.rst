@@ -14,7 +14,7 @@ All the usual stuff for QEMU works, only a few additional options should be adde
 
   mkdir build
   cd build
-  ../configure --target-list=aarch64-softmmu --enable-rust --with-devices-aarch64=qcom
+  ../configure --target-list=aarch64-softmmu --with-devices-aarch64=qcom
   make -j
 
 ===========
