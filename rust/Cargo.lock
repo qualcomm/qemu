@@ -38,16 +38,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dca9240753cf90908d7e4aac30f630662b02aebaa1b58a3cadabdb23385b58b"
 
 [[package]]
-name = "gpu"
-version = "0.1.0"
-dependencies = [
- "bilge",
- "bilge-impl",
- "qemu_api",
- "qemu_api_macros",
-]
-
-[[package]]
 name = "hpet"
 version = "0.1.0"
 dependencies = [
