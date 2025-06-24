@@ -958,11 +958,12 @@ static bool handle_phandle_node(void *out_fdt, void *in_fdt, const char* node_pa
         assert(res >= 0);
         
         // check if node exists in out fdt.
-        if (fdt_path_offset(out_fdt, phandle_node_path) < 0) {
+        int out_phandle_offset = fdt_path_offset(out_fdt, phandle_node_path);
+        if (out_phandle_offset == -FDT_ERR_NOTFOUND) {
             // check if the phandle destination could be added later on in the node path group
             const char** added_node;
             bool skip = false;
-            for (added_node = nodes_path; *added_node != NULL; ++added_node) {
+            for (added_node = nodes_path; added_node != NULL && *added_node != NULL; ++added_node) {
                 if (strncmp(phandle_node_path, *added_node, strlen(*added_node)) == 0) {
                     skip = true;
                 }
@@ -971,6 +972,9 @@ static bool handle_phandle_node(void *out_fdt, void *in_fdt, const char* node_pa
             if (!skip) {
                 warn_report("The node %s has a phandle reference to the node %s, but it is not present in the new DT. It is most likely a device dependency that should be implemented and added beforehand.", node_path, phandle_node_path);
             }
+        } else if (out_phandle_offset < 0) {
+            in_node_offset = out_phandle_offset;
+            goto fail;
         }
 
         skip_u32(&iter, cell_size);
@@ -992,7 +996,7 @@ fail:
 }
 
 // return the new out_node_offset, since it could be updated.
-static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int in_node_offset, const char* node_path, const char* nodes_path[], Error **errp)
+static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int in_node_offset, const char* in_node_path, const char* nodes_path[], bool ignore_existing_props, Error **errp)
 {
     const void *prop;
     const char *prop_name = NULL;
@@ -1000,14 +1004,14 @@ static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int
     const char *path;
     bool path_allocated = false;
 
-    if (node_path == NULL) {
+    if (in_node_path == NULL) {
         path_allocated = true;
 
         path = g_new0(char, FDT_PATH_MAX_LEN);
         ret = fdt_get_path(in_fdt, in_node_offset, (char*) path, FDT_PATH_MAX_LEN);
         assert(ret >= 0);
     } else {
-        path = node_path;
+        path = in_node_path;
     }
 
     fdt_for_each_property_offset(prop_offset, in_fdt, in_node_offset) {
@@ -1018,7 +1022,25 @@ static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int
             goto fail;
         }
 
-        // add nodes by phandle if they are not there.
+        // check the property does not exist already
+        {
+            int out_len;
+            const void* out_prop = fdt_getprop(out_fdt, out_node_offset, prop_name, &out_len);
+
+            if (out_prop) {
+                if (ignore_existing_props) {
+                    continue;
+                } else {
+                    ret = FDT_ERR_EXISTS;
+                    goto fail;
+                }
+            } else if (out_len != -FDT_ERR_NOTFOUND) {
+                ret = out_len;
+                goto fail;
+            }
+        }
+
+        // check nodes by phandle if they contain some.
         bool out_fdt_updated = false;
         if (!strcmp(prop_name, QEMU_FDT_PROP_INTERRUPT_PARENT)) {
             // when an interrupt parent property is met, try to update the phandle
@@ -1087,7 +1109,7 @@ fail:
         g_free((char*) path);
     }
 
-    error_setg(errp, "%s: Couldn't copy property %s in node %s: %s", __func__, prop_name, node_path, fdt_strerror(ret));
+    error_setg(errp, "%s: Couldn't copy property %s in node %s: %s", __func__, prop_name, in_node_path, fdt_strerror(ret));
 
     return out_node_offset;
 }
@@ -1102,7 +1124,7 @@ void qemu_fdt_copy_node_properties(void *out_fdt, void *in_fdt, const char *node
         NULL
     };
 
-    copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, node_path, nodes_path, errp);
+    copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, node_path, nodes_path, false, errp);
 }
 
 // returns the new subnode offset, or the fdt error code.
@@ -1114,7 +1136,7 @@ static int qemu_fdt_copy_subnode_recursive(void *out_fdt, void *in_fdt, int in_n
     int out_node_offset = fdt_add_subnode(out_fdt, out_parent_node_offset, subnode_name);
 
     // next, add all the missing properties
-    out_node_offset = copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, NULL, nodes_path, errp);
+    out_node_offset = copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, NULL, nodes_path, false, errp);
 
     // add the subnodes recursively
     int in_subnode_offset;
@@ -1186,7 +1208,7 @@ static int initialize_root_node(void* out_fdt, void* in_fdt, const char* node_pa
         goto fail;
     }
 
-    return copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, node_path, nodes_path, errp);
+    return copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, node_path, nodes_path, false, errp);
 
 fail:
     error_setg(errp, "%s: Couldn't create node %s: %s", __func__, node_path, fdt_strerror(err));
@@ -1627,4 +1649,50 @@ void qemu_fdt_delnode(void *fdt, const char *node_path, Error **errp)
 {
     int node_offset = findnode_nofail(fdt, node_path);
     assert(fdt_del_node(fdt, node_offset) == 0);
+}
+
+bool qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *out_node_path, const char *in_node_path, Error **errp)
+{
+    int len;
+    const char *subnode_name;
+    int out_node_offset = findnode_nofail(out_fdt, out_node_path);
+    int in_node_offset = findnode_nofail(in_fdt, in_node_path);
+    int ret;
+
+    out_node_offset = copy_properties(out_fdt, in_fdt, out_node_offset, in_node_offset, in_node_path, NULL, true, errp);
+
+    // now, we can add all the subnodes recursively, since the root node is set.
+    int in_subnode_offset;
+    fdt_for_each_subnode(in_subnode_offset, in_fdt, in_node_offset) {
+        subnode_name = fdt_get_name(in_fdt, in_subnode_offset, &len);
+
+        if (!subnode_name) {
+            ret = len;
+            goto fail;
+        }
+
+        qemu_fdt_copy_subnode_recursive(out_fdt, in_fdt, in_subnode_offset, out_node_offset, subnode_name, NULL, errp);
+    }
+
+    return true;
+
+fail:
+    error_setg(errp, "%s: Couldn't copy node %s: %s", __func__, in_node_path, fdt_strerror(ret));
+
+    return false;
+}
+
+bool qemu_fdt_check(const void* fdt, Error **errp)
+{
+    size_t dt_size = fdt_totalsize(fdt);
+
+    int ret = fdt_check_full(fdt, dt_size);
+
+    if (ret < 0) {
+        error_setg(errp, "%s: found error in the dt: %s",
+                   __func__, fdt_strerror(ret));
+        return false;
+    }
+
+    return true;
 }

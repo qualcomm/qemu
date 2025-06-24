@@ -93,7 +93,6 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
 
-    const char* cluster_pd2 = qemu_fdt_node_path_by_label(qcom_fdt, "CLUSTER_PD2", &error_abort);
     const char* pcie_0_pipe_clk = qemu_fdt_node_path_by_label(qcom_fdt, "pcie_0_pipe_clk", &error_abort);
     const char* ufs_phy_rx_symbol_0_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_rx_symbol_0_clk", &error_abort);
     const char* ufs_phy_rx_symbol_1_clk = qemu_fdt_node_path_by_label(qcom_fdt, "ufs_phy_rx_symbol_1_clk", &error_abort);
@@ -112,7 +111,6 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
         usb3_phy_wrapper_gcc_usb30_pipe_clk,
         sleep_clk,
 
-        cluster_pd2,
         gcc,
         NULL,
     };
@@ -148,10 +146,6 @@ static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, Qcom
 {
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
-
-    // replace psci by the right one, otherwise it will not be matched in the kernel.
-    // qemu_fdt_delnode(fdt, "/psci", &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, "/soc/psci", &error_abort);
 
     qvms->rpmh_rsc_apps = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_apps);
@@ -301,6 +295,31 @@ static const struct QcomVirtDevice qcom_devices[] = {
     },
 };
 
+static void qcom_virt_modify_dtb(const struct arm_boot_info *info, void *fdt, MachineState *ms)
+{
+    QcomVirtMachineState* qvms = QCOM_VIRT_MACHINE(ms);
+    void* qcom_fdt = qvms->fdt;
+
+    // should have been initialized in the init stage
+    assert(qcom_fdt);
+
+    // merge virt psci with qcom psci (best effort)
+    // we first copy the full node, merge /psci into /soc/psci
+    // and finally remove the old node.
+    //
+    // this manipulation is necessary for linux to parse phandles
+    // correctly.
+    qemu_fdt_copy_node(ms->fdt, qcom_fdt, "/soc/psci", &error_abort);
+    qemu_fdt_merge_node(ms->fdt, ms->fdt, "/soc/psci", "/psci", &error_abort);
+    qemu_fdt_delnode(ms->fdt, "/psci", &error_abort);
+
+    // check global fdt consistency
+    qemu_fdt_check_memory_consistency(ms->fdt, "/soc", get_system_io(), &error_abort);
+    save_device_tree(ms->fdt, "/tmp/qemu.dtb", &error_abort);
+    qemu_fdt_check(ms->fdt, &error_abort);
+}
+
+
 static void qcom_create_devices(MachineState* machine)
 {
     VirtMachineState* vms = VIRT_MACHINE(machine);
@@ -365,10 +384,8 @@ static void qcom_create_devices(MachineState* machine)
     // TODO: find a better way to do that...
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);
 
-    // check global fdt consistency
-    qemu_fdt_check_memory_consistency(machine->fdt, "/soc", get_system_io(), &error_abort);
-
-    save_device_tree(machine->fdt, "/tmp/qemu.dtb", &error_abort);
+    // we need to hook into dtb modification
+    vms->bootinfo.modify_dtb = qcom_virt_modify_dtb;
 }
 
 static char *qcom_machine_get_dtb(Object *obj, Error **errp)

@@ -479,7 +479,7 @@ static uint32_t find_int_controller(void *fdt)
     return 0;
 }
 
-static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
+static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt, MachineState *ms)
 {
     uint32_t acells, scells, intc;
     const VEDBoardInfo *daughterboard = (const VEDBoardInfo *)info;

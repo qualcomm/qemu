@@ -72,7 +72,7 @@ static void zcu102_set_virt(Object *obj, bool value, Error **errp)
     s->virt = value;
 }
 
-static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
+static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt, MachineState *ms)
 {
     XlnxZCU102 *s = container_of(binfo, XlnxZCU102, binfo);
     bool method_is_hvc;

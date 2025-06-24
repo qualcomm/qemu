@@ -200,6 +200,9 @@ void arm_handle_psci_call(ARMCPU *cpu)
             break;
         }
         break;
+    case QEMU_PSCI_1_0_FN_SET_SUSPEND_MODE:
+        ret = 0;
+        break;
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
     default:

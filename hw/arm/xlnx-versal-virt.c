@@ -547,7 +547,7 @@ static void fdt_add_memory_nodes(VersalVirt *s, void *fdt, uint64_t ram_size)
 }
 
 static void versal_virt_modify_dtb(const struct arm_boot_info *binfo,
-                                    void *fdt)
+                                    void *fdt, MachineState* ms)
 {
     VersalVirt *s = container_of(binfo, VersalVirt, binfo);
 

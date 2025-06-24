@@ -56,9 +56,9 @@ OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHIN
 enum QcomVirtDeviceType {
     // fallthrough device, to get some logs on unhandled accesses on the soc
     VIRT_QCOM_LOGGER,
-    VIRT_QCOM_RPMH_RSC_CAM,
     VIRT_QCOM_RPMH_RSC_APPS,
     VIRT_QCOM_CMD_DB,
+    VIRT_QCOM_RPMH_RSC_CAM,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_GRAPHICS,
 };

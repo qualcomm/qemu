@@ -1,3 +1,6 @@
+// cmd db memory
+// for now, this is handled as a device, even though it's not strictly a device...
+
 #include "qemu/osdep.h"
 #include "hw/sysbus-of.h"
 #include "qapi/error.h"
@@ -133,19 +136,25 @@ static void qcom_cmd_db_init(Object* obj)
 
 static uint64_t qcom_cmd_db_read(void *opaque, hwaddr addr, unsigned size)
 {
-    printf("[*] read detected to CMD DB @addr 0x%lx (size %d)\n", addr, size);
+    QcomCmdDbState *s = QCOM_CMD_DB(opaque);
 
-    if (addr + size > sizeof(header)) {
+    if (addr + size >= sizeof(header)) {
+        printf("[%s] Unhandled read @offset %ld.\n", s->name, addr);
         return 0;
     }
 
-    return *(uint32_t*)((char*) &header + addr);
+    uint32_t val = *(uint32_t*)((char*) &header + addr);
+    printf("[%s] Header paramter @idx %addr successfully handled: 0x%lx\n", s->name, addr, val);
+
+    return val;
 }
 
 static void qcom_cmd_db_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    printf("[*] write detected to CMD DB @addr 0x%lx (size %d) of value 0x%lx\n", addr, size, value);
+    QcomCmdDbState *s = QCOM_CMD_DB(opaque);
+
+    printf("[%s] Unhandled write @offset %ld of value 0x%lx.\n", s->name, addr, value);
 }
 
 static const MemoryRegionOps qcom_cmd_db_ops = {

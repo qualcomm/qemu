@@ -658,7 +658,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     fdt_add_psci_node(fdt, cpu);
 
     if (binfo->modify_dtb) {
-        binfo->modify_dtb(binfo, fdt);
+        binfo->modify_dtb(binfo, fdt, ms);
     }
 
     /* Put the DTB into the memory map as a ROM image: this will ensure

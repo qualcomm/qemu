@@ -16,11 +16,24 @@
 #define TYPE_QCOM_RPMH_RSC "qcom_rpmh_rsc"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomRpmhRscState, QCOM_RPMH_RSC)
 
+// register enum
+enum {
+    RPMH_RSC_ID,
+    RPMH_RSC_PARAM_SOLVER_CONFIG,
+    RPMH_RSC_PARAM_RSC_CONFIG,
+    RPMH_RSC_PARAM_RSC_PARENTCHILD_CONFIG,
+    RPMH_RSC_MAX
+};
+
+typedef const uint32_t rpmh_reg_table[RPMH_RSC_MAX];
+
 struct QcomRpmhRscState {
     OfSysBusDevice parent;
 
     const char* name;
     uint64_t mem_size;
+
+    const uint32_t* regtable;
 
     MemoryRegion iomem;
 };

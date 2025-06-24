@@ -17,7 +17,7 @@
 #include "qapi/error.h"
 #include <libfdt.h>
 
-static void imx8mp_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
+static void imx8mp_evk_modify_dtb(const struct arm_boot_info *info, void *fdt, MachineState* ms)
 {
     int i, offset;
 

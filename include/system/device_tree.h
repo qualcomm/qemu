@@ -370,6 +370,10 @@ bool qemu_fdt_find_parent_interrupt_phandle(void* fdt, const char* node_path, ui
 
 bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_interrupts** interrupts, Error** errp);
 
+bool qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *out_node_path, const char *in_node_path, Error **errp);
+
+bool qemu_fdt_check(const void* fdt, Error **errp);
+
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000
 #define FDT_PCI_RANGE_ALIASED              0x20000000

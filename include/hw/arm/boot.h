@@ -90,7 +90,7 @@ struct arm_boot_info {
     /* if a board needs to be able to modify a device tree provided by
      * the user it should implement this hook.
      */
-    void (*modify_dtb)(const struct arm_boot_info *info, void *fdt);
+    void (*modify_dtb)(const struct arm_boot_info *info, void *fdt, MachineState *ms);
     /*
      * If a board wants to use the QEMU emulated-firmware PSCI support,
      * it should set this to QEMU_PSCI_CONDUIT_HVC or QEMU_PSCI_CONDUIT_SMC

@@ -61,7 +61,7 @@ static int raspi_add_memory_node(void *fdt, hwaddr mem_base, hwaddr mem_len)
     return ret;
 }
 
-static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)
+static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt, MachineState *ms)
 {
     uint64_t ram_size;
 

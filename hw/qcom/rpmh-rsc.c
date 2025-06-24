@@ -5,9 +5,21 @@
 #include "hw/qdev-properties.h"
 #include "hw/qcom/rpmh-rsc.h"
 
-/* === Linux kernel copy paste start ===*/
+// for cam rsc
+static rpmh_reg_table rpmh_rsc_cam = {
+    [RPMH_RSC_ID]                           = 0x00040300,
+    [RPMH_RSC_PARAM_SOLVER_CONFIG]          = 0x00010100,
+    [RPMH_RSC_PARAM_RSC_CONFIG]             = 0x03100214,
+    [RPMH_RSC_PARAM_RSC_PARENTCHILD_CONFIG] = 0x60004104,
+};
 
-/* === Linux kernel copy paste ends ===*/
+// for apps rsc
+static rpmh_reg_table rpmh_rsc_apps = {
+     [RPMH_RSC_ID]                           = 0x00040300,
+     [RPMH_RSC_PARAM_SOLVER_CONFIG]          = 0x04010100,
+     [RPMH_RSC_PARAM_RSC_CONFIG]             = 0x04800414,
+     [RPMH_RSC_PARAM_RSC_PARENTCHILD_CONFIG] = 0x800C8104,
+};
 
 QcomRpmhRscState* rpmh_rsc_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
@@ -47,25 +59,20 @@ static void qcom_rpmh_rsc_init(Object* obj)
 
 static uint64_t qcom_rpmh_rsc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    printf("[*] read detected to RPMH RSC @addr 0x%lx (size %d)\n", addr, size);
-
-    uint32_t ro_values[] = {
-        0x00040300, // ID_DRV
-        0x00010100, // SOLVER_CONFIG
-        0x03100214, // CONFIG
-        0x60004104, // PARENTCHILD_CONFIG
-    };
+    QcomRpmhRscState *s = QCOM_RPMH_RSC(opaque);
 
     // for now, we keep the same behavior for all drvs
     addr %= 0x1000;
 
     assert(addr % 4 == 0);
+    size_t idx = addr / 4;
 
-    if (addr < 0x10) {
-        size_t idx = addr / 4;
-        return ro_values[idx];
+    if (idx < RPMH_RSC_MAX) {
+        uint64_t param = s->regtable[idx];
+        printf("[%s] Paramter @idx %ld successfully handled: 0x%lx\n", s->name, idx, param);
+        return param;
     } else {
-        printf("[*] read detected to RPMH RSC @addr 0x%lx (size %d)\n", addr, size);
+        printf("[%s] Unhandled parameter @idx %ld.\n", s->name, idx);
     }
 
     return 0;
@@ -74,7 +81,9 @@ static uint64_t qcom_rpmh_rsc_read(void *opaque, hwaddr addr, unsigned size)
 static void qcom_rpmh_rsc_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    printf("[*] write detected to RPMH RSC @addr 0x%lx (size %d) of value 0x%lx\n", addr, size, value);
+    QcomRpmhRscState *s = QCOM_RPMH_RSC(opaque);
+
+    printf("[%s] Unhandled write @offset 0x%lx of value 0x%lx.\n", s->name, addr, value);
 }
 
 static const MemoryRegionOps qcom_rpmh_rsc_ops = {
@@ -93,6 +102,17 @@ static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
     printf("[%s] Adding device at address 0x%lx\n", s->name, *ofdev->base_addr);
+
+    if (!strcmp(s->name, "cam_rsc")) {
+        s->regtable = rpmh_rsc_cam;
+    } else if (!strcmp(s->name, "apps_rsc")) {
+        s->regtable = rpmh_rsc_apps;
+    } else {
+        error_setg(errp, "%s: unknown RPMh device: %s",
+                   __func__, s->name);
+        return;
+    }
+
 
 	assert(s->mem_size);
     memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_rpmh_rsc_ops, s, TYPE_QCOM_RPMH_RSC, s->mem_size);
