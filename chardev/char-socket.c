@@ -1523,6 +1523,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     {
         sock->has_server = false;
         sock->server = false;
+        sock->has_nodelay = true;
+        sock->nodelay = true;
     }
     sock->has_telnet = qemu_opt_get(opts, "telnet");
     sock->telnet = qemu_opt_get_bool(opts, "telnet", false);
