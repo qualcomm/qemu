@@ -246,7 +246,7 @@ static inline size_t buf_iter_current_offset(struct buf_iter* iter)
     return iter->current_offset;
 }
 
-#define NB_RSCS (CMD_DB_HW_MAX - CMD_DB_HW_MIN)
+#define NB_RSCS (CMD_DB_HW_MAX - CMD_DB_HW_MIN + 1)
 
 static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, size_t max_size, struct cmd_db_entry* entries, size_t nb_entries, Error **errp)
 {
@@ -260,7 +260,7 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
 
         c->slv_id = rsc_id;
 
-        // count the number of entries
+        // count the number of entries for the current RSC ID
         for (size_t j = 0; j < nb_entries; ++j) {
             struct cmd_db_entry* entry = &entries[j];
             if (entry->slv_id == c->slv_id) {
@@ -312,6 +312,8 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
         for (size_t j = 0; j < nb_entry_hdrs; ++j) {
             struct cmd_db_entry* entry = c->entries[j];
             struct entry_header* entry_hdr = buf_iter_alloc(&iter, struct entry_header, 1);
+
+            // printf("[*]\tAdding %s with slv_id %ld entry_hdr_offset %ld data_offset %ld entry_data_offset %ld\n", entry->id, slv_id, entry_hdr_offset, data_offset, entry_data_offset);
 
             memcpy(entry_hdr->id, entry->id, sizeof(entry_hdr->id));
             // priority is unused
