@@ -9,3 +9,9 @@ config QCOM_CMD_DB
 config QCOM_RPMH_RSC
     bool
 
+config QCOM_RPMH_CLK
+    bool
+
+config QCOM_ICC_RPMH
+    bool
+

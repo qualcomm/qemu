@@ -60,6 +60,7 @@ enum QcomVirtDeviceType {
     VIRT_QCOM_CMD_DB,
     VIRT_QCOM_RPMH_RSC_CAM,
     VIRT_QCOM_CRM_DISP,
+    VIRT_QCOM_CRM_PCIE,
     VIRT_QCOM_GRAPHICS,
 };
 

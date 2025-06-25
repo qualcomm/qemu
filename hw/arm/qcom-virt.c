@@ -289,6 +289,11 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .mem_size = 0xd000,
         .device_create = crm_disp_create,
     },
+    [VIRT_QCOM_CRM_PCIE] = {
+        .label = "pcie_crm",
+        .mem_size = 0x5000,
+        .device_create = crm_disp_create,
+    },
     [VIRT_QCOM_GRAPHICS] = {
         .device_create = graphics_create,
         .update_fdt = graphics_update_fdt,

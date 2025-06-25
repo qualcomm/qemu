@@ -16,13 +16,24 @@
 #define TYPE_QCOM_CMD_DB "qcom_cmd_db"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomCmdDbState, QCOM_CMD_DB)
 
+enum cmd_db_hw_type {
+	CMD_DB_HW_INVALID = 0,
+	CMD_DB_HW_MIN     = 3,
+	CMD_DB_HW_ARC     = CMD_DB_HW_MIN,
+	CMD_DB_HW_VRM     = 4,
+	CMD_DB_HW_BCM     = 5,
+	CMD_DB_HW_MAX     = CMD_DB_HW_BCM,
+	CMD_DB_HW_ALL     = 0xff,
+};
+
 struct QcomCmdDbState {
     OfSysBusDevice parent;
 
     const char* name;
     uint64_t mem_size;
 
-    MemoryRegion iomem;
+    MemoryRegion rom;
+    char* rom_content;
 };
 
 QcomCmdDbState* cmd_db_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
