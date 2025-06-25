@@ -21,6 +21,59 @@ static rpmh_reg_table rpmh_rsc_apps = {
      [RPMH_RSC_PARAM_RSC_PARENTCHILD_CONFIG] = 0x800C8104,
 };
 
+enum {
+    RSC_DRV_TCS_OFFSET,
+    RSC_DRV_CMD_OFFSET,
+    DRV_SOLVER_CONFIG,
+    DRV_PRNT_CHLD_CONFIG,
+    RSC_DRV_IRQ_ENABLE,
+    RSC_DRV_IRQ_STATUS,
+    RSC_DRV_IRQ_CLEAR,
+    RSC_DRV_CMD_WAIT_FOR_CMPL,
+    RSC_DRV_CONTROL,
+    RSC_DRV_STATUS,
+    RSC_DRV_CMD_ENABLE,
+    RSC_DRV_CMD_MSGID,
+    RSC_DRV_CMD_ADDR,
+    RSC_DRV_CMD_DATA,
+    RSC_DRV_CMD_STATUS,
+    RSC_DRV_CMD_RESP_DATA,
+    /* DRV channel Registers */
+    RSC_DRV_CHN_TCS_TRIGGER,
+    RSC_DRV_CHN_TCS_COMPLETE,
+    RSC_DRV_CHN_SEQ_BUSY,
+    RSC_DRV_CHN_SEQ_PC,
+    RSC_DRV_CHN_UPDATE,
+    RSC_DRV_CHN_BUSY,
+    RSC_DRV_CHN_EN,
+};
+
+static uint32_t rpmh_rsc_reg_offset_ver_3_0[] = {
+    [RSC_DRV_TCS_OFFSET]= 672,
+    [RSC_DRV_CMD_OFFSET]= 24,
+    [DRV_SOLVER_CONFIG]= 0x04,
+    [DRV_PRNT_CHLD_CONFIG]= 0x0C,
+    [RSC_DRV_IRQ_ENABLE]= 0x00,
+    [RSC_DRV_IRQ_STATUS]= 0x04,
+    [RSC_DRV_IRQ_CLEAR]= 0x08,
+    [RSC_DRV_CMD_WAIT_FOR_CMPL]= 0x20,
+    [RSC_DRV_CONTROL]= 0x24,
+    [RSC_DRV_STATUS]= 0x28,
+    [RSC_DRV_CMD_ENABLE]= 0x2C,
+    [RSC_DRV_CMD_MSGID]= 0x34,
+    [RSC_DRV_CMD_ADDR]= 0x38,
+    [RSC_DRV_CMD_DATA]= 0x3C,
+    [RSC_DRV_CMD_STATUS]= 0x40,
+    [RSC_DRV_CMD_RESP_DATA]= 0x44,
+    [RSC_DRV_CHN_SEQ_BUSY]= 0x464,
+    [RSC_DRV_CHN_SEQ_PC]= 0x468,
+    [RSC_DRV_CHN_TCS_TRIGGER]= 0x490,
+    [RSC_DRV_CHN_TCS_COMPLETE]= 0x494,
+    [RSC_DRV_CHN_UPDATE]= 0x498,
+    [RSC_DRV_CHN_BUSY]= 0x49C,
+    [RSC_DRV_CHN_EN]= 0x4A0,
+};
+
 QcomRpmhRscState* rpmh_rsc_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
 	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
@@ -70,7 +123,16 @@ static uint64_t qcom_rpmh_rsc_read(void *opaque, hwaddr addr, unsigned size)
     if (idx < RPMH_RSC_MAX) {
         uint64_t param = s->regtable[idx];
         printf("[%s] Paramter @idx %ld successfully handled: 0x%lx\n", s->name, idx, param);
+
         return param;
+    } else if (idx == 841) {
+        // TCS is on
+        return 1 << 16;
+    } else if (idx == 842) {
+        // TCS is always idle
+        printf("[%s] Signal TCS is idle.\n", s->name);
+
+        return 1;
     } else {
         printf("[%s] Unhandled parameter @idx %ld.\n", s->name, idx);
     }
