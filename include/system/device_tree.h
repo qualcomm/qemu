@@ -51,6 +51,8 @@ void save_device_tree(void *fdt, const char* filename_path, Error **errp);
 void *load_device_tree_from_sysfs(void);
 #endif
 
+bool qemu_fdt_node_exists(void *fdt, const char *node_path);
+
 /**
  * qemu_fdt_node_path: return the paths of nodes matching a given
  * name and compat string

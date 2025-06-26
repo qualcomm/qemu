@@ -339,7 +339,7 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
     QcomCmdDbState *cmds = QCOM_CMD_DB(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
-    printf("[%s] Adding Command DB device at address 0x%lx\n", cmds->name, *ofdev->base_addr);
+    printf("[%s] Inializing and setting cmd-db ROM at address 0x%lx\n", cmds->name, *ofdev->base_addr);
 
 	assert(cmds->mem_size);
 

@@ -53,6 +53,10 @@ struct of_device_id {
 	const void *data;
 };
 
+struct of_node {
+    
+};
+
 struct OfSysBusDeviceClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
@@ -90,6 +94,7 @@ struct OfSysBusDevice {
     const char* node_label;
 
     // the node full path, used if no label is provided.
+    // it is always defined
     const char* node_path;
 
     // the node offset in the fdt.

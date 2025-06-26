@@ -351,6 +351,11 @@ static int findnode_nofail(void *fdt, const char *node_path)
     return offset;
 }
 
+bool qemu_fdt_node_exists(void *fdt, const char *node_path)
+{
+    return fdt_path_offset(fdt, node_path) >= 0;
+}
+
 char **qemu_fdt_node_unit_path(void *fdt, const char *name, Error **errp)
 {
     char *prefix =  g_strdup_printf("%s@", name);

@@ -92,6 +92,8 @@
 #define MAKE_64BIT_MASK(shift, length) \
     (((~0ULL) >> (64 - (length))) << (shift))
 
+#define EXTRACT_BITS(val, h, l) ((val) >> (l) & (__GENMASK((h) - (l), 0)))
+
 /**
  * DOC: Functions operating on arrays of bits
  *

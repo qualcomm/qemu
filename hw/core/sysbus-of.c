@@ -105,6 +105,7 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
 
     // set the base at 0
     for(size_t i = 0; i < ofdev->nb_regs; ++i) {
+        assert(base_addr <= ofdev->regs[i].addr);
         ofdev->regs[i].addr -= base_addr;
     }
 

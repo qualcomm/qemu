@@ -133,11 +133,24 @@ static void add_rpmh_rsc_cam(const struct QcomVirtDevice* qdev, void* fdt, QcomV
     void* qcom_fdt = qvms->fdt;
 
     qvms->rpmh_rsc_cam = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_cam);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+    VirtMachineState* vms = VIRT_MACHINE(qvms);
 
     // a base address should have been found.
     assert(ofdev->base_addr);
+
+    // interrupts should be set for this device
+    assert(ofdev->interrupts);
+    assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
+
+    for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
+        if (qvms->rpmh_rsc_cam->drvs[i].present) {
+            int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
+            sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, interrupt));
+        }
+    }
 
     memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
 }
@@ -150,6 +163,7 @@ static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, Qcom
     qvms->rpmh_rsc_apps = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_apps);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+    VirtMachineState* vms = VIRT_MACHINE(qvms);
 
     // otherwise, the device is skipped silently by the kernel...
     // TODO: find out how to get the phandle to get initialized by the kernel correctly.
@@ -157,6 +171,20 @@ static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, Qcom
 
     // a base address should have been found.
     assert(ofdev->base_addr);
+
+    // interrupts should be set for this device
+    assert(ofdev->interrupts);
+    assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
+
+    size_t nb_irq_connected = 0;
+    for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
+        struct rpmh_drv* drv = &qvms->rpmh_rsc_apps->drvs[i];
+        if (drv->present) {
+            int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
+            sysbus_connect_irq(s, nb_irq_connected, qdev_get_gpio_in(vms->gic, interrupt));
+            nb_irq_connected++;
+        }
+    }
 
     memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
 }
