@@ -39,6 +39,12 @@ struct fdt_reg {
     uint64_t size;
 };
 
+struct fdt_iter {
+    int nodeoffset;
+    int parentoffset;
+    const char* compatible;
+};
+
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 void save_device_tree(void *fdt, const char* filename_path, Error **errp);
@@ -375,6 +381,10 @@ bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_in
 bool qemu_fdt_merge_node(void *out_fdt, void *in_fdt, const char *out_node_path, const char *in_node_path, Error **errp);
 
 bool qemu_fdt_check(const void* fdt, Error **errp);
+
+struct fdt_iter qemu_fdt_compat_iter_create(void* fdt, const char* compatible, const char* node_path);
+
+char* qemu_fdt_compat_iter_next(void* fdt, struct fdt_iter* iter);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

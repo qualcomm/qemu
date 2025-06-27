@@ -138,6 +138,8 @@ struct QcomRpmhRscState {
     size_t nb_cmds_per_tcs;
 
     MemoryRegion iomem;
+
+    GArray* cmd_db_entries;
 };
 
 QcomRpmhRscState* rpmh_rsc_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);

@@ -39,6 +39,7 @@
 #include "hw/qcom/crm-v2.h"
 #include "hw/qcom/cmd-db.h"
 #include "hw/qcom/rpmh-rsc.h"
+#include "hw/qcom/cc/cc.h"
 
 // Top address of the real hardware
 // Depends on the board being emulated
@@ -56,19 +57,47 @@ OBJECT_DECLARE_TYPE(QcomVirtMachineState, QcomVirtMachineClass, QCOM_VIRT_MACHIN
 enum QcomVirtDeviceType {
     // fallthrough device, to get some logs on unhandled accesses on the soc
     VIRT_QCOM_LOGGER,
-    VIRT_QCOM_RPMH_RSC_APPS,
     VIRT_QCOM_CMD_DB,
+    VIRT_QCOM_RPMH_RSC_APPS,
     VIRT_QCOM_RPMH_RSC_CAM,
+    VIRT_QCOM_CC_CANOE_DISPCC,
+    VIRT_QCOM_CC_CANOE_GPUCC,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_CRM_PCIE,
     VIRT_QCOM_GRAPHICS,
+};
+
+enum qcom_rpmh_kind {
+    RPMH_RSC_CAM,
+    RPMH_RSC_APPS,
+    RPMH_RSC_MAX,
+};
+
+enum qcom_crm_kind {
+    CRM_DISP,
+    CRM_PCIE,
+    CRM_MAX,
+};
+
+enum qcom_cc_kind {
+    CC_CANOE_DISPCC,
+    CC_CANOE_GPUCC,
+    CC_MAX,
 };
 
 struct QcomVirtDevice;
 
 struct QcomVirtDevice {
     uint64_t mem_size;
+
+    // dt label
     const char* label;
+
+    // informative name, if label is null
+    const char* name;
+
+    size_t idx;
+    int priority;
 
     void (*device_create)(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* vms, MemoryRegion* mem);
     void (*update_fdt)(void* fdt, QcomVirtMachineState* vms);
@@ -92,9 +121,9 @@ struct QcomVirtMachineState {
 
     // Devices
     QcomCmdDbState* cmd_db;
-    QcomRpmhRscState* rpmh_rsc_cam;
-    QcomRpmhRscState* rpmh_rsc_apps;
-    QcomCrmState* crm_disp;
+    QcomRpmhRscState* rpmh_rsc[RPMH_RSC_MAX];
+    QcomCrmState* crm[CRM_MAX];
+    QcomCCState* cc[CC_MAX];
 };
 
 struct QcomVirtMachineClass {

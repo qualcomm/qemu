@@ -1591,6 +1591,19 @@ int qemu_fdt_of_is_compatible(void *fdt, const char* node_path, const char* comp
 	return score;
 }
 
+static bool node_is_child(void* fdt, int parent_offset, int child_offset)
+{
+    while(child_offset >= 0) {
+        if (child_offset == parent_offset) {
+            return true;
+        }
+
+        child_offset = fdt_parent_offset(fdt, child_offset);
+    }
+
+    return false;
+}
+
 bool qemu_fdt_find_parent_interrupt_phandle(void* fdt, const char* node_path, uint32_t* phandle)
 {
     int node_offset = findnode_nofail(fdt, node_path);
@@ -1701,3 +1714,66 @@ bool qemu_fdt_check(const void* fdt, Error **errp)
 
     return true;
 }
+
+struct fdt_iter qemu_fdt_compat_iter_create(void* fdt, const char* compatible, const char* node_path)
+{
+    int path_offset = fdt_path_offset(fdt, node_path);
+    assert(path_offset >= 0);
+
+    // printf("new with node %s\n", node_path);
+
+    // int next_node = path_offset;
+    // int depth;
+    // while((next_node = fdt_next_node(fdt, next_node, &depth)) >= 0) {
+    //     if (next_node == -FDT_ERR_NOTFOUND) {
+    //         break;
+    //     } else if (next_node < 0) {
+    //         printf("invalid nodeoffset: %s\n", fdt_strerror(next_node));
+    //         exit(1);
+    //     }
+
+    //     char tmp[512];
+    //     int ret = fdt_get_path(fdt, next_node, tmp, 512);
+    //     if (ret == -FDT_ERR_BADOFFSET) {
+    //         continue;
+    //     } else if (ret < 0) {
+    //         printf("err: %s\n", fdt_strerror(ret));
+    //         exit(1);
+    //     }
+
+    //     printf("\tnext node %s\n", tmp);
+    // }
+
+    struct fdt_iter ret = {
+        .compatible = compatible,
+        .nodeoffset = path_offset == 0 ? -1 : path_offset,
+        .parentoffset = path_offset
+    };
+
+    return ret;
+}
+
+char* qemu_fdt_compat_iter_next(void* fdt, struct fdt_iter* iter)
+{
+    int next_node = iter->nodeoffset;
+    while((next_node = fdt_node_offset_by_compatible(fdt, next_node, iter->compatible)) >= 0) {
+        if (node_is_child(fdt, iter->parentoffset, next_node)) {
+            break;
+        }
+    }
+
+    if (next_node == -FDT_ERR_NOTFOUND) {
+        return NULL;
+    } else if (next_node < 0) {
+        printf("invalid nodeoffset: %s\n", fdt_strerror(next_node));
+        exit(1);
+    }
+
+    char* node_path = g_new0(char, 512);
+    assert(fdt_get_path(fdt, next_node, node_path, 512) == 0);
+
+    iter->nodeoffset = next_node;
+
+    return node_path;
+}
+

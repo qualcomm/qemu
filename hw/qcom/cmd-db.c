@@ -11,7 +11,72 @@
 #include "hw/qcom/rpmh-clk.h"
 #include "hw/qcom/icc-rpmh.h"
 
+struct cmd_db_collection {
+    uint16_t slv_id;
+    uint32_t nb_entries;
+    size_t total_data_len;
+    struct cmd_db_entry** entries;
+};
+
+#define buf_iter_write(iter, ty, elt_ptr, nb)                   \
+    {                                                           \
+        ty * __val = elt_ptr;                                   \
+        _buf_iter_write(iter, (void*) __val, sizeof(ty), nb);   \
+    }
+
+#define buf_iter_alloc(iter, ty, nb)        \
+    (ty*) _buf_iter_alloc(iter, sizeof(ty), nb) \
+
+struct buf_iter {
+    void* data;
+
+    size_t total_len;
+    size_t current_offset;
+};
+
 /* === Linux kernel copy paste start ===*/
+
+
+/**
+ * memcpy_and_pad - Copy one buffer to another with padding
+ * @dest: Where to copy to
+ * @dest_len: The destination buffer size
+ * @src: Where to copy from
+ * @count: The number of bytes to copy
+ * @pad: Character to use for padding if space is left in destination.
+ */
+static void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
+		    int pad)
+{
+	if (dest_len > count) {
+		memcpy(dest, src, count);
+		memset(dest + count, pad,  dest_len - count);
+	} else {
+		memcpy(dest, src, dest_len);
+	}
+}
+
+/**
+ * strtomem_pad - Copy NUL-terminated string to non-NUL-terminated buffer
+ *
+ * @dest: Pointer of destination character array (marked as __nonstring)
+ * @src: Pointer to NUL-terminated string
+ * @pad: Padding character to fill any remaining bytes of @dest after copy
+ *
+ * This is a replacement for strncpy() uses where the destination is not
+ * a NUL-terminated string, but with bounds checking on the source size, and
+ * an explicit padding character. If padding is not required, use strtomem().
+ *
+ * Note that the size of @dest is not an argument, as the length of @dest
+ * must be discoverable by the compiler.
+ */
+#define strtomem_pad(dest, src, pad)	do {				\
+	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _src_len = __builtin_object_size(src, 1);		\
+									\
+	memcpy_and_pad(dest, _dest_len, src,				\
+		       strnlen(src, MIN(_src_len, _dest_len)), pad);	\
+} while (0)
 
 #define NUM_PRIORITY		2
 #define MAX_SLV_ID		8
@@ -98,6 +163,52 @@ static const uint8_t CMD_DB_MAGIC[] = { 0xdb, 0x30, 0x03, 0x0c };
 
 /* === Linux kernel copy paste ends ===*/
 
+struct cmd_db_entry* qcom_cmd_db_array_get(GArray* array, size_t idx)
+{
+    return &((struct cmd_db_entry*) array->data)[idx];
+}
+
+static struct cmd_db_entry get_entry(const char* id, enum cmd_db_hw_type slv_id, uint32_t addr, void* data, uint16_t data_len)
+{
+    struct cmd_db_entry entry = { 0 };
+
+    entry.slv_id = slv_id;
+
+    memcpy(entry.id, id, MIN(8, strlen(id)));
+
+    entry.addr = addr; // this is a filler to pass checks, to fill later.
+    entry.addr |= ((slv_id & SLAVE_ID_MASK) << SLAVE_ID_SHIFT);
+    
+    char* data_cpy = g_new(char, data_len);
+    memcpy(data_cpy, data, data_len);
+
+    // TODO: fill bcm
+    entry.data = data_cpy;
+    entry.len = data_len;
+
+    return entry;
+}
+
+void qcom_cmd_db_array_add_entry(GArray* array, const char* id, enum cmd_db_hw_type slv_id, uint32_t addr, void* data, uint16_t data_len)
+{
+    struct cmd_db_entry entry = get_entry(id, slv_id, addr, data, data_len);
+    g_array_append_vals(array, &entry, 1);
+}
+
+static void qcom_cmd_db_array_add(GArray* array, struct cmd_db_entry* entry)
+{
+    g_array_append_vals(array, entry, 1);
+}
+
+static void clean_entry(gpointer elt)
+{
+    struct cmd_db_entry* entry = elt;
+
+    if (entry && entry->data) {
+        g_free(entry->data);
+    }
+}
+
 QcomCmdDbState* cmd_db_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_CMD_DB);
 	QcomCmdDbState* cdev = QCOM_CMD_DB(dev);
@@ -132,72 +243,10 @@ QcomCmdDbState* cmd_db_create_by_label(void* fdt, void* in_fdt, const char* labe
 
 static void qcom_cmd_db_init(Object* obj)
 {
+    QcomCmdDbState *s = QCOM_CMD_DB(obj);
+
+    s->entries = g_array_new(false, true, sizeof(struct cmd_db_entry));
 }
-
-// static uint64_t qcom_cmd_db_read(void *opaque, hwaddr addr, unsigned size)
-// {
-//     QcomCmdDbState *s = QCOM_CMD_DB(opaque);
-// 
-//     if (addr + size >= sizeof(header)) {
-//         printf("[%s] Unhandled read @offset %ld.\n", s->name, addr);
-//         return 0;
-//     }
-// 
-//     uint32_t val = *(uint32_t*)((char*) &header + addr);
-//     printf("[%s] Header paramter @idx 0x%lx successfully handled: 0x%x\n", s->name, addr, val);
-// 
-//     return val;
-// }
-// 
-// static void qcom_cmd_db_write(void *opaque, hwaddr addr,
-//                               uint64_t value, unsigned int size)
-// {
-//     QcomCmdDbState *s = QCOM_CMD_DB(opaque);
-// 
-//     printf("[%s] Unhandled write @offset %ld of value 0x%lx.\n", s->name, addr, value);
-// }
-// 
-// static const MemoryRegionOps qcom_cmd_db_ops = {
-//     .read = qcom_cmd_db_read,
-//     .write = qcom_cmd_db_write,
-//     .endianness = DEVICE_NATIVE_ENDIAN,
-//     .impl = {
-//         .min_access_size = 4,
-//         .max_access_size = 4,
-//     },
-// };
-
-// a "flat" entry to add
-struct cmd_db_entry {
-    uint8_t id[8];
-    uint32_t addr;
-    void* data;
-    uint16_t slv_id;
-    uint16_t len;
-};
-
-struct cmd_db_collection {
-    uint16_t slv_id;
-    uint32_t nb_entries;
-    size_t total_data_len;
-    struct cmd_db_entry** entries;
-};
-
-#define buf_iter_write(iter, ty, elt_ptr, nb)                   \
-    {                                                           \
-        ty * __val = elt_ptr;                                   \
-        _buf_iter_write(iter, (void*) __val, sizeof(ty), nb);   \
-    }
-
-#define buf_iter_alloc(iter, ty, nb)        \
-    (ty*) _buf_iter_alloc(iter, sizeof(ty), nb) \
-
-struct buf_iter {
-    void* data;
-
-    size_t total_len;
-    size_t current_offset;
-};
 
 static struct buf_iter buf_iter_new(void* start, size_t total_len)
 {
@@ -234,13 +283,6 @@ static void _buf_iter_write(struct buf_iter* iter, void* data, size_t data_len, 
     memcpy(allocated_data, data, data_len * nb_data);
 }
 
-// static size_t buf_iter_ptr_to_offset(struct buf_iter* iter, void* data)
-// {
-//     assert(data >= iter->data && data < iter->data + iter->current_offset);
-// 
-//     return (size_t) (data - iter->data);
-// }
-
 static inline size_t buf_iter_current_offset(struct buf_iter* iter)
 {
     return iter->current_offset;
@@ -248,9 +290,12 @@ static inline size_t buf_iter_current_offset(struct buf_iter* iter)
 
 #define NB_RSCS (CMD_DB_HW_MAX - CMD_DB_HW_MIN + 1)
 
-static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, size_t max_size, struct cmd_db_entry* entries, size_t nb_entries, Error **errp)
+static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, size_t max_size, Error **errp)
 {
     struct buf_iter iter = buf_iter_new(rom_content, max_size);
+    GArray* entries = cmds->entries;
+
+    printf("[*] Initializing cmd_db memory with %d entries.\n", cmds->entries->len);
 
     struct cmd_db_collection collections[NB_RSCS] = { 0 };
 
@@ -261,8 +306,8 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
         c->slv_id = rsc_id;
 
         // count the number of entries for the current RSC ID
-        for (size_t j = 0; j < nb_entries; ++j) {
-            struct cmd_db_entry* entry = &entries[j];
+        for (size_t j = 0; j < entries->len; ++j) {
+            struct cmd_db_entry* entry = qcom_cmd_db_array_get(entries, j);
             if (entry->slv_id == c->slv_id) {
                 c->nb_entries++;
                 c->total_data_len += entry->len;
@@ -270,10 +315,10 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
         }
 
         // now, we can allocate and add the entries
-        c->entries = g_new0(struct cmd_db_entry*, nb_entries);
+        c->entries = g_new0(struct cmd_db_entry*, entries->len);
         size_t c_idx = 0;
-        for (size_t j = 0; j < nb_entries; ++j) {
-            struct cmd_db_entry* entry = &entries[j];
+        for (size_t j = 0; j < entries->len; ++j) {
+            struct cmd_db_entry* entry = qcom_cmd_db_array_get(entries, j);
             if (entry->slv_id == c->slv_id) {
                 c->entries[c_idx] = entry;
                 c_idx++;
@@ -313,8 +358,6 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
             struct cmd_db_entry* entry = c->entries[j];
             struct entry_header* entry_hdr = buf_iter_alloc(&iter, struct entry_header, 1);
 
-            // printf("[*]\tAdding %s with slv_id %ld entry_hdr_offset %ld data_offset %ld entry_data_offset %ld\n", entry->id, slv_id, entry_hdr_offset, data_offset, entry_data_offset);
-
             memcpy(entry_hdr->id, entry->id, sizeof(entry_hdr->id));
             // priority is unused
             entry_hdr->addr = cpu_to_le32(entry->addr);
@@ -334,40 +377,168 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
     }
 }
 
+// ==== test functions, mostly taken from the linux kernel ====
+
+struct cmd_db_header* cmd_db_header;
+
+static bool cmd_db_magic_matches(const struct cmd_db_header *header)
+{
+	const uint8_t *magic = header->magic;
+
+	return memcmp(magic, CMD_DB_MAGIC, ARRAY_SIZE(CMD_DB_MAGIC)) == 0;
+}
+
+/**
+ * cmd_db_ready - Indicates if command DB is available
+ *
+ * Return: 0 on success, errno otherwise
+ */
+static int cmd_db_ready(void)
+{
+	if (cmd_db_header == NULL)
+		return -1;
+	else if (!cmd_db_magic_matches(cmd_db_header))
+		return -2;
+
+	return 0;
+}
+
+static inline const void *rsc_to_entry_header(const struct rsc_hdr *hdr)
+{
+	uint16_t offset = le16_to_cpu(hdr->header_offset);
+
+	return cmd_db_header->data + offset;
+}
+
+static int cmd_db_get_header(const char *id, const struct entry_header **eh,
+			     const struct rsc_hdr **rh)
+{
+	const struct rsc_hdr *rsc_hdr;
+	const struct entry_header *ent;
+	int ret, i, j;
+	uint8_t query[sizeof(ent->id)];
+
+    ret = cmd_db_ready();
+	if (ret)
+		return ret;
+
+	strtomem_pad(query, id, 0);
+
+	for (i = 0; i < MAX_SLV_ID; i++) {
+		rsc_hdr = &cmd_db_header->header[i];
+		if (!rsc_hdr->slv_id)
+			break;
+
+		ent = rsc_to_entry_header(rsc_hdr);
+		for (j = 0; j < le16_to_cpu(rsc_hdr->cnt); j++, ent++) {
+			if (memcmp(ent->id, query, sizeof(ent->id)) == 0) {
+				if (eh)
+					*eh = ent;
+				if (rh)
+					*rh = rsc_hdr;
+				return 0;
+			}
+		}
+	}
+
+	return -ENODEV;
+}
+
+/**
+ * cmd_db_read_addr() - Query command db for resource id address.
+ *
+ * @id: resource id to query for address
+ *
+ * Return: resource address on success, 0 on error
+ *
+ * This is used to retrieve resource address based on resource
+ * id.
+ */
+static uint32_t cmd_db_read_addr(const char *id)
+{
+	int ret;
+	const struct entry_header *ent;
+
+	ret = cmd_db_get_header(id, &ent, NULL);
+
+	return ret < 0 ? 0 : le32_to_cpu(ent->addr);
+}
+
+/**
+ * cmd_db_read_slave_id - Get the slave ID for a given resource address
+ *
+ * @id: Resource id to query the DB for version
+ *
+ * Return: cmd_db_hw_type enum on success, CMD_DB_HW_INVALID on error
+ */
+static enum cmd_db_hw_type cmd_db_read_slave_id(const char *id)
+{
+	int ret;
+	const struct entry_header *ent;
+	uint32_t addr;
+
+	ret = cmd_db_get_header(id, &ent, NULL);
+	if (ret < 0)
+		return CMD_DB_HW_INVALID;
+
+	addr = le32_to_cpu(ent->addr);
+	return (addr >> SLAVE_ID_SHIFT) & SLAVE_ID_MASK;
+}
+
+// ==== end of test functions ====
+
+static void qcom_cmd_db_add(QcomCmdDbState* cmds, struct cmd_db_entry* entry)
+{
+    qcom_cmd_db_array_add(cmds->entries, entry);
+}
+
+static void qcom_cmd_db_merge(QcomCmdDbState* cmds, GArray* entries)
+{
+    g_array_append_vals(cmds->entries, entries->data, entries->len);
+}
+
+static void qcom_cmd_db_add_entry(QcomCmdDbState* cmds, const char id[8], enum cmd_db_hw_type slv_id, uint32_t addr, void* data, uint16_t data_len)
+{
+    qcom_cmd_db_array_add_entry(cmds->entries, id, slv_id, addr, data, data_len);
+}
+
+static void qcom_cmd_db_commit(QcomCmdDbState* cmds, Error** errp)
+{
+    qcom_cmd_db_init_memory(cmds, cmds->rom_content, cmds->mem_size, errp);
+
+    // test for cmd db
+    cmd_db_header = (struct cmd_db_header*) cmds->rom_content;
+
+    // extreme case, when the id is 8 chars
+    uint32_t addr = cmd_db_read_addr("vrm.wcal");
+    assert(addr != 0);
+    
+    // make sure the slvid is encoded in the address
+    int sid = cmd_db_read_slave_id("L7N_E1");
+    assert(sid == 4);
+}
+
 static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
 {
     QcomCmdDbState *cmds = QCOM_CMD_DB(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
-
-    printf("[%s] Inializing and setting cmd-db ROM at address 0x%lx\n", cmds->name, *ofdev->base_addr);
 
 	assert(cmds->mem_size);
 
     cmds->rom_content = g_new0(char, cmds->mem_size);
     assert(cmds->rom_content);
 
-    size_t nb_entries = clk_rpmh_canoe.num_clks + canoe_gem_noc.num_bcms + canoe_mc_virt.num_bcms;
-    size_t entry_idx = 0;
-    struct cmd_db_entry* entries = g_new0(struct cmd_db_entry, nb_entries);
+    // size_t nb_entries = clk_rpmh_canoe.num_clks + canoe_gem_noc.num_bcms + canoe_mc_virt.num_bcms;
+    // size_t entry_idx = 0;
+    GArray* entries = cmds->entries;
+    g_array_set_clear_func(entries, clean_entry);
 
     // initalize RPMh clocks DB
     for (size_t i = 0; i < clk_rpmh_canoe.num_clks; ++i) {
         struct clk_rpmh* clk = clk_rpmh_canoe.clks[i];
         if (clk != NULL) {
-            struct cmd_db_entry* entry = &entries[entry_idx];
-            entry->slv_id = CMD_DB_HW_MIN;
-            memcpy(entry->id, clk->res_name, strlen(clk->res_name));
-
-            entry->addr = 4 * (entry_idx + 1); // this is a filler to pass checks, to fill later.
-            
             struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-
-            // TODO: fill bcm
-
-            entry->data = bcm;
-            entry->len = sizeof(struct bcm_db);
-
-            entry_idx++;
+            qcom_cmd_db_add_entry(cmds, clk->res_name, CMD_DB_HW_MIN, 4, (void*) bcm, sizeof(struct bcm_db));
         }
     }
 
@@ -375,20 +546,8 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
     for (size_t i = 0; i < canoe_gem_noc.num_bcms; ++i) {
         struct qcom_icc_bcm* bcm_entry = canoe_gem_noc.bcms[i];
         if (bcm_entry != NULL) {
-            struct cmd_db_entry* entry = &entries[entry_idx];
-            entry->slv_id = CMD_DB_HW_BCM;
-            memcpy(entry->id, bcm_entry->name, strlen(bcm_entry->name));
-
-            entry->addr = 4 * (entry_idx + 1); // this is a filler to pass checks, to fill later.
-            
             struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-
-            // TODO: fill bcm
-
-            entry->data = bcm;
-            entry->len = sizeof(struct bcm_db);
-
-            entry_idx++;
+            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
         }
     }
 
@@ -396,29 +555,10 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
     for (size_t i = 0; i < canoe_mc_virt.num_bcms; ++i) {
         struct qcom_icc_bcm* bcm_entry = canoe_mc_virt.bcms[i];
         if (bcm_entry != NULL) {
-            struct cmd_db_entry* entry = &entries[entry_idx];
-            entry->slv_id = CMD_DB_HW_BCM;
-            memcpy(entry->id, bcm_entry->name, strlen(bcm_entry->name));
-
-            entry->addr = 4 * (entry_idx + 1); // this is a filler to pass checks, to fill later.
-            
             struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-
-            // TODO: fill bcm
-
-            entry->data = bcm;
-            entry->len = sizeof(struct bcm_db);
-
-            entry_idx++;
+            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
         }
     }
-
-    qcom_cmd_db_init_memory(cmds, cmds->rom_content, cmds->mem_size, entries, entry_idx, errp);
-
-    for (size_t i = 0; i < clk_rpmh_canoe.num_clks; ++i) {
-        g_free(entries[i].data);
-    }
-    g_free(entries);
 
     memory_region_init_ram_ptr(&cmds->rom, OBJECT(ofdev), TYPE_QCOM_CMD_DB, cmds->mem_size, cmds->rom_content);
     memory_region_set_readonly(&cmds->rom, true);
@@ -429,9 +569,14 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
 
 static void qcom_cmd_db_class_init(ObjectClass* oc, void* data)
 {
+    QcomCmdDbClass* kcmd = QCOM_CMD_DB_CLASS(oc);
 	OfSysBusDeviceClass* kofdev = OF_SYS_BUS_DEVICE_CLASS(oc);
 
     kofdev->realize = qcom_cmd_db_realize;
+
+    kcmd->commit = qcom_cmd_db_commit;
+    kcmd->add = qcom_cmd_db_add;
+    kcmd->merge = qcom_cmd_db_merge;
 }
 
 static const TypeInfo qcom_cmd_db_info = {
@@ -439,6 +584,7 @@ static const TypeInfo qcom_cmd_db_info = {
     .parent = TYPE_OF_SYS_BUS_DEVICE,
     .instance_size = sizeof(QcomCmdDbState),
     .instance_init = qcom_cmd_db_init,
+    .class_size = sizeof(QcomCmdDbClass),
     .class_init = qcom_cmd_db_class_init,
 };
 

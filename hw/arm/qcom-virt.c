@@ -82,7 +82,7 @@ static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirt
     SysBusDevice* s = SYS_BUS_DEVICE(dev);
 
     sysbus_realize_and_unref(s, &error_fatal);
-    memory_region_add_subregion_overlap(mem, machine_base, sysbus_mmio_get_region(s, 0), -1);
+    memory_region_add_subregion_overlap(mem, machine_base, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
 static void logger_update_fdt(void* fdt, QcomVirtMachineState* qvms)
@@ -124,46 +124,23 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
     // a base address should have been found.
     assert(ofdev->base_addr);
 
-    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
-static void add_rpmh_rsc_cam(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+static void add_rpmh_rsc(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
+    size_t idx = qdev->idx;
 
-    qvms->rpmh_rsc_cam = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
-
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_cam);
+    qvms->rpmh_rsc[idx] = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc[idx]);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
     VirtMachineState* vms = VIRT_MACHINE(qvms);
+    QcomCmdDbClass* kcmd = QCOM_CMD_DB_GET_CLASS(qvms->cmd_db);
 
-    // a base address should have been found.
-    assert(ofdev->base_addr);
-
-    // interrupts should be set for this device
-    assert(ofdev->interrupts);
-    assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
-
-    for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
-        if (qvms->rpmh_rsc_cam->drvs[i].present) {
-            int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
-            sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, interrupt));
-        }
-    }
-
-    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
-}
-
-static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
-{
-    hwaddr machine_base = qvms->base_addr;
-    void* qcom_fdt = qvms->fdt;
-
-    qvms->rpmh_rsc_apps = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc_apps);
-    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
-    VirtMachineState* vms = VIRT_MACHINE(qvms);
+    // merge cmd db entries to add.
+    kcmd->merge(qvms->cmd_db, qvms->rpmh_rsc[idx]->cmd_db_entries);
 
     // otherwise, the device is skipped silently by the kernel...
     // TODO: find out how to get the phandle to get initialized by the kernel correctly.
@@ -178,7 +155,7 @@ static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, Qcom
 
     size_t nb_irq_connected = 0;
     for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
-        struct rpmh_drv* drv = &qvms->rpmh_rsc_apps->drvs[i];
+        struct rpmh_drv* drv = &qvms->rpmh_rsc[idx]->drvs[i];
         if (drv->present) {
             int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
             sysbus_connect_irq(s, nb_irq_connected, qdev_get_gpio_in(vms->gic, interrupt));
@@ -186,19 +163,48 @@ static void add_rpmh_rsc_apps(const struct QcomVirtDevice* qdev, void* fdt, Qcom
         }
     }
 
-    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
-static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+static void add_cc(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
+    size_t idx = qdev->idx;
 
-    const char* dispcc = qemu_fdt_node_path_by_label(qcom_fdt, "dispcc", &error_abort);
-    qemu_fdt_copy_node(fdt, qcom_fdt, dispcc, &error_abort);
+    qvms->cc[idx] = cc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->cc[idx]);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
-    qvms->crm_disp = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm_disp);
+
+    // // a base address should have been found.
+    // assert(ofdev->base_addr);
+
+    // // interrupts should be set for this device
+    // assert(ofdev->interrupts);
+    // assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
+
+    // size_t nb_irq_connected = 0;
+    // for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
+    //     struct rpmh_drv* drv = &qvms->rpmh_rsc[idx]->drvs[i];
+    //     if (drv->present) {
+    //         int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
+    //         sysbus_connect_irq(s, nb_irq_connected, qdev_get_gpio_in(vms->gic, interrupt));
+    //         nb_irq_connected++;
+    //     }
+    // }
+
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
+}
+
+static void add_crm(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+    size_t idx = qdev->idx;
+
+    qvms->crm[idx] = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm[idx]);
     VirtMachineState* vms = VIRT_MACHINE(qvms);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
@@ -214,7 +220,7 @@ static void crm_disp_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVi
         sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, interrupt));
     }
 
-    memory_region_add_subregion(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0));
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
 static void graphics_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
@@ -225,7 +231,7 @@ static void graphics_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVi
     SysBusDevice* s = SYS_BUS_DEVICE(dev);
 
     sysbus_realize_and_unref(s, &error_fatal);
-    memory_region_add_subregion(mem, machine_base + QCOM_GRAPHICS_BASE, sysbus_mmio_get_region(s, 0));
+    memory_region_add_subregion_overlap(mem, machine_base + QCOM_GRAPHICS_BASE, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
 static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
@@ -236,7 +242,6 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     // TODO: mode that at some point.
     const char* ipcc_mproc = qemu_fdt_node_path_by_label(qcom_fdt, "ipcc_mproc", &error_abort);
     const char* aoss_qmp = qemu_fdt_node_path_by_label(qcom_fdt, "aoss_qmp", &error_abort);
-    const char* gpucc = qemu_fdt_node_path_by_label(qcom_fdt, "gpucc", &error_abort);
     const char* gxclkctl = qemu_fdt_node_path_by_label(qcom_fdt, "gxclkctl", &error_abort);
     const char* mc_virt = qemu_fdt_node_path_by_label(qcom_fdt, "mc_virt", &error_abort);
     const char* gem_noc = qemu_fdt_node_path_by_label(qcom_fdt, "gem_noc", &error_abort);
@@ -276,7 +281,6 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         ipcc_mproc,
 
         aoss_qmp,
-        gpucc,
         gxclkctl,
         mc_virt,
         gem_noc,
@@ -294,8 +298,10 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 
 static const struct QcomVirtDevice qcom_devices[] = {
     [VIRT_QCOM_LOGGER] = {
+        .name = "qcom_logger",
         .device_create = logger_create,
         .update_fdt = logger_update_fdt,
+        .priority = -1, // low priority, to have a "catch-all" device
     },
     [VIRT_QCOM_CMD_DB] = {
         .label = "aop_cmd_db_mem",
@@ -305,24 +311,42 @@ static const struct QcomVirtDevice qcom_devices[] = {
     [VIRT_QCOM_RPMH_RSC_CAM] = {
         .label = "cam_rsc",
         .mem_size = 0x3000,
-        .device_create = add_rpmh_rsc_cam,
+        .device_create = add_rpmh_rsc,
+        .idx = RPMH_RSC_CAM,
     },
     [VIRT_QCOM_RPMH_RSC_APPS] = {
         .label = "apps_rsc",
         .mem_size = 0x40000,
-        .device_create = add_rpmh_rsc_apps,
+        .device_create = add_rpmh_rsc,
+        .idx = RPMH_RSC_APPS,
     },
     [VIRT_QCOM_CRM_DISP] = {
         .label = "disp_crm",
         .mem_size = 0xd000,
-        .device_create = crm_disp_create,
+        .device_create = add_crm,
+        .idx = CRM_DISP,
     },
     [VIRT_QCOM_CRM_PCIE] = {
         .label = "pcie_crm",
         .mem_size = 0x5000,
-        .device_create = crm_disp_create,
+        .device_create = add_crm,
+        .idx = CRM_PCIE,
+    },
+    [VIRT_QCOM_CC_CANOE_DISPCC] = {
+        .label = "dispcc",
+        .mem_size = 0x20000,
+        .device_create = add_cc,
+        .idx = CC_CANOE_GPUCC,
+    },
+    [VIRT_QCOM_CC_CANOE_GPUCC] = {
+        .label = "gpucc",
+        .mem_size = 0xa000,
+        .device_create = add_cc,
+        .idx = CC_CANOE_GPUCC,
+        .priority = 1, // higher priority to avoid falling in graphics device.
     },
     [VIRT_QCOM_GRAPHICS] = {
+        .name = "graphics",
         .device_create = graphics_create,
         .update_fdt = graphics_update_fdt,
     },
@@ -399,11 +423,18 @@ static void qcom_create_devices(MachineState* machine)
     // initialize qualcomm devices
     // TODO: change by incorporating this in the new qemu object.
     for (size_t i = 0; i < ARRAY_SIZE(qcom_devices); ++i) {
-        qcom_devices[i].device_create(&qcom_devices[i], machine->fdt, qvms, sysmem);
-        if (qcom_devices[i].update_fdt) {
-            qcom_devices[i].update_fdt(machine->fdt, qvms);
+        const struct QcomVirtDevice* qdev = &qcom_devices[i];
+
+        printf("[*] Adding device: %s.\n", qdev->label ? qdev->label : qdev->name);
+
+        qdev->device_create(qdev, machine->fdt, qvms, sysmem);
+        if (qdev->update_fdt) {
+            qdev->update_fdt(machine->fdt, qvms);
         }
     }
+
+    QcomCmdDbClass* kcmd = QCOM_CMD_DB_GET_CLASS(qvms->cmd_db);
+    kcmd->commit(qvms->cmd_db, &error_abort);
 
     // replace the range with an empty range, so that the kernel is happy.
     // otherwise, the kernel thinks the soc is mapped at address 0 and does not
@@ -412,7 +443,7 @@ static void qcom_create_devices(MachineState* machine)
     qemu_fdt_delprop(machine->fdt, "/soc", "ranges", &error_abort);
     qemu_fdt_setprop_bool(machine->fdt, "/soc", "ranges");
 
-    // edit base addresses with the new one
+    // edit base addresses of the SoC with the new one
     qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);
     // TODO: find a better way to do that...
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);

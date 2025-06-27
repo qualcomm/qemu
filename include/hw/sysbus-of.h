@@ -53,10 +53,6 @@ struct of_device_id {
 	const void *data;
 };
 
-struct of_node {
-    
-};
-
 struct OfSysBusDeviceClass {
     /*< private >*/
     SysBusDeviceClass parent_class;

@@ -5,6 +5,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qcom/rpmh-rsc.h"
 #include "hw/irq.h"
+#include "hw/qcom/cmd-db.h"
 
 static const char* rpmh_rsc_str[] = {
     [RSC_DRV_TCS_OFFSET] = "RSC_DRV_TCS_OFFSET",
@@ -121,6 +122,57 @@ static uint32_t rpmh_rsc_reg_offset_ver_3_0[] = {
     [RSC_DRV_CHN_EN] = 0x4A0,
 };
 
+/* XOB and PBS voting registers are found in the VRM hardware module */
+#define CMD_DB_HW_XOB CMD_DB_HW_VRM
+#define CMD_DB_HW_PBS CMD_DB_HW_VRM
+
+struct regulator_md {
+    const char* compatible;
+    enum cmd_db_hw_type ty;
+
+    const char* prop_id[2];
+};
+
+const struct regulator_md regulators[] = {
+    {
+        .compatible = "qcom,rpmh-vrm-regulator",
+        .ty = CMD_DB_HW_VRM,
+        .prop_id = {
+            "qcom,resource-name"
+        },
+    },
+    {
+        .compatible = "qcom,rpmh-arc-regulator",
+        .ty = CMD_DB_HW_ARC,
+        .prop_id = {
+            "qcom,resource-name"
+        },
+    },
+    {
+        .compatible = "qcom,rpmh-xob-regulator",
+        .ty = CMD_DB_HW_XOB,
+        .prop_id = {
+            "qcom,resource-name"
+        },
+    },
+    {
+        .compatible = "qcom,rpmh-pbs-regulator",
+        .ty = CMD_DB_HW_PBS,
+        .prop_id = {
+            "qcom,resource-name"
+        },
+    },
+    {
+        .compatible = "qcom,dcvs-fp",
+        .ty = CMD_DB_HW_PBS, // random, not checked
+        .prop_id = {
+            "qcom,ddr-bcm-name",
+            "qcom,llcc-bcm-name",
+        },
+    },
+};
+
+
 QcomRpmhRscState* rpmh_rsc_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
 	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
@@ -155,6 +207,9 @@ QcomRpmhRscState* rpmh_rsc_create_by_label(void* fdt, void* in_fdt, const char* 
 
 static void qcom_rpmh_rsc_init(Object* obj)
 {
+    QcomRpmhRscState* rpmhs = QCOM_RPMH_RSC(obj);
+
+    rpmhs->cmd_db_entries = g_array_new(false, true, sizeof(struct cmd_db_entry));
 }
 
 static uint32_t read_drv_reg(struct rpmh_drv* drv, enum rpmh_regs reg)
@@ -422,7 +477,7 @@ static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned siz
         case RSC_DRV_IRQ_STATUS:
             // read only
             return;
-        case RSC_DRV_IRQ_CLEAR:
+        case RSC_DRV_IRQ_CLEAR: {
             uint32_t irq_status = read_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS);
             irq_status &= ~val;
             write_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS, irq_status);
@@ -431,6 +486,7 @@ static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned siz
 
             qemu_set_irq(drv->irq, 0);
             return;
+        }
         default:
             printf("Unhandled TCS common write.\n");
             return;
@@ -576,8 +632,6 @@ static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
     int len;
 
-    printf("[%s] Adding device at address 0x%lx\n", s->name, *ofdev->base_addr);
-
     const uint32_t* reset_table;
     if (!strcmp(s->name, "cam_rsc")) {
         reset_table = cam_reset_regs;
@@ -643,6 +697,25 @@ static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
                 reset_tcs_cmd_regs(reset_table, tcs_cmd);
                 tcs_cmd->parent = tcs;
             }
+        }
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(regulators); ++i) {
+        const struct regulator_md* reg = &regulators[i];
+        struct fdt_iter iter = qemu_fdt_compat_iter_create(ofdev->fdt, reg->compatible, ofdev->node_path);
+        char* node_path;
+        while((node_path = qemu_fdt_compat_iter_next(ofdev->fdt, &iter))) {
+            for (size_t j = 0; j < ARRAY_SIZE(reg->prop_id); ++j) {
+                const char* prop_id = reg->prop_id[j];
+                if (prop_id) {
+                    const char* id = qemu_fdt_getprop_string(ofdev->fdt, node_path, prop_id, errp);
+
+                    struct bcm_db bcm_db;
+                    qcom_cmd_db_array_add_entry(s->cmd_db_entries, id, reg->ty, 1, &bcm_db, sizeof(bcm_db));
+                }
+            }
+
+            g_free(node_path);
         }
     }
 

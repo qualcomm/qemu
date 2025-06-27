@@ -830,8 +830,6 @@ static void qcom_crm_realize(OfSysBusDevice* ofdev, Error **errp)
 
     const struct crm_desc* desc = ofdev->data;
 
-    printf("[%s] Adding CRM device at address 0x%lx\n", s->name, *ofdev->base_addr);
-
 	// according to the driver
 	assert(ofdev->nb_regs == 6);
 

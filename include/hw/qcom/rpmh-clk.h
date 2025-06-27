@@ -48,20 +48,6 @@ struct clk_rpmh_desc {
 	size_t num_clks;
 };
 
-/**
- * struct bcm_db - Auxiliary data pertaining to each Bus Clock Manager(BCM)
- * @unit: divisor used to convert Hz value to an RPMh msg
- * @width: multiplier used to convert Hz value to an RPMh msg
- * @vcd: virtual clock domain that this bcm belongs to
- * @reserved: reserved to pad the struct
- */
-struct bcm_db {
-	__le32 unit;
-	__le16 width;
-	uint8_t vcd;
-	uint8_t reserved;
-};
-
 extern const struct clk_rpmh_desc clk_rpmh_canoe;
 
 #endif
