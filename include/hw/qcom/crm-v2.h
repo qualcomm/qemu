@@ -13,7 +13,7 @@
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
-#define TYPE_QCOM_CRM "qcom_crm_v2"
+#define TYPE_QCOM_CRM "qcom-crm-v2"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomCrmState, QCOM_CRM)
 
 struct QcomCrmState {

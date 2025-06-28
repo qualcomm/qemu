@@ -13,7 +13,7 @@
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
-#define TYPE_QCOM_CC      "qcom_cc"
+#define TYPE_QCOM_CC      "qcom-cc"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomCCState, QCOM_CC)
 
 enum qcom_cc_reg_kind {

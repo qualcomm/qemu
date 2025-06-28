@@ -73,6 +73,7 @@
 #include "hw/qcom/crm-v2.h"
 #include "hw/qcom/cmd-db.h"
 #include "hw/qcom/rpmh-rsc.h"
+#include "hw/qcom/smmu.h"
 
 static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -176,23 +177,17 @@ static void add_cc(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachine
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->cc[idx]);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
+}
 
-    // // a base address should have been found.
-    // assert(ofdev->base_addr);
+static void add_smmu(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
 
-    // // interrupts should be set for this device
-    // assert(ofdev->interrupts);
-    // assert(ofdev->interrupts->interrupt_controller_phandle == vms->gic_phandle);
-
-    // size_t nb_irq_connected = 0;
-    // for (size_t i = 0; i < ofdev->interrupts->nb_interrupts; ++i) {
-    //     struct rpmh_drv* drv = &qvms->rpmh_rsc[idx]->drvs[i];
-    //     if (drv->present) {
-    //         int interrupt = ofdev->interrupts->interrupts[3 * i + 1];
-    //         sysbus_connect_irq(s, nb_irq_connected, qdev_get_gpio_in(vms->gic, interrupt));
-    //         nb_irq_connected++;
-    //     }
-    // }
+    qvms->kgsl_smmu = qcom_smmu_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->kgsl_smmu);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
     memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
@@ -258,6 +253,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* bcm_voter9 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_8_bcm_voter", &error_abort);
     const char* bcm_voter10 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_sw_0_bcm_voter", &error_abort);
 
+    const char* linux_cma = qemu_fdt_node_path_by_label(qcom_fdt, "system_cma", &error_abort);
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
     const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
     const char* iommu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_smmu", &error_abort);
@@ -286,6 +282,8 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         gem_noc,
 
         // the gpu itself
+        linux_cma,
+        "/soc/dma_dev",
         gpu_node,
         smmu_node,
         gmu_node,
@@ -344,6 +342,12 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .device_create = add_cc,
         .idx = CC_CANOE_GPUCC,
         .priority = 1, // higher priority to avoid falling in graphics device.
+    },
+    [VIRT_QCOM_KGSL_SMMU] = {
+        .label = "kgsl_smmu",
+        .mem_size = 0x40000,
+        .device_create = add_smmu,
+        .priority = 1,
     },
     [VIRT_QCOM_GRAPHICS] = {
         .name = "graphics",
@@ -443,10 +447,15 @@ static void qcom_create_devices(MachineState* machine)
     qemu_fdt_delprop(machine->fdt, "/soc", "ranges", &error_abort);
     qemu_fdt_setprop_bool(machine->fdt, "/soc", "ranges");
 
+    // TODO: check if we can delete this, it should be safe!
+    qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-mxclvl/regulator-pmh0110-f-s9-mmcx-voter-level", "pmh0110_f_s9_mmcx_voter_level-parent-supply", &error_abort);
+    qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-gmxclvl/regulator-pmh0110-f-s10-gfx-voter-level", "pmh0110_f_s10_gfx_voter_level-parent-supply", &error_abort);
+
     // edit base addresses of the SoC with the new one
     qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);
     // TODO: find a better way to do that...
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);
+    qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/linux,cma", qvms->base_addr, &error_abort);
 
     // we need to hook into dtb modification
     vms->bootinfo.modify_dtb = qcom_virt_modify_dtb;

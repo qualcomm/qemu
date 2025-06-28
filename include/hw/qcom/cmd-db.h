@@ -13,7 +13,7 @@
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
-#define TYPE_QCOM_CMD_DB "qcom_cmd_db"
+#define TYPE_QCOM_CMD_DB "qcom-cmd-db"
 OBJECT_DECLARE_TYPE(QcomCmdDbState, QcomCmdDbClass, QCOM_CMD_DB)
 
 enum cmd_db_hw_type {

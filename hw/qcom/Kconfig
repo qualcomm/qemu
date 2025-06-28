@@ -1,5 +1,6 @@
 source graphics/Kconfig
 source cc/Kconfig
+source smmu/Kconfig
 
 config QCOM_CRM_V2
     bool

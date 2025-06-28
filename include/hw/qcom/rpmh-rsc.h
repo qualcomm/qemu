@@ -13,7 +13,7 @@
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
-#define TYPE_QCOM_RPMH_RSC "qcom_rpmh_rsc"
+#define TYPE_QCOM_RPMH_RSC "qcom-rpmh-rsc"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomRpmhRscState, QCOM_RPMH_RSC)
 
 // can be taken from reset value for 

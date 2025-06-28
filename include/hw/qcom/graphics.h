@@ -22,7 +22,7 @@
 #define QCOM_GRAPHICS_BASE              0x3d00000
 #define QCOM_GRAPHICS_SIZE              0x0100000
 
-#define TYPE_QCOM_GRAPHICS "qcom_graphics"
+#define TYPE_QCOM_GRAPHICS "qcom-graphics"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomGraphicsState, QCOM_GRAPHICS)
 
 struct QcomGraphicsState {

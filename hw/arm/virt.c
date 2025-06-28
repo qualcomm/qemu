@@ -294,7 +294,7 @@ static void create_fdt(VirtMachineState *vms)
      * - It avoids spurious warnings from the Linux kernel about
      *   devices which can't do DMA at all
      */
-    qemu_fdt_setprop(fdt, "/", "dma-coherent", NULL, 0);
+    // qemu_fdt_setprop(fdt, "/", "dma-coherent", NULL, 0);
 
     /* /chosen must exist for load_dtb to fill in necessary properties later */
     qemu_fdt_add_subnode(fdt, "/chosen");

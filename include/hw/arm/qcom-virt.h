@@ -1,30 +1,11 @@
 /*
+ * ARM mach-virt emulation for Qualcomm Snapdragon devices.
  *
- * Copyright (c) 2015 Linaro Limited
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2 or later, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * Emulate a virtual board which works by passing Linux all the information
- * it needs about what devices are present via the device tree.
- * There are some restrictions about what we can do here:
- *  + we can only present devices whose Linux drivers will work based
- *    purely on the device tree with no platform data at all
- *  + we want to present a very stripped-down minimalist platform,
- *    both because this reduces the security attack surface from the guest
- *    and also because it reduces our exposure to being broken when
- *    the kernel updates its device tree bindings and requires further
- *    information in a device binding that we aren't providing.
- * This is essentially the same approach kvmtool uses.
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ * 
+ * More details can be found in "qcom-virt.c".
  */
 
 #ifndef QEMU_QCOM_VIRT_H
@@ -40,6 +21,7 @@
 #include "hw/qcom/cmd-db.h"
 #include "hw/qcom/rpmh-rsc.h"
 #include "hw/qcom/cc/cc.h"
+#include "hw/qcom/smmu.h"
 
 // Top address of the real hardware
 // Depends on the board being emulated
@@ -64,6 +46,7 @@ enum QcomVirtDeviceType {
     VIRT_QCOM_CC_CANOE_GPUCC,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_CRM_PCIE,
+    VIRT_QCOM_KGSL_SMMU,
     VIRT_QCOM_GRAPHICS,
 };
 
@@ -124,6 +107,7 @@ struct QcomVirtMachineState {
     QcomRpmhRscState* rpmh_rsc[RPMH_RSC_MAX];
     QcomCrmState* crm[CRM_MAX];
     QcomCCState* cc[CC_MAX];
+    QcomSMMUState* kgsl_smmu;
 };
 
 struct QcomVirtMachineClass {

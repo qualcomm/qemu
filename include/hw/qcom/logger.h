@@ -16,7 +16,7 @@
 #define QCOM_LOGGER_BASE              0x0
 #define QCOM_LOGGER_SIZE              0x0100000
 
-#define TYPE_QCOM_LOGGER "qcom_logger"
+#define TYPE_QCOM_LOGGER "qcom-logger"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomLoggerState, QCOM_LOGGER)
 
 struct QcomLoggerState {
