@@ -1,0 +1,37 @@
+/* 
+ * Qualcomm Android RPMh RSC device
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ *
+ * Only provides minimal support, mostly to pass probe checks.
+ */
+
+#ifndef QEMU_QCOM_QMP_H
+#define QEMU_QCOM_QMP_H
+
+#include "hw/sysbus-of.h"
+#include "qom/object.h"
+#include "exec/memory.h"
+
+#define TYPE_QCOM_QMP "qcom-qmp"
+OBJECT_DECLARE_TYPE(QcomQMPState, QcomQMPClass, QCOM_QMP)
+
+#define TYPE_QCOM_QMP_IOMMU_MEMORY_REGION "qcom-qmp-iommu-memory-region"
+
+struct QcomQMPState {
+    OfSysBusDevice parent;
+
+    MemoryRegion iomem;
+
+    const char* name;
+    size_t mem_size;
+};
+
+struct QcomQMPClass {
+    OfSysBusDeviceClass parent;
+};
+
+QcomQMPState* qcom_qmp_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
+QcomQMPState* qcom_qmp_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size);
+
+#endif

@@ -1643,10 +1643,12 @@ bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_in
     assert(qemu_fdt_find_parent_interrupt_phandle(fdt, node_path, &_interrupts->interrupt_controller_phandle));
 
     // get interrupt controller node offset
-    // printf("phandle: 0x%x\n", _interrupts->interrupt_controller_phandle);
-    // save_device_tree(fdt, "/tmp/lol.dtb", errp);
     controller_node_offset = fdt_node_offset_by_phandle(fdt, _interrupts->interrupt_controller_phandle);
-    assert(controller_node_offset >= 0);
+    if (controller_node_offset < 0) {
+        warn_report("The node %s links to an interrupt controller (with the phandle %d), but it is not in the DT. It should most likely be added.", node_path, _interrupts->interrupt_controller_phandle);
+        g_free(*interrupts);
+        return false;
+    }
 
     // find the cell size for interrupts
     interrupt_size = prop_to_u32(fdt_getprop(fdt, controller_node_offset, QEMU_FDT_PROP_INTERRUPT_CELLS, &len));

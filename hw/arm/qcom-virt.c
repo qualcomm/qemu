@@ -192,6 +192,28 @@ static void add_smmu(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachi
     memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
+static void add_qmp(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
+{
+    hwaddr machine_base = qvms->base_addr;
+    void* qcom_fdt = qvms->fdt;
+
+    const char* qcom_ipcc_node = qemu_fdt_node_path_by_label(qcom_fdt, "ipcc_mproc", &error_abort);
+
+    // copy nodes from qemu dtb to qcom virt dtb.
+    const char* qmp_node_deps[] = {
+        qcom_ipcc_node,
+        NULL
+    };
+
+    qemu_fdt_copy_nodes(fdt, qcom_fdt, qmp_node_deps, &error_abort);
+
+    qvms->qmp = qcom_qmp_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->qmp);
+    SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
+
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
+}
+
 static void add_crm(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
@@ -342,6 +364,11 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .device_create = add_cc,
         .idx = CC_CANOE_GPUCC,
         .priority = 1, // higher priority to avoid falling in graphics device.
+    },
+    [VIRT_QCOM_QMP] = {
+        .label = "aoss_qmp",
+        .mem_size = 0x400,
+        .device_create = add_qmp,
     },
     [VIRT_QCOM_KGSL_SMMU] = {
         .label = "kgsl_smmu",

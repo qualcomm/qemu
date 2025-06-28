@@ -8,4 +8,5 @@ system_ss.add(when: 'CONFIG_QCOM_CMD_DB', if_true: files('cmd-db.c'))
 system_ss.add(when: 'CONFIG_QCOM_RPMH_RSC', if_true: files('rpmh-rsc.c'))
 system_ss.add(when: 'CONFIG_QCOM_RPMH_CLK', if_true: files('rpmh-clk.c'))
 system_ss.add(when: 'CONFIG_QCOM_ICC_RPMH', if_true: files('icc-rpmh.c'))
+system_ss.add(when: 'CONFIG_QCOM_QMP', if_true: files('qmp.c'))
 

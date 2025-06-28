@@ -17,3 +17,5 @@ config QCOM_RPMH_CLK
 config QCOM_ICC_RPMH
     bool
 
+config QCOM_QMP
+    bool

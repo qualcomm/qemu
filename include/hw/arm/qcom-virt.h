@@ -22,6 +22,7 @@
 #include "hw/qcom/rpmh-rsc.h"
 #include "hw/qcom/cc/cc.h"
 #include "hw/qcom/smmu.h"
+#include "hw/qcom/qmp.h"
 
 // Top address of the real hardware
 // Depends on the board being emulated
@@ -46,6 +47,7 @@ enum QcomVirtDeviceType {
     VIRT_QCOM_CC_CANOE_GPUCC,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_CRM_PCIE,
+    VIRT_QCOM_QMP,
     VIRT_QCOM_KGSL_SMMU,
     VIRT_QCOM_GRAPHICS,
 };
@@ -108,6 +110,7 @@ struct QcomVirtMachineState {
     QcomCrmState* crm[CRM_MAX];
     QcomCCState* cc[CC_MAX];
     QcomSMMUState* kgsl_smmu;
+    QcomQMPState* qmp;
 };
 
 struct QcomVirtMachineClass {
