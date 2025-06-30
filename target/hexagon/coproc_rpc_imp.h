@@ -248,12 +248,23 @@ class RemoteRPC {
             argp.push_back(exec_path.c_str());
             argp.push_back(0);
 
+            char buf[1];
+            int fildes[2];
+            ssize_t rc __attribute__((unused));
+
+            if (pipe(fildes) == -1) {
+                std::cout << "pipe init error: " << std::strerror(errno) << std::endl;
+                exit(1);
+            }
+
             m_child_pid = fork();
 
             if (m_child_pid > 0) {
                 pahandler.setup_parent_conn_checker();
                 pahandler.wait_child(m_child_pid);
-
+               close(fildes[0]);                       /* Read end is unused */
+               rc = write(fildes[1], "1", 1);          /* Write data on pipe */
+               close(fildes[1]);
             } else if (m_child_pid == 0) {
                 char
                     key[GS_Process_Server_Port_Len + DECIMAL_PID_T_STR_LEN + 1];
@@ -265,6 +276,11 @@ class RemoteRPC {
                 sigset_t sigset;
                 sigfillset(&sigset);
                 sigprocmask(SIG_SETMASK, &sigset, NULL);
+
+                close(fildes[1]);                  /* Write end is unused */
+                rc = read(fildes[0], buf, 1);      /* Get data from pipe */
+                 /* At this point, a further read would see end-of-file ... */
+                close(fildes[0]);                  /* Finished with pipe */
 
                 execv(exec_path.c_str(), const_cast<char * *>(&argp[0]));
                 std::cout << "CLIENT: Unable to exec the "
