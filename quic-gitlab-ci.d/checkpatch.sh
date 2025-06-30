@@ -14,6 +14,7 @@ do
     echo "========= Checking commit $(git log --pretty=reference "${rev}^!")"
     ./scripts/checkpatch.pl --color=always --no-signoff --branch "${rev}^!"
     error=$((error || ${?}))
+    date
 done
 
 if test "${?}" -ne 0 || test "${error}" -ne 0

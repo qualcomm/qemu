@@ -25,6 +25,7 @@ checkpatch:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script: quic-gitlab-ci.d/checkpatch.sh
+  timeout: 5 minutes
 
 user_guide:
   stage: build
