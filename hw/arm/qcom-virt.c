@@ -275,6 +275,8 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* bcm_voter9 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_8_bcm_voter", &error_abort);
     const char* bcm_voter10 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_sw_0_bcm_voter", &error_abort);
 
+    const char* qcom_scm = qemu_fdt_node_path_by_label(qcom_fdt, "qcom_scm", &error_abort);
+
     const char* linux_cma = qemu_fdt_node_path_by_label(qcom_fdt, "system_cma", &error_abort);
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
     const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
@@ -302,6 +304,8 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         gxclkctl,
         mc_virt,
         gem_noc,
+
+        qcom_scm,
 
         // the gpu itself
         linux_cma,

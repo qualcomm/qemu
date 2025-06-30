@@ -5,6 +5,29 @@
 #include "qapi/error.h"
 #include "exec/memory.h"
 
+#define QMP_DESC_MAGIC			0x0
+#define QMP_DESC_VERSION		0x4
+#define QMP_DESC_FEATURES		0x8
+
+/* AOP-side offsets */
+#define QMP_DESC_UCORE_LINK_STATE	0xc
+#define QMP_DESC_UCORE_LINK_STATE_ACK	0x10
+#define QMP_DESC_UCORE_CH_STATE		0x14
+#define QMP_DESC_UCORE_CH_STATE_ACK	0x18
+#define QMP_DESC_UCORE_MBOX_SIZE	0x1c
+#define QMP_DESC_UCORE_MBOX_OFFSET	0x20
+
+/* Linux-side offsets */
+#define QMP_DESC_MCORE_LINK_STATE	0x24
+#define QMP_DESC_MCORE_LINK_STATE_ACK	0x28
+#define QMP_DESC_MCORE_CH_STATE		0x2c
+#define QMP_DESC_MCORE_CH_STATE_ACK	0x30
+#define QMP_DESC_MCORE_MBOX_SIZE	0x34
+#define QMP_DESC_MCORE_MBOX_OFFSET	0x38
+
+#define QMP_STATE_UP			GENMASK(15, 0)
+#define QMP_STATE_DOWN			GENMASK(31, 16)
+
 #define QMP_MAGIC 0x4d41494c
 #define QMP_VERSION 1
 
@@ -47,10 +70,18 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
     printf("[%s] Read at address 0x%lx\n", s->name, addr);
 
     switch (addr) {
-        case 0x00:
+        case QMP_DESC_MAGIC:
             return QMP_MAGIC;
-        case 0x04:
+        case QMP_DESC_VERSION:
             return QMP_VERSION;
+        case QMP_DESC_MCORE_MBOX_SIZE:
+            return 32;
+        case QMP_DESC_MCORE_LINK_STATE_ACK:
+            return QMP_STATE_UP;
+        case QMP_DESC_MCORE_CH_STATE_ACK:
+            return QMP_STATE_UP;
+	    case QMP_DESC_UCORE_CH_STATE:
+            return QMP_STATE_UP;
         default:
             printf("\tUnhandled read.\n");
             return 0;

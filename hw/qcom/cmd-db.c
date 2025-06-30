@@ -560,6 +560,15 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
         }
     }
 
+    // initialize ICC RPMh CNOC main
+    for (size_t i = 0; i < canoe_cnoc_main.num_bcms; ++i) {
+        struct qcom_icc_bcm* bcm_entry = canoe_cnoc_main.bcms[i];
+        if (bcm_entry != NULL) {
+            struct bcm_db* bcm = g_new0(struct bcm_db, 1);
+            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
+        }
+    }
+
     memory_region_init_ram_ptr(&cmds->rom, OBJECT(ofdev), TYPE_QCOM_CMD_DB, cmds->mem_size, cmds->rom_content);
     memory_region_set_readonly(&cmds->rom, true);
 

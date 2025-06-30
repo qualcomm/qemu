@@ -1120,6 +1120,36 @@ static struct qcom_icc_bcm bcm_sh1_disp_crm_hw_8 = {
 	//.nodes = { &qnm_mnoc_hf_disp_crm_hw_8 },
 };
 
+static struct qcom_icc_bcm bcm_cn0 = {
+	.name = "CN0",
+	.voter_idx = VOTER_IDX_HLOS,
+	.enable_mask = 0x1,
+	.keepalive = true,
+	.num_nodes = 43,
+	// .nodes = { &qsm_cfg, &qhs_ahb2phy0,
+	// 	   &qhs_ahb2phy1, &qhs_camera_cfg,
+	// 	   &qhs_clk_ctl, &qhs_crypto0_cfg,
+	// 	   &qhs_eva_cfg, &qhs_gpuss_cfg,
+	// 	   &qhs_i3c_ibi0_cfg, &qhs_i3c_ibi1_cfg,
+	// 	   &qhs_imem_cfg, &qhs_ipc_router,
+	// 	   &qhs_mss_cfg, &qhs_pcie_cfg,
+	// 	   &qhs_prng, &qhs_qdss_cfg,
+	// 	   &qhs_qspi, &qhs_sdc2,
+	// 	   &qhs_sdc4, &qhs_spss_cfg,
+	// 	   &qhs_tcsr, &qhs_tlmm,
+	// 	   &qhs_ufs_mem_cfg, &qhs_usb3,
+	// 	   &qhs_venus_cfg, &qhs_vsense_ctrl_cfg,
+	// 	   &qss_mnoc_cfg, &qss_pcie_anoc_cfg,
+	// 	   &xs_qdss_stm, &xs_sys_tcu_cfg,
+	// 	   &qnm_gemnoc_cnoc, &qnm_gemnoc_pcie,
+	// 	   &qhs_aoss, &qhs_ipa,
+	// 	   &qhs_ipc_router_fence, &qhs_soccp,
+	// 	   &qhs_tme_cfg, &qns_apss,
+	// 	   &qss_cfg, &qss_ddrss_cfg,
+	// 	   &qxs_boot_imem, &qxs_imem,
+	// 	   &xs_pcie },
+};
+
 static struct qcom_icc_bcm *gem_noc_bcms[] = {
 	&bcm_qpc0,
 	&bcm_sh0,
@@ -1187,6 +1217,10 @@ static struct qcom_icc_bcm *mc_virt_bcms[] = {
 	&bcm_mc0_disp_crm_hw_8,
 };
 
+static struct qcom_icc_bcm *cnoc_main_bcms[] = {
+	&bcm_cn0,
+};
+
 const struct qcom_icc_desc canoe_gem_noc = {
 	// .config = &icc_regmap_config,
 	//.nodes = gem_noc_nodes,
@@ -1205,5 +1239,10 @@ const struct qcom_icc_desc canoe_mc_virt = {
 	.num_bcms = ARRAY_SIZE(mc_virt_bcms),
 	// .voters = mc_virt_voters,
 	// .num_voters = ARRAY_SIZE(mc_virt_voters),
+};
+
+const struct qcom_icc_desc canoe_cnoc_main = {
+	.bcms = cnoc_main_bcms,
+	.num_bcms = ARRAY_SIZE(cnoc_main_bcms),
 };
 

@@ -92,4 +92,6 @@ extern const struct qcom_icc_desc canoe_gem_noc;
 
 extern const struct qcom_icc_desc canoe_mc_virt;
 
+extern const struct qcom_icc_desc canoe_cnoc_main;
+
 #endif
