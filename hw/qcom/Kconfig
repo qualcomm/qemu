@@ -19,3 +19,7 @@ config QCOM_ICC_RPMH
 
 config QCOM_QMP
     bool
+
+config QCOM_SMC
+    bool
+    depends on ARM

@@ -929,6 +929,8 @@ struct ArchCPU {
      */
     uint32_t psci_version;
 
+    void (*smc_handler)(ARMCPU* cpu);
+
     /* Current power state, access guarded by BQL */
     ARMPSCIState power_state;
 

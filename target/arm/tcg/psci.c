@@ -206,15 +206,19 @@ void arm_handle_psci_call(ARMCPU *cpu)
         break;
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
-    default:
-
-        // if (env->smc_handler) {
-        //     env->smc_handler(env);
-        // }
-        qemu_log_mask(LOG_INVALID_PSCI, "Invalid PSCI: 0x%lx\n", param[0]);
-
-        ret = QEMU_PSCI_RET_NOT_SUPPORTED;
+        ret = 0;
         break;
+    default:{
+            if (cpu->smc_handler) {
+                return cpu->smc_handler(cpu);
+            } else {
+                qemu_log_mask(LOG_INVALID_PSCI, "Invalid PSCI: 0x%lx\n", param[0]);
+
+                ret = QEMU_PSCI_RET_NOT_SUPPORTED;
+            }
+
+            break;
+        }
     }
 
 err:

@@ -74,6 +74,7 @@
 #include "hw/qcom/cmd-db.h"
 #include "hw/qcom/rpmh-rsc.h"
 #include "hw/qcom/smmu.h"
+#include "hw/qcom/smc.h"
 
 static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -276,6 +277,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* bcm_voter10 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_sw_0_bcm_voter", &error_abort);
 
     const char* qcom_scm = qemu_fdt_node_path_by_label(qcom_fdt, "qcom_scm", &error_abort);
+    const char* qcom_hw_fence = qemu_fdt_node_path_by_label(qcom_fdt, "msm_hw_fence", &error_abort);
 
     const char* linux_cma = qemu_fdt_node_path_by_label(qcom_fdt, "system_cma", &error_abort);
     const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
@@ -306,6 +308,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         gem_noc,
 
         qcom_scm,
+        qcom_hw_fence,
 
         // the gpu itself
         linux_cma,
@@ -501,11 +504,12 @@ static void qcom_create_devices(MachineState* machine)
     // we need to hook into dtb modification
     vms->bootinfo.modify_dtb = qcom_virt_modify_dtb;
 
-    // CPUState* cpu;
-    // CPU_FOREACH(cpu) {
-    //     CPUARMState* acpu = ARM_CPU(cpu);
-    //     acpu->smc_handler = qcom_smc_handler;
-    // }
+    CPUState* cpu;
+    CPU_FOREACH(cpu) {
+        ARMCPU* acpu = ARM_CPU(cpu);
+        acpu->smc_handler = qcom_smc_handler;
+    }
+    printf("[*] Qcom SMC handler has been set.\n");
 }
 
 static char *qcom_machine_get_dtb(Object *obj, Error **errp)

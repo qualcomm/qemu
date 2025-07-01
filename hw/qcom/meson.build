@@ -10,3 +10,5 @@ system_ss.add(when: 'CONFIG_QCOM_RPMH_CLK', if_true: files('rpmh-clk.c'))
 system_ss.add(when: 'CONFIG_QCOM_ICC_RPMH', if_true: files('icc-rpmh.c'))
 system_ss.add(when: 'CONFIG_QCOM_QMP', if_true: files('qmp.c'))
 
+specific_ss.add(when: 'CONFIG_QCOM_SMC', if_true: files('smc.c'))
+
