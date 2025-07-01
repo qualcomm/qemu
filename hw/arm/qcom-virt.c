@@ -277,6 +277,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* bcm_voter10 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_sw_0_bcm_voter", &error_abort);
 
     const char* qcom_scm = qemu_fdt_node_path_by_label(qcom_fdt, "qcom_scm", &error_abort);
+    const char* qcom_hwfence_shbuf = qemu_fdt_node_path_by_label(qcom_fdt, "hwfence_shbuf", &error_abort);
     const char* qcom_hw_fence = qemu_fdt_node_path_by_label(qcom_fdt, "msm_hw_fence", &error_abort);
 
     const char* linux_cma = qemu_fdt_node_path_by_label(qcom_fdt, "system_cma", &error_abort);
@@ -308,6 +309,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         gem_noc,
 
         qcom_scm,
+        qcom_hwfence_shbuf,
         qcom_hw_fence,
 
         // the gpu itself
@@ -495,8 +497,13 @@ static void qcom_create_devices(MachineState* machine)
     qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-mxclvl/regulator-pmh0110-f-s9-mmcx-voter-level", "pmh0110_f_s9_mmcx_voter_level-parent-supply", &error_abort);
     qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-gmxclvl/regulator-pmh0110-f-s10-gfx-voter-level", "pmh0110_f_s10_gfx_voter_level-parent-supply", &error_abort);
 
+    // remove iommu for hw fences for now
+    qemu_fdt_delprop(machine->fdt, "/soc/qcom,hw-fence", "iommus", &error_abort);
+
     // edit base addresses of the SoC with the new one
     qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);
+    qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/hwfence-shmem", qvms->base_addr, &error_abort);
+
     // TODO: find a better way to do that...
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/linux,cma", qvms->base_addr, &error_abort);

@@ -402,7 +402,7 @@ static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned siz
 
     struct rpmh_tcs_cmd* tcs_cmd = &tcs->tcs_cmds[tcs_cmd_id];
 
-    printf("[*] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
+    printf("[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", s->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
 
     return read_tcs_cmd_reg(tcs_cmd, tcs_cmd_reg);
 }
@@ -412,7 +412,7 @@ static uint64_t rpmh_read_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, s
     hwaddr drv_addr = addr % drv->size;
     enum rpmh_regs drv_reg = decode_drv_addr(s, s->regtable, drv_addr);
 
-    printf("[*] drv read @addr 0x%lx (reg %s)\n", drv_addr, rpmh_rsc_str[drv_reg]);
+    printf("[%s] drv read @addr 0x%lx (reg %s)\n", s->name, drv_addr, rpmh_rsc_str[drv_reg]);
 
     return read_drv_reg(drv, drv_reg);
 }
@@ -422,7 +422,7 @@ static uint64_t rpmh_read_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned 
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[*] TCS common read @addr 0x%lx (reg %s)\n", tcs_common_addr, rpmh_rsc_str[tcs_reg]);
+    printf("[%s] TCS common read @addr 0x%lx (reg %s)\n", s->name, tcs_common_addr, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -449,7 +449,7 @@ static uint64_t rpmh_read_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, s
         size_t tcs_addr = get_tcs_addr(s, addr, drv, tcs_id);
         enum rpmh_regs tcs_reg = decode_tcs_addr(s, s->regtable, tcs_addr);
 
-        printf("[*] TCS read for tcs %lx @addr 0x%lx (reg %s)\n", tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
+        printf("[%s] read for tcs %lx @addr 0x%lx (reg %s)\n", s->name, tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
 
         return read_tcs_reg(tcs, tcs_reg);
     }
@@ -468,7 +468,7 @@ static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned siz
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[*] TCS common 0x%x at reg %s\n", val, rpmh_rsc_str[tcs_reg]);
+    printf("[%s] common 0x%x at reg %s\n", s->name, val, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -481,8 +481,6 @@ static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned siz
             uint32_t irq_status = read_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS);
             irq_status &= ~val;
             write_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS, irq_status);
-
-            printf("IRQ unset\n");
 
             qemu_set_irq(drv->irq, 0);
             return;
@@ -534,9 +532,6 @@ static void rpmh_write_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint
             }
             case RSC_DRV_CONTROL: {
                 if (val & TCS_CONTROL_TRIGGER) {
-                    // tcs->triggered = true;
-                    printf("IRQ triggered.\n");
-
                     uint32_t irq_status = read_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS);
                     irq_status |= (1 << tcs_id);
                     write_tcs_common_reg(drv, RSC_DRV_IRQ_STATUS, irq_status);
