@@ -408,6 +408,31 @@ static void test_vgthf(void)
     check_output_w(__LINE__, BUFSIZE);
 }
 
+static void test_vgthf_nan(int hex_rev)
+{
+    uint32_t NaN = 0xffffffff;
+
+    memset(output, 0xff, sizeof(output));
+    memset(expect, hex_rev < 81 ? 0x00 : 0xff, sizeof(expect));
+
+    asm volatile(
+        "r0 = #0\n"
+        "v4 = vsplat(r0)\n"
+        "v5 = vsplat(%0)\n"
+#if TOOLCHAIN_WORKAROUND
+        ".word 0x1c85e474\n\t"  /* q0 = vcmp.gt(v4.hf, v5.hf) */
+#else
+        "q0 = vcmp.gt(v4.hf, v5.hf)\n\t"
+#endif
+        "if (q0) vmem(%1) = v4\n\t"
+        :
+        : "r"(NaN), "r"(output)
+        : "r0", "v4", "v5", "q0", "memory"
+    );
+
+    check_output_w(__LINE__, 1);
+}
+
 static void test_vmax_sf(void)
 {
     void *p0 = sf_buffer0;
@@ -880,6 +905,7 @@ int main()
 
     test_vgtsf();
     test_vgthf();
+    test_vgthf_nan(__HEXAGON_ARCH__);
     test_vmax_sf();
     test_vmin_sf();
     test_vmax_hf();

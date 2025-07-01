@@ -207,8 +207,10 @@
 #define fNEGHF(A) negate_hf(A)
 #define fCMPGT_QF32(A,B) cmpgt_qf32(A,B)
 #define fCMPGT_QF16(A,B) cmpgt_qf16(A,B)
-#define fCMPGT_SF(A,B) cmpgt_sf(A,B,true,is_daz_mode(thread))
-#define fCMPGT_HF(A,B) cmpgt_hf(A,B,true)
+#define fCMPGT_SF(A, B) \
+    cmpgt_sf(A, B, HEXAGON_REV_BYTE() >= 0x81, is_daz_mode(thread))
+#define fCMPGT_HF(A, B) \
+    cmpgt_hf(A, B, HEXAGON_REV_BYTE() >= 0x81)
 #define fCMPEQ(FTYPE,A,B) cmpeq(A,B,FTYPE,is_daz_mode(thread))
 #define fCMPGT_BF(A,B) cmpgt_sf(((int)A) << 16,((int)B) << 16,false,false)
 #define fCMPGT_QF32_SF(A,B) cmpgt_qf32_sf(A,B)
