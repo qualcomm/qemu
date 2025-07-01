@@ -13,6 +13,9 @@
 #include "qom/object.h"
 #include "exec/memory.h"
 
+#define QMP_DESC_MCORE_START        0x40
+#define QMP_DESC_MCORE_MAX_SIZE     0x64
+
 #define TYPE_QCOM_QMP "qcom-qmp"
 OBJECT_DECLARE_TYPE(QcomQMPState, QcomQMPClass, QCOM_QMP)
 
@@ -25,6 +28,9 @@ struct QcomQMPState {
 
     const char* name;
     size_t mem_size;
+
+    char msg_buf[QMP_DESC_MCORE_MAX_SIZE + 1];
+    size_t msg_size;
 };
 
 struct QcomQMPClass {

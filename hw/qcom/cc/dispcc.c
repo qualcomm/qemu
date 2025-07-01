@@ -9,7 +9,7 @@ static struct clk_alpha_pll disp_cc_pll0 = {
 	.offset = 0x0,
 	// .vco_table = taycan_eko_t_vco,
 	// .num_vco = ARRAY_SIZE(taycan_eko_t_vco),
-	// .regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T],
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T],
 	// .clkr = {
 	// 	.hw.init = &(const struct clk_init_data) {
 	// 		.name = "disp_cc_pll0",
@@ -38,7 +38,7 @@ static struct clk_alpha_pll disp_cc_pll1 = {
 	.offset = 0x1000,
 	// .vco_table = taycan_eko_t_vco,
 	// .num_vco = ARRAY_SIZE(taycan_eko_t_vco),
-	// .regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T],
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T],
 	// .clkr = {
 	// 	.hw.init = &(const struct clk_init_data) {
 	// 		.name = "disp_cc_pll1",
@@ -66,7 +66,7 @@ static struct clk_alpha_pll disp_cc_pll2 = {
 	.offset = 0x2000,
 	// .vco_table = pongo_eko_t_vco,
 	// .num_vco = ARRAY_SIZE(pongo_eko_t_vco),
-	// .regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_PONGO_EKO_T],
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_PONGO_EKO_T],
 	// .clkr = {
 	// 	.hw.init = &(const struct clk_init_data) {
 	// 		.name = "disp_cc_pll2",
@@ -110,8 +110,8 @@ struct qcom_cc_desc disp_cc_canoe_desc = {
 	// .num_gdscs = ARRAY_SIZE(disp_cc_canoe_gdscs),
 
     /* added field */
-    .plls = disp_cc_canoe_plls,
-    .num_plls = ARRAY_SIZE(disp_cc_canoe_plls),
+    .alpha_plls = disp_cc_canoe_plls,
+    .num_alpha_plls = ARRAY_SIZE(disp_cc_canoe_plls),
 
     .reset_regs = {
         [CC_REG_PLL_MODE] = 0x00000000

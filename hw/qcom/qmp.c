@@ -31,6 +31,13 @@
 #define QMP_MAGIC 0x4d41494c
 #define QMP_VERSION 1
 
+/* 0x64 bytes is enough to store the requests and provides padding to 4 bytes */
+#define QMP_MSG_LEN			0x64
+
+#define QMP_NUM_COOLING_RESOURCES	2
+
+#define QMP_DEBUGFS_FILES		4
+
 QcomQMPState* qcom_qmp_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_QMP);
 	QcomQMPState* sdev = QCOM_QMP(dev);
@@ -63,6 +70,11 @@ QcomQMPState* qcom_qmp_create_by_label(void* fdt, void* in_fdt, const char* labe
 	return sdev;
 }
 
+static bool is_msg(QcomQMPState* s, hwaddr addr)
+{
+    return addr >= QMP_DESC_MCORE_START && addr < QMP_DESC_MCORE_START + QMP_DESC_MCORE_MAX_SIZE;
+}
+
 static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
 {
     QcomQMPState *s = QCOM_QMP(opaque);
@@ -75,16 +87,40 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
         case QMP_DESC_VERSION:
             return QMP_VERSION;
         case QMP_DESC_MCORE_MBOX_SIZE:
-            return 32;
+            return QMP_DESC_MCORE_MAX_SIZE;
         case QMP_DESC_MCORE_LINK_STATE_ACK:
             return QMP_STATE_UP;
         case QMP_DESC_MCORE_CH_STATE_ACK:
             return QMP_STATE_UP;
 	    case QMP_DESC_UCORE_CH_STATE:
             return QMP_STATE_UP;
+        case QMP_DESC_MCORE_MBOX_OFFSET:
+            return QMP_DESC_MCORE_START;
+        case QMP_DESC_MCORE_START: {
+            // commit the message
+            if (s->msg_size > 0) {
+                s->msg_buf[sizeof(s->msg_buf) - 1] = '\0';
+                printf("[%s] QMP message received: %s\n", s->name, s->msg_buf);
+                memset(s->msg_buf, 0, sizeof(s->msg_buf));
+                s->msg_size = 0;
+            }
+
+            return 0;
+        }
         default:
             printf("\tUnhandled read.\n");
             return 0;
+    }
+}
+
+static void write_msg(QcomQMPState* s, hwaddr addr, uint32_t val)
+{
+    hwaddr offset = addr - QMP_DESC_MCORE_START;
+
+    if (offset == 0) {
+        s->msg_size = val;
+    } else {
+        *(uint32_t*)(s->msg_buf + offset - sizeof(uint32_t)) = val;
     }
 }
 
@@ -94,6 +130,10 @@ static void qcom_qmp_write(void *opaque, hwaddr addr,
     QcomQMPState *s = QCOM_QMP(opaque);
 
     printf("[%s] Write at address 0x%lx of value 0x%lx\n", s->name, addr, value);
+
+    if (is_msg(s, addr)) {
+        write_msg(s, addr, value);
+    }
 }
 
 static const MemoryRegionOps qcom_qmp_ops = {

@@ -25,6 +25,7 @@
 #include "internals.h"
 #include "arm-powerctl.h"
 #include "target/arm/multiprocessing.h"
+#include "qemu/log.h"
 
 bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {
@@ -206,6 +207,12 @@ void arm_handle_psci_call(ARMCPU *cpu)
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
     default:
+
+        // if (env->smc_handler) {
+        //     env->smc_handler(env);
+        // }
+        qemu_log_mask(LOG_INVALID_PSCI, "Invalid PSCI: 0x%lx\n", param[0]);
+
         ret = QEMU_PSCI_RET_NOT_SUPPORTED;
         break;
     }

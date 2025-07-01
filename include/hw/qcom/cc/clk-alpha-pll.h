@@ -1,0 +1,99 @@
+/*
+ * Qualcomm alpha PLL table
+ *
+ */
+
+#ifndef QEMU_QCOM_ALPHA_PLL_H
+#define QEMU_QCOM_ALPHA_PLL_H
+
+#include "qemu/osdep.h"
+
+/* Alpha PLL types */
+enum {
+	CLK_ALPHA_PLL_TYPE_DEFAULT,
+	CLK_ALPHA_PLL_TYPE_HUAYRA,
+	CLK_ALPHA_PLL_TYPE_HUAYRA_APSS,
+	CLK_ALPHA_PLL_TYPE_HUAYRA_2290,
+	CLK_ALPHA_PLL_TYPE_BRAMMO,
+	CLK_ALPHA_PLL_TYPE_FABIA,
+	CLK_ALPHA_PLL_TYPE_TRION,
+	CLK_ALPHA_PLL_TYPE_LUCID = CLK_ALPHA_PLL_TYPE_TRION,
+	CLK_ALPHA_PLL_TYPE_AGERA,
+	CLK_ALPHA_PLL_TYPE_ZONDA,
+	CLK_ALPHA_PLL_TYPE_ZONDA_OLE,
+	CLK_ALPHA_PLL_TYPE_LUCID_EVO,
+	CLK_ALPHA_PLL_TYPE_LUCID_OLE,
+	CLK_ALPHA_PLL_TYPE_TAYCAN_ELU,
+	CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T = CLK_ALPHA_PLL_TYPE_TAYCAN_ELU,
+	CLK_ALPHA_PLL_TYPE_PONGO_ELU,
+	CLK_ALPHA_PLL_TYPE_PONGO_EKO_T = CLK_ALPHA_PLL_TYPE_PONGO_ELU,
+	CLK_ALPHA_PLL_TYPE_RIVIAN_EVO,
+	CLK_ALPHA_PLL_TYPE_RIVIAN_OLE = CLK_ALPHA_PLL_TYPE_RIVIAN_EVO,
+	CLK_ALPHA_PLL_TYPE_RIVIAN_ELU,
+	CLK_ALPHA_PLL_TYPE_RIVIAN_EKO_T = CLK_ALPHA_PLL_TYPE_RIVIAN_ELU,
+	CLK_ALPHA_PLL_TYPE_DEFAULT_EVO,
+	CLK_ALPHA_PLL_TYPE_BRAMMO_EVO,
+	CLK_ALPHA_PLL_TYPE_STROMER,
+	CLK_ALPHA_PLL_TYPE_STROMER_PLUS,
+	CLK_ALPHA_PLL_TYPE_REGERA,
+	CLK_ALPHA_PLL_TYPE_MAX,
+};
+
+enum {
+	PLL_OFF_MODE,
+	PLL_OFF_L_VAL,
+	PLL_OFF_CAL_L_VAL,
+	PLL_OFF_ALPHA_VAL,
+	PLL_OFF_ALPHA_VAL_U,
+	PLL_OFF_USER_CTL,
+	PLL_OFF_USER_CTL_U,
+	PLL_OFF_USER_CTL_U1,
+	PLL_OFF_CONFIG_CTL,
+	PLL_OFF_CONFIG_CTL_U,
+	PLL_OFF_CONFIG_CTL_U1,
+	PLL_OFF_CONFIG_CTL_U2,
+	PLL_OFF_TEST_CTL,
+	PLL_OFF_TEST_CTL_U,
+	PLL_OFF_TEST_CTL_U1,
+	PLL_OFF_TEST_CTL_U2,
+	PLL_OFF_TEST_CTL_U3,
+	PLL_OFF_STATE,
+	PLL_OFF_STATUS,
+	PLL_OFF_OPMODE,
+	PLL_OFF_FRAC,
+	PLL_OFF_CAL_VAL,
+	PLL_OFF_SSC_DELTA_ALPHA,
+	PLL_OFF_SSC_NUM_STEPS,
+	PLL_OFF_SSC_UPDATE_RATE,
+	PLL_OFF_MAX_REGS
+};
+
+/**
+ * struct clk_alpha_pll - phase locked loop (PLL)
+ * @offset: base address of registers
+ * @regs: alpha pll register map (see @clk_alpha_pll_regs)
+ * @vco_table: array of VCO settings
+ * @num_vco: number of VCO settings in @vco_table
+ * @flags: bitmask to indicate features supported by the hardware
+ * @clkr: regmap clock handle
+ */
+struct clk_alpha_pll {
+	uint32_t offset;
+	const uint8_t *regs;
+	// struct alpha_pll_config *config;
+	// const struct pll_vco *vco_table;
+	size_t num_vco;
+#define SUPPORTS_OFFLINE_REQ		BIT(0)
+#define SUPPORTS_FSM_MODE		BIT(2)
+#define SUPPORTS_DYNAMIC_UPDATE	BIT(3)
+#define SUPPORTS_FSM_LEGACY_MODE	BIT(4)
+#define DISABLE_TO_OFF		BIT(5)
+#define ENABLE_IN_PREPARE	BIT(6)
+	uint8_t flags;
+
+	// struct clk_regmap clkr;
+};
+
+extern const uint8_t clk_alpha_pll_regs[][PLL_OFF_MAX_REGS];
+
+#endif

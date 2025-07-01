@@ -45,6 +45,7 @@ enum QcomVirtDeviceType {
     VIRT_QCOM_RPMH_RSC_CAM,
     VIRT_QCOM_CC_CANOE_DISPCC,
     VIRT_QCOM_CC_CANOE_GPUCC,
+    VIRT_QCOM_CC_CANOE_GCC,
     VIRT_QCOM_CRM_DISP,
     VIRT_QCOM_CRM_PCIE,
     VIRT_QCOM_QMP,
@@ -67,6 +68,7 @@ enum qcom_crm_kind {
 enum qcom_cc_kind {
     CC_CANOE_DISPCC,
     CC_CANOE_GPUCC,
+    CC_CANOE_GCC,
     CC_MAX,
 };
 

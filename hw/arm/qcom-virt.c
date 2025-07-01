@@ -360,14 +360,21 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .label = "dispcc",
         .mem_size = 0x20000,
         .device_create = add_cc,
-        .idx = CC_CANOE_GPUCC,
+        .idx = CC_CANOE_DISPCC,
     },
     [VIRT_QCOM_CC_CANOE_GPUCC] = {
         .label = "gpucc",
         .mem_size = 0xa000,
         .device_create = add_cc,
         .idx = CC_CANOE_GPUCC,
-        .priority = 1, // higher priority to avoid falling in graphics device.
+        .priority = 1,
+    },
+    [VIRT_QCOM_CC_CANOE_GCC] = {
+        .label = "gcc",
+        .mem_size = 0x200000,
+        .device_create = add_cc,
+        .idx = CC_CANOE_GCC,
+        .priority = 1,
     },
     [VIRT_QCOM_QMP] = {
         .label = "aoss_qmp",
@@ -411,7 +418,10 @@ static void qcom_virt_modify_dtb(const struct arm_boot_info *info, void *fdt, Ma
     qemu_fdt_check(ms->fdt, &error_abort);
 }
 
-
+// static void qcom_smc_handler(CPUState* cpu) {
+// 
+// }
+// 
 static void qcom_create_devices(MachineState* machine)
 {
     VirtMachineState* vms = VIRT_MACHINE(machine);
@@ -490,6 +500,12 @@ static void qcom_create_devices(MachineState* machine)
 
     // we need to hook into dtb modification
     vms->bootinfo.modify_dtb = qcom_virt_modify_dtb;
+
+    // CPUState* cpu;
+    // CPU_FOREACH(cpu) {
+    //     CPUARMState* acpu = ARM_CPU(cpu);
+    //     acpu->smc_handler = qcom_smc_handler;
+    // }
 }
 
 static char *qcom_machine_get_dtb(Object *obj, Error **errp)

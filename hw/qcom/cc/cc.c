@@ -6,10 +6,12 @@
 
 #include "hw/qcom/cc/gpucc.h"
 #include "hw/qcom/cc/dispcc.h"
+#include "hw/qcom/cc/gcc.h"
 
 static const struct of_device_id cc_of_match_table[] = {
     { .compatible = GPUCC_COMPATIBLE, .data = &gpu_cc_canoe_desc },
     { .compatible = DISPCC_COMPATIBLE, .data = &disp_cc_canoe_desc },
+    { .compatible = GCC_COMPATIBLE, .data = &gcc_canoe_desc },
     { },
 };
 
@@ -29,7 +31,7 @@ QcomCCState* cc_create_by_label(void* fdt, void* in_fdt, const char* label, uint
 	return ccs;
 }
 
-// poorly optimized, ideally we should use a hashmap.
+// poorly optimized, ideally we should use a hashmap, or simply use more space.
 static enum qcom_cc_reg_kind decode_addr(struct QcomCCState* ccs, struct qcom_cc_desc* desc, hwaddr addr)
 {
 
@@ -48,15 +50,32 @@ static enum qcom_cc_reg_kind decode_addr(struct QcomCCState* ccs, struct qcom_cc
         }
     }
 
-    if (desc->plls) {
+    if (desc->alpha_plls) {
         // CC has plls
-        for (size_t i = 0; i < desc->num_plls; ++i) {
-            struct clk_alpha_pll* pll = desc->plls[i];
+        for (size_t i = 0; i < desc->num_alpha_plls; ++i) {
+            struct clk_alpha_pll* pll = desc->alpha_plls[i];
 
             if (addr == PLL_MODE(pll)) {
                 return CC_REG_PLL_MODE;
+            } else if (addr == PLL_L_VAL(pll)) {
+                return CC_REG_PLL_L_VAL;
+            } else if (addr == PLL_CAL_L_VAL(pll)) {
+                return CC_REG_PLL_CAL_L_VAL;
+            } else if (addr == PLL_ALPHA_VAL(pll)) {
+                return CC_REG_PLL_ALPHA_VAL;
+            } else if (addr == PLL_ALPHA_VAL_U(pll)) {
+                return CC_REG_PLL_ALPHA_VAL_U;
+            } else if (addr == PLL_USER_CTL(pll)) {
+                return CC_REG_PLL_USER_CTL;
             }
         }
+    }
+
+    // TODO: fix this dirty hack
+    if (addr == 0x90e4) {
+        return CC_REG_CXO_CBCR;
+    } else if (addr == 0x90d4) {
+        return CC_REG_GMU_CBCR;
     }
 
     printf("[%s] Unknown address: 0x%lx\n", ccs->name, addr);
@@ -69,24 +88,54 @@ static uint64_t qcom_cc_read(void *opaque, hwaddr addr, unsigned size)
     QcomCCState* ccs = QCOM_CC(opaque);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
     struct qcom_cc_desc* cc_desc = (struct qcom_cc_desc*) ofdev->data;
-
-    printf("[%s] read detected @addr 0x%lx\n", ccs->name, addr);
+    uint32_t val;
 
     enum qcom_cc_reg_kind reg = decode_addr(ccs, cc_desc, addr);
 
     switch (reg) {
         case CC_REG_PLL_MODE:
-            return ccs->reg[CC_REG_PLL_MODE];
+            val = ccs->reg[CC_REG_PLL_MODE];
+            break;
+        case CC_REG_PLL_L_VAL:
+            val = ccs->reg[CC_REG_PLL_L_VAL];
+            break;
+        case CC_REG_PLL_CAL_L_VAL:
+            val = ccs->reg[CC_REG_PLL_CAL_L_VAL];
+            break;
+        case CC_REG_PLL_ALPHA_VAL:
+            val = ccs->reg[CC_REG_PLL_ALPHA_VAL];
+            break;
+        case CC_REG_PLL_ALPHA_VAL_U:
+            val = ccs->reg[CC_REG_PLL_ALPHA_VAL_U];
+            break;
+        case CC_REG_PLL_USER_CTL:
+            val = ccs->reg[CC_REG_PLL_USER_CTL];
+            break;
+
         case CC_REG_GDSCR:
-            return ccs->reg[CC_REG_GDSCR];
+            val = ccs->reg[CC_REG_GDSCR];
+            break;
         case CC_REG_GDSCR_CFG:
-            return ccs->reg[CC_REG_GDSCR_CFG];
+            val = ccs->reg[CC_REG_GDSCR_CFG];
+            break;
         case CC_REG_HW_CTRL:
-            return ccs->reg[CC_REG_HW_CTRL];
+            val = ccs->reg[CC_REG_HW_CTRL];
+            break;
+        case CC_REG_CXO_CBCR:
+            val = ccs->reg[CC_REG_CXO_CBCR];
+            break;
+        case CC_REG_GMU_CBCR:
+            val = ccs->reg[CC_REG_GMU_CBCR];
+            break;
+
         default:
-            printf("[%s]\tRead failed, defaulting to 0.\n", ccs->name);
+            printf("[%s - !]\tRead @addr %lx failed, defaulting to 0.\n", ccs->name, addr);
             return 0;
     }
+
+    printf("[%s] read @addr 0x%lx of value 0x%x\n", ccs->name, addr, val);
+
+    return val;
 }
 
 static void qcom_cc_write(void *opaque, hwaddr addr,
@@ -96,14 +145,30 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
     struct qcom_cc_desc* cc_desc = (struct qcom_cc_desc*) ofdev->data;
 
-    printf("[%s] write detected @addr 0x%lx\n", ccs->name, addr);
+    printf("[%s] write @addr 0x%lx of value %lx\n", ccs->name, addr, value);
 
     enum qcom_cc_reg_kind reg = decode_addr(ccs, cc_desc, addr);
 
     switch (reg) {
         case CC_REG_PLL_MODE:
             ccs->reg[CC_REG_PLL_MODE] = value;
-            break;
+			break;
+        case CC_REG_PLL_L_VAL:
+            ccs->reg[CC_REG_PLL_L_VAL] = value;
+			break;
+        case CC_REG_PLL_CAL_L_VAL:
+            ccs->reg[CC_REG_PLL_CAL_L_VAL] = value;
+			break;
+        case CC_REG_PLL_ALPHA_VAL:
+            ccs->reg[CC_REG_PLL_ALPHA_VAL] = value;
+			break;
+        case CC_REG_PLL_ALPHA_VAL_U:
+            ccs->reg[CC_REG_PLL_ALPHA_VAL_U] = value;
+			break;
+        case CC_REG_PLL_USER_CTL:
+            ccs->reg[CC_REG_PLL_USER_CTL] = value;
+			break;
+
         case CC_REG_GDSCR:
             ccs->reg[CC_REG_GDSCR] = value;
             break;
@@ -113,6 +178,30 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
         case CC_REG_HW_CTRL:
             ccs->reg[CC_REG_HW_CTRL] = value;
             break;
+        case CC_REG_GMU_CBCR: {
+            if (value & 1) {
+                value &= ~BIT(31);
+            } else {
+                value |= BIT(31);
+            }
+
+            printf("\twrite to GMU CBCR of value %lx\n", value);
+
+            ccs->reg[CC_REG_GMU_CBCR] = value;
+            break;
+        }
+        case CC_REG_CXO_CBCR: {
+            if (value & 1) {
+                value &= ~BIT(31);
+            } else {
+                value |= BIT(31);
+            }
+
+            printf("\twrite to CXO CBCR of value %lx\n", value);
+
+            ccs->reg[CC_REG_CXO_CBCR] = value;
+            break;
+        }
         default:
             printf("[%s]\tWrite failed, nothing changed.\n", ccs->name);
             return;

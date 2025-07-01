@@ -505,6 +505,8 @@ const QEMULogItem qemu_log_items[] = {
       "include VPU registers in the 'cpu' logging" },
     { LOG_INVALID_MEM, "invalid_mem",
       "log invalid memory accesses" },
+    { LOG_INVALID_PSCI, "invalid_psci",
+      "log invalid PSCI call" },
     { 0, NULL, NULL },
 };
 

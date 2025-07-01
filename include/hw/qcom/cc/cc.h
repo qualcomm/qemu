@@ -13,17 +13,29 @@
 #include "qom/object.h"
 #include "hw/sysbus-of.h"
 
+#include "hw/qcom/cc/clk-alpha-pll.h"
+
 #define TYPE_QCOM_CC      "qcom-cc"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomCCState, QCOM_CC)
 
 enum qcom_cc_reg_kind {
     /* PLL registers */
     CC_REG_PLL_MODE,
+    CC_REG_PLL_L_VAL,
+    CC_REG_PLL_CAL_L_VAL,
+    CC_REG_PLL_ALPHA_VAL,
+    CC_REG_PLL_ALPHA_VAL_U,
+    CC_REG_PLL_USER_CTL,
 
     /* gdscr registers */
     CC_REG_GDSCR,
     CC_REG_GDSCR_CFG,
     CC_REG_HW_CTRL,
+
+    CC_REG_CXO_CBCR,
+    CC_REG_GMU_CBCR,
+
+    /* max reg */
     CC_REG_MAX,
 };
 
@@ -51,6 +63,35 @@ typedef uint32_t qcom_cc_regs[CC_REG_MAX];
 # define PLL_ACTIVE_FLAG	BIT(30)
 # define PLL_LOCK_DET		BIT(31)
 
+#define PLL_L_VAL(p)		((p)->offset + (p)->regs[PLL_OFF_L_VAL])
+#define PLL_CAL_L_VAL(p)	((p)->offset + (p)->regs[PLL_OFF_CAL_L_VAL])
+#define PLL_ALPHA_VAL(p)	((p)->offset + (p)->regs[PLL_OFF_ALPHA_VAL])
+#define PLL_ALPHA_VAL_U(p)	((p)->offset + (p)->regs[PLL_OFF_ALPHA_VAL_U])
+
+#define PLL_USER_CTL(p)		((p)->offset + (p)->regs[PLL_OFF_USER_CTL])
+# define PLL_POST_DIV_SHIFT	8
+# define PLL_POST_DIV_MASK(p)	GENMASK((p)->width ? (p)->width - 1 : 3, 0)
+# define PLL_ALPHA_MSB		BIT(15)
+# define PLL_ALPHA_EN		BIT(24)
+# define PLL_ALPHA_MODE		BIT(25)
+# define PLL_VCO_SHIFT		20
+# define PLL_VCO_MASK		0x3
+
+#define PLL_USER_CTL_U(p)	((p)->offset + (p)->regs[PLL_OFF_USER_CTL_U])
+#define PLL_USER_CTL_U1(p)	((p)->offset + (p)->regs[PLL_OFF_USER_CTL_U1])
+
+#define PLL_CONFIG_CTL(p)	((p)->offset + (p)->regs[PLL_OFF_CONFIG_CTL])
+#define PLL_CONFIG_CTL_U(p)	((p)->offset + (p)->regs[PLL_OFF_CONFIG_CTL_U])
+#define PLL_CONFIG_CTL_U1(p)	((p)->offset + (p)->regs[PLL_OFF_CONFIG_CTL_U1])
+#define PLL_CONFIG_CTL_U2(p)	((p)->offset + (p)->regs[PLL_OFF_CONFIG_CTL_U2])
+#define PLL_TEST_CTL(p)		((p)->offset + (p)->regs[PLL_OFF_TEST_CTL])
+#define PLL_TEST_CTL_U(p)	((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U])
+#define PLL_TEST_CTL_U1(p)     ((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U1])
+#define PLL_TEST_CTL_U2(p)     ((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U2])
+#define PLL_STATUS(p)		((p)->offset + (p)->regs[PLL_OFF_STATUS])
+#define PLL_OPMODE(p)		((p)->offset + (p)->regs[PLL_OFF_OPMODE])
+#define PLL_FRAC(p)		((p)->offset + (p)->regs[PLL_OFF_FRAC])
+
 #define PWR_ON_MASK		BIT(31)
 #define EN_REST_WAIT_MASK	GENMASK_ULL(23, 20)
 #define EN_FEW_WAIT_MASK	GENMASK_ULL(19, 16)
@@ -66,33 +107,6 @@ typedef uint32_t qcom_cc_regs[CC_REG_MAX];
 #define GDSC_POWER_DOWN_COMPLETE	BIT(15)
 #define GDSC_RETAIN_FF_ENABLE		BIT(11)
 #define CFG_GDSCR_OFFSET		0x4
-
-/**
- * struct clk_alpha_pll - phase locked loop (PLL)
- * @offset: base address of registers
- * @regs: alpha pll register map (see @clk_alpha_pll_regs)
- * @vco_table: array of VCO settings
- * @num_vco: number of VCO settings in @vco_table
- * @flags: bitmask to indicate features supported by the hardware
- * @clkr: regmap clock handle
- */
-struct clk_alpha_pll {
-	uint32_t offset;
-	const uint8_t *regs;
-	// struct alpha_pll_config *config;
-	// const struct pll_vco *vco_table;
-	size_t num_vco;
-#define SUPPORTS_OFFLINE_REQ		BIT(0)
-#define SUPPORTS_FSM_MODE		BIT(2)
-#define SUPPORTS_DYNAMIC_UPDATE	BIT(3)
-#define SUPPORTS_FSM_LEGACY_MODE	BIT(4)
-#define DISABLE_TO_OFF		BIT(5)
-#define ENABLE_IN_PREPARE	BIT(6)
-	uint8_t flags;
-
-	// struct clk_regmap clkr;
-};
-
 
 /**
  * struct gdsc - Globally Distributed Switch Controller
@@ -181,8 +195,8 @@ struct qcom_cc_desc {
 	// unsigned int icc_first_node_id;
 
     /* added fields */
-    struct clk_alpha_pll **plls;
-    size_t num_plls;
+    struct clk_alpha_pll **alpha_plls;
+    size_t num_alpha_plls;
 
     qcom_cc_regs reset_regs;
 };

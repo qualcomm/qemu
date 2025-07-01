@@ -2,6 +2,7 @@
 #include "hw/sysbus-of.h"
 
 #include "hw/qcom/cc/cc.h"
+#include "hw/qcom/cc/clk-alpha-pll.h"
 
 // ==== adapted from the linux kernel ====
 
@@ -97,6 +98,41 @@ static struct gdsc *gpu_cc_canoe_gdscs[] = {
 	[GPU_CC_CX_GMU_GDSC] = &gpu_cc_cx_gmu_gdsc,
 };
 
+static struct clk_alpha_pll gpu_cc_pll0 = {
+	.offset = 0x0,
+	// .vco_table = taycan_eko_t_vco,
+	// .num_vco = ARRAY_SIZE(taycan_eko_t_vco),
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_TAYCAN_EKO_T],
+	// .clkr = {
+	// 	.hw.init = &(const struct clk_init_data) {
+	// 		.name = "gpu_cc_pll0",
+	// 		.parent_data = &(const struct clk_parent_data) {
+	// 			.fw_name = "bi_tcxo",
+	// 		},
+	// 		.num_parents = 1,
+	// 		.ops = &clk_alpha_pll_taycan_eko_t_ops,
+	// 	},
+	// 	.vdd_data = {
+	// 		.vdd_class = &vdd_mx,
+	// 		.num_rate_max = VDD_NUM,
+	// 		.rate_max = (unsigned long[VDD_NUM]) {
+	// 			[VDD_LOWER_D2] = 1600000000,
+	// 			[VDD_LOW] = 1600000000,
+	// 			[VDD_LOW_L1] = 1600000000,
+	// 			[VDD_NOMINAL] = 2000000000,
+	// 			[VDD_HIGH] = 2500000000},
+	// 	},
+	// },
+};
+
+enum pll_kind {
+    GPUCC_PLL_0,
+};
+
+static struct clk_alpha_pll *gpucc_canoe_plls[] = {
+	[GPUCC_PLL_0] = &gpu_cc_pll0,
+};
+
 const struct qcom_cc_desc gpu_cc_canoe_desc = {
 	// .config = &gpu_cc_canoe_regmap_config,
 	// .clks = gpu_cc_canoe_clocks,
@@ -108,8 +144,19 @@ const struct qcom_cc_desc gpu_cc_canoe_desc = {
 	.gdscs = gpu_cc_canoe_gdscs,
 	.num_gdscs = ARRAY_SIZE(gpu_cc_canoe_gdscs),
 
+    .alpha_plls = gpucc_canoe_plls,
+    .num_alpha_plls = ARRAY_SIZE(gpucc_canoe_plls),
+
     /* added field */
     .reset_regs = {
+        [CC_REG_PLL_MODE] = 0x00000000
+                                | PLL_ACTIVE_FLAG
+                                | PLL_LOCK_DET,
+        [CC_REG_PLL_L_VAL] = 0x00480000,
+        [CC_REG_PLL_ALPHA_VAL] = 0x00000000,
+        [CC_REG_PLL_USER_CTL] = 0x00000009,
+        [CC_REG_GMU_CBCR] = 0x88000000,
+        [CC_REG_CXO_CBCR] = 0x88000000,
         [CC_REG_GDSCR] = 0x0222F801
                                 | PWR_ON_MASK,
         [CC_REG_GDSCR_CFG] = 0x04088000
