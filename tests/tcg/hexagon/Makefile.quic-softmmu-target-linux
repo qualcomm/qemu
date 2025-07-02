@@ -55,7 +55,7 @@ qtimer.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3
 
 run-vid-group: QEMU_BASE_MACHINE=-cpu v67,sched-limit=on
 run-test-thread: QEMU_EXTRA_OPTS=-smp cpus=8
-run-test-thread-mttcg: QEMU_EXTRA_OPTS+=-accel tcg,thread=multi
+run-test-thread-sttcg: QEMU_EXTRA_OPTS+=-accel tcg,thread=single
 run-coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
@@ -70,7 +70,7 @@ run-swi_wait: swi_wait
 run-tlblock: tlblock
 run-k0lock: k0lock
 run-vid-group: vid-group
-run-test-thread: run-test-thread-mttcg
+run-test-thread: run-test-thread-sttcg
 run-coproc:coproc
 run-coproc_conv:coproc_conv
 run-coproc_range:coproc_range
@@ -146,7 +146,7 @@ run-tlblock run-k0lock run-swi_wait run-timer_reg run-qtimer_test run-vid-group:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
 
-run-test-thread run-test-thread-mttcg: test-thread
+run-test-thread run-test-thread-sttcg: test-thread
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< ,"$< on $(TARGET_NAME) $(@:run-$<-%=%)")
 
 run-coproc_conv_fp16: coproc_conv_fp16
