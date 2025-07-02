@@ -1,4 +1,4 @@
-image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
+image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u22:latest
 
 workflow:
   auto_cancel:
@@ -139,6 +139,7 @@ hexagon-linux-x86_64-perf-ml:
 
 # QEMU Hexagon for Linux on x86_64 with sanatizers enabled
 hexagon-linux-x86_64-san:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: build
   script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,san
   artifacts:
@@ -146,12 +147,14 @@ hexagon-linux-x86_64-san:
     expire_in: 1 day
 
 hexagon-linux-x86_64-san-check-tcg:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   dependencies:
     - hexagon-linux-x86_64
   script: quic/scripts/run-check-tcg.sh
 
 hexagon-linux-x86_64-san-check:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   tags: [ new-libseccomp ]
   dependencies:
@@ -159,24 +162,28 @@ hexagon-linux-x86_64-san-check:
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
 hexagon-linux-x86_64-san-qurt:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   dependencies:
     - hexagon-linux-x86_64-san
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
 
 hexagon-linux-x86_64-san-sival:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   dependencies:
     - hexagon-linux-x86_64-san
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
 
 hexagon-linux-x86_64-san-boot:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   dependencies:
     - hexagon-linux-x86_64-san
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
 
 hexagon-linux-x86_64-san-virtio:
+  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   dependencies:
     - hexagon-linux-x86_64-san
