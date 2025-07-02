@@ -91,9 +91,24 @@ void wait_for_ints_delivered(int n)
 static void interrupt_handler(int intno)
 {
     uint32_t thread_id = get_htid();
+    asm volatile("k0lock\n");
     ints_by_irq[intno]++;
     ints_by_tid[thread_id]++;
+    asm volatile("k0unlock\n");
 }
+
+void wait_for_wait(void)
+{
+    unsigned wait_mask, threads_mask = 0;
+    for (int i = 1; i < TOTAL_THREAD_COUNT; i++) {
+        threads_mask |= (1 << i);
+    }
+    do {
+        wait_mask = (read_modectl() >> 16) & threads_mask;
+        swi(0x1);
+    } while (wait_mask != 0);
+}
+
 
 int main()
 {
@@ -177,10 +192,8 @@ int main()
 
     /* Teardown: */
     tasks_enabled = false;
-    for (int i = 0; i < 5; i++) {
-        swi(0x1);
-        pcycle_pause(100000);
-    }
+    wait_for_wait();
+
     thread_join(1 << 1);
     thread_join(1 << 2);
     thread_join(1 << 3);
