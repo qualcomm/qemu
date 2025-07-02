@@ -43,6 +43,7 @@
     DEF_SWI_FLAG(WRITEC,           0x03) \
     DEF_SWI_FLAG(WRITE0,           0x04) \
     DEF_SWI_FLAG(ISTTY,            0x09) \
+    DEF_SWI_FLAG(HEAPINFO,         0x16) \
     DEF_SWI_FLAG(ENTERSVC,         0x17) /* from newlib */ \
     DEF_SWI_FLAG(EXCEPTION,        0x18) /* from newlib */ \
     DEF_SWI_FLAG(READ_CYCLES,      0x40) \
@@ -685,6 +686,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_PROF_OFF:
     case HEX_SYS_PROF_STATSRESET:
     case HEX_SYS_DUMP_PMU_STATS:
+    case HEX_SYS_HEAPINFO:
         semi_set_return(env, -1, ENOSYS);
         qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
                       what_swi);
