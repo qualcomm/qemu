@@ -1,4 +1,4 @@
-image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u22:latest
+image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
 
 workflow:
   auto_cancel:
