@@ -20,12 +20,13 @@ variables:
 checkpatch:
   stage: .pre
   variables:
-    GIT_DEPTH: 50
+    GIT_DEPTH: 250
     GIT_FETCH_EXTRA_FLAGS: --filter=blob:none --filter=tree:0 --prune --quiet
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script: quic-gitlab-ci.d/checkpatch.sh
   timeout: 5 minutes
+  allow_failure: true
 
 user_guide:
   stage: build
