@@ -75,10 +75,11 @@ IOVATree *iova_tree_new(void);
  * iova_tree_insert:
  *
  * @tree: the iova tree to insert
- * @map: the mapping to insert
+ * @map: the mapping to insert.
  *
  * Insert an iova range to the tree.  If there is overlapped
  * ranges, IOVA_ERR_OVERLAP will be returned.
+ * The map is copied during the insertion.
  *
  * Return: 0 if succeeded, or <0 if error.
  */

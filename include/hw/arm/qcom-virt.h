@@ -50,6 +50,7 @@ enum QcomVirtDeviceType {
     VIRT_QCOM_CRM_PCIE,
     VIRT_QCOM_QMP,
     VIRT_QCOM_KGSL_SMMU,
+    VIRT_QCOM_APPS_SMMU,
     VIRT_QCOM_GRAPHICS,
 };
 

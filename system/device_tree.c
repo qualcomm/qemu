@@ -1045,7 +1045,7 @@ static int copy_properties(void* out_fdt, void* in_fdt, int out_node_offset, int
             }
         }
 
-        // check nodes by phandle if they contain some.
+        // check if we can find phandle links.
         bool out_fdt_updated = false;
         if (!strcmp(prop_name, QEMU_FDT_PROP_INTERRUPT_PARENT)) {
             // when an interrupt parent property is met, try to update the phandle

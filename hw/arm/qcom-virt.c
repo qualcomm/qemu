@@ -75,6 +75,7 @@
 #include "hw/qcom/rpmh-rsc.h"
 #include "hw/qcom/smmu.h"
 #include "hw/qcom/smc.h"
+#include "hw/qcom/icc-rpmh.h"
 
 static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
@@ -261,8 +262,6 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* ipcc_mproc = qemu_fdt_node_path_by_label(qcom_fdt, "ipcc_mproc", &error_abort);
     const char* aoss_qmp = qemu_fdt_node_path_by_label(qcom_fdt, "aoss_qmp", &error_abort);
     const char* gxclkctl = qemu_fdt_node_path_by_label(qcom_fdt, "gxclkctl", &error_abort);
-    const char* mc_virt = qemu_fdt_node_path_by_label(qcom_fdt, "mc_virt", &error_abort);
-    const char* gem_noc = qemu_fdt_node_path_by_label(qcom_fdt, "gem_noc", &error_abort);
 
     const char* bcm_voter0 = qemu_fdt_node_path_by_label(qcom_fdt, "pcie_crm_hw_0_bcm_voter", &error_abort);
     const char* bcm_voter1 = qemu_fdt_node_path_by_label(qcom_fdt, "disp_crm_hw_0_bcm_voter", &error_abort);
@@ -305,8 +304,6 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
 
         aoss_qmp,
         gxclkctl,
-        mc_virt,
-        gem_noc,
 
         qcom_scm,
         qcom_hwfence_shbuf,
@@ -389,6 +386,12 @@ static const struct QcomVirtDevice qcom_devices[] = {
     [VIRT_QCOM_KGSL_SMMU] = {
         .label = "kgsl_smmu",
         .mem_size = 0x40000,
+        .device_create = add_smmu,
+        .priority = 1,
+    },
+    [VIRT_QCOM_APPS_SMMU] = {
+        .label = "apps_smmu",
+        .mem_size = 0x100000,
         .device_create = add_smmu,
         .priority = 1,
     },
@@ -486,6 +489,19 @@ static void qcom_create_devices(MachineState* machine)
     QcomCmdDbClass* kcmd = QCOM_CMD_DB_GET_CLASS(qvms->cmd_db);
     kcmd->commit(qvms->cmd_db, &error_abort);
 
+    for (size_t i = 0; i < canoe_icc_collection.num_icc_mds; ++i) {
+        const struct qcom_icc_md* md = &canoe_icc_collection.icc_mds[i];
+        const char* icc_node = qemu_fdt_node_path_by_label(qvms->fdt, md->label, &error_abort);
+        qemu_fdt_copy_node(machine->fdt, qvms->fdt, icc_node, &error_abort);
+    }
+
+    const char compat_adreno_qsmmu[] = "qcom,qsmmu-v500\0qcom,adreno-smmu-dummy";
+    qemu_fdt_delprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", &error_abort);
+    qemu_fdt_setprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", compat_adreno_qsmmu, sizeof(compat_adreno_qsmmu));
+
+    qemu_fdt_delprop(machine->fdt, "/soc/apps-smmu@15000000/lpass_qtb@7b3000", "interconnects", &error_abort);
+    qemu_fdt_setprop_cells(machine->fdt, "/soc/apps-smmu@15000000/lpass_qtb@7b3000", "interconnects",
+                            0x88, 0x00, 0x45, 0x200);
     // replace the range with an empty range, so that the kernel is happy.
     // otherwise, the kernel thinks the soc is mapped at address 0 and does not
     // map the devices at all...
@@ -497,8 +513,8 @@ static void qcom_create_devices(MachineState* machine)
     qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-mxclvl/regulator-pmh0110-f-s9-mmcx-voter-level", "pmh0110_f_s9_mmcx_voter_level-parent-supply", &error_abort);
     qemu_fdt_delprop(machine->fdt, "/soc/rsc@18900000/drv@2/rpmh-regulator-gmxclvl/regulator-pmh0110-f-s10-gfx-voter-level", "pmh0110_f_s10_gfx_voter_level-parent-supply", &error_abort);
 
-    // remove iommu for hw fences for now
-    qemu_fdt_delprop(machine->fdt, "/soc/qcom,hw-fence", "iommus", &error_abort);
+    // remove iommu refs for hw fences for now
+    // qemu_fdt_delprop(machine->fdt, "/soc/qcom,hw-fence", "iommus", &error_abort);
 
     // edit base addresses of the SoC with the new one
     qemu_fdt_set_nodes_addr(machine->fdt, "/soc", qvms->base_addr, &error_abort);

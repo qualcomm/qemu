@@ -4,6 +4,18 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "exec/memory.h"
+#include "qemu/error-report.h"
+
+/* Configuration registers for the dummy device */
+#define QCOM_SMMU_DUMMY_PADDR_LO	0x39000
+#define QCOM_SMMU_DUMMY_PADDR_HI	0x39004
+#define QCOM_SMMU_DUMMY_IOVA_LO		0x39008
+#define QCOM_SMMU_DUMMY_IOVA_HI		0x3900c
+#define QCOM_SMMU_DUMMY_PGSIZE		0x39010
+#define QCOM_SMMU_DUMMY_VMID		0x39014
+#define QCOM_SMMU_DUMMY_COMMIT		0x39018
+
+#define BITS32_MASK                 0xffffffff
 
 QcomSMMUState* qcom_smmu_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
 	DeviceState* dev = qdev_new(TYPE_QCOM_SMMU);
@@ -37,6 +49,21 @@ QcomSMMUState* qcom_smmu_create_by_label(void* fdt, void* in_fdt, const char* la
 	return sdev;
 }
 
+hwaddr qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size)
+{
+    DMAMap needle = {
+        .iova = iova,
+        .size = size,
+    };
+
+    assert(s->dummy_state.domains[vmid]);
+
+    const DMAMap* res = iova_tree_find(s->dummy_state.domains[vmid]->maps, &needle);
+    assert(res);
+
+    return res->translated_addr;
+}
+
 static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
 {
     QcomSMMUState *s = QCOM_SMMU(opaque);
@@ -67,11 +94,78 @@ static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void qcom_smmu_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned int size)
+                              uint64_t _value, unsigned int size)
 {
     QcomSMMUState *s = QCOM_SMMU(opaque);
+    uint32_t value = _value;
 
-    printf("[%s] Write at address 0x%lx of value 0x%lx\n", s->name, addr, value);
+    printf("[%s] Write at address 0x%lx of value 0x%x\n", s->name, addr, value);
+
+    switch (addr) {
+        case QCOM_SMMU_DUMMY_PADDR_LO: {
+            s->dummy_state.cached_map.translated_addr &= ~BITS32_MASK;
+            s->dummy_state.cached_map.translated_addr |= value;
+            break;
+        }
+        case QCOM_SMMU_DUMMY_PADDR_HI: {
+            s->dummy_state.cached_map.translated_addr &= BITS32_MASK;
+            s->dummy_state.cached_map.translated_addr |= (_value << 32);
+            break;
+        }
+        case QCOM_SMMU_DUMMY_IOVA_LO: {
+            s->dummy_state.cached_map.iova &= ~BITS32_MASK;
+            s->dummy_state.cached_map.iova |= value;
+            break;
+        }
+        case QCOM_SMMU_DUMMY_IOVA_HI: {
+            s->dummy_state.cached_map.iova &= BITS32_MASK;
+            s->dummy_state.cached_map.iova |= (_value << 32);
+            break;
+        }
+        case QCOM_SMMU_DUMMY_PGSIZE: {
+            s->dummy_state.cached_map.size = value;
+            break;
+        }
+        case QCOM_SMMU_DUMMY_VMID: {
+            s->dummy_state.cached_vmid = value;
+            break;
+        }
+        case QCOM_SMMU_DUMMY_COMMIT: {
+            if (value) {
+                struct DMAMap* map = &s->dummy_state.cached_map;
+                uint32_t vmid = s->dummy_state.cached_vmid;
+
+                if (s->dummy_state.cached_vmid > 1024) {
+                    error_report("a high value of VMID has been provided. It's either a bug or the current domain implementation should be changed for a hashmap.");
+                    exit(1);
+                }
+
+                if (vmid >= s->dummy_state.nb_domains) {
+                    uint64_t nb_new_bytes = (vmid + 1 - s->dummy_state.nb_domains) * sizeof(struct smmu_dummy_domain*);
+                    uint64_t old_nb_domains = s->dummy_state.nb_domains;
+
+                    s->dummy_state.domains = g_realloc_n(s->dummy_state.domains, vmid + 1, sizeof(struct smmu_dummy_domain*));
+                    s->dummy_state.nb_domains = vmid + 1;
+
+                    memset(s->dummy_state.domains + old_nb_domains, 0, nb_new_bytes);
+                }
+                assert(vmid < s->dummy_state.nb_domains);
+
+                if (!s->dummy_state.domains[vmid]) {
+                    s->dummy_state.domains[vmid] = g_new(struct smmu_dummy_domain, 1);
+                }
+
+                struct smmu_dummy_domain* domain = s->dummy_state.domains[vmid];
+
+                domain->maps = iova_tree_new();
+                iova_tree_insert(domain->maps, map);
+            }
+            break;
+        }
+        default:
+            printf("\tUnknown write address.\n");
+            break;
+    }
 }
 
 static const MemoryRegionOps qcom_smmu_ops = {

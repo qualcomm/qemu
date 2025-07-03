@@ -88,10 +88,16 @@ struct qcom_icc_desc {
 	// bool qos_clks_required;
 };
 
-extern const struct qcom_icc_desc canoe_gem_noc;
+struct qcom_icc_md {
+    const char* label;
+    const struct qcom_icc_desc* desc;
+};
 
-extern const struct qcom_icc_desc canoe_mc_virt;
+struct qcom_icc_collection {
+    const struct qcom_icc_md* icc_mds;
+    size_t num_icc_mds;
+};
 
-extern const struct qcom_icc_desc canoe_cnoc_main;
+extern const struct qcom_icc_collection canoe_icc_collection;
 
 #endif

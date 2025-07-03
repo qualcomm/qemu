@@ -16,6 +16,7 @@
 #ifndef QEMU_QCOM_GRAPHICS_H
 #define QEMU_QCOM_GRAPHICS_H
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
@@ -30,7 +31,7 @@ struct QcomGraphicsState {
 
     MemoryRegion iomem;
 
-    // qemu_irq irqs[2];
+    uint32_t regs[0x100000];
 };
 
 #endif

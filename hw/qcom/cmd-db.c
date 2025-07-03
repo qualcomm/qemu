@@ -542,30 +542,17 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
         }
     }
 
-    // initialize ICC RPMh gem noc
-    for (size_t i = 0; i < canoe_gem_noc.num_bcms; ++i) {
-        struct qcom_icc_bcm* bcm_entry = canoe_gem_noc.bcms[i];
-        if (bcm_entry != NULL) {
-            struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
-        }
-    }
+    // initialize ICC RPMh memdb entries
+    for (size_t i = 0; i < canoe_icc_collection.num_icc_mds; ++i) {
+        const struct qcom_icc_md* md = &canoe_icc_collection.icc_mds[i];
 
-    // initialize ICC RPMh MC virt
-    for (size_t i = 0; i < canoe_mc_virt.num_bcms; ++i) {
-        struct qcom_icc_bcm* bcm_entry = canoe_mc_virt.bcms[i];
-        if (bcm_entry != NULL) {
-            struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
-        }
-    }
+        for (size_t j = 0; j < md->desc->num_bcms; ++j) {
+            struct qcom_icc_bcm* bcm_entry = md->desc->bcms[j];
 
-    // initialize ICC RPMh CNOC main
-    for (size_t i = 0; i < canoe_cnoc_main.num_bcms; ++i) {
-        struct qcom_icc_bcm* bcm_entry = canoe_cnoc_main.bcms[i];
-        if (bcm_entry != NULL) {
-            struct bcm_db* bcm = g_new0(struct bcm_db, 1);
-            qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
+            if (bcm_entry != NULL) {
+                struct bcm_db* bcm = g_new0(struct bcm_db, 1);
+                qcom_cmd_db_add_entry(cmds, bcm_entry->name, CMD_DB_HW_BCM, 4, (void*) bcm, sizeof(struct bcm_db));
+            }
         }
     }
 
