@@ -116,4 +116,6 @@ struct OfSysBusDevice {
 
 bool of_sysbus_access_in_reg(OfSysBusDevice* ofdev, uint32_t reg_idx, hwaddr addr, unsigned size);
 
+OfSysBusDevice *of_sysbus_find_by_phandle(uint32_t phandle);
+
 #endif /* HW_SYSBUS_H */

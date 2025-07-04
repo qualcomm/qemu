@@ -50,9 +50,10 @@ struct reg64 {
 struct phandle_entry {
     const char* name;
     const char* size_name;
+    enum fdt_prop_kind kind;
 };
 
-struct phandle_entry phandle_entries[] = {
+const struct phandle_entry phandle_entries[] = {
     { .name = "clocks", .size_name = "#clock-cells" },
     { .name = "cooling-device", .size_name = "#cooling-cells" },
     { .name = "dmas", .size_name = "#dma-cells" },
@@ -60,7 +61,7 @@ struct phandle_entry phandle_entries[] = {
     { .name = "interconnects", .size_name = "#interconnect-cells" },
     { .name = "interrupts-extended", .size_name = "#interrupt-cells" },
     { .name = "io-channels", .size_name = "#io-channel-cells" },
-    { .name = "iommus", .size_name = "#iommu-cells" },
+    { .name = "iommus", .size_name = "#iommu-cells", .kind = FDT_PROP_IOMMU },
     { .name = "mboxes", .size_name = "#mbox-cells" },
     { .name = "msi-parent", .size_name = "#msi-cells" },
     { .name = "mux-controls", .size_name = "#mux-control-cells" },
@@ -131,6 +132,20 @@ static void skip_u32(struct prop_iter* iter, uint32_t nb_skips) {
         // assign total_len when we try to skip beyond the total length.
         iter->current_offset = iter->total_len;
     }
+}
+
+static GArray* get_u32_array(struct prop_iter* iter, uint32_t nb_elts) {
+    GArray* array = g_array_new(false, false, sizeof(uint32_t));
+
+    uint32_t val;
+    uint32_t i;
+    for (i = 0; i < nb_elts && peek_u32(iter, &val); ++i) {
+        g_array_append_val(array, val);
+    }
+
+    iter->current_offset += i * sizeof(uint32_t);
+
+    return array;
 }
 
 void *create_device_tree(int *sizep)
@@ -717,16 +732,7 @@ bool qemu_fdt_getprop_reg(void* fdt,
 
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 {
-    uint32_t r;
-
-    r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
-    if (r == 0) {
-        error_report("%s: Couldn't get phandle for %s: %s", __func__,
-                     path, fdt_strerror(r));
-        exit(1);
-    }
-
-    return r;
+    return fdt_get_phandle(fdt, findnode_nofail(fdt, path));
 }
 
 int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
@@ -734,6 +740,13 @@ int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
                              const char *target_node_path)
 {
     uint32_t phandle = qemu_fdt_get_phandle(fdt, target_node_path);
+
+    if (phandle == 0) {
+        error_report("%s: Couldn't get phandle for %s: %s", __func__,
+                     target_node_path, fdt_strerror(phandle));
+        exit(1);
+    }
+
     return qemu_fdt_setprop_cell(fdt, node_path, property, phandle);
 }
 
@@ -933,7 +946,7 @@ void qemu_fdt_randomize_seeds(void *fdt)
 }
 
 // returns true if out_fdt has been updated.
-static bool handle_phandle_node(void *out_fdt, void *in_fdt, const char* node_path, struct phandle_entry* pentry, int in_prop_offset, const char* nodes_path[], Error **errp)
+static bool handle_phandle_node(void *out_fdt, void *in_fdt, const char* node_path, const struct phandle_entry* pentry, int in_prop_offset, const char* nodes_path[], Error **errp)
 {
     int len, in_node_offset;
     bool updated = false;
@@ -998,6 +1011,75 @@ fail:
     error_setg(errp, "%s: Couldn't find phandle 0x%x for property %s: %s", __func__, phandle, pentry->name, fdt_strerror(in_node_offset));
 
     return updated;
+}
+
+GArray* qemu_fdt_collect_phandle_props(void* fdt, const char* node_path, Error **errp)
+{
+    int prop_offset, len, phandle_node_offset;
+    int ret = 0;
+    int node_offset = fdt_path_offset(fdt, node_path);
+    const void* prop;
+    const char* prop_name;
+    assert(node_offset >= 0);
+
+    GArray* prop_array = g_array_new(false, false, sizeof(struct fdt_phandle_prop_data));
+
+    fdt_for_each_property_offset(prop_offset, fdt, node_offset) {
+        prop = fdt_getprop_by_offset(fdt, prop_offset, &prop_name, &len);
+        if (!prop) {
+            ret = len;
+            goto fail;
+        }
+
+        for (size_t i = 0; i < ARRAY_SIZE(phandle_entries); ++i) {
+            if (!strcmp(prop_name, phandle_entries[i].name)) {
+                struct prop_iter iter = create_prop_iter(fdt, prop_offset);
+                const struct phandle_entry* pentry = &phandle_entries[i];
+                
+                uint32_t phandle, val;
+                while (get_u32(&iter, &phandle)) {
+                    phandle_node_offset = fdt_node_offset_by_phandle(fdt, phandle);
+
+                    if (phandle_node_offset < 0) {
+                        goto fail;
+                    }
+
+                    // in theory, we should dereference after the assert...
+                    int cell_size;
+                    if (pentry->size_name) {
+                        cell_size = prop_to_u32(fdt_getprop(fdt, phandle_node_offset, pentry->size_name, &len));
+                        assert(len == 4);
+                    } else {
+                        cell_size = 0;
+                    }
+
+                    GArray* params = get_u32_array(&iter, cell_size);
+
+                    struct fdt_phandle_prop_data data = {
+                        .phandle = phandle,
+                        .kind = pentry->kind,
+                        .params = params,
+                    };
+
+                    g_array_append_val(prop_array, data);
+
+                    // sometimes there is a 0 that should not be there...
+                    // bug in dts file?
+                    // TODO: remove when fix is pushed
+                    if (peek_u32(&iter, &val) && val == 0) {
+                        skip_u32(&iter, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    return prop_array;
+
+fail:
+    error_setg(errp, "%s: Couldn't collect property %s in node %s: %s", __func__, prop_name, node_path, fdt_strerror(ret));
+
+    return NULL;
 }
 
 // return the new out_node_offset, since it could be updated.
@@ -1116,7 +1198,7 @@ fail:
 
     error_setg(errp, "%s: Couldn't copy property %s in node %s: %s", __func__, prop_name, in_node_path, fdt_strerror(ret));
 
-    return out_node_offset;
+    return ret;
 }
 
 void qemu_fdt_copy_node_properties(void *out_fdt, void *in_fdt, const char *node_path, Error **errp)

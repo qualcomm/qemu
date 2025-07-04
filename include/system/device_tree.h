@@ -28,15 +28,31 @@
 #define QEMU_FDT_PROP_COMPATIBLE            "compatible"
 #define QEMU_FDT_PROP_PHANDLE               "phandle"
 
+struct fdt_reg {
+    hwaddr addr;
+    uint64_t size;
+};
+
 struct fdt_interrupts {
     uint32_t interrupt_controller_phandle;
     size_t nb_interrupts;
     uint32_t* interrupts;
 };
 
-struct fdt_reg {
-    hwaddr addr;
-    uint64_t size;
+struct fdt_iommu {
+    GArray* sids;
+};
+
+enum fdt_prop_kind {
+    FDT_PROP_REG,
+    FDT_PROP_INTERRUPT,
+    FDT_PROP_IOMMU,
+};
+
+struct fdt_phandle_prop_data {
+    enum fdt_prop_kind kind;
+    uint32_t phandle;
+    GArray* params;
 };
 
 struct fdt_iter {
@@ -385,6 +401,8 @@ bool qemu_fdt_check(const void* fdt, Error **errp);
 struct fdt_iter qemu_fdt_compat_iter_create(void* fdt, const char* compatible, const char* node_path);
 
 char* qemu_fdt_compat_iter_next(void* fdt, struct fdt_iter* iter);
+
+GArray* qemu_fdt_collect_phandle_props(void* fdt, const char* node_path, Error **errp);
 
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000

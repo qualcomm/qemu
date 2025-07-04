@@ -28,6 +28,36 @@
 
 #include "system/device_tree.h"
 
+static OfSysBusDevice *of_sysbus_find_by_phandle_recursive(BusState* parent, uint32_t phandle)
+{
+    BusChild *kid;
+    OfSysBusDevice *ret;
+    BusState *child;
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        QTAILQ_FOREACH_RCU(kid, &parent->children, sibling) {
+            DeviceState *dev = kid->child;
+
+            if (dev->phandle == phandle) {
+                return OF_SYS_BUS_DEVICE(dev);
+            }
+
+            QLIST_FOREACH(child, &dev->child_bus, sibling) {
+                ret = of_sysbus_find_by_phandle_recursive(child, phandle);
+                if (ret) {
+                    return ret;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+OfSysBusDevice *of_sysbus_find_by_phandle(uint32_t phandle)
+{
+    return of_sysbus_find_by_phandle_recursive(sysbus_get_default(), phandle);
+}
+
 bool of_sysbus_access_in_reg(OfSysBusDevice* ofdev, uint32_t reg_idx, hwaddr addr, unsigned size)
 {
     if (reg_idx >= ofdev->nb_regs) {
@@ -89,6 +119,8 @@ static void of_sysbus_realize(DeviceState* dev, Error **errp)
     if (ofdev->in_fdt) {
         qemu_fdt_copy_node(ofdev->fdt, ofdev->in_fdt, of_node_path, errp);
     }
+
+    dev->phandle = qemu_fdt_get_phandle(ofdev->fdt, of_node_path);
 
     dev_table = kofdev->of_match_table;
     if (dev_table) {

@@ -232,6 +232,12 @@ struct DeviceState {
      * @id: global device id
      */
     char *id;
+
+    /**
+     * @phandle: DT phandle, if any.
+     */
+    uint32_t phandle;
+
     /**
      * @canonical_path: canonical path of realized device in the QOM tree
      */
