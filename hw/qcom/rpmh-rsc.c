@@ -172,39 +172,6 @@ const struct regulator_md regulators[] = {
     },
 };
 
-
-QcomRpmhRscState* rpmh_rsc_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
-	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
-
-	cdev->mem_size = mem_size;
-	cdev->name = name;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
-QcomRpmhRscState* rpmh_rsc_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_RPMH_RSC);
-	QcomRpmhRscState* cdev = QCOM_RPMH_RSC(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
-
-	cdev->mem_size = mem_size;
-	cdev->name = label;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
 static void qcom_rpmh_rsc_init(Object* obj)
 {
     QcomRpmhRscState* rpmhs = QCOM_RPMH_RSC(obj);
@@ -281,55 +248,65 @@ static void reset_tcs_cmd_regs(rpmh_reset_regs reset_table, struct rpmh_tcs_cmd*
 }
 
 static enum rpmh_regs decode_drv_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr drv_addr) {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = RSC_DRV_START; i < RSC_DRV_END; ++i) {
         if (regtable[i] == drv_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal drv addr: 0x%lx\n", s->name, drv_addr);
+    printf("[! - %s] Illegal drv addr: 0x%lx\n", ofdev->name, drv_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_common_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_common_addr) {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = RSC_TCS_COMMON_START; i < RSC_TCS_COMMON_END; ++i) {
         if (regtable[i] == tcs_common_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs common addr: 0x%lx\n", s->name, tcs_common_addr);
+    printf("[! - %s] Illegal tcs common addr: 0x%lx\n", ofdev->name, tcs_common_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_addr) {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = RSC_TCS_START; i < RSC_TCS_END; ++i) {
         if (regtable[i] == tcs_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs addr: 0x%lx\n", s->name, tcs_addr);
+    printf("[! - %s] Illegal tcs addr: 0x%lx\n", ofdev->name, tcs_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_cmd_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_cmd_addr) {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = RSC_TCS_CMD_START; i < RSC_TCS_CMD_END; ++i) {
         if (regtable[i] == tcs_cmd_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs cmd addr: 0x%lx\n", s->name, tcs_cmd_addr);
+    printf("[! - %s] Illegal tcs cmd addr: 0x%lx\n", ofdev->name, tcs_cmd_addr);
 
     return RSC_MAX;
 }
 
 static size_t get_drv_id(QcomRpmhRscState* s, hwaddr addr)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     // we ignore size / alignment considerations since it is enforced by the definition of the memop.
     for (size_t i = 0; i < s->nb_drvs; ++i) {
         if (s->drvs[i].present && addr >= s->drvs[i].base && addr < s->drvs[i].base + s->drvs[i].size) {
@@ -337,13 +314,15 @@ static size_t get_drv_id(QcomRpmhRscState* s, hwaddr addr)
         }
     }
 
-    printf("[! - %s] Illegal drv id: 0x%lx\n", s->name, addr);
+    printf("[! - %s] Illegal drv id: 0x%lx\n", ofdev->name, addr);
 
     return RSC_MAX;
 }
 
 static int get_tcs_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_drv* drv)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = 0; i < drv->nb_tcss; ++i) {
         hwaddr tcs_addr = drv->tcs_base + drv->tcs_size * i;
         if (addr >= tcs_addr && addr < tcs_addr + drv->tcs_size) {
@@ -351,12 +330,14 @@ static int get_tcs_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_drv* drv)
         }
     }
 
-    printf("[! - %s] Illegal tcs id: 0x%lx\n", s->name, addr);
+    printf("[! - %s] Illegal tcs id: 0x%lx\n", ofdev->name, addr);
     exit(1);
 }
 
 static int get_tcs_cmd_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs* tcs)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     for (size_t i = 0; i < tcs->nb_tcs_cmds; ++i) {
         hwaddr tcs_cmd_addr = tcs->tcs_cmd_base + tcs->tcs_cmd_size * i;
         if (addr >= tcs_cmd_addr && addr < tcs_cmd_addr + tcs->tcs_cmd_size) {
@@ -364,7 +345,7 @@ static int get_tcs_cmd_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs* tcs
         }
     }
 
-    printf("[! - %s] Illegal tcs id: 0x%lx\n", s->name, addr);
+    printf("[! - %s] Illegal tcs id: 0x%lx\n", ofdev->name, addr);
     exit(1);
 }
 
@@ -391,6 +372,8 @@ static bool is_tcs_cmd_access(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs*
 
 static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_tcs* tcs)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     size_t tcs_cmd_id = get_tcs_cmd_id(s, addr, tcs);
     size_t tcs_cmd_addr = get_tcs_cmd_addr(s, addr, tcs, tcs_cmd_id);
     enum rpmh_regs tcs_cmd_reg = decode_tcs_cmd_addr(s, s->regtable, tcs_cmd_addr);
@@ -402,27 +385,31 @@ static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned siz
 
     struct rpmh_tcs_cmd* tcs_cmd = &tcs->tcs_cmds[tcs_cmd_id];
 
-    printf("[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", s->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
+    printf("[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
 
     return read_tcs_cmd_reg(tcs_cmd, tcs_cmd_reg);
 }
 
 static uint64_t rpmh_read_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     hwaddr drv_addr = addr % drv->size;
     enum rpmh_regs drv_reg = decode_drv_addr(s, s->regtable, drv_addr);
 
-    printf("[%s] drv read @addr 0x%lx (reg %s)\n", s->name, drv_addr, rpmh_rsc_str[drv_reg]);
+    printf("[%s] drv read @addr 0x%lx (reg %s)\n", ofdev->name, drv_addr, rpmh_rsc_str[drv_reg]);
 
     return read_drv_reg(drv, drv_reg);
 }
 
 static uint64_t rpmh_read_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[%s] TCS common read @addr 0x%lx (reg %s)\n", s->name, tcs_common_addr, rpmh_rsc_str[tcs_reg]);
+    printf("[%s] TCS common read @addr 0x%lx (reg %s)\n", ofdev->name, tcs_common_addr, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -440,6 +427,8 @@ static uint64_t rpmh_read_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned 
 
 static uint64_t rpmh_read_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     size_t tcs_id = get_tcs_id(s, addr, drv);
     struct rpmh_tcs* tcs = &drv->tcss[tcs_id];
 
@@ -449,7 +438,7 @@ static uint64_t rpmh_read_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, s
         size_t tcs_addr = get_tcs_addr(s, addr, drv, tcs_id);
         enum rpmh_regs tcs_reg = decode_tcs_addr(s, s->regtable, tcs_addr);
 
-        printf("[%s] read for tcs %lx @addr 0x%lx (reg %s)\n", s->name, tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
+        printf("[%s] read for tcs %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
 
         return read_tcs_reg(tcs, tcs_reg);
     }
@@ -465,10 +454,12 @@ static void rpmh_write_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint
 
 static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint32_t val, struct rpmh_drv* drv)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[%s] common 0x%x at reg %s\n", s->name, val, rpmh_rsc_str[tcs_reg]);
+    printf("[%s] common 0x%x at reg %s\n", ofdev->name, val, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -628,13 +619,13 @@ static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
     int len;
 
     const uint32_t* reset_table;
-    if (!strcmp(s->name, "cam_rsc")) {
+    if (!strcmp(ofdev->name, "cam_rsc")) {
         reset_table = cam_reset_regs;
-    } else if (!strcmp(s->name, "apps_rsc")) {
+    } else if (!strcmp(ofdev->name, "apps_rsc")) {
         reset_table = apps_reset_regs;
     } else {
         error_setg(errp, "%s: unknown RPMh device: %s",
-                   __func__, s->name);
+                   __func__, ofdev->name);
         return;
     }
     
@@ -714,8 +705,8 @@ static void qcom_rpmh_rsc_realize(OfSysBusDevice* ofdev, Error **errp)
         }
     }
 
-	assert(s->mem_size);
-    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_rpmh_rsc_ops, s, TYPE_QCOM_RPMH_RSC, s->mem_size);
+	assert(ofdev->mem_size);
+    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_rpmh_rsc_ops, s, TYPE_QCOM_RPMH_RSC, ofdev->mem_size);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

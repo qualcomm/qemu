@@ -52,9 +52,6 @@ struct cmd_db_entry {
 struct QcomCmdDbState {
     OfSysBusDevice parent;
 
-    const char* name;
-    uint64_t mem_size;
-
     MemoryRegion rom;
     char* rom_content;
 
@@ -70,10 +67,6 @@ struct QcomCmdDbClass {
     void (*add)(QcomCmdDbState* cmds, struct cmd_db_entry* entry);
     void (*merge)(QcomCmdDbState* cmds, GArray* entries);
 };
-
-QcomCmdDbState* cmd_db_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
-
-QcomCmdDbState* cmd_db_create_by_label(void* out_fdt, void* in_fdt, const char* label, uint64_t mem_size);
 
 struct cmd_db_entry* qcom_cmd_db_array_get(GArray* array, size_t idx);
 void qcom_cmd_db_array_add_entry(GArray* array, const char* id, enum cmd_db_hw_type slv_id, uint32_t addr, void* data, uint16_t data_len);

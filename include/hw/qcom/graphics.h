@@ -17,8 +17,11 @@
 #define QEMU_QCOM_GRAPHICS_H
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/sysbus-of.h"
 #include "qom/object.h"
+
+#include "hw/qcom/graphics/kgsl-iommu.h"
+#include "hw/qcom/graphics/gmu.h"
 
 #define QCOM_GRAPHICS_BASE              0x3d00000
 #define QCOM_GRAPHICS_SIZE              0x0100000
@@ -27,11 +30,18 @@
 OBJECT_DECLARE_SIMPLE_TYPE(QcomGraphicsState, QCOM_GRAPHICS)
 
 struct QcomGraphicsState {
-    SysBusDevice parent;
+    OfSysBusDevice parent;
+
+    MemoryRegion container;
 
     MemoryRegion iomem;
 
-    uint32_t regs[0x100000];
+    uint32_t regs[0x100000 / 4];
+
+    QcomKgslIOMMUState* iommu;
+    QcomGmuState* gmu;
 };
+
+hwaddr qcom_graphics_decode_addr(hwaddr addr);
 
 #endif

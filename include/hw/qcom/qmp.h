@@ -26,9 +26,6 @@ struct QcomQMPState {
 
     MemoryRegion iomem;
 
-    const char* name;
-    size_t mem_size;
-
     char msg_buf[QMP_DESC_MCORE_MAX_SIZE + 1];
     size_t msg_size;
 };
@@ -36,8 +33,5 @@ struct QcomQMPState {
 struct QcomQMPClass {
     OfSysBusDeviceClass parent;
 };
-
-QcomQMPState* qcom_qmp_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
-QcomQMPState* qcom_qmp_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size);
 
 #endif

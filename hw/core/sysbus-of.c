@@ -28,6 +28,46 @@
 
 #include "system/device_tree.h"
 
+OfSysBusDevice* of_sysbus_create(const char* type, void* fdt, void* in_fdt, const char* node_path, const char* name, hwaddr mem_size)
+{
+	DeviceState* dev = qdev_new(type);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(dev);
+
+    assert(fdt);
+    assert(in_fdt);
+    assert(node_path);
+
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
+	qdev_prop_set_uint64(dev, OF_SYSBUS_PARAM_MEM_SIZE, mem_size);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NAME, name);
+
+	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+	return ofdev;
+}
+
+OfSysBusDevice* of_sysbus_create_by_label(const char* type, void* fdt, void* in_fdt, const char* label, hwaddr mem_size)
+{
+	DeviceState* dev = qdev_new(type);
+	OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(dev);
+
+    assert(fdt);
+    assert(in_fdt);
+    assert(label);
+
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
+	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
+	qdev_prop_set_uint64(dev, OF_SYSBUS_PARAM_MEM_SIZE, mem_size);
+	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NAME, label);
+
+	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+	return ofdev;
+}
+
 static OfSysBusDevice *of_sysbus_find_by_phandle_recursive(BusState* parent, uint32_t phandle)
 {
     BusChild *kid;
@@ -169,6 +209,8 @@ static const Property of_sysbus_properties[] = {
     DEFINE_PROP_PTR_VOID(OF_SYSBUS_PARAM_FDT, OfSysBusDevice, fdt, NULL),
     DEFINE_PROP_CONST_STRING(OF_SYSBUS_PARAM_NODE_LABEL, OfSysBusDevice, node_label),
     DEFINE_PROP_CONST_STRING(OF_SYSBUS_PARAM_NODE_PATH, OfSysBusDevice, node_path),
+    DEFINE_PROP_UINT64(OF_SYSBUS_PARAM_MEM_SIZE, OfSysBusDevice, mem_size, 0),
+    DEFINE_PROP_CONST_STRING(OF_SYSBUS_PARAM_NAME, OfSysBusDevice, name),
 };
 
 static void of_sysbus_device_class_init(ObjectClass *klass, void *data)

@@ -23,6 +23,7 @@
 #include "hw/qcom/cc/cc.h"
 #include "hw/qcom/smmu.h"
 #include "hw/qcom/qmp.h"
+#include "hw/qcom/graphics.h"
 
 // Top address of the real hardware
 // Depends on the board being emulated
@@ -81,14 +82,13 @@ struct QcomVirtDevice {
     // dt label
     const char* label;
 
-    // informative name, if label is null
+    // informative (unique) name, if label is null
     const char* name;
 
     size_t idx;
     int priority;
 
     void (*device_create)(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* vms, MemoryRegion* mem);
-    void (*update_fdt)(void* fdt, QcomVirtMachineState* vms);
 };
 
 struct QcomVirtMachineState {
@@ -114,6 +114,7 @@ struct QcomVirtMachineState {
     QcomCCState* cc[CC_MAX];
     QcomSMMUState* kgsl_smmu;
     QcomQMPState* qmp;
+    QcomGraphicsState* gpu;
 };
 
 struct QcomVirtMachineClass {

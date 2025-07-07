@@ -128,9 +128,6 @@ struct rpmh_drv {
 struct QcomRpmhRscState {
     OfSysBusDevice parent;
 
-    const char* name;
-    uint64_t mem_size;
-
     const uint32_t* regtable;
 
     size_t nb_drvs;
@@ -141,9 +138,5 @@ struct QcomRpmhRscState {
 
     GArray* cmd_db_entries;
 };
-
-QcomRpmhRscState* rpmh_rsc_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
-
-QcomRpmhRscState* rpmh_rsc_create_by_label(void* out_fdt, void* in_fdt, const char* label, uint64_t mem_size);
 
 #endif

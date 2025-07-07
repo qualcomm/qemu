@@ -38,38 +38,6 @@
 
 #define QMP_DEBUGFS_FILES		4
 
-QcomQMPState* qcom_qmp_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_QMP);
-	QcomQMPState* sdev = QCOM_QMP(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
-
-	sdev->mem_size = mem_size;
-	sdev->name = name;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return sdev;
-}
-
-QcomQMPState* qcom_qmp_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_QMP);
-	QcomQMPState* sdev = QCOM_QMP(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
-
-	sdev->mem_size = mem_size;
-	sdev->name = label;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return sdev;
-}
-
 static bool is_msg(QcomQMPState* s, hwaddr addr)
 {
     return addr >= QMP_DESC_MCORE_START && addr < QMP_DESC_MCORE_START + QMP_DESC_MCORE_MAX_SIZE;
@@ -78,8 +46,9 @@ static bool is_msg(QcomQMPState* s, hwaddr addr)
 static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
 {
     QcomQMPState *s = QCOM_QMP(opaque);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
 
-    printf("[%s] Read at address 0x%lx\n", s->name, addr);
+    printf("[%s] Read at address 0x%lx\n", ofdev->name, addr);
 
     switch (addr) {
         case QMP_DESC_MAGIC:
@@ -100,7 +69,7 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
             // commit the message
             if (s->msg_size > 0) {
                 s->msg_buf[sizeof(s->msg_buf) - 1] = '\0';
-                printf("[%s] QMP message received: %s\n", s->name, s->msg_buf);
+                printf("[%s] QMP message received: %s\n", ofdev->name, s->msg_buf);
                 memset(s->msg_buf, 0, sizeof(s->msg_buf));
                 s->msg_size = 0;
             }
@@ -128,8 +97,9 @@ static void qcom_qmp_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
     QcomQMPState *s = QCOM_QMP(opaque);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
 
-    printf("[%s] Write at address 0x%lx of value 0x%lx\n", s->name, addr, value);
+    printf("[%s] Write at address 0x%lx of value 0x%lx\n", ofdev->name, addr, value);
 
     if (is_msg(s, addr)) {
         write_msg(s, addr, value);
@@ -151,8 +121,8 @@ static void qcom_qmp_realize(OfSysBusDevice* ofdev, Error **errp)
     QcomQMPState *s = QCOM_QMP(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
-	assert(s->mem_size);
-    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_qmp_ops, s, TYPE_QCOM_QMP, s->mem_size);
+	assert(ofdev->mem_size);
+    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_qmp_ops, s, TYPE_QCOM_QMP, ofdev->mem_size);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

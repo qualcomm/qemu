@@ -19,16 +19,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(QcomCrmState, QCOM_CRM)
 struct QcomCrmState {
     OfSysBusDevice parent;
 
-    const char* name;
-    uint64_t mem_size;
-
     MemoryRegion iomem;
 
     qemu_irq irq[6];
 };
-
-QcomCrmState* crm_v2_create(void* out_fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size);
-
-QcomCrmState* crm_v2_create_by_label(void* out_fdt, void* in_fdt, const char* label, uint64_t mem_size);
 
 #endif

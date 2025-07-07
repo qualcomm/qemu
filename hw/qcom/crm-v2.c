@@ -608,7 +608,9 @@ enum {
 
 static uint64_t read_drv_base(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
-    printf("[%s - drv_base]: read detected @idx %d\n", cdev->name, enum_idx);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s - drv_base]: read detected @idx %d\n", ofdev->name, enum_idx);
 
 	return 0;
 }
@@ -620,7 +622,9 @@ static void write_drv_base(QcomCrmState* cdev, const uint32_t* reg_param, int en
 
 static uint64_t read_crmb_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
-    printf("[%s - crmb_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s - crmb_mgr]: read detected @idx %d\n", ofdev->name, enum_idx);
 
 	return 0;
 }
@@ -632,7 +636,9 @@ static void write_crmb_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int en
 
 static uint64_t read_crmb_pt_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
-    printf("[%s - crmb_pt_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s - crmb_pt_mgr]: read detected @idx %d\n", ofdev->name, enum_idx);
 
 	return 0;
 }
@@ -644,7 +650,9 @@ static void write_crmb_pt_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int
 
 static uint64_t read_crmc_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
-    printf("[%s - crmc_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s - crmc_mgr]: read detected @idx %d\n", ofdev->name, enum_idx);
 
 	return 0;
 }
@@ -656,7 +664,9 @@ static void write_crmc_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int en
 
 static uint64_t read_crmv_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
-    printf("[%s - crmv_mgr]: read detected @idx %d\n", cdev->name, enum_idx);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s - crmv_mgr]: read detected @idx %d\n", ofdev->name, enum_idx);
 
 	return 0;
 }
@@ -668,12 +678,14 @@ static void write_crmv_mgr(QcomCrmState* cdev, const uint32_t* reg_param, int en
 
 static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx)
 {
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
     switch(enum_idx) {
 		case CRM_ENABLE:
-            printf("[%s - common] CRM enabled.\n", cdev->name);
+            printf("[%s - common] CRM enabled.\n", ofdev->name);
             return 1;
         case CRM_VERSION:
-            printf("[%s - common] Version skipped - unused in driver.\n", cdev->name);
+            printf("[%s - common] Version skipped - unused in driver.\n", ofdev->name);
             return 0;
         case CRM_CFG_PARAM_1: {
             uint32_t cfg = 0;
@@ -681,11 +693,11 @@ static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int e
             cfg |= field_set(reg_param[NUM_SW_DRVS], 9);
             cfg |= field_set(reg_param[NUM_CHANNELS], 2);
 
-            printf("[%s - common] param 1 cfg = 0x%x\n", cdev->name, cfg);
+            printf("[%s - common] param 1 cfg = 0x%x\n", ofdev->name, cfg);
             return cfg;
         }
         default:
-            printf("[%s - common]: read detected @idx %d\n", cdev->name, enum_idx);
+            printf("[%s - common]: read detected @idx %d\n", ofdev->name, enum_idx);
             return 0;
     }
 
@@ -694,7 +706,9 @@ static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int e
 
 static void write_common(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
 {
-    printf("[%s] crm-v2 (common): write@idx %d of value 0x%lx\n", cdev->name, enum_idx, value);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cdev);
+
+    printf("[%s] crm-v2 (common): write@idx %d of value 0x%lx\n", ofdev->name, enum_idx, value);
 }
 
 typedef uint64_t(*CrmRdHdlr)(QcomCrmState*, const uint32_t*, int);
@@ -771,38 +785,6 @@ static void qcom_crm_write(void *opaque, hwaddr addr,
     printf("[*] crm write detected @addr 0x%lx\n", addr);
 }
 
-QcomCrmState* crm_v2_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_CRM);
-	QcomCrmState* cdev = QCOM_CRM(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
-
-	cdev->mem_size = mem_size;
-	cdev->name = name;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
-QcomCrmState* crm_v2_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_CRM);
-	QcomCrmState* cdev = QCOM_CRM(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
-
-	cdev->mem_size = mem_size;
-	cdev->name = label;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
 static void qcom_crm_init(Object* obj)
 {
     QcomCrmState* cdev = QCOM_CRM(obj);
@@ -851,8 +833,8 @@ static void qcom_crm_realize(OfSysBusDevice* ofdev, Error **errp)
     crm_regs_handlers[CRM_COMMON].reg_array = desc->cfg_regs;
     crm_regs_handlers[CRM_COMMON].reg_array_size = ARRAY_SIZE(desc->cfg_regs);
 
-	assert(s->mem_size);
-    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_crm_ops, s, TYPE_QCOM_CRM, s->mem_size);
+	assert(ofdev->mem_size);
+    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_crm_ops, s, TYPE_QCOM_CRM, ofdev->mem_size);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

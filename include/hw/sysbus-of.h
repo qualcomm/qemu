@@ -40,6 +40,8 @@ typedef void (*OfSysBusUnrealize)(OfSysBusDevice *ofdev);
 #define OF_SYSBUS_PARAM_FDT             "fdt"
 #define OF_SYSBUS_PARAM_NODE_LABEL      "node-label"
 #define OF_SYSBUS_PARAM_NODE_PATH       "node-path"
+#define OF_SYSBUS_PARAM_NAME            "name"
+#define OF_SYSBUS_PARAM_MEM_SIZE        "mem-size"
 
 /*
  * Struct used for matching a device
@@ -75,6 +77,8 @@ struct OfSysBusDevice {
     SysBusDevice parent_obj;
     /*< public >*/
 
+    const char* name;
+
     // the fdt, to which the node is added.
     void* fdt;
     
@@ -108,11 +112,15 @@ struct OfSysBusDevice {
     // in other words, the first register always starts at 0
     struct fdt_reg* regs;
     uint32_t nb_regs;
+    hwaddr mem_size;
 
     // iterrupts
     // it is the device parent responsibility to interpret and plug interrupts accordingly.
     struct fdt_interrupts* interrupts;
 };
+
+OfSysBusDevice* of_sysbus_create(const char* type, void* fdt, void* in_fdt, const char* node_path, const char* name, hwaddr mem_size);
+OfSysBusDevice* of_sysbus_create_by_label(const char* type, void* fdt, void* in_fdt, const char* label, hwaddr mem_size);
 
 bool of_sysbus_access_in_reg(OfSysBusDevice* ofdev, uint32_t reg_idx, hwaddr addr, unsigned size);
 

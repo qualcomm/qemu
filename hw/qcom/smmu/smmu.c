@@ -12,42 +12,12 @@
 #define QCOM_SMMU_DUMMY_IOVA_LO		0x39008
 #define QCOM_SMMU_DUMMY_IOVA_HI		0x3900c
 #define QCOM_SMMU_DUMMY_PGSIZE		0x39010
-#define QCOM_SMMU_DUMMY_VMID		0x39014
-#define QCOM_SMMU_DUMMY_COMMIT		0x39018
+#define QCOM_SMMU_DUMMY_PGCOUNT		0x39014
+#define QCOM_SMMU_DUMMY_PERM		0x39018
+#define QCOM_SMMU_DUMMY_VMID		0x3901c
+#define QCOM_SMMU_DUMMY_COMMIT		0x39020
 
 #define BITS32_MASK                 0xffffffff
-
-QcomSMMUState* qcom_smmu_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_SMMU);
-	QcomSMMUState* sdev = QCOM_SMMU(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
-
-	sdev->mem_size = mem_size;
-	sdev->name = name;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return sdev;
-}
-
-QcomSMMUState* qcom_smmu_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_SMMU);
-	QcomSMMUState* sdev = QCOM_SMMU(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
-
-	sdev->mem_size = mem_size;
-	sdev->name = label;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return sdev;
-}
 
 hwaddr qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size)
 {
@@ -66,9 +36,9 @@ hwaddr qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iov
 
 static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
 {
-    QcomSMMUState *s = QCOM_SMMU(opaque);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
 
-    printf("[%s] Read at address 0x%lx\n", s->name, addr);
+    printf("[%s] Read at address 0x%lx\n", ofdev->name, addr);
 
     switch (addr) {
         case 0x00:
@@ -93,13 +63,26 @@ static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
     }
 }
 
+static void print_dma_map(DMAMap* map, uint32_t vmid, bool remove)
+{
+    const char* status = remove ? "Delete" : "Add";
+    printf("%s entry with VMID %d\n", status, vmid);
+    printf("\t- iova: 0x%lx\n", map->iova);
+    printf("\t- size: 0x%lx\n", map->size);
+    if (!remove) {
+        printf("\t- paddr: 0x%lx\n", map->translated_addr);
+        printf("\t- perm: 0x%x\n", map->perm);
+    }
+}
+
 static void qcom_smmu_write(void *opaque, hwaddr addr,
                               uint64_t _value, unsigned int size)
 {
     QcomSMMUState *s = QCOM_SMMU(opaque);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
     uint32_t value = _value;
 
-    printf("[%s] Write at address 0x%lx of value 0x%x\n", s->name, addr, value);
+    printf("[%s] Write at address 0x%lx of value 0x%x\n", ofdev->name, addr, value);
 
     switch (addr) {
         case QCOM_SMMU_DUMMY_PADDR_LO: {
@@ -126,14 +109,24 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
             s->dummy_state.cached_map.size = value;
             break;
         }
+        case QCOM_SMMU_DUMMY_PGCOUNT: {
+            s->dummy_state.cached_pgcount = value;
+            break;
+        }
+        case QCOM_SMMU_DUMMY_PERM: {
+            s->dummy_state.cached_map.perm = value;
+            break;
+        }
         case QCOM_SMMU_DUMMY_VMID: {
             s->dummy_state.cached_vmid = value;
             break;
         }
         case QCOM_SMMU_DUMMY_COMMIT: {
-            if (value) {
+            if (value & BIT(0)) {
                 struct DMAMap* map = &s->dummy_state.cached_map;
                 uint32_t vmid = s->dummy_state.cached_vmid;
+
+                map->size *= s->dummy_state.cached_pgcount;
 
                 if (s->dummy_state.cached_vmid > 1024) {
                     error_report("a high value of VMID has been provided. It's either a bug or the current domain implementation should be changed for a hashmap.");
@@ -153,12 +146,24 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
 
                 if (!s->dummy_state.domains[vmid]) {
                     s->dummy_state.domains[vmid] = g_new(struct smmu_dummy_domain, 1);
+                    s->dummy_state.domains[vmid]->maps = iova_tree_new();
                 }
 
-                struct smmu_dummy_domain* domain = s->dummy_state.domains[vmid];
+                print_dma_map(map, vmid, false);
 
-                domain->maps = iova_tree_new();
+                struct smmu_dummy_domain* domain = s->dummy_state.domains[vmid];
                 iova_tree_insert(domain->maps, map);
+            } else if (value & BIT(1)) {
+                struct DMAMap* map = &s->dummy_state.cached_map;
+                uint32_t vmid = s->dummy_state.cached_vmid;
+
+                map->size *= s->dummy_state.cached_pgcount;
+
+                print_dma_map(map, vmid, true);
+
+                assert(s->dummy_state.domains[vmid]);
+
+                iova_tree_remove(s->dummy_state.domains[vmid]->maps, *map);
             }
             break;
         }
@@ -183,8 +188,8 @@ static void qcom_smmu_realize(OfSysBusDevice* ofdev, Error **errp)
     QcomSMMUState *s = QCOM_SMMU(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
-	assert(s->mem_size);
-    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_smmu_ops, s, TYPE_QCOM_SMMU, s->mem_size);
+	assert(ofdev->mem_size);
+    memory_region_init_io(&s->iomem, OBJECT(ofdev), &qcom_smmu_ops, s, TYPE_QCOM_SMMU, ofdev->mem_size);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

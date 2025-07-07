@@ -209,38 +209,6 @@ static void clean_entry(gpointer elt)
     }
 }
 
-QcomCmdDbState* cmd_db_create(void* fdt, void* in_fdt, const char* node_path, const char* name, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_CMD_DB);
-	QcomCmdDbState* cdev = QCOM_CMD_DB(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_PATH, node_path);
-
-	cdev->mem_size = mem_size;
-	cdev->name = name;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
-QcomCmdDbState* cmd_db_create_by_label(void* fdt, void* in_fdt, const char* label, uint64_t mem_size) {
-	DeviceState* dev = qdev_new(TYPE_QCOM_CMD_DB);
-	QcomCmdDbState* cdev = QCOM_CMD_DB(dev);
-
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_IN_FDT, in_fdt);
-	qdev_prop_set_ptr(dev, OF_SYSBUS_PARAM_FDT, fdt);
-	qdev_prop_set_string(dev, OF_SYSBUS_PARAM_NODE_LABEL, label);
-
-	cdev->mem_size = mem_size;
-	cdev->name = label;
-
-	sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
-	return cdev;
-}
-
 static void qcom_cmd_db_init(Object* obj)
 {
     QcomCmdDbState *s = QCOM_CMD_DB(obj);
@@ -504,7 +472,8 @@ static void qcom_cmd_db_add_entry(QcomCmdDbState* cmds, const char id[8], enum c
 
 static void qcom_cmd_db_commit(QcomCmdDbState* cmds, Error** errp)
 {
-    qcom_cmd_db_init_memory(cmds, cmds->rom_content, cmds->mem_size, errp);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(cmds);
+    qcom_cmd_db_init_memory(cmds, cmds->rom_content, ofdev->mem_size, errp);
 
     // test for cmd db
     cmd_db_header = (struct cmd_db_header*) cmds->rom_content;
@@ -523,9 +492,9 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
     QcomCmdDbState *cmds = QCOM_CMD_DB(ofdev);
     SysBusDevice* sbd = SYS_BUS_DEVICE(ofdev);
 
-	assert(cmds->mem_size);
+	assert(ofdev->mem_size);
 
-    cmds->rom_content = g_new0(char, cmds->mem_size);
+    cmds->rom_content = g_new0(char, ofdev->mem_size);
     assert(cmds->rom_content);
 
     // size_t nb_entries = clk_rpmh_canoe.num_clks + canoe_gem_noc.num_bcms + canoe_mc_virt.num_bcms;
@@ -556,7 +525,7 @@ static void qcom_cmd_db_realize(OfSysBusDevice* ofdev, Error **errp)
         }
     }
 
-    memory_region_init_ram_ptr(&cmds->rom, OBJECT(ofdev), TYPE_QCOM_CMD_DB, cmds->mem_size, cmds->rom_content);
+    memory_region_init_ram_ptr(&cmds->rom, OBJECT(ofdev), TYPE_QCOM_CMD_DB, ofdev->mem_size, cmds->rom_content);
     memory_region_set_readonly(&cmds->rom, true);
 
     // TODO: do not use sysbus stuff, it does not make sense.

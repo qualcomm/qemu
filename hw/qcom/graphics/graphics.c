@@ -1,12 +1,15 @@
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/qcom/graphics.h"
 #include "hw/qcom/graphics/gen8_reg.h"
+#include "hw/sysbus-of.h"
 
 #define GX_GDSC_POWER_OFF	BIT(0)
 #define GX_CLK_OFF		BIT(1)
 #define is_on(val)		(!(val & (GX_GDSC_POWER_OFF | GX_CLK_OFF)))
 
-static hwaddr decode_addr(hwaddr addr)
+hwaddr qcom_graphics_decode_addr(hwaddr addr)
 {
     return addr >> 2;
 }
@@ -42,7 +45,7 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
 {
     QcomGraphicsState *s = QCOM_GRAPHICS(opaque);
 
-    hwaddr addr_idx = decode_addr(addr);
+    hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
     if (is_snapshot_addr(addr_idx)) {
         // it's very spammy, let's quick ignore these ones.
@@ -52,7 +55,7 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
     printf("[qcom_gpu] read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
 
     if (is_rsc_addr(addr)) {
-        addr_idx = decode_addr(addr - 0x50000);
+        addr_idx = qcom_graphics_decode_addr(addr - 0x50000);
 
         switch (addr_idx) {
             case GEN8_RSCC_TCS0_DRV0_STATUS:
@@ -110,19 +113,20 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
 static void qcom_graphics_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    QcomGraphicsState *s = QCOM_GRAPHICS(opaque);
+    // QcomGraphicsState *s = QCOM_GRAPHICS(opaque);
+    OfSysBusDevice* of = OF_SYS_BUS_DEVICE(opaque);
 
-    hwaddr addr_idx = decode_addr(addr);
+    hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
     if (is_snapshot_addr(addr_idx)) {
         // it's very spammy, let's quick ignore these ones.
         return;
     }
 
-    printf("[qcom_gpu] write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", addr, addr_idx, value);
+    printf("[%s] write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", of->name, addr, addr_idx, value);
 
     if (is_rsc_addr(addr)) {
-        addr_idx = decode_addr(addr - 0x50000);
+        addr_idx = qcom_graphics_decode_addr(addr - 0x50000);
 
         switch (addr_idx) {
             default: {
@@ -130,51 +134,7 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
             }
         }
     } else {
-        switch (addr_idx) {
-            case GEN8_GMUCX_CM3_SYSRESET: {
-                uint32_t is_off = GX_GDSC_POWER_OFF | GX_CLK_OFF;
-
-                if (value & BIT(0)) {
-                    s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] |= is_off;
-                } else {
-                    s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] &= ~is_off;
-                }
-
-                s->regs[GEN8_GMUCX_CM3_FW_INIT_RESULT] = BIT(8);
-
-                printf("\tcm3 sysreset\n");
-
-                break;
-            }
-            case GEN8_GMUCX_CM3_FW_INIT_RESULT:
-                s->regs[GEN8_GMUCX_CM3_FW_INIT_RESULT] = value;
-                break;
-            case GEN8_GMUAO_RSCC_CONTROL_REQ: {
-                uint32_t is_off = GX_GDSC_POWER_OFF | GX_CLK_OFF;
-
-                if (value & BIT(0)) {
-                    s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] |= is_off;
-                }
-
-                if (value & BIT(1)) {
-                    s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] &= ~is_off;
-                }
-
-                printf("\tpwr rscc control req\n");
-
-                break;
-            }
-            case GEN8_GMUCX_HFI_CTRL_INIT: {
-                if (value & BIT(0)) {
-                    s->regs[GEN8_GMUCX_HFI_CTRL_STATUS] = BIT(0);
-                }
-                break;
-            }
-            default: {
-                printf("\tUnknown addr\n");
-                break;
-            }
-        }
+        printf("\tUnknown addr\n");
     }
 
 }
@@ -193,28 +153,41 @@ static const MemoryRegionOps qcom_graphics_ops = {
     },
 };
 
-static void qcom_graphics_realize(DeviceState* dev, Error **errp)
+static void qcom_graphics_realize(OfSysBusDevice* of, Error **errp)
 {
-    QcomGraphicsState *s = QCOM_GRAPHICS(dev);
-    SysBusDevice* sbd = SYS_BUS_DEVICE(dev);
+    QcomGraphicsState *s = QCOM_GRAPHICS(of);
+    SysBusDevice* sbd = SYS_BUS_DEVICE(of);
 
-    // Put the whole MMIO range all together.
-    // We need to do this because some components sometimes interact
-    // with other components "dirtily" (like KGSL with GMU).
-    memory_region_init_io(&s->iomem, OBJECT(dev), &qcom_graphics_ops, s, TYPE_QCOM_GRAPHICS, QCOM_GRAPHICS_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init(&s->container, OBJECT(of), TYPE_QCOM_GRAPHICS "-container", of->mem_size);
+    sysbus_init_mmio(sbd, &s->container);
+
+    memory_region_init_io(&s->iomem, OBJECT(of), &qcom_graphics_ops, s, TYPE_QCOM_GRAPHICS, of->mem_size);
+    memory_region_add_subregion_overlap(&s->container, 0, &s->iomem, -1);
+
+    OfSysBusDevice* iommu = of_sysbus_create_by_label(TYPE_QCOM_KGSL_IOMMU, of->fdt, of->in_fdt, "kgsl_msm_iommu", 0x40000);
+    s->iommu = QCOM_KGSL_IOMMU(iommu);
+    memory_region_add_subregion(&s->container, *iommu->base_addr - *of->base_addr, sysbus_mmio_get_region(SYS_BUS_DEVICE(s->iommu), 0));
+
+    OfSysBusDevice* gmu = of_sysbus_create_by_label(TYPE_QCOM_GMU, of->fdt, of->in_fdt, "gmu", 0x19000);
+    s->gmu = QCOM_GMU(gmu);
+    memory_region_add_subregion(&s->container, *gmu->base_addr + gmu->regs[0].addr - *of->base_addr, sysbus_mmio_get_region(SYS_BUS_DEVICE(s->gmu), 0));
+    memory_region_add_subregion(&s->container, *gmu->base_addr + gmu->regs[1].addr - *of->base_addr, sysbus_mmio_get_region(SYS_BUS_DEVICE(s->gmu), 1));
+    s->gmu->gpu_offset = s->gmu->iomem.addr;
+    s->gmu->gpu_offset_ao_blk = s->gmu->iomem_ao_blk.addr;
+
+    printf("%s: nb entries: %ld\n", of->name, s->iommu->nb_cbs);
 }
 
 static void qcom_graphics_class_init(ObjectClass* oc, void* data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    OfSysBusDeviceClass* klass = OF_SYS_BUS_DEVICE_CLASS(oc);
 
-    dc->realize = qcom_graphics_realize;
+    klass->realize = qcom_graphics_realize;
 }
 
 static const TypeInfo qcom_graphics_info = {
     .name = TYPE_QCOM_GRAPHICS,
-    .parent = TYPE_SYS_BUS_DEVICE,
+    .parent = TYPE_OF_SYS_BUS_DEVICE,
     .instance_size = sizeof(QcomGraphicsState),
     .instance_init = qcom_graphics_init,
     .class_init = qcom_graphics_class_init,

@@ -52,6 +52,7 @@
 #include "qemu/datadir.h"
 #include "qemu/option.h"
 #include "hw/sysbus.h"
+#include "hw/sysbus-of.h"
 #include "hw/arm/virt.h"
 #include "system/device_tree.h"
 #include "qapi/error.h"
@@ -88,9 +89,6 @@ static void logger_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirt
     memory_region_add_subregion_overlap(mem, machine_base, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
-static void logger_update_fdt(void* fdt, QcomVirtMachineState* qvms)
-{}
-
 static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
@@ -120,7 +118,7 @@ static void add_cmd_db(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMac
 
     qemu_fdt_copy_nodes(fdt, qcom_fdt, cmd_db_node_dependencies, &error_abort);
 
-    qvms->cmd_db = cmd_db_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    qvms->cmd_db = QCOM_CMD_DB(of_sysbus_create_by_label(TYPE_QCOM_CMD_DB, fdt, qcom_fdt, qdev->label, qdev->mem_size));
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->cmd_db);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
@@ -136,7 +134,7 @@ static void add_rpmh_rsc(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtM
     void* qcom_fdt = qvms->fdt;
     size_t idx = qdev->idx;
 
-    qvms->rpmh_rsc[idx] = rpmh_rsc_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    qvms->rpmh_rsc[idx] = QCOM_RPMH_RSC(of_sysbus_create_by_label(TYPE_QCOM_RPMH_RSC, fdt, qcom_fdt, qdev->label, qdev->mem_size));
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->rpmh_rsc[idx]);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
     VirtMachineState* vms = VIRT_MACHINE(qvms);
@@ -187,7 +185,7 @@ static void add_smmu(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachi
     hwaddr machine_base = qvms->base_addr;
     void* qcom_fdt = qvms->fdt;
 
-    qvms->kgsl_smmu = qcom_smmu_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    qvms->kgsl_smmu = QCOM_SMMU(of_sysbus_create_by_label(TYPE_QCOM_SMMU, fdt, qcom_fdt, qdev->label, qdev->mem_size));
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->kgsl_smmu);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
@@ -209,7 +207,7 @@ static void add_qmp(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachin
 
     qemu_fdt_copy_nodes(fdt, qcom_fdt, qmp_node_deps, &error_abort);
 
-    qvms->qmp = qcom_qmp_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    qvms->qmp = QCOM_QMP(of_sysbus_create_by_label(TYPE_QCOM_QMP, fdt, qcom_fdt, qdev->label, qdev->mem_size));
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->qmp);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
 
@@ -222,7 +220,7 @@ static void add_crm(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachin
     void* qcom_fdt = qvms->fdt;
     size_t idx = qdev->idx;
 
-    qvms->crm[idx] = crm_v2_create_by_label(fdt, qcom_fdt, qdev->label, qdev->mem_size);
+    qvms->crm[idx] = QCOM_CRM(of_sysbus_create_by_label(TYPE_QCOM_CRM, fdt, qcom_fdt, qdev->label, qdev->mem_size));
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(qvms->crm[idx]);
     VirtMachineState* vms = VIRT_MACHINE(qvms);
     SysBusDevice* s = SYS_BUS_DEVICE(ofdev);
@@ -245,20 +243,8 @@ static void add_crm(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachin
 static void graphics_create(const struct QcomVirtDevice* qdev, void* fdt, QcomVirtMachineState* qvms, MemoryRegion* mem)
 {
     hwaddr machine_base = qvms->base_addr;
-
-    DeviceState* dev = qdev_new(TYPE_QCOM_GRAPHICS);
-    SysBusDevice* s = SYS_BUS_DEVICE(dev);
-
-    sysbus_realize_and_unref(s, &error_fatal);
-    memory_region_add_subregion_overlap(mem, machine_base + QCOM_GRAPHICS_BASE, sysbus_mmio_get_region(s, 0), qdev->priority);
-}
-
-static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
-{
     void* qcom_fdt = qvms->fdt;
 
-    // dependencies
-    // TODO: mode that at some point.
     const char* ipcc_mproc = qemu_fdt_node_path_by_label(qcom_fdt, "ipcc_mproc", &error_abort);
     const char* aoss_qmp = qemu_fdt_node_path_by_label(qcom_fdt, "aoss_qmp", &error_abort);
     const char* gxclkctl = qemu_fdt_node_path_by_label(qcom_fdt, "gxclkctl", &error_abort);
@@ -280,10 +266,7 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
     const char* qcom_hw_fence = qemu_fdt_node_path_by_label(qcom_fdt, "msm_hw_fence", &error_abort);
 
     const char* linux_cma = qemu_fdt_node_path_by_label(qcom_fdt, "system_cma", &error_abort);
-    const char* gpu_node = qemu_fdt_node_path_by_label(qcom_fdt, "msm_gpu", &error_abort);
-    const char* smmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_msm_iommu", &error_abort);
     const char* iommu_node = qemu_fdt_node_path_by_label(qcom_fdt, "kgsl_smmu", &error_abort);
-    const char* gmu_node = qemu_fdt_node_path_by_label(qcom_fdt, "gmu", &error_abort);
 
     // copy nodes from qemu dtb to qcom virt dtb.
     const char* graphics_nodes[] = {
@@ -312,21 +295,24 @@ static void graphics_update_fdt(void* fdt, QcomVirtMachineState* qvms)
         // the gpu itself
         linux_cma,
         "/soc/dma_dev",
-        gpu_node,
-        smmu_node,
-        gmu_node,
         iommu_node,
         NULL
     };
 
     qemu_fdt_copy_nodes(fdt, qcom_fdt, graphics_nodes, &error_abort);
+
+    assert(fdt);
+    qvms->gpu = QCOM_GRAPHICS(of_sysbus_create_by_label(TYPE_QCOM_GRAPHICS, fdt, qcom_fdt, qdev->label, qdev->mem_size));
+    SysBusDevice* s = SYS_BUS_DEVICE(qvms->gpu);
+    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
+
+    memory_region_add_subregion_overlap(mem, machine_base + *ofdev->base_addr, sysbus_mmio_get_region(s, 0), qdev->priority);
 }
 
 static const struct QcomVirtDevice qcom_devices[] = {
     [VIRT_QCOM_LOGGER] = {
         .name = "qcom_logger",
         .device_create = logger_create,
-        .update_fdt = logger_update_fdt,
         .priority = -1, // low priority, to have a "catch-all" device
     },
     [VIRT_QCOM_CMD_DB] = {
@@ -396,9 +382,9 @@ static const struct QcomVirtDevice qcom_devices[] = {
         .priority = 1,
     },
     [VIRT_QCOM_GRAPHICS] = {
-        .name = "graphics",
+        .label = "msm_gpu",
+        .mem_size = 0x100000,
         .device_create = graphics_create,
-        .update_fdt = graphics_update_fdt,
     },
 };
 
@@ -481,9 +467,6 @@ static void qcom_create_devices(MachineState* machine)
         printf("[*] Adding device: %s.\n", qdev->label ? qdev->label : qdev->name);
 
         qdev->device_create(qdev, machine->fdt, qvms, sysmem);
-        if (qdev->update_fdt) {
-            qdev->update_fdt(machine->fdt, qvms);
-        }
     }
 
     QcomCmdDbClass* kcmd = QCOM_CMD_DB_GET_CLASS(qvms->cmd_db);
@@ -495,7 +478,7 @@ static void qcom_create_devices(MachineState* machine)
         qemu_fdt_copy_node(machine->fdt, qvms->fdt, icc_node, &error_abort);
     }
 
-    const char compat_adreno_qsmmu[] = "qcom,qsmmu-v500\0qcom,adreno-smmu-dummy";
+    const char compat_adreno_qsmmu[] = "qcom,qsmmu-v500\0qcom,adreno-smmu\0qcom,adreno-smmu-dummy";
     qemu_fdt_delprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", &error_abort);
     qemu_fdt_setprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", compat_adreno_qsmmu, sizeof(compat_adreno_qsmmu));
 
