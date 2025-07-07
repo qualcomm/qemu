@@ -195,6 +195,7 @@ bool kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
 int kvm_max_nested_state_length(void);
 int kvm_has_gsi_routing(void);
+void kvm_close(void);
 
 /**
  * kvm_arm_supports_user_irq
@@ -315,14 +316,6 @@ int kvm_create_device(KVMState *s, uint64_t type, bool test);
  * @return: true if supported, otherwise false.
  */
 bool kvm_device_supported(int vmfd, uint64_t type);
-
-/**
- * kvm_create_vcpu - Gets a parked KVM vCPU or creates a KVM vCPU
- * @cpu: QOM CPUState object for which KVM vCPU has to be fetched/created.
- *
- * @returns: 0 when success, errno (<0) when failed.
- */
-int kvm_create_vcpu(CPUState *cpu);
 
 /**
  * kvm_park_vcpu - Park QEMU KVM vCPU context
