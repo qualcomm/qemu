@@ -283,10 +283,10 @@ might show more consistency.
   Halt execution at the startup point. This option is useful when using
   a debugger.
 
-- `-accel tcg,thread=multi`
+- `-accel tcg,thread=single`
 
-  Enables host side multi-threading to greatly increase emulator
-  performance.
+
+  Disables host-side multi-threading, which can significantly reduce emulator performance.  If program correctness issues change by use of this option, both the program and QEMU should be scrutinized for bugs.
 
 
 ## Usage
