@@ -28,6 +28,12 @@
 #define TYPE_QCOM_GRAPHICS "qcom-graphics"
 OBJECT_DECLARE_SIMPLE_TYPE(QcomGraphicsState, QCOM_GRAPHICS)
 
+#define GPU_HW_ACTIVE	0x00
+#define GPU_HW_IFPC	0x03
+#define GPU_HW_MINBW	0x06
+#define GPU_HW_SLUMBER	0x0f
+
+
 struct QcomGraphicsState {
     OfSysBusDevice parent;
 

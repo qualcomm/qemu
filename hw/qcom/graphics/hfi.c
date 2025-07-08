@@ -367,12 +367,7 @@ static void qcom_hfi_msg_core_fw_start(QcomGMUState* gmu, struct hfi_queue_table
     
 }
 
-static void qcom_hfi_msg_start(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
-    uint32_t data = 0;
-    assert(send_ack(gmu, qtbl, msg, &data, 1));
-}
-
-static void qcom_hfi_msg_issue_cmd_raw(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
+static void qcom_hfi_msg_generic_ack(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
     uint32_t data = 0;
     assert(send_ack(gmu, qtbl, msg, &data, 1));
 }
@@ -416,11 +411,15 @@ static struct qcom_hfi_ops hfi_ops[] = {
     },
     [H2F_MSG_START] = {
         .name = "MSG_START",
-        .handler = qcom_hfi_msg_start,
+        .handler = qcom_hfi_msg_generic_ack,
     },
     [H2F_MSG_ISSUE_CMD_RAW] = {
         .name = "MSG_ISSUE_CMD_RAW",
-        .handler = qcom_hfi_msg_issue_cmd_raw,
+        .handler = qcom_hfi_msg_generic_ack,
+    },
+    [H2F_MSG_PREPARE_SLUMBER] = {
+        .name = "MSG_ISSUE_CMD_RAW",
+        .handler = qcom_hfi_msg_generic_ack,
     },
 
     // invalid entry

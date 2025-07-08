@@ -35,9 +35,7 @@ struct QcomGMUState {
     MemoryRegion iomem_ao_blk;
     hwaddr gpu_offset_ao_blk;
 
-    uint32_t regs[0x100000 / 4];
-    // uint32_t regs[0x68000 / 4];
-    // uint32_t regs_ao_blk[0x10000 / 4];
+    uint32_t* regs;
 
     QcomSMMUState* smmu;
     uint32_t vmid;
