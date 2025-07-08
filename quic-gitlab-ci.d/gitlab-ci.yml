@@ -53,52 +53,44 @@ hexagon-linux-x86_64-tag:
 
 hexagon-linux-x86_64-check-tcg:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-check-tcg.sh
 
 hexagon-linux-x86_64-check-tcg-mttcg:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-check-tcg.sh -m
 
 hexagon-linux-x86_64-check:
   stage: test
   tags: [ new-libseccomp ]
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
 hexagon-linux-x86_64-qurt:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
 
 hexagon-linux-x86_64-sival:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
 
 hexagon-linux-x86_64-boot:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
 
 hexagon-linux-x86_64-virtio:
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
 
 hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf.sh
@@ -109,8 +101,7 @@ hexagon-linux-x86_64-perf:
 hexagon-linux-x86_64-perf-mttcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf-mttcg.sh
@@ -121,8 +112,7 @@ hexagon-linux-x86_64-perf-mttcg:
 hexagon-linux-x86_64-perf-ml:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf-ml.sh
@@ -150,44 +140,38 @@ hexagon-linux-x86_64-san:
 hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-check-tcg.sh
 
 hexagon-linux-x86_64-san-check:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   tags: [ new-libseccomp ]
-  dependencies:
-    - hexagon-linux-x86_64-san
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
 hexagon-linux-x86_64-san-qurt:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64-san
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
 
 hexagon-linux-x86_64-san-sival:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64-san
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
 
 hexagon-linux-x86_64-san-boot:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64-san
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
 
 hexagon-linux-x86_64-san-virtio:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  dependencies:
-    - hexagon-linux-x86_64-san
+  needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
 
 # QEMU Hexagon for macOS
