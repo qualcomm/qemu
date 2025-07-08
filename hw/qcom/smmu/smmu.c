@@ -19,19 +19,22 @@
 
 #define BITS32_MASK                 0xffffffff
 
-hwaddr qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size)
+const DMAMap* qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size)
 {
+    assert (size > 0);
+
     DMAMap needle = {
         .iova = iova,
-        .size = size,
+        .size = size - 1,
     };
 
     assert(s->dummy_state.domains[vmid]);
+    assert(s->dummy_state.domains[vmid]->maps);
+    assert(vmid < s->dummy_state.nb_domains);
 
     const DMAMap* res = iova_tree_find(s->dummy_state.domains[vmid]->maps, &needle);
-    assert(res);
 
-    return res->translated_addr;
+    return res;
 }
 
 static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
@@ -127,6 +130,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
                 uint32_t vmid = s->dummy_state.cached_vmid;
 
                 map->size *= s->dummy_state.cached_pgcount;
+                map->size--;
 
                 if (s->dummy_state.cached_vmid > 1024) {
                     error_report("a high value of VMID has been provided. It's either a bug or the current domain implementation should be changed for a hashmap.");
@@ -158,6 +162,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
                 uint32_t vmid = s->dummy_state.cached_vmid;
 
                 map->size *= s->dummy_state.cached_pgcount;
+                map->size--;
 
                 print_dma_map(map, vmid, true);
 

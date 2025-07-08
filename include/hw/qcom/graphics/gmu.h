@@ -17,15 +17,16 @@
 #include "hw/sysbus-of.h"
 #include "qom/object.h"
 
-#include "hw/qcom/graphics/kgsl-iommu.h"
+#include "hw/qcom/smmu.h"
 
-#define QCOM_GMU_BASE              0x3d00000
-#define QCOM_GMU_SIZE              0x0100000
+#include "hw/qcom/graphics/hfi.h"
 
 #define TYPE_QCOM_GMU "qcom-gmu"
-OBJECT_DECLARE_SIMPLE_TYPE(QcomGmuState, QCOM_GMU)
+OBJECT_DECLARE_SIMPLE_TYPE(QcomGMUState, QCOM_GMU)
 
-struct QcomGmuState {
+typedef hwaddr gpuaddr;
+
+struct QcomGMUState {
     OfSysBusDevice parent;
 
     MemoryRegion iomem;
@@ -40,6 +41,11 @@ struct QcomGmuState {
 
     QcomSMMUState* smmu;
     uint32_t vmid;
+
+    struct qcom_hfi_state hfi;
 };
+
+bool qcom_gmu_gpumem_read(QcomGMUState* s, uint32_t vmid, gpuaddr addr, char* buf, gpuaddr size);
+bool qcom_gmu_gpumem_write(QcomGMUState* s, uint32_t vmid, gpuaddr addr, char* buf, gpuaddr size);
 
 #endif

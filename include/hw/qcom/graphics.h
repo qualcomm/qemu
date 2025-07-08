@@ -23,7 +23,6 @@
 #include "hw/qcom/graphics/kgsl-iommu.h"
 #include "hw/qcom/graphics/gmu.h"
 
-#define QCOM_GRAPHICS_BASE              0x3d00000
 #define QCOM_GRAPHICS_SIZE              0x0100000
 
 #define TYPE_QCOM_GRAPHICS "qcom-graphics"
@@ -39,7 +38,7 @@ struct QcomGraphicsState {
     uint32_t regs[0x100000 / 4];
 
     QcomKgslIOMMUState* iommu;
-    QcomGmuState* gmu;
+    QcomGMUState* gmu;
 };
 
 hwaddr qcom_graphics_decode_addr(hwaddr addr);

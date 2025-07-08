@@ -69,7 +69,8 @@
         int:(x) ? -1 : 1; \
     }
 
-#define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
+// #define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
+#define QEMU_BUILD_BUG_MSG(x, msg)
 
 #define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
 

@@ -44,6 +44,6 @@ struct QcomSMMUClass {
     OfSysBusDeviceClass parent;
 };
 
-hwaddr qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size);
+const DMAMap* qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint64_t iova, uint64_t size);
 
 #endif

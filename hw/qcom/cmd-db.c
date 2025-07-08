@@ -1,5 +1,4 @@
 // cmd db memory
-// for now, this is handled as a device, even though it's not strictly a device...
 
 #include "qemu/osdep.h"
 #include "exec/memory.h"

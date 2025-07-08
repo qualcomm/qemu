@@ -11,4 +11,5 @@ system_ss.add(when: 'CONFIG_QCOM_GRAPHICS', if_true: files('cx_misc.c'))
 
 # gmu
 system_ss.add(when: 'CONFIG_QCOM_GRAPHICS', if_true: files('gmu.c'))
+system_ss.add(when: 'CONFIG_QCOM_GRAPHICS', if_true: files('hfi.c'))
 
