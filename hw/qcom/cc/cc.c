@@ -152,6 +152,12 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
     switch (reg) {
         case CC_REG_PLL_MODE:
             ccs->reg[CC_REG_PLL_MODE] = value;
+
+            if (value & BIT(14)) {
+                printf("ACK Latch\n");
+                ccs->reg[CC_REG_PLL_MODE] |= BIT(13);
+            }
+
 			break;
         case CC_REG_PLL_L_VAL:
             ccs->reg[CC_REG_PLL_L_VAL] = value;
