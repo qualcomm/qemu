@@ -83,6 +83,7 @@
  * We use the arm-compatible semihosting routines for these ones, but we do
  * need some hexagon-specific preprocessing.
  */
+#define HEX_SYS_WRITE       0x05
 #define HEX_SYS_READ        0x06
 #define HEX_SYS_READC       0x07
 
@@ -122,7 +123,7 @@ static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
     common_semi_cb(cs, ret, err);
 }
 
-static void do_read_preload(CPUHexagonState *env, target_ulong swi_info)
+static void do_preload(CPUHexagonState *env, target_ulong swi_info)
 {
     uint32_t addr, count;
     DEBUG_MEMORY_READ(swi_info + 4, 4, &addr);
@@ -138,9 +139,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
 
     if (!is_hexagon_specific_swi_flag(what_swi)) {
-        if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC) {
+        if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
+            what_swi == HEX_SYS_WRITE) {
             /* avoid page faulting if the dest buffer is not in memory yet. */
-            do_read_preload(env, swi_info);
+            do_preload(env, swi_info);
         }
         CPUState *cs = env_cpu(env);
         do_common_semihosting(cs);
