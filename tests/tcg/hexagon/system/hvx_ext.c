@@ -223,6 +223,34 @@ static void test_qfloat_with_tmp(void)
     check_output_w(__LINE__, 2);
 }
 
+#if __HEXAGON_ARCH__ >= 81
+void test_vconv_bf(void)
+{
+#define BFLOAT_CFG_OFFSET 0xd8
+    uint32_t cfgbase;
+    asm volatile("%0 = cfgbase\n" : "=r"(cfgbase));
+    int bfloat16_enabled = *(uint32_t *)((cfgbase << 16) + BFLOAT_CFG_OFFSET);
+    int hvx_bloat16_enabled = (bfloat16_enabled >> 1) & 1;
+
+    asm volatile(
+        "r0 = #0x12345678\n"
+        "v0 = vsplat(r0)\n"
+        "r0 = #0xff00ff00\n"
+        "v1 = vsplat(r0)\n"
+        "v2.bf = v1:0.qf32\n"
+        "vmem(%0) = v2\n"
+        :
+        : "r"(&output[0])
+        : "r0", "v0", "v1", "v2", "memory"
+    );
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].w[i] = hvx_bloat16_enabled ? 0x80013b12 : 0x8000188d;
+    }
+    check_output_w(__LINE__, 1);
+#undef BFLOAT_CFG_OFFSET
+}
+#endif
+
 int main()
 {
     asm volatile("%0 = rev\n" : "=r"(rev));
@@ -238,6 +266,9 @@ int main()
 #endif
     test_ext_bits_reset_multiple_insns();
     test_qfloat_semantics_per_revision();
+#if __HEXAGON_ARCH__ >= 81
+    test_vconv_bf();
+#endif
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
 }

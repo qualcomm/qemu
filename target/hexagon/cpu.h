@@ -484,6 +484,8 @@ struct ArchCPU {
     uint32_t jtlb_entries;
     uint32_t dma_jtlb_entries;
 #endif
+    bool hvx_bfloat;
+    bool coproc2_bfloat;
     uint32_t rev_reg;
     bool lldb_compat;
     target_ulong lldb_stack_adjust;

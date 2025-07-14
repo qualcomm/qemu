@@ -240,7 +240,10 @@
 #define fQFADD(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_add(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else { INIT_UNFLOAT(r) int sub = is_unfloat_neg(A) ^ is_unfloat_neg(B); r.exp = get_unfloat_exp(A,B,sub,E_MIN_EXTQF##SIZE); fHIDE(double ) sig_a = ldexp(A.sig, A.exp-r.exp); fHIDE(double ) sig_b = ldexp(B.sig, B.exp-r.exp); fHIDE(double sig_low;) if(A.sign) sig_a = -sig_a; if(B.sign) sig_b = -sig_b; r.sig = sig_a + sig_b; if (A.exp > B.exp) { sig_low = (sig_a - r.sig) + sig_b; } else { sig_low = (sig_b - r.sig) + sig_a; } r.inexact = signum(sig_low); r.sign = (THREAD2STRUCT->qfrnd_mode == RND_TOWARDS_NEG_INF) ? (A.sign || B.sign) : (A.sign && B.sign); if(r.sign) { r.sig = -r.sig; r.inexact = -r.inexact; } r.zero = is_unfloat_zero(r); fRNDSATQF(SIZE,V,r) } } while(0);
 #define fQFMPY(SIZE,V,A,B) do{ if(A.inf || A.nan || B.inf || B.nan) { uint64_t sig_36; sig_36 = handle_infinity_nan_mpy(A,B,extqf##SIZE##_pos_nan,extqf##SIZE##_neg_nan,extqf##SIZE##_pos_inf,extqf##SIZE##_neg_inf); V.qf##SIZE[i] = sig_36 >> 4; set_extended_bits(&V,i,SIZE,sig_36 & EXT##SIZE##_BITMASK); } else{ INIT_UNFLOAT(r) r.exp = A.exp + B.exp; r.sig = A.sig * B.sig; if(A.sign ^ B.sign) r.sig = -r.sig; r.sign = (A.sign ^ B.sign) ^ is_double_neg(A.sig) ^ is_double_neg(B.sig) ^ (A.sig < 0 && B.sig < 0); if(r.sign) r.sig = -r.sig; r.zero = is_unfloat_zero(r); if(r.zero) { r.exp = E_MIN_EXTQF##SIZE; } fRNDSATQF(SIZE,V,r) } } while(0);
 #define fCHECK_IEEE_RESOURCE(CODE) (thread->processor_ptr->arch_proc_options->QDSP6_VX_IEEE_PRESENT) ? CODE : 0
-#define fBF16_SUPPORTED() (thread->processor_ptr->arch_proc_options->QDSP6_VX_BF_EN)
+#define fBF16_SUPPORTED() ({ \
+    HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env); \
+    hex_cpu->hvx_bfloat; \
+})
 #define SET_VEXT(VDEST,IDX,SIZE,VAL) set_extended_bits(&VDEST,IDX,SIZE,VAL)
 #define GET_VEXT(VSRC,IDX,SIZE) get_extended_bits(thread,&VSRC,IDX,SIZE)
 #define GET_VEXT_PAIR(VSRC,PAIR_IDX,IDX,SIZE) get_extended_bits(thread,&VSRC.v[PAIR_IDX],IDX,SIZE)
