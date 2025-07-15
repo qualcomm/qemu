@@ -21,7 +21,9 @@
 
 static void *func(void *arg)
 {
-    sleep(3);
+    while (1) {
+        sleep(3);
+    }
     return 0;
 }
 
