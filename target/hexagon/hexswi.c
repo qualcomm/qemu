@@ -128,7 +128,7 @@ static void do_preload(CPUHexagonState *env, target_ulong swi_info)
     uint32_t addr, count;
     DEBUG_MEMORY_READ(swi_info + 4, 4, &addr);
     DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
-    hexagon_touch_memory(env, addr, count, HEX_MEM_WRITE);
+    hexagon_touch_memory(env, addr, count, MMU_DATA_STORE);
 }
 
 static void sim_handle_trap0(CPUHexagonState *env)

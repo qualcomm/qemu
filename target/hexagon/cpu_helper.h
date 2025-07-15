@@ -73,8 +73,6 @@ int hexagon_read_memory_locked(CPUHexagonState *env,
                                             target_ulong vaddr, int size,
                                             void *retptr);
 
-# define HEX_MEM_READ  (1 << 0)
-# define HEX_MEM_WRITE (1 << 1)
 void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
                           uint32_t length, int mode);
 

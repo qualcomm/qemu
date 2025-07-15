@@ -306,12 +306,7 @@ void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
 
     while (length > 0) {
         uint32_t cur_len = MIN(length, pagelen);
-        if (mode & HEX_MEM_READ) {
-            probe_read(env, addr, cur_len, mmu_idx, CPU_MEMOP_PC(env));
-        }
-        if (mode & HEX_MEM_WRITE) {
-            probe_write(env, addr, cur_len, mmu_idx, CPU_MEMOP_PC(env));
-        }
+        probe_access(env, addr, cur_len, mode, mmu_idx, CPU_MEMOP_PC(env));
         length -= cur_len;
         addr += cur_len;
     }
