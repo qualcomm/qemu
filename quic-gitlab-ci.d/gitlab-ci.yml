@@ -36,6 +36,12 @@ user_guide:
     paths: [ quic/user_guide/_build/html, quic/user_guide/_build/latex ]
     expire_in: 1 days
 
+.test-artifacts:
+  artifacts:
+    when: on_failure
+    paths: [ "build" ]
+    expire_in: 4 days
+
 # QEMU Hexagon for Linux on x86_64
 hexagon-linux-x86_64:
   stage: build
@@ -53,37 +59,44 @@ hexagon-linux-x86_64-tag:
 
 hexagon-linux-x86_64-check-tcg:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-check-tcg.sh
 
 hexagon-linux-x86_64-check-tcg-mttcg:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-check-tcg.sh -m
 
 hexagon-linux-x86_64-check:
   stage: test
+  extends: .test-artifacts
   tags: [ new-libseccomp ]
   needs: [ "hexagon-linux-x86_64" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
 hexagon-linux-x86_64-qurt:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
 
 hexagon-linux-x86_64-sival:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
 
 hexagon-linux-x86_64-boot:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
 
 hexagon-linux-x86_64-virtio:
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
 
@@ -140,12 +153,14 @@ hexagon-linux-x86_64-san:
 hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-check-tcg.sh
 
 hexagon-linux-x86_64-san-check:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   tags: [ new-libseccomp ]
   needs: [ "hexagon-linux-x86_64-san" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
@@ -153,24 +168,28 @@ hexagon-linux-x86_64-san-check:
 hexagon-linux-x86_64-san-qurt:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
 
 hexagon-linux-x86_64-san-sival:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
 
 hexagon-linux-x86_64-san-boot:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
 
 hexagon-linux-x86_64-san-virtio:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
+  extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
 
@@ -210,6 +229,7 @@ hexagon-windows-x86_64-tag:
 hexagon-windows-x86_64-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
   stage: test
+  extends: .test-artifacts
   dependencies:
     - hexagon-windows-x86_64
   script: quic/scripts/run-check-tcg.sh
@@ -243,6 +263,7 @@ hexagon-linux-x86_64-no-idef-parser:
 
 hexagon-linux-x86_64-no-idef-parser-check-tcg:
   stage: test
+  extends: .test-artifacts
   dependencies:
     - hexagon-linux-x86_64-no-idef-parser
   script: quic/scripts/run-check-tcg.sh
@@ -252,6 +273,7 @@ hexagon-linux-x86_64-no-idef-parser-check-tcg:
 
 hexagon-linux-x86_64-no-idef-parser-check:
   stage: test
+  extends: .test-artifacts
   tags: [ new-libseccomp ]
   dependencies:
     - hexagon-linux-x86_64-no-idef-parser
