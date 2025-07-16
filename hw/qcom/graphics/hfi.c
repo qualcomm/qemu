@@ -10,7 +10,6 @@
 #define HFI_MSG_ACK 1 /* V2 only */
 
 #define ACK_MSG_HDR(id) CREATE_MSG_HDR(id, HFI_MSG_ACK)
-
 #define CMD_MSG_HDR(cmd, id) \
 	_CMD_MSG_HDR(&(cmd).hdr, id, sizeof(cmd))
 
@@ -46,6 +45,31 @@
 #define SZ_256				0x00000100
 #define SZ_512				0x00000200
 
+#define SZ_1K				0x00000400
+#define SZ_2K				0x00000800
+#define SZ_4K				0x00001000
+#define SZ_8K				0x00002000
+#define SZ_16K				0x00004000
+#define SZ_32K				0x00008000
+#define SZ_64K				0x00010000
+#define SZ_128K				0x00020000
+#define SZ_256K				0x00040000
+#define SZ_512K				0x00080000
+
+#define SZ_1M				0x00100000
+#define SZ_2M				0x00200000
+#define SZ_4M				0x00400000
+#define SZ_8M				0x00800000
+#define SZ_16M				0x01000000
+#define SZ_32M				0x02000000
+#define SZ_64M				0x04000000
+#define SZ_128M				0x08000000
+#define SZ_256M				0x10000000
+#define SZ_512M				0x20000000
+
+#define SZ_1G				0x40000000
+#define SZ_2G				0x80000000
+
 #define MSG_HDR_GET_ID(hdr) ((hdr) & 0xFF)
 #define MSG_HDR_GET_SIZE(hdr) (((hdr) >> 8) & 0xFF)
 #define MSG_HDR_GET_TYPE(hdr) (((hdr) >> 16) & 0xF)
@@ -56,6 +80,10 @@
 
 #define MSG_HDR_SET_TYPE(hdr, type) \
     (((hdr) & 0xFFFFF) | ((type) << 16))
+
+#define RB_SIZE_IN_BYTES  (32 * 1024) // 32KB per RB
+#define RB_SIZE_IN_DWORDS (RB_SIZE_IN_BYTES >> 2)
+#define RB_BLOCK_SIZE     4 // In 64-bit quadwords
 
 // generic msg, which needs to be decoded
 struct qcom_hfi_msg {
@@ -129,6 +157,258 @@ enum gmu_ret_type {
 	GMU_ERROR_NO_ENTRY,
 };
 
+enum hfi_error {
+    HFI_SUCCESS = 0,
+    HFI_ERROR = 0xffffffff,
+};
+
+
+enum hfi_mem_kind {
+    MEMKIND_GENERIC                 = 0,
+    MEMKIND_RB                      = 1,
+    MEMKIND_SCRATCH                 = 2,
+                                        
+    MEMKIND_CSW_SMMU_INFO           = 3,
+    MEMKIND_CSW_PRIV_NON_SECURE     = 4,
+    MEMKIND_CSW_PRIV_SECURE         = 5,
+    MEMKIND_CSW_NON_PRIV            = 6,
+    MEMKIND_CSW_COUNTER             = 7,
+    MEMKIND_CTXTREC_PREEMPT_CNTR    = 8,
+    MEMKIND_SYS_LOG                 = 9,
+    MEMKIND_CRASH_DUMP              = 10,
+    MEMKIND_MMIO_DPU                = 11,
+    MEMKIND_MMIO_TCSR               = 12,
+    MEMKIND_MMIO_QDSS_STM           = 13,
+    MEMKIND_PROFILE                 = 14,
+                                         
+    MEMKIND_USER_PROFILE_IBS        = 15,
+    MEMKIND_CMD_BUFFER              = 16,
+    MEMKIND_GPU_BUSY_DATA_BUFFER    = 17,
+    MEMKIND_GPU_BUSY_CMD_BUFFER     = 18,
+    MEMKIND_MMIO_IPCC               = 19,
+    MEMKIND_MMIO_IPCC_AOSS          = 20,
+    MEMKIND_CSW_LPAC_PRIV_NON_SECURE= 21,
+    MEMKIND_MEMSTORE                = 22,
+    MEMKIND_HW_FENCE                = 23,
+    MEMKIND_PREEMPT_SCRATCH         = 24,
+    MEMKIND_CSW_AQE_BUFFER          = 25,
+    NUM_HFI_MEMKINDS,
+    MEMKIND_NONE = 0x7FFFFFFF            
+};
+
+enum hfi_mem_handle {
+    GMU_MEM_HANDLE_GENERIC                 = 1,
+    GMU_MEM_HANDLE_SCRATCH                 = 2,
+    GMU_MEM_HANDLE_CSW_SMMU_INFO           = 3,
+    GMU_MEM_HANDLE_CSW_PRIV_NON_SECURE     = 4,
+    GMU_MEM_HANDLE_CSW_PRIV_SECURE         = 5,
+    GMU_MEM_HANDLE_CSW_NON_PRIV            = 6,
+    GMU_MEM_HANDLE_CSW_COUNTER             = 7,
+    GMU_MEM_HANDLE_CTXTREC_PREEMPT_CNTR    = 8,
+    GMU_MEM_HANDLE_SYS_LOG                 = 9,
+    GMU_MEM_HANDLE_CRASH_DUMP              = 10,
+    GMU_MEM_HANDLE_MMIO_DPU                = 11,
+    GMU_MEM_HANDLE_MMIO_TCSR               = 12,
+    GMU_MEM_HANDLE_MMIO_QDSS_STM           = 13,
+    GMU_MEM_HANDLE_PROFILE                 = 14,
+    GMU_MEM_HANDLE_USER_PROFILE_IBS        = 15,
+    GMU_MEM_HANDLE_CMD_BUFFER              = 16,
+    GMU_MEM_HANDLE_GPU_BUSY_DATA_BUFFER    = 17,
+    GMU_MEM_HANDLE_GPU_BUSY_CMD_BUFFER     = 18,
+    GMU_MEM_HANDLE_MMIO_IPCC               = 19,
+    GMU_MEM_HANDLE_MMIO_IPCC_AOSS          = 20,
+    GMU_MEM_HANDLE_CSW_LPAC_PRIV_NON_SECURE= 21,
+    GMU_MEM_HANDLE_MEMSTORE                = 22,
+    GMU_MEM_HANDLE_HW_FENCE                = 23,
+    GMU_MEM_HANDLE_PREEMPT_SCRATCH         = 24,
+    GMU_MEM_HANDLE_CSW_AQE_BUFFER          = 25,
+    GMU_MEM_HANDLE_RB0                     = 26,
+    GMU_MEM_HANDLE_RB1                     = 27,
+    GMU_MEM_HANDLE_RB2                     = 28,
+    GMU_MEM_HANDLE_RB3                     = 29,
+    GMU_MEM_HANDLE_LPAC_RB                 = 30,
+    MAX_GMU_MEM_HANDLE,
+};
+
+#define MEMFLAG_GFX_ACC                 BIT(0)
+#define MEMFLAG_GFX_PRIV                BIT(1)
+#define MEMFLAG_GFX_WRITEABLE           BIT(2)
+#define MEMFLAG_GMU_ACC                 BIT(3)
+#define MEMFLAG_GMU_PRIV                BIT(4)
+#define MEMFLAG_GMU_WRITEABLE           BIT(5)
+#define MEMFLAG_GMU_BUFFERABLE          BIT(6)
+#define MEMFLAG_GMU_CACHEABLE           BIT(7)
+#define MEMFLAG_HOST_ACC                BIT(8)
+#define MEMFLAG_HOST_INIT               BIT(9)
+#define MEMFLAG_GMU_EXECUTABLE          BIT(10)
+#define MEMFLAG_GVM_WRITEABLE           BIT(11)
+#define MEMFLAG_GFX_SECURE              BIT(12)
+
+#define MEMKIND_GENERIC_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_RB_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+#define MEMKIND_SCRATCH_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+#define MEMKIND_CSW_SMMU_INFO_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CSW_PRIV_NON_SECURE_FLAGS\
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+#define MEMKIND_CSW_PRIV_SECURE_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | MEMFLAG_GFX_SECURE
+
+#define MEMKIND_CSW_NON_PRIV_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CSW_COUNTER_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CTXTREC_PREEMPT_CNTR_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_SYS_LOG_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CRASH_DUMP_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_MMIO_DPU_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_MMIO_TCSR_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_MMIO_QDSS_STM_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_PROFILE_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+#define MEMKIND_USER_PROFILE_IBS_FLAGS \
+    MEMFLAG_GFX_ACC | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+#define MEMKIND_CMD_BUFFER_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_GPU_BUSY_DATA_BUFFER_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_GPU_BUSY_CMD_BUFFER_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_MMIO_IPCC_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CSW_LPAC_PRIV_NON_SECURE_FLAGS \
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_MEMSTORE_FLAGS \
+    MEMFLAG_GFX_ACC | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_HW_FENCE_FLAGS \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC
+
+#define MEMKIND_CSW_AQE_BUFFER_FLAGS\
+    MEMFLAG_GFX_ACC | MEMFLAG_GFX_PRIV | MEMFLAG_GFX_WRITEABLE | \
+    MEMFLAG_GMU_ACC | MEMFLAG_GMU_PRIV | MEMFLAG_GMU_WRITEABLE | MEMFLAG_GMU_BUFFERABLE | \
+    MEMFLAG_HOST_ACC | MEMFLAG_HOST_INIT
+
+struct hfi_mem_desc {
+    enum hfi_mem_kind mem_kind;
+    enum hfi_mem_handle mem_handle;
+    uint32_t size;
+    uint32_t flags;
+    uint32_t align_va;
+    uint32_t align_sz;
+};
+
+static struct hfi_mem_desc mem_descs[] = {
+    {
+        .mem_kind = MEMKIND_SCRATCH,
+        .mem_handle = GMU_MEM_HANDLE_SCRATCH,
+        .size = 4096,
+        .flags = MEMKIND_SCRATCH_FLAGS,
+    },
+    {
+        .mem_kind = MEMKIND_CMD_BUFFER,
+        .mem_handle = GMU_MEM_HANDLE_CMD_BUFFER,
+        .size = RB_SIZE_IN_BYTES,
+        .flags = MEMKIND_CMD_BUFFER_FLAGS,
+    },
+    {
+        .mem_kind = MEMKIND_RB,
+        .mem_handle = GMU_MEM_HANDLE_RB0,
+        .size = RB_SIZE_IN_BYTES,
+        .flags = MEMKIND_RB_FLAGS,
+    },
+    // {
+    //     .mem_kind = MEMKIND_CSW_PRIV_NON_SECURE,
+    //     .mem_handle = GMU_MEM_HANDLE_CSW_PRIV_NON_SECURE,
+    //     .size = 13536 * SZ_1K * 4, // not the "official" size, may be a problem?
+    //     .flags = MEMKIND_CSW_PRIV_NON_SECURE_FLAGS,
+    // }
+};
+
+/*
+ * === reply types ===
+ *
+ * All reply types should start with a header and an ack field.
+ *
+ */
+
+struct hfi_reply {
+    uint32_t header;
+    uint32_t ack;
+    uint32_t error_code;
+} __packed;
+
+struct hfi_reply_get {
+    uint32_t header;
+    uint32_t ack;
+    uint32_t data;
+} __packed;
+
 /* H2F */
 struct hfi_get_value_cmd {
 	uint32_t hdr;
@@ -139,6 +419,35 @@ struct hfi_get_value_cmd {
 /* H2F */
 struct hfi_start_cmd {
 	uint32_t hdr;
+} __packed;
+
+struct hfi_mem_alloc_desc {
+	uint64_t gpu_addr;
+	uint32_t flags;
+	uint32_t mem_kind;
+	uint32_t host_mem_handle;
+	uint32_t gmu_mem_handle;
+	uint32_t gmu_addr;
+	uint32_t size; /* Bytes */
+	/**
+	 * @align: bits[0:7] specify alignment requirement of the GMU VA specified as a power of
+	 * two. bits[8:15] specify alignment requirement for the size of the GMU mapping. For
+	 * example, a decimal value of 20 = (1 << 20) = 1 MB alignment
+	 */
+	uint32_t align;
+} __packed;
+
+struct hfi_mem_alloc_cmd {
+	uint32_t hdr;
+	uint32_t version;
+	struct hfi_mem_alloc_desc desc;
+} __packed;
+
+/* H2F */
+struct hfi_mem_alloc_reply_cmd {
+	uint32_t hdr;
+	uint32_t req_hdr;
+	struct hfi_mem_alloc_desc desc;
 } __packed;
 
 struct qcom_hfi_cmd_handler {
@@ -229,8 +538,13 @@ static bool queue_read(QcomGMUState* gmu, struct hfi_queue_header* qhdr, uint32_
 
     uint32_t high_write_index = MIN(read_index + nb_words, qhdr->queue_size);
     uint32_t to_read = high_write_index - read_index;
-    // printf("Reading at gaddr 0x%x 0x%lx bytes\n", qhdr->start_addr + read_index, to_read * sizeof(uint32_t));
-    assert(qcom_gmu_gpumem_read(gmu, 0, qhdr->start_addr + (read_index * sizeof(uint32_t)), (char*) buf, to_read * sizeof(uint32_t)));
+    if (!qcom_gmu_gpumem_read(gmu, 0, qhdr->start_addr + (read_index * sizeof(uint32_t)), (char*) buf, to_read * sizeof(uint32_t))) {
+        fprintf(stderr, "Error while reading GPU memory at gaddr 0x%lx of 0x%lx bytes\n", qhdr->start_addr + (read_index * sizeof(uint32_t)), to_read * sizeof(uint32_t));
+        fprintf(stderr, "Read index: 0x%x\n", read_index);
+        fprintf(stderr, "Write index: 0x%x\n", write_index);
+        fprintf(stderr, "queue size: 0x%x\n", qhdr->queue_size);
+        exit(1);
+    }
 
     if (high_write_index == qhdr->queue_size) {
         // write_index is lower than read_index, we need to continue reading at the beginning of the queue.
@@ -271,25 +585,78 @@ static bool queue_write(QcomGMUState* gmu, struct hfi_queue_header* qhdr, uint32
     return true;
 }
 
-static bool send_ack(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct qcom_hfi_msg* msg, uint32_t* data, uint32_t nb_dwords)
-{ 
-    struct hfi_queue_header* qhdr = &qtbl->qhdr[HFI_MSG_ID];
+static bool queue_write_aligned(QcomGMUState* gmu, struct hfi_queue_header* qhdr, void* buf, uint32_t nb_words)
+{
+    uint32_t nb_words_aligned = QEMU_ALIGN_UP(nb_words, SZ_4);
 
-    uint32_t size_dwords = 2 + nb_dwords;
-    uint32_t align_size = QEMU_ALIGN_UP(size_dwords, SZ_4);
+    if (!queue_write(gmu, qhdr, buf, nb_words)) {
+        return false;
+    }
 
-    uint32_t ack_hdr = ACK_MSG_HDR(0); // id is never used, only the type matters
-    ack_hdr = MSG_HDR_SET_SEQNUM_SIZE(ack_hdr, gmu->hfi.msg_seqnum++, size_dwords);
-
-    assert(queue_write(gmu, qhdr, &ack_hdr, 1));
-    assert(queue_write(gmu, qhdr, &msg->raw[0], 1));
-    assert(queue_write(gmu, qhdr, data, nb_dwords));
-
-    if (align_size > size_dwords) {
-        qhdr->write_index += align_size - size_dwords;
+    if (nb_words_aligned > nb_words) {
+        qhdr->write_index += nb_words_aligned - nb_words;
     }
 
     return true;
+}
+
+static bool send_reply(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct qcom_hfi_msg* msg, void* reply_ptr, uint32_t reply_size_bytes)
+{ 
+    struct hfi_queue_header* qhdr = &qtbl->qhdr[HFI_MSG_ID];
+
+    uint32_t* reply = (uint32_t*) reply_ptr;
+
+    assert(reply_size_bytes % 4 == 0);
+    uint32_t nb_words = reply_size_bytes >> 2;
+
+    assert(nb_words >= 3);
+
+    reply[0] = ACK_MSG_HDR(0); // id is never used, only the type matters
+    reply[0] = MSG_HDR_SET_SEQNUM_SIZE(reply[0], gmu->hfi.msg_seqnum++, nb_words);
+    reply[1] = msg->raw[0];
+
+    return queue_write_aligned(gmu, qhdr, reply_ptr, nb_words);
+}
+
+static bool send_ack_simple(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct qcom_hfi_msg* msg, enum hfi_error error_code)
+{
+    struct hfi_reply reply = { 0 };
+    reply.error_code = HFI_SUCCESS;
+
+    return send_reply(gmu, qtbl, msg, &reply, sizeof(reply));
+}
+
+static bool send_ack_get(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct qcom_hfi_msg* msg, uint32_t value)
+{
+    struct hfi_reply_get reply = { 0 };
+    reply.data = value;
+
+    return send_reply(gmu, qtbl, msg, &reply, sizeof(reply));
+}
+
+static bool send_mem_alloc(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_mem_desc* desc)
+{
+    struct hfi_queue_header* qhdr = &qtbl->qhdr[HFI_MSG_ACK];
+
+    struct hfi_mem_alloc_cmd mem_alloc = { 0 };
+
+    assert(sizeof(mem_alloc) % 4 == 0);
+    uint32_t nb_words = sizeof(mem_alloc) >> 2;
+
+    mem_alloc.hdr = CREATE_MSG_HDR(F2H_MSG_MEM_ALLOC, HFI_MSG_CMD);
+    mem_alloc.hdr = MSG_HDR_SET_SEQNUM_SIZE(mem_alloc.hdr, gmu->hfi.msg_seqnum++, nb_words);
+
+    printf("mem_alloc hdr: 0x%x\n", mem_alloc.hdr);
+
+    mem_alloc.version = 1;
+
+	mem_alloc.desc.flags = desc->flags;
+	mem_alloc.desc.mem_kind = desc->mem_kind;
+	mem_alloc.desc.gmu_mem_handle = desc->mem_handle;
+	mem_alloc.desc.size = desc->size;
+	mem_alloc.desc.align = (desc->align_va & 0xFF) | ((desc->align_sz & 0xFF) << 8);
+
+    return queue_write_aligned(gmu, qhdr, &mem_alloc, nb_words);
 }
 
 static bool qcom_hfi_get_pending_msg(QcomGMUState* gmu, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg)
@@ -334,9 +701,7 @@ static void qcom_hfi_msg_get_value(QcomGMUState* gmu, struct hfi_queue_table* qt
 
     printf("Get value for type %u and subtype %u\n", get_value_cmd->type, get_value_cmd->subtype);
 
-    assert(send_ack(gmu, qtbl, msg, &gmu->hfi.values[get_value_cmd->type], 1));
-
-    
+    assert(send_ack_get(gmu, qtbl, msg, gmu->hfi.values[get_value_cmd->type]));
 }
 
 static void qcom_hfi_msg_bw_vote_tbl(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
@@ -352,7 +717,7 @@ static void qcom_hfi_msg_acd_tbl(QcomGMUState* gmu, struct hfi_queue_table* qtbl
 }
 
 static void qcom_hfi_msg_set_value(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
-    
+    assert(send_ack_simple(gmu, qtbl, msg, HFI_SUCCESS));
 }
 
 static void qcom_hfi_msg_clx_tbl(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
@@ -367,9 +732,20 @@ static void qcom_hfi_msg_core_fw_start(QcomGMUState* gmu, struct hfi_queue_table
     
 }
 
-static void qcom_hfi_msg_generic_ack(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
-    uint32_t data = 0;
-    assert(send_ack(gmu, qtbl, msg, &data, 1));
+static void qcom_hfi_msg_simple_ack(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
+    assert(send_ack_simple(gmu, qtbl, msg, HFI_SUCCESS));
+}
+
+static void qcom_hfi_msg_start(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
+    // allocate memory from descriptors
+    // TODO: take feature flags into account
+    for (size_t i = 0; i < ARRAY_SIZE(mem_descs); ++i) {
+        printf("allocating memory...\n");
+        struct hfi_mem_desc* desc = &mem_descs[i];
+        assert(send_mem_alloc(gmu, qtbl, desc));
+    }
+
+    assert(send_ack_simple(gmu, qtbl, msg, HFI_SUCCESS));
 }
 
 static struct qcom_hfi_ops hfi_ops[] = {
@@ -411,15 +787,15 @@ static struct qcom_hfi_ops hfi_ops[] = {
     },
     [H2F_MSG_START] = {
         .name = "MSG_START",
-        .handler = qcom_hfi_msg_generic_ack,
+        .handler = qcom_hfi_msg_start,
     },
     [H2F_MSG_ISSUE_CMD_RAW] = {
         .name = "MSG_ISSUE_CMD_RAW",
-        .handler = qcom_hfi_msg_generic_ack,
+        .handler = qcom_hfi_msg_simple_ack,
     },
     [H2F_MSG_PREPARE_SLUMBER] = {
         .name = "MSG_ISSUE_CMD_RAW",
-        .handler = qcom_hfi_msg_generic_ack,
+        .handler = qcom_hfi_msg_simple_ack,
     },
 
     // invalid entry

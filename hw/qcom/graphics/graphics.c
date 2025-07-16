@@ -75,6 +75,12 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
         case GEN8_GBIF_HALT_ACK: {
             return s->regs[GEN8_GBIF_HALT_ACK];
         }
+        case GEN8_CP_SEMAPHORE_REG_0: {
+            return s->regs[GEN8_CP_SEMAPHORE_REG_0];
+        }
+        case GEN8_RBBM_PERFCTR_FLUSH_HOST_STATUS: {
+            return s->regs[GEN8_RBBM_PERFCTR_FLUSH_HOST_STATUS];
+        };
         default: {
             printf("\tUnknown addr\n");
         }
@@ -119,9 +125,16 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
         }
         case GEN8_GBIF_HALT: {
             s->regs[GEN8_GBIF_HALT_ACK] = value;
-
             break;
         }
+        case GEN8_CP_SEMAPHORE_REG_0: {
+            s->regs[GEN8_CP_SEMAPHORE_REG_0] |= value;
+            break;
+        }
+        case GEN8_RBBM_PERFCTR_FLUSH_HOST_CMD: {
+            s->regs[GEN8_RBBM_PERFCTR_FLUSH_HOST_STATUS] = BIT(0);
+            break;
+        };
         default: {
             printf("\tUnknown addr\n");
         }

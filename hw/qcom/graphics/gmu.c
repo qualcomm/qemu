@@ -145,6 +145,15 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 // return s->regs[GEN8_GMUCX_RPMH_POWER_STATE];
                 return GPU_HW_MINBW;
             }
+            case GEN8_GMUAO_RSCC_CONTROL_ACK:
+                return s->regs[GEN8_GMUAO_RSCC_CONTROL_ACK];
+            // set by tz normally
+            case GEN8_GPU_CX_MISC_SLICE_ENABLE_TEST: {
+                return 7;
+            }
+            case GEN8_GPU_CX_MISC_SLICE_ENABLE_FINAL: {
+                return 7;
+            }
             default: {
                 printf("\tUnknown addr\n");
             }
@@ -173,10 +182,12 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
         case GEN8_GMUAO_RSCC_CONTROL_REQ: {
             if (value & BIT(0)) {
                 s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] |= CLK_OFF;
+                s->regs[GEN8_GMUAO_RSCC_CONTROL_ACK] |= BIT(0);
             }
 
             if (value & BIT(1)) {
                 s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] &= ~CLK_OFF;
+                s->regs[GEN8_GMUAO_RSCC_CONTROL_ACK] |= BIT(1);
             }
 
             printf("\tpwr rscc control req: 0x%lx\n", value);
