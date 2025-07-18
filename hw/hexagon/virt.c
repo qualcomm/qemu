@@ -288,6 +288,15 @@ static void virt_instance_init(Object *obj)
     create_fdt(vms);
 }
 
+static void virt_instance_finalize(Object *obj)
+{
+    HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
+    MachineState *ms = MACHINE(vms);
+
+    g_free(ms->fdt);
+}
+
+
 void hexagon_load_fdt(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -536,6 +545,7 @@ static const TypeInfo virt_machine_types[] = { {
     .instance_size = sizeof(HexagonVirtMachineState),
     .class_init = virt_class_init,
     .instance_init = virt_instance_init,
+    .instance_finalize = virt_instance_finalize,
 } };
 
 DEFINE_TYPES(virt_machine_types)
