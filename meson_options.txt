@@ -117,6 +117,8 @@ option('tpm', type : 'feature', value : 'auto',
        description: 'TPM support')
 option('valgrind', type : 'feature', value: 'auto',
        description: 'valgrind debug support for coroutine stacks')
+option('igvm', type: 'feature', value: 'auto',
+       description: 'Independent Guest Virtual Machine (IGVM) file support')
 
 # Do not enable it by default even for Mingw32, because it doesn't
 # work on Wine.
@@ -234,6 +236,8 @@ option('pixman', type : 'feature', value : 'auto',
        description: 'pixman support')
 option('slirp', type: 'feature', value: 'auto',
        description: 'libslirp user mode network backend support')
+option('passt', type: 'feature', value: 'auto',
+       description: 'passt network backend support')
 option('vde', type : 'feature', value : 'auto',
        description: 'vde network backend support')
 option('vmnet', type : 'feature', value : 'auto',

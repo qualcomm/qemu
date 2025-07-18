@@ -1,6 +1,7 @@
 #ifndef VHOST_H
 #define VHOST_H
 
+#include "net/vhost_net.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "system/memory.h"
@@ -143,6 +144,10 @@ struct vhost_net {
     struct vhost_dev dev;
     struct vhost_virtqueue vqs[2];
     int backend;
+    const int *feature_bits;
+    int max_tx_queue_size;
+    SaveAcketFeatures *save_acked_features;
+    bool is_vhost_user;
     NetClientState *nc;
 };
 
@@ -236,6 +241,21 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings);
  * Return: 0 on success, != 0 on error when stopping dev.
  */
 int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings);
+
+/**
+ * vhost_dev_force_stop() - force stop the vhost device
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ * @vrings: true to have vrings disabled in this call
+ *
+ * Force stop the vhost device. After the device is stopped the notifiers
+ * can be disabled (@vhost_dev_disable_notifiers) and the device can
+ * be torn down (@vhost_dev_cleanup). Unlike @vhost_dev_stop, this doesn't
+ * attempt to flush in-flight backend requests by skipping GET_VRING_BASE
+ * entirely.
+ */
+int vhost_dev_force_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool vrings);
 
 /**
  * DOC: vhost device configuration handling
