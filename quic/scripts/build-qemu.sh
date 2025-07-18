@@ -200,6 +200,8 @@ readonly GENERIC_CONFIG_CMD="
 readonly HEX_CONFIG_OPTS="
     --target-list=hexagon-softmmu,hexagon-linux-user
     --extra-ldflags=-lrt
+    --enable-fdt
+    --enable-slirp
 "
 readonly HEX_CONFIG_CMD="${GENERIC_CONFIG_CMD} ${DEFAULT_CONFIG_OPTS} ${HEX_CONFIG_OPTS}"
 readonly HEX_SAN_CONFIG_CMD="
