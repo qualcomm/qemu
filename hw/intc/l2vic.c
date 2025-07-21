@@ -162,10 +162,15 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
 
     if (offset == L2VIC_VID_0) {
         if ((int)val != L2VIC_CIAD_INSTRUCTION) {
-            s->vid0 = val;
+            /* L2VIC_NO_PENDING should not update the VID register */
+            if (val != L2VIC_NO_PENDING) {
+                s->vid0 = val;
+            }
         } else {
             /* ciad issued: clear int_status */
-            clear_bit(s->vid0, (unsigned long *)s->int_status);
+            if (s->vid0 < L2VIC_INTERRUPT_MAX) {
+                clear_bit(s->vid0, (unsigned long *)s->int_status);
+            }
         }
     } else if (offset >= L2VIC_INT_ENABLEn &&
                offset < (L2VIC_INT_ENABLE_CLEARn)) {

@@ -133,7 +133,6 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     /* Some system registers are per thread and some are global. */
     target_ulong t_sreg[NUM_SREGS];
-    target_ulong *g_sreg;
 
     target_ulong greg[NUM_GREGS];
     target_ulong wait_next_pc;
@@ -201,6 +200,9 @@ struct ArchCPU {
     uint32_t hvx_contexts;
     uint32_t boot_addr;
     uint64_t config_table_addr;
+
+    /* System registers object */
+    struct HexagonSysregState *sysregs;
 #endif
 };
 

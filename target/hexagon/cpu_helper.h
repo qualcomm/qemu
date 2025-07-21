@@ -7,6 +7,10 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
+#ifndef CONFIG_USER_ONLY
+#include "hw/hexagon/hexagon_sysreg.h"
+#endif
+
 void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
                          void *retptr, uintptr_t retaddr);
 void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
@@ -51,7 +55,8 @@ static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
     if (reg < HEX_SREG_GLB_START) {
         env->t_sreg[reg] = val;
     } else {
-        env->g_sreg[reg] = val;
+        HexagonCPU *cpu = env_archcpu(env);
+        hexagon_sysreg_write(cpu->sysregs, reg, val);
     }
 }
 #endif

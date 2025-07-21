@@ -6,20 +6,22 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/address-spaces.h"
+#include "hw/hexagon/virt.h"
+#include "elf.h"
 #include "hw/char/pl011.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
-#include "hw/hexagon/virt.h"
+#include "hw/hexagon/hexagon_sysreg.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
 #include "hw/timer/qct-qtimer.h"
+#include "machine_cfg_v68n_1024.h.inc"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
-#include "elf.h"
-#include "machine_cfg_v68n_1024.h.inc"
+#include "system/address-spaces.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "system/system.h"
@@ -329,6 +331,16 @@ static void virt_init(MachineState *ms)
                            sizeof(m_cfg->cfgtable), errp);
     memory_region_add_subregion(vms->sys, m_cfg->cfgbase, &vms->cfgtable);
     fdt_add_hvx(vms, m_cfg, errp);
+
+    Object *gsregs_obj = object_new(TYPE_HEXAGON_SYSREG);
+    object_property_add_child(OBJECT(ms), "global-sregs", gsregs_obj);
+
+    /* Realize the device */
+    if (!qdev_realize_and_unref(DEVICE(gsregs_obj), NULL, errp)) {
+        error_report("Failed to realize global system registers device");
+        return;
+    }
+
     const char *cpu_model = ms->cpu_type;
 
     if (!cpu_model) {
@@ -356,6 +368,13 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_region);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
+
+        /* Link the global system registers object to this CPU */
+        if (!object_property_set_link(OBJECT(cpu), "global-sregs", gsregs_obj,
+                                      errp)) {
+            error_report("Failed to link global system registers to CPU");
+            return;
+        }
 
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
             return;

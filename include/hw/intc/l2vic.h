@@ -26,6 +26,7 @@
 
 #define L2VIC_INTERRUPT_MAX 1024
 #define L2VIC_CIAD_INSTRUCTION -1
+#define L2VIC_NO_PENDING 0xffffffff
 /*
  * Note about l2vic groups:
  * Each interrupt to L2VIC can be configured to associate with one of

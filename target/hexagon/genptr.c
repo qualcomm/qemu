@@ -229,7 +229,7 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
         } else {
-            gen_masked_reg_write(val, hex_g_sreg[rnum], reg_mask);
+            /* Global system registers must use helper functions */
             gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
         }
     }

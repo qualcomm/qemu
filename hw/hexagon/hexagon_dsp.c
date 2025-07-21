@@ -6,25 +6,25 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-
 #include "qemu/osdep.h"
-#include "qemu/units.h"
-#include "system/address-spaces.h"
-#include "hw/hw.h"
+#include "cpu.h"
+#include "elf.h"
 #include "hw/boards.h"
-#include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon_sysreg.h"
+#include "hw/hw.h"
 #include "hw/loader.h"
+#include "hw/qdev-properties.h"
+#include "include/migration/cpu.h"
+#include "include/semihosting/semihost.h"
+#include "include/system/system.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "elf.h"
-#include "cpu.h"
-#include "include/migration/cpu.h"
-#include "include/system/system.h"
-#include "target/hexagon/internal.h"
+#include "qemu/units.h"
+#include "system/address-spaces.h"
 #include "system/reset.h"
-#include "include/semihosting/semihost.h"
+#include "target/hexagon/internal.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
 
@@ -110,6 +110,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     Error **errp = NULL;
 
+    Object *gsregs_obj = object_new(TYPE_HEXAGON_SYSREG);
+    object_property_add_child(OBJECT(machine), "global-sregs", gsregs_obj);
+
+    if (!qdev_realize_and_unref(DEVICE(gsregs_obj), NULL, errp)) {
+        error_report("Failed to realize global system registers device");
+        return;
+    }
+
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         CPUHexagonState *env = &cpu->env;
@@ -128,6 +136,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
 
+        /* Link the global system registers object to this CPU */
+        if (!object_property_set_link(OBJECT(cpu), "global-sregs", gsregs_obj,
+                                      errp)) {
+            error_report("Failed to link global system registers to CPU");
+            return;
+        }
 
         if (i == 0) {
             hexagon_init_bootstrap(machine, cpu);

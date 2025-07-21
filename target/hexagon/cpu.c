@@ -30,6 +30,7 @@
 #include "cpu_helper.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon_sysreg.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "macros.h"
@@ -75,13 +76,15 @@ static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
-        0xffffffffULL),
+                       0xffffffffULL),
     DEFINE_PROP_UINT32("qtimer-base-addr", HexagonCPU, qtimer_base_addr,
                        0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
                        0xffffffffULL),
+    DEFINE_PROP_LINK("global-sregs", HexagonCPU, sysregs, TYPE_HEXAGON_SYSREG,
+                     HexagonSysregState *),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -428,7 +431,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
 
     if (cs->cpu_index == 0) {
-        memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+        if (cpu->sysregs) {
+            hexagon_sysreg_reset(cpu->sysregs);
+        }
         arch_set_system_reg(env, HEX_SREG_MODECTL, 0x1);
         arch_set_system_reg(env, HEX_SREG_REV, cpu->rev_reg);
         *(env->g_pcycle_base) = 0;
@@ -500,12 +505,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     CPUHexagonState *env = cpu_env(cs);
 #ifndef CONFIG_USER_ONLY
     hex_mmu_realize(env);
-    if (cs->cpu_index == 0) {
-        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
-    } else {
-        CPUState *cpu0 = qemu_get_cpu(0);
-        CPUHexagonState *env0 = cpu_env(cpu0);
-        env->g_sreg = env0->g_sreg;
+    /* System registers are now accessed through the QOM object */
+    if (!cpu->sysregs) {
+        error_setg(errp, "System registers object not linked");
+        return;
     }
 #endif
     if (cs->cpu_index == 0) {
