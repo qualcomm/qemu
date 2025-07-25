@@ -37,6 +37,7 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "qemu/main-loop.h"
 #include "hex_interrupts.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #include "hexswi.h"
 #include "exec/cpu-interrupt.h"
 #include "exec/target_page.h"
@@ -361,6 +362,10 @@ static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
 #ifndef CONFIG_USER_ONLY
 bool hexagon_thread_is_enabled(CPUHexagonState *env)
 {
+    HexagonCPU *cpu = env_archcpu(env);
+    if (!cpu->globalregs) {
+        return true;
+    }
     target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
@@ -505,10 +510,13 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
 #ifndef CONFIG_USER_ONLY
     BQL_LOCK_GUARD();
     CPUHexagonState *env = cpu_env(cs);
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
-    uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
-    if (!mmuen) {
-        return MMU_KERNEL_IDX;
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    if (cpu->globalregs) {
+        uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+        uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
+        if (!mmuen) {
+            return MMU_KERNEL_IDX;
+        }
     }
 
     int cpu_mode = get_cpu_mode(env);

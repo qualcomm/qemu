@@ -7,6 +7,11 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
+#ifndef CONFIG_USER_ONLY
+/* Forward declaration for system register handling */
+struct HexagonGlobalRegState;
+#endif
+
 void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
                          void *retptr, uintptr_t retaddr);
 void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
@@ -46,6 +51,8 @@ static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
 #ifndef CONFIG_USER_ONLY
 void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
                         uint32_t val);
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                uint32_t val);
 #endif
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);

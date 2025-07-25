@@ -202,6 +202,21 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
     }
 }
 
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    g_assert(reg < NUM_SREGS);
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+#ifndef CONFIG_USER_ONLY
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write_masked(cpu, reg, val);
+        }
+#endif
+    }
+}
+
 #endif
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
@@ -447,10 +462,13 @@ void clear_wait_mode(CPUHexagonState *env)
 {
     g_assert(bql_locked());
 
-    const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
-    uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
-    thread_wait_mask &= ~(0x1 << env->threadId);
-    SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+        uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
+        thread_wait_mask &= ~(0x1 << env->threadId);
+        SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
+    }
 }
 
 void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause)

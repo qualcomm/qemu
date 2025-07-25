@@ -6,20 +6,23 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/address-spaces.h"
+#include "hw/hexagon/virt.h"
+#include "elf.h"
 #include "hw/char/pl011.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
-#include "hw/hexagon/virt.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
 #include "hw/timer/qct-qtimer.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
 #include "elf.h"
 #include "machine_cfg_v68n_1024.h.inc"
+#include "system/address-spaces.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "system/system.h"
@@ -352,8 +355,10 @@ static void virt_init(MachineState *ms)
     }
 
     /* Create global registers object that will be shared by all CPUs */
-    DeviceState *gsregs_dev = qdev_new("hexagon-globalreg");
+    DeviceState *gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
+    qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
     qdev_prop_set_uint32(gsregs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), errp);
 

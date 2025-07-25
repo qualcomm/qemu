@@ -197,26 +197,6 @@ static const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_HTID] = IMMUTABLE,
     [HEX_SREG_IMASK] = 0xffff0000,
     [HEX_SREG_GEVB] = 0x000000ff,
-    [HEX_SREG_EVB] = 0x000000ff,
-    [HEX_SREG_MODECTL] = IMMUTABLE,
-    [HEX_SREG_SYSCFG] = 0x80001c00,
-    [HEX_SREG_IPENDAD] = IMMUTABLE,
-    [HEX_SREG_VID] = 0xfc00fc00,
-    [HEX_SREG_VID1] = 0xfc00fc00,
-    [HEX_SREG_BESTWAIT] = 0xfffffe00,
-    [HEX_SREG_SCHEDCFG] = 0xfffffef0,
-    [HEX_SREG_CFGBASE] = IMMUTABLE,
-    [HEX_SREG_REV] = IMMUTABLE,
-    [HEX_SREG_ISDBST] = IMMUTABLE,
-    [HEX_SREG_ISDBCFG0] = 0xe0000000,
-    [HEX_SREG_BRKPTPC0] = 0x00000003,
-    [HEX_SREG_BRKPTCFG0] = 0xfc007000,
-    [HEX_SREG_BRKPTPC1] = 0x00000003,
-    [HEX_SREG_BRKPTCFG1] = 0xfc007000,
-    [HEX_SREG_ISDBMBXIN] = IMMUTABLE,
-    [HEX_SREG_ISDBEN] = 0xfffffffe,
-    [HEX_SREG_TIMERLO] = IMMUTABLE,
-    [HEX_SREG_TIMERHI] = IMMUTABLE,
 };
 
 G_GNUC_UNUSED
@@ -229,7 +209,7 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
         } else {
-            gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
+            gen_helper_sreg_write_masked(tcg_env, tcg_constant_i32(rnum), val);
         }
     }
 }

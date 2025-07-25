@@ -68,8 +68,6 @@ static bool need_next_PC(DisasContext *ctx);
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
-TCGv_ptr hex_g_sreg_ptr;
-TCGv hex_g_sreg[NUM_SREGS];
 TCGv hex_cause_code;
 #endif
 
