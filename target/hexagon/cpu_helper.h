@@ -19,6 +19,11 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
+#ifndef CONFIG_USER_ONLY
+/* Forward declaration for system register handling */
+struct HexagonGlobalRegState;
+#endif
+
 static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
 {
@@ -32,23 +37,9 @@ static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
     return env->gpr[reg];
 }
 
-static inline void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
-                                       uint32_t val)
-{
-    g_assert(reg < NUM_SREGS);
-    if (reg < HEX_SREG_GLB_START) {
-        env->t_sreg[reg] = val;
-    } else {
-        env->g_sreg[reg] = val;
-    }
-}
-
-static inline uint32_t *arch_get_system_reg_addr(CPUHexagonState *env,
-                                                 uint32_t reg)
-{
-    g_assert(reg < NUM_SREGS);
-    return reg < HEX_SREG_GLB_START ? &env->t_sreg[reg] : &env->g_sreg[reg];
-}
+void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val);
+void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
+                                uint32_t val);
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);
 

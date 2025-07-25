@@ -43,6 +43,7 @@
 #include "hex_interrupts.h"
 #include "qemu/cutils.h"
 #include "hexswi.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #endif
 #include "opcodes.h"
 #include "coproc.h"
@@ -100,14 +101,9 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
     DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
     DEFINE_PROP_STRING("cmdline", HexagonCPU, cmdline),
-    DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
-                       0xffffffffULL),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
-    DEFINE_PROP_UINT32("start-evb", HexagonCPU, boot_evb, 0x0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
-                       0xffffffffULL),
-    DEFINE_PROP_UINT32("qtimer-base-addr", HexagonCPU, qtimer_base_addr,
                        0xffffffffULL),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
                      false),
@@ -116,16 +112,14 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT64("vtcm-base-addr", HexagonCPU, vtcm_base_addr, 0x0),
     DEFINE_PROP_UINT32("vtcm-size-kb", HexagonCPU, vtcm_size_kb, 0),
 
-    DEFINE_PROP_BOOL("isdben-etm-enable", HexagonCPU, isdben_etm_enable, false),
-    DEFINE_PROP_BOOL("isdben-dfd-enable", HexagonCPU, isdben_dfd_enable, false),
-    DEFINE_PROP_BOOL("isdben-trusted", HexagonCPU, isdben_trusted, false),
-    DEFINE_PROP_BOOL("isdben-secure", HexagonCPU, isdben_secure, false),
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
     DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
                        0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, jtlb_entries, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("dma-jtlb-entries", HexagonCPU, dma_jtlb_entries, 0),
+    DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
+                     TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
 #endif
     DEFINE_PROP_BOOL("hvx-bfloat", HexagonCPU, hvx_bfloat, false),
     DEFINE_PROP_BOOL("coproc2-bfloat", HexagonCPU, coproc2_bfloat, false),
@@ -633,8 +627,13 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
     arch_set_system_reg(env, HEX_SREG_SSR, 0);
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
-    target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
-    arch_set_thread_reg(env, HEX_REG_PC, evb);
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+        arch_set_thread_reg(env, HEX_REG_PC, evb);
+    } else {
+        arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
+    }
 }
 #endif
 
@@ -667,6 +666,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     env->t_cycle_count = 0;
 
+#ifndef CONFIG_USER_ONLY
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+#endif
     memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
     memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
     memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
@@ -689,41 +692,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
             coproc(&args);
         }
 
-        *(env->g_pcycle_base) = 0;
-        memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
         memset(env->g_gcycle, 0, sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
         memset(env->pmu.g_ctrs_off, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         memset(env->pmu.g_events, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
-        arch_set_system_reg(env, HEX_SREG_EVB, cpu->boot_evb);
-        arch_set_system_reg(env, HEX_SREG_CFGBASE,
-                            HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
-        arch_set_system_reg(env, HEX_SREG_REV, cpu->rev_reg);
-        arch_set_system_reg(env, HEX_SREG_MODECTL, 0x1);
-        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_TRUSTED, cpu->isdben_trusted);
-        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_SECURE, cpu->isdben_secure);
-        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_ETM_EN, cpu->isdben_etm_enable);
-        SET_SYSTEM_FIELD(env, HEX_SREG_ISDBEN, ISDBEN_DFD_EN, cpu->isdben_dfd_enable);
-
-        /*
-         * These register indices are placeholders in these arrays
-         * and their actual values are synthesized from state elsewhere.
-         * We can initialize these with invalid values so that if we
-         * mistakenly generate reads, they will look obviously wrong.
-         */
-        arch_set_system_reg(env, HEX_SREG_PCYCLELO, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PCYCLEHI, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_TIMERLO, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_TIMERHI, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT0, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT1, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT2, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT3, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT4, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT5, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT6, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_PMUCNT7, INVALID_REG_VAL);
-        arch_set_system_reg(env, HEX_SREG_IPENDAD, INVALID_REG_VAL);
+        /* Global register initialization moved to hexagon_globalreg_reset */
     }
 
     memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
@@ -863,15 +836,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->processor_ptr,
         env->threadId);
 
-    cpu->vmstate_num_g_sreg = NUM_SREGS;
     cpu->vmstate_num_g_gcycle = NUM_GLOBAL_GCYCLE;
     env->pmu.vmstate_num_ctrs = NUM_PMU_CTRS;
 
     hex_mmu_realize(env);
     if (cs->cpu_index == 0) {
-        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
         env->g_gcycle = g_new0(target_ulong, NUM_GLOBAL_GCYCLE);
-        env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
         env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
         env->g_dir_list = g_malloc0(sizeof(GList *));
@@ -900,11 +870,9 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     } else {
         CPUState *cpu0 = qemu_get_cpu(0);
         CPUHexagonState *env0 = cpu_env(cpu0);
-        env->g_sreg = env0->g_sreg;
         env->g_gcycle = env0->g_gcycle;
         env->g_dir_list = env0->g_dir_list;
         env->lib_search_dir = env0->lib_search_dir;
-        env->g_pcycle_base = env0->g_pcycle_base;
         env->pmu.g_ctrs_off = env0->pmu.g_ctrs_off;
         env->pmu.g_events = env0->pmu.g_events;
 
@@ -920,7 +888,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         }
     }
 #else
-    env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
 #endif
 
     mcc->parent_realize(dev, errp);
@@ -929,6 +896,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
 bool hexagon_thread_is_enabled(CPUHexagonState *env) {
+    HexagonCPU *cpu = env_archcpu(env);
+    if (!cpu->globalregs) {
+        return true;
+    }
     target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
@@ -1212,10 +1183,13 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
 #ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
-    uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
-    if (!mmuen) {
-        return MMU_KERNEL_IDX;
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    if (cpu->globalregs) {
+        uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+        uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
+        if (!mmuen) {
+            return MMU_KERNEL_IDX;
+        }
     }
 
     int cpu_mode = get_cpu_mode(env);

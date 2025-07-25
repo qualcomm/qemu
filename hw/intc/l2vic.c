@@ -322,9 +322,10 @@ static void fastl2vic_write(void *opaque, hwaddr offset, uint64_t val,
             l2vic_write(opaque, L2VIC_INT_ENABLE_CLEARn + slice, val, size);
         } else if (cmd == FASTL2VIC_INT) {
             l2vic_write(opaque, L2VIC_SOFT_INTn + slice, val, size);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write cmd %d\n", __func__,
+                          cmd);
         }
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write cmd %d\n", __func__,
-                      cmd);
         return;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid write offset 0x%08x\n",

@@ -65,8 +65,6 @@ TCGv_i64 hex_llsc_val_i64;
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
-TCGv_ptr hex_g_sreg_ptr;
-TCGv hex_g_sreg[NUM_SREGS];
 TCGv hex_slot;
 TCGv hex_imprecise_exception;
 TCGv hex_cause_code;
@@ -1774,18 +1772,11 @@ void hexagon_translate_init(void)
                 offsetof(CPUHexagonState, greg[i]),
                 hexagon_gregnames[i]);
     }
-    hex_g_sreg_ptr = tcg_global_mem_new_ptr(tcg_env,
-            offsetof(CPUHexagonState, g_sreg), "hex_g_sreg_ptr");
-    for (i = 0; i < NUM_SREGS; i++) {
-        if (i < HEX_SREG_GLB_START) {
-            hex_t_sreg[i] = tcg_global_mem_new(tcg_env,
-                offsetof(CPUHexagonState, t_sreg[i]),
-                hexagon_sregnames[i]);
-        } else {
-            hex_g_sreg[i] = tcg_global_mem_new(hex_g_sreg_ptr,
-                i * sizeof(target_ulong),
-                hexagon_sregnames[i]);
-        }
+    /* Only create TCG globals for thread-local system registers */
+    for (i = 0; i < HEX_SREG_GLB_START; i++) {
+        hex_t_sreg[i] =
+            tcg_global_mem_new(tcg_env, offsetof(CPUHexagonState, t_sreg[i]),
+                               hexagon_sregnames[i]);
     }
     hex_pmu_num_packets = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, pmu.num_packets), "pmu.num_packets");

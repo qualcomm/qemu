@@ -376,8 +376,6 @@ extern TCGv hex_VRegs_updated;
 #ifndef CONFIG_USER_ONLY
 extern TCGv hex_greg[NUM_GREGS];
 extern TCGv hex_t_sreg[NUM_SREGS];
-extern TCGv_ptr hex_g_sreg_ptr;
-extern TCGv hex_g_sreg[NUM_SREGS];
 #endif
 extern TCGv_i64 hex_cycle_count;
 extern TCGv_i32 hex_exec_ctr_pkt;

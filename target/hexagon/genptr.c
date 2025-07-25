@@ -231,33 +231,6 @@ const target_ulong sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_HTID] = IMMUTABLE,
     [HEX_SREG_GEVB] = 0x000000ff,
     [HEX_SREG_VWCTRL] = 0x7000f000,
-    [HEX_SREG_EVB] = 0x000000ff,
-    [HEX_SREG_MODECTL] = IMMUTABLE,
-    [HEX_SREG_SYSCFG] = 0x80001c00,
-    [HEX_SREG_IPENDAD] = IMMUTABLE,
-    [HEX_SREG_VID] = 0xfc00fc00,
-    [HEX_SREG_VID1] = 0xfc00fc00,
-    [HEX_SREG_BESTWAIT] = 0xfffffe00,
-    [HEX_SREG_SCHEDCFG] = 0xfffffee0,
-    [HEX_SREG_CFGBASE] = IMMUTABLE,
-    [HEX_SREG_REV] = IMMUTABLE,
-    [HEX_SREG_ISDBST] = IMMUTABLE,
-    [HEX_SREG_ISDBCFG0] = 0xe0000000,
-    [HEX_SREG_BRKPTPC0] = 0x00000003,
-    [HEX_SREG_BRKPTCFG0] = 0xfc007000,
-    [HEX_SREG_BRKPTPC1] = 0x00000003,
-    [HEX_SREG_BRKPTCFG1] = 0xfc007000,
-    [HEX_SREG_ISDBMBXIN] = IMMUTABLE,
-    [HEX_SREG_ISDBEN] = 0xfffffffe,
-    [HEX_SREG_TIMERLO] = IMMUTABLE,
-    [HEX_SREG_TIMERHI] = IMMUTABLE,
-    [HEX_SREG_ISDBVER] = IMMUTABLE,
-    [HEX_SREG_BRKPTINFO] = IMMUTABLE,
-    [HEX_SREG_IPEND] = IMMUTABLE,
-    [HEX_SREG_IAD] = IMMUTABLE,
-    [HEX_SREG_ISDBST1] = IMMUTABLE,
-    [HEX_SREG_ISDBST2] = IMMUTABLE,
-    [HEX_SREG_BRKPTINFO1] = IMMUTABLE,
 };
 
 static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
@@ -272,20 +245,11 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
         } else {
-           /*
-            * SYSCFG can be updated by k0lock or tlblock.
-            * The helper will protect the immutable bits and do the
-            * RMW sequence with BQL held, the tcg RWM is not thread safe.
-            */
-            if (rnum == HEX_SREG_SYSCFG) {
-                gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
-            } else {
-                gen_masked_reg_write(val, hex_g_sreg[rnum], reg_mask);
-                gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
-            }
+            gen_helper_sreg_write_masked(tcg_env, tcg_constant_i32(rnum), val);
         }
     }
 }
+
 
 static void gen_log_sreg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 {

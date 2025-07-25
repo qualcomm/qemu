@@ -364,7 +364,6 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     /* some system registers are per thread and some are global */
     target_ulong t_sreg[NUM_SREGS];
-    target_ulong *g_sreg;
     target_ulong *g_gcycle;
 
     target_ulong greg[NUM_GREGS];
@@ -418,7 +417,6 @@ typedef struct CPUArchState {
     uint32_t exec_ctr_hvx;
     uint32_t exec_ctr_coproc;
     uint32_t exec_ctr_tb;
-    uint64_t *g_pcycle_base;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
     hex_memop_pc memop_pc;
     int32_t shm_fd;
@@ -466,18 +464,11 @@ struct ArchCPU {
     gchar *usefs;
     gchar *coproc_path;
     gchar *cmdline;
-    uint64_t config_table_addr;
     bool vp_mode;
     uint32_t boot_addr;
-    uint32_t boot_evb;
     uint32_t l2vic_base_addr;
-    uint32_t qtimer_base_addr;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
-    bool isdben_etm_enable;
-    bool isdben_dfd_enable;
-    bool isdben_trusted;
-    bool isdben_secure;
     uint32_t num_coproc_instance;
     uint32_t subsystem_id;
     uint32_t num_tlbs;
@@ -497,15 +488,17 @@ struct ArchCPU {
     uint32_t vmstate_num_g_sreg;
     uint32_t vmstate_num_g_gcycle;
     uint32_t hvx_contexts;
+#ifndef CONFIG_USER_ONLY
+    struct HexagonGlobalRegState *globalregs;
+#endif
 };
 
 #ifndef CONFIG_USER_ONLY
 #include "cpu_helper.h"
-#endif
-
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env);
+#endif
 
 #include "cpu_bits.h"
 

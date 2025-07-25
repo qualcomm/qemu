@@ -175,8 +175,6 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINTTL_ARRAY(env.t_sreg, HexagonCPU, NUM_SREGS),
         VMSTATE_UINTTL_ARRAY(env.greg, HexagonCPU, NUM_GREGS),
 
-        VMSTATE_VARRAY_UINT32(env.g_sreg, HexagonCPU, vmstate_num_g_sreg, 0,
-                              vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.g_gcycle, HexagonCPU, vmstate_num_g_gcycle, 0,
                               vmstate_info_uint32, uint32_t),
 
@@ -216,9 +214,6 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_BOOL(env.vtcm_pending, HexagonCPU),
         VMSTATE_BOOL(env.ss_pending, HexagonCPU),
         VMSTATE_UINTTL(env.next_PC, HexagonCPU),
-
-        VMSTATE_POINTER(env.g_pcycle_base, HexagonCPU, 0,
-                        vmstate_info_uint64_ptr, uint64_t *),
 
         VMSTATE_MMVECTOR_ARRAY(env.VRegs, HexagonCPU, NUM_VREGS),
         VMSTATE_MMVECTOR_ARRAY(env.future_VRegs, HexagonCPU, VECTOR_TEMPS_MAX),

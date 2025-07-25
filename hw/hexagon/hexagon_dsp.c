@@ -25,6 +25,7 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -303,19 +304,24 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                     tcm);
     }
 
-
-    HexagonCPU *cpu_0 = NULL;
+    HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     Error **errp = NULL;
 
+    DeviceState *glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    object_property_add_child(OBJECT(machine), "global-regs",
+                              OBJECT(glob_regs_dev));
+    qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
+    qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
+
+    /* Now create CPUs. */
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        cpus[i] = cpu;
         CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", machine->smp.cpus);
-        qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_region);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
@@ -347,21 +353,32 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                 rev = cpu->rev_reg;
             }
             hexagon_init_bootstrap(machine, cpu, &rev);
-            cpu_0 = cpu;
         } else {
-            if (cpu_0->usefs) {
-                qdev_prop_set_string(DEVICE(cpu), "usefs", cpu_0->usefs);
+            if (cpus[0]->usefs) {
+                qdev_prop_set_string(DEVICE(cpu), "usefs", cpus[0]->usefs);
             }
         }
 
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
+    }
 
-        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-            return;
+    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+
+    /* Finally, link cpus to global registers and do realization */
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
+                                      OBJECT(glob_regs_dev), errp)) {
+            error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
+            error_report("Failed to realize CPU %d", i);
+            goto out;
         }
     }
 
-    HexagonCPU *cpu = cpu_0;
+    HexagonCPU *cpu = cpus[0];
     DeviceState *dev;
     dev = sysbus_create_varargs(
         "l2vic", m_cfg->l2vic_base,
@@ -409,6 +426,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     rom_add_blob_fixed_as("config_table.rom", config_table,
                           sizeof(*config_table), m_cfg->cfgbase,
                           &address_space_memory);
+out:
+    g_free(cpus);
 }
 
 static void init_mc(MachineClass *mc)
