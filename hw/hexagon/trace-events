@@ -1,0 +1,3 @@
+# Hexagon global register access
+hexagon_globalreg_read(const char *reg_name, uint32_t value) "reg=%s value=0x%x"
+hexagon_globalreg_write(const char *reg_name, uint32_t value) "reg=%s value=0x%x"
