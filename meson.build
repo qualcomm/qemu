@@ -3633,6 +3633,7 @@ if have_system
     'hw/display',
     'hw/dma',
     'hw/fsi',
+    'hw/hexagon',
     'hw/hyperv',
     'hw/i2c',
     'hw/i3c',
