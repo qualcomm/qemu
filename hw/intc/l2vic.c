@@ -12,10 +12,31 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/bitmap.h"
 #include "hw/intc/l2vic.h"
 #include "trace.h"
 
 #define L2VICA(s, n) (s[(n) >> 2])
+
+static void bitmap32_write_word(uint32_t *bitmap, int word_offset, uint32_t val)
+{
+    bitmap[word_offset] = val;
+}
+
+static void bitmap32_clear_word(uint32_t *bitmap, int word_offset, uint32_t mask)
+{
+    bitmap[word_offset] &= ~mask;
+}
+
+static void bitmap32_set_word(uint32_t *bitmap, int word_offset, uint32_t mask)
+{
+    bitmap[word_offset] |= mask;
+}
+
+static uint32_t bitmap32_read_word(uint32_t *bitmap, int word_offset)
+{
+    return bitmap[word_offset];
+}
 
 #define TYPE_L2VIC "l2vic"
 OBJECT_DECLARE_SIMPLE_TYPE(L2VICState, L2VIC)
@@ -36,26 +57,26 @@ typedef struct L2VICState {
     uint32_t vid_group[4];
     uint32_t vid0;
     /* Clear Status of Active Edge interrupt, not used: */
-    uint32_t int_clear[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_clear, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Enable interrupt source */
-    uint32_t int_enable[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_enable, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Clear (set to 0) corresponding bit in int_enable */
     uint32_t int_enable_clear;
     /* Set (to 1) corresponding bit in int_enable */
     uint32_t int_enable_set;
     /* Present for debugging, not used */
-    uint32_t int_pending[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_pending, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Generate an interrupt */
     uint32_t int_soft;
     /* Which enabled interrupt is active */
-    uint32_t int_status[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_status, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Edge or Level interrupt */
-    uint32_t int_type[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_type, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* L2 interrupt group 0-3 0x600-0x7FF */
-    uint32_t int_group_n0[SLICE_MAX] QEMU_ALIGNED(16);
-    uint32_t int_group_n1[SLICE_MAX] QEMU_ALIGNED(16);
-    uint32_t int_group_n2[SLICE_MAX] QEMU_ALIGNED(16);
-    uint32_t int_group_n3[SLICE_MAX] QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_group_n0, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_group_n1, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_group_n2, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
+    DECLARE_BITMAP32(int_group_n3, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     qemu_irq irq[8];
 } L2VICState;
 
@@ -101,7 +122,7 @@ static inline bool vid_active(L2VICState *s)
 
 {
     /* scan all 1024 bits in int_status arrary */
-    const int size = sizeof(s->int_status) * CHAR_BIT;
+    const int size = L2VIC_INTERRUPT_MAX;
     const int active_irq = find_first_bit((unsigned long *)s->int_status, size);
     return ((active_irq != size)) ? true : false;
 }
@@ -112,13 +133,13 @@ static bool l2vic_update(L2VICState *s, int irq)
         return true;
     }
 
-    bool pending = test_bit(irq, (unsigned long *)s->int_pending);
-    bool enable = test_bit(irq, (unsigned long *)s->int_enable);
+    bool pending = test_bit32(irq, s->int_pending);
+    bool enable = test_bit32(irq, s->int_enable);
     if (pending && enable) {
         int vid = get_vid(s, irq);
-        set_bit(irq, (unsigned long *)s->int_status);
-        clear_bit(irq, (unsigned long *)s->int_pending);
-        clear_bit(irq, (unsigned long *)s->int_enable);
+        set_bit32(irq, s->int_status);
+        clear_bit32(irq, s->int_pending);
+        clear_bit32(irq, s->int_enable);
         /* ensure the irq line goes low after going high */
         s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
@@ -147,7 +168,7 @@ static void l2vic_set_irq(void *opaque, int irq, int level)
     L2VICState *s = (L2VICState *)opaque;
     if (level) {
         qemu_mutex_lock(&s->active);
-        set_bit(irq, (unsigned long *)s->int_pending);
+        set_bit32(irq, s->int_pending);
         qemu_mutex_unlock(&s->active);
     }
     l2vic_update(s, irq);
@@ -165,50 +186,50 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
             s->vid0 = val;
         } else {
             /* ciad issued: clear int_status */
-            clear_bit(s->vid0, (unsigned long *)s->int_status);
+            clear_bit32(s->vid0, s->int_status);
         }
     } else if (offset >= L2VIC_INT_ENABLEn &&
                offset < (L2VIC_INT_ENABLE_CLEARn)) {
-        L2VICA(s->int_enable, offset - L2VIC_INT_ENABLEn) = val;
+        bitmap32_write_word(s->int_enable, (offset - L2VIC_INT_ENABLEn) >> 2, val);
     } else if (offset >= L2VIC_INT_ENABLE_CLEARn &&
                offset < L2VIC_INT_ENABLE_SETn) {
-        L2VICA(s->int_enable, offset - L2VIC_INT_ENABLE_CLEARn) &= ~val;
+        bitmap32_clear_word(s->int_enable, (offset - L2VIC_INT_ENABLE_CLEARn) >> 2, val);
     } else if (offset >= L2VIC_INT_ENABLE_SETn && offset < L2VIC_INT_TYPEn) {
-        L2VICA(s->int_enable, offset - L2VIC_INT_ENABLE_SETn) |= val;
+        bitmap32_set_word(s->int_enable, (offset - L2VIC_INT_ENABLE_SETn) >> 2, val);
     } else if (offset >= L2VIC_INT_TYPEn && offset < L2VIC_INT_TYPEn + 0x80) {
-        L2VICA(s->int_type, offset - L2VIC_INT_TYPEn) = val;
+        bitmap32_write_word(s->int_type, (offset - L2VIC_INT_TYPEn) >> 2, val);
     } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
-        L2VICA(s->int_status, offset - L2VIC_INT_STATUSn) = val;
+        bitmap32_write_word(s->int_status, (offset - L2VIC_INT_STATUSn) >> 2, val);
     } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
-        L2VICA(s->int_clear, offset - L2VIC_INT_CLEARn) = val;
+        bitmap32_write_word(s->int_clear, (offset - L2VIC_INT_CLEARn) >> 2, val);
     } else if (offset >= L2VIC_INT_PENDINGn &&
                offset < L2VIC_INT_PENDINGn + 0x80) {
-        L2VICA(s->int_pending, offset - L2VIC_INT_PENDINGn) = val;
+        bitmap32_write_word(s->int_pending, (offset - L2VIC_INT_PENDINGn) >> 2, val);
     } else if (offset >= L2VIC_SOFT_INTn && offset < L2VIC_INT_PENDINGn) {
-        L2VICA(s->int_enable, offset - L2VIC_SOFT_INTn) |= val;
+        bitmap32_set_word(s->int_enable, (offset - L2VIC_SOFT_INTn) >> 2, val);
         /*
          *  Need to reverse engineer the actual irq number.
          */
         int irq = find_first_bit((unsigned long *)&val,
-                                 sizeof(s->int_enable[0]) * CHAR_BIT);
+                                 sizeof(val) * CHAR_BIT);
         hwaddr byteoffset = offset - L2VIC_SOFT_INTn;
         g_assert(irq != sizeof(s->int_enable[0]) * CHAR_BIT);
         irq += byteoffset * 8;
 
         /* The soft-int interface only works with edge-triggered interrupts */
-        if (test_bit(irq, (unsigned long *)s->int_type)) {
+        if (test_bit32(irq, s->int_type)) {
             qemu_mutex_unlock(&s->active);
             l2vic_set_irq(opaque, irq, 1);
             qemu_mutex_lock(&s->active);
         }
     } else if (offset >= L2VIC_INT_GRPn_0 && offset < L2VIC_INT_GRPn_1) {
-        L2VICA(s->int_group_n0, offset - L2VIC_INT_GRPn_0) = val;
+        bitmap32_write_word(s->int_group_n0, (offset - L2VIC_INT_GRPn_0) >> 2, val);
     } else if (offset >= L2VIC_INT_GRPn_1 && offset < L2VIC_INT_GRPn_2) {
-        L2VICA(s->int_group_n1, offset - L2VIC_INT_GRPn_1) = val;
+        bitmap32_write_word(s->int_group_n1, (offset - L2VIC_INT_GRPn_1) >> 2, val);
     } else if (offset >= L2VIC_INT_GRPn_2 && offset < L2VIC_INT_GRPn_3) {
-        L2VICA(s->int_group_n2, offset - L2VIC_INT_GRPn_2) = val;
+        bitmap32_write_word(s->int_group_n2, (offset - L2VIC_INT_GRPn_2) >> 2, val);
     } else if (offset >= L2VIC_INT_GRPn_3 && offset < L2VIC_INT_GRPn_3 + 0x80) {
-        L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3) = val;
+        bitmap32_write_word(s->int_group_n3, (offset - L2VIC_INT_GRPn_3) >> 2, val);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: offset %x unimplemented\n", __func__,
                       (int)offset);
@@ -236,31 +257,31 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset, unsigned size)
         value = s->vid0;
     } else if (offset >= L2VIC_INT_ENABLEn &&
                offset < L2VIC_INT_ENABLE_CLEARn) {
-        value = L2VICA(s->int_enable, offset - L2VIC_INT_ENABLEn);
+        value = bitmap32_read_word(s->int_enable, (offset - L2VIC_INT_ENABLEn) >> 2);
     } else if (offset >= L2VIC_INT_ENABLE_CLEARn &&
                offset < L2VIC_INT_ENABLE_SETn) {
         value = 0;
     } else if (offset >= L2VIC_INT_ENABLE_SETn && offset < L2VIC_INT_TYPEn) {
         value = 0;
     } else if (offset >= L2VIC_INT_TYPEn && offset < L2VIC_INT_TYPEn + 0x80) {
-        value = L2VICA(s->int_type, offset - L2VIC_INT_TYPEn);
+        value = bitmap32_read_word(s->int_type, (offset - L2VIC_INT_TYPEn) >> 2);
     } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
-        value = L2VICA(s->int_status, offset - L2VIC_INT_STATUSn);
+        value = bitmap32_read_word(s->int_status, (offset - L2VIC_INT_STATUSn) >> 2);
     } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
-        value = L2VICA(s->int_clear, offset - L2VIC_INT_CLEARn);
+        value = bitmap32_read_word(s->int_clear, (offset - L2VIC_INT_CLEARn) >> 2);
     } else if (offset >= L2VIC_SOFT_INTn && offset < L2VIC_INT_PENDINGn) {
         value = 0;
     } else if (offset >= L2VIC_INT_PENDINGn &&
                offset < L2VIC_INT_PENDINGn + 0x80) {
-        value = L2VICA(s->int_pending, offset - L2VIC_INT_PENDINGn);
+        value = bitmap32_read_word(s->int_pending, (offset - L2VIC_INT_PENDINGn) >> 2);
     } else if (offset >= L2VIC_INT_GRPn_0 && offset < L2VIC_INT_GRPn_1) {
-        value = L2VICA(s->int_group_n0, offset - L2VIC_INT_GRPn_0);
+        value = bitmap32_read_word(s->int_group_n0, (offset - L2VIC_INT_GRPn_0) >> 2);
     } else if (offset >= L2VIC_INT_GRPn_1 && offset < L2VIC_INT_GRPn_2) {
-        value = L2VICA(s->int_group_n1, offset - L2VIC_INT_GRPn_1);
+        value = bitmap32_read_word(s->int_group_n1, (offset - L2VIC_INT_GRPn_1) >> 2);
     } else if (offset >= L2VIC_INT_GRPn_2 && offset < L2VIC_INT_GRPn_3) {
-        value = L2VICA(s->int_group_n2, offset - L2VIC_INT_GRPn_2);
+        value = bitmap32_read_word(s->int_group_n2, (offset - L2VIC_INT_GRPn_2) >> 2);
     } else if (offset >= L2VIC_INT_GRPn_3 && offset < L2VIC_INT_GRPn_3 + 0x80) {
-        value = L2VICA(s->int_group_n3, offset - L2VIC_INT_GRPn_3);
+        value = bitmap32_read_word(s->int_group_n3, (offset - L2VIC_INT_GRPn_3) >> 2);
     } else {
         value = 0;
         qemu_log_mask(LOG_GUEST_ERROR, "L2VIC: %s: offset 0x%x\n", __func__,
