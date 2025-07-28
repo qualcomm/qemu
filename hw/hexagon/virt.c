@@ -8,16 +8,19 @@
 #include "qemu/osdep.h"
 #include "system/address-spaces.h"
 #include "hw/char/pl011.h"
+#include "hw/clock.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/virt.h"
 #include "hw/loader.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
 #include "hw/timer/qct-qtimer.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "elf.h"
 #include "machine_cfg_v68n_1024.h.inc"
 #include "system/device_tree.h"
@@ -176,7 +179,14 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     const char clocknames[] = "uartclk\0apb_pclk";
     MachineState *ms = MACHINE(vms);
 
-    pl011_create(base, qdev_get_gpio_in(vms->l2vic, irq), serial_hd(0));
+    DeviceState *pl011_dev = qdev_new("pl011");
+    SysBusDevice *s = SYS_BUS_DEVICE(pl011_dev);
+    qdev_prop_set_chr(pl011_dev, "chardev", serial_hd(0));
+
+    qdev_connect_clock_in(pl011_dev, "clk", vms->apb_pclk);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_mmio_map(s, 0, base);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->l2vic, irq));
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -268,6 +278,9 @@ static void create_qtimer(HexagonVirtMachineState *vms,
 static void virt_instance_init(Object *obj)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
+
+    vms->apb_pclk = clock_new(obj, "apb-pclk");
+    clock_set_hz(vms->apb_pclk, 24000000);
 
     create_fdt(vms);
 }
@@ -407,7 +420,8 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", ms->smp.cpus);
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_region);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr",
+                             m_cfg->qtmr_region);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
@@ -442,7 +456,8 @@ static void virt_init(MachineState *ms)
     fdt_add_gpt_node(vms);
     create_qtimer(vms, m_cfg);
 
-    hexagon_config_table *config_table = (hexagon_config_table *)&m_cfg->cfgtable;
+    hexagon_config_table *config_table =
+        (hexagon_config_table *)&m_cfg->cfgtable;
 
     /* FIXME: can we fix this? */
     config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);

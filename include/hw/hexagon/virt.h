@@ -9,6 +9,7 @@
 #define HW_HEXAGONVIRT_H
 
 #include "hw/boards.h"
+#include "hw/clock.h"
 #include "target/hexagon/cpu.h"
 
 struct HexagonVirtMachineState {
@@ -22,6 +23,7 @@ struct HexagonVirtMachineState {
     MemoryRegion tcm;
     MemoryRegion vtcm;
     DeviceState *l2vic;
+    Clock *apb_pclk;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
