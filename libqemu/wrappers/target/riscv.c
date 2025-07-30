@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 
 #include "riscv.h"
+#include "cpu-qom.h"
 #include "riscv-callbacks.h"
 
 typedef struct MeipCallbackState {
@@ -43,4 +44,17 @@ void libqemu_cpu_riscv_mip_update_cb(CPUState *cpu, uint32_t value)
     }
 
     meip_cb_state.cb((QemuObject *)cpu, value, meip_cb_state.opaque);
+}
+
+static void do_cpu_reset(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    cpu_reset(cs);
+}
+
+
+void libqemu_cpu_riscv_register_reset(Object *cpu)
+{
+    qemu_register_reset(do_cpu_reset, RISCV_CPU(cpu));
 }
