@@ -29,5 +29,6 @@ typedef void (*LibQemuRiscvMipUpdateCallbackFn)(QemuObject *cpu, uint32_t val, v
 
 void libqemu_cpu_riscv_register_mip_update_callback(LibQemuRiscvMipUpdateCallbackFn cb,
                                                   void *opaque);
+void libqemu_cpu_riscv_register_reset(Object *cpu);
 
 #endif
