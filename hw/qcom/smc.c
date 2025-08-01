@@ -168,19 +168,19 @@ enum qcom_scm_wq_feature {
     QCOM_SCM_MULTI_SMC_WHITE_LIST_ALLOW, /* Release global lock for certain allowed SMC calls */
 };
 
-static void dump_scm(const struct qcom_scm_desc* desc, const struct arm_smccc_res* res)
-{
-    printf("SVC: 0x%x\n", desc->svc);
-    printf("CMD: 0x%x\n", desc->cmd);
-    printf("arginfo: %d\n", desc->arginfo);
+// static void dump_scm(const struct qcom_scm_desc* desc, const struct arm_smccc_res* res)
+// {
+//     printf("SVC: 0x%x\n", desc->svc);
+//     printf("CMD: 0x%x\n", desc->cmd);
+//     printf("arginfo: %d\n", desc->arginfo);
 
-    if (res) {
-        printf("res:\n");
-        for (size_t i = 0; i < ARRAY_SIZE(res->regs); ++i) {
-            printf("\ta%ld: 0x%lx\n", i, res->regs[i]);
-        }
-    }
-}
+//     if (res) {
+//         printf("res:\n");
+//         for (size_t i = 0; i < ARRAY_SIZE(res->regs); ++i) {
+//             printf("\ta%ld: 0x%lx\n", i, res->regs[i]);
+//         }
+//     }
+// }
 
 static struct qcom_scm_res smc_handle(ARMCPU* cpu, const struct qcom_scm_desc* desc, enum qcom_scm_call_type type, enum qcom_scm_convention conv)
 {
@@ -196,7 +196,7 @@ static struct qcom_scm_res smc_handle(ARMCPU* cpu, const struct qcom_scm_desc* d
 
             break;
         default:
-            printf("[qcom-scm] Unhandled SVC.\n");
+            // printf("[qcom-scm] Unhandled SVC.\n");
             break;
     }
 
@@ -242,9 +242,9 @@ void qcom_smc_handler(ARMCPU* cpu)
         .a2 = res.result[2],
     };
 
-    printf("SMC call:\n");
-    dump_scm(&desc, &arch_reg);
-    printf("\n");
+    // printf("SMC call:\n");
+    // dump_scm(&desc, &arch_reg);
+    // printf("\n");
 
     for (size_t i = 0; i < 4; ++i) {
         if (is_a64(env)) {

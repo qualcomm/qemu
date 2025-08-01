@@ -10,6 +10,8 @@
 #include "hw/qcom/rpmh-clk.h"
 #include "hw/qcom/icc-rpmh.h"
 
+#define CMD_DB_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 struct cmd_db_collection {
     uint16_t slv_id;
     uint32_t nb_entries;
@@ -262,7 +264,7 @@ static void qcom_cmd_db_init_memory(QcomCmdDbState* cmds, char* rom_content, siz
     struct buf_iter iter = buf_iter_new(rom_content, max_size);
     GArray* entries = cmds->entries;
 
-    printf("[*] Initializing cmd_db memory with %d entries.\n", cmds->entries->len);
+    CMD_DB_LOG(cmds, "Initializing cmd_db memory with %d entries.\n", cmds->entries->len);
 
     struct cmd_db_collection collections[NB_RSCS] = { 0 };
 

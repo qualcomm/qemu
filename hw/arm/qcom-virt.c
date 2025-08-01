@@ -464,7 +464,7 @@ static void qcom_create_devices(MachineState* machine)
     for (size_t i = 0; i < ARRAY_SIZE(qcom_devices); ++i) {
         const struct QcomVirtDevice* qdev = &qcom_devices[i];
 
-        printf("[*] Adding device: %s.\n", qdev->label ? qdev->label : qdev->name);
+        MACHINE_LOG_INFO(machine, "Adding device: %s.\n", qdev->label ? qdev->label : qdev->name);
 
         qdev->device_create(qdev, machine->fdt, qvms, sysmem);
     }
@@ -515,7 +515,8 @@ static void qcom_create_devices(MachineState* machine)
         ARMCPU* acpu = ARM_CPU(cpu);
         acpu->smc_handler = qcom_smc_handler;
     }
-    printf("[*] Qcom SMC handler has been set.\n");
+
+    MACHINE_LOG_INFO(machine, "Qcom SMC handler has been set.\n");
 }
 
 static char *qcom_machine_get_dtb(Object *obj, Error **errp)

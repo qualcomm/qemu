@@ -980,16 +980,16 @@ static bool handle_phandle_node(void *out_fdt, void *in_fdt, const char* node_pa
         if (out_phandle_offset == -FDT_ERR_NOTFOUND) {
             // check if the phandle destination could be added later on in the node path group
             const char** added_node;
-            bool skip = false;
+            // bool skip = false;
             for (added_node = nodes_path; added_node != NULL && *added_node != NULL; ++added_node) {
                 if (strncmp(phandle_node_path, *added_node, strlen(*added_node)) == 0) {
-                    skip = true;
+                    // skip = true;
                 }
             }
 
-            if (!skip) {
-                warn_report("The node %s has a phandle reference to the node %s, but it is not present in the new DT. It is most likely a device dependency that should be implemented and added beforehand.", node_path, phandle_node_path);
-            }
+            // if (!skip) {
+            //     warn_report("The node %s has a phandle reference to the node %s, but it is not present in the new DT. It is most likely a device dependency that should be implemented and added beforehand.", node_path, phandle_node_path);
+            // }
         } else if (out_phandle_offset < 0) {
             in_node_offset = out_phandle_offset;
             goto fail;
@@ -1727,7 +1727,7 @@ bool qemu_fdt_getprop_interrupts(void* fdt, const char* node_path, struct fdt_in
     // get interrupt controller node offset
     controller_node_offset = fdt_node_offset_by_phandle(fdt, _interrupts->interrupt_controller_phandle);
     if (controller_node_offset < 0) {
-        warn_report("The node %s links to an interrupt controller (with the phandle %d), but it is not in the DT. It should most likely be added.", node_path, _interrupts->interrupt_controller_phandle);
+        // warn_report("The node %s links to an interrupt controller (with the phandle %d), but it is not in the DT. It should most likely be added.", node_path, _interrupts->interrupt_controller_phandle);
         g_free(*interrupts);
         return false;
     }
