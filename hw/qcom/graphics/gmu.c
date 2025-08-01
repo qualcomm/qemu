@@ -227,7 +227,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             s->regs[GEN8_GMUCX_HFI_QTBL_ADDR] = value;
             break;
         case GEN8_GMUCX_HOST2GMU_INTR_SET: {
-            GMU_LOG(s, "\tGMU interruped\n");
+            GMU_LOG(s, "GMU interruped\n");
 
             if (value & BIT(0)) {
                 qcom_hfi_handle(s);\
@@ -244,7 +244,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
                 handle_oob_request(s, oob_dcvs);
                 s->regs[GEN8_GMUCX_GMU2HOST_INTR_INFO] |= OOB_CHECK_MASK(oob_dcvs);
             } else {
-                GMU_LOG_ERROR(s, "\t\t-> Unknown GMU interrupt value: 0x%lx\n", value);
+                GMU_LOG_ERROR(s, "Unknown GMU interrupt value: 0x%lx\n", value);
             }
 
             break;

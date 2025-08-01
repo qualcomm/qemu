@@ -6,6 +6,7 @@
 #include "hw/sysbus-of.h"
 
 #define GRAPHICS_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define GRAPHICS_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define GRAPHICS_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define GX_GDSC_POWER_OFF	BIT(0)
@@ -85,7 +86,7 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
             return s->regs[GEN8_RBBM_PERFCTR_FLUSH_HOST_STATUS];
         };
         default: {
-            GRAPHICS_LOG_ERROR(s, "\tUnknown addr\n");
+            GRAPHICS_LOG_WARN(s, "Unhandled read @addr 0x%lx\n", addr);
         }
     }
 
@@ -138,7 +139,7 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
             break;
         };
         default: {
-            GRAPHICS_LOG_ERROR(s, "\tUnknown addr\n");
+            GRAPHICS_LOG_WARN(s, "Unknown write @addr 0x%lx\n", addr);
         }
     }
 }

@@ -4,9 +4,9 @@
 #include "hw/qcom/graphics/hfi.h"
 #include "hw/qcom/graphics/gen8_reg.h"
 
-#define HFI_PREFIX "HFI: "
-#define HFI_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, HFI_PREFIX fmt __VA_OPT__(,) __VA_ARGS__)
-#define HFI_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, HFI_PREFIX fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_LOG_DEBUG(dev, fmt, ...) QDEV_LOG_DEBUG(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define CREATE_MSG_HDR(id, type) \
 	(((type) << 16) | ((id) & 0xFF))
@@ -490,24 +490,35 @@ static inline int _CMD_MSG_HDR(uint32_t *hdr, int id, size_t size)
 
 static void print_hdr(QcomGMUState* s, struct hfi_queue_header* hdr, size_t idx)
 {
-    HFI_LOG(s, "Header %ld\n", idx);
-    HFI_LOG(s, "\tstatus: 0x%x\n", hdr->status);
-    HFI_LOG(s, "\tstart_addr: 0x%x\n", hdr->start_addr);
-    HFI_LOG(s, "\ttype: 0x%x\n", hdr->type);
-    HFI_LOG(s, "\tqueue size: 0x%x\n", hdr->queue_size);
-    HFI_LOG(s, "\tmsg size: 0x%x\n", hdr->msg_size);
-    HFI_LOG(s, "\tread idx: 0x%u\n", hdr->read_index);
-    HFI_LOG(s, "\twrite idx: 0x%u\n", hdr->write_index);
+    HFI_LOG_DEBUG(s, "================ HFI Header ================\n");
+    HFI_LOG_DEBUG(s, "\tHeader %ld\n", idx);
+    HFI_LOG_DEBUG(s, "\t\tstatus: 0x%x\n", hdr->status);
+    HFI_LOG_DEBUG(s, "\t\tstart_addr: 0x%x\n", hdr->start_addr);
+    HFI_LOG_DEBUG(s, "\t\ttype: 0x%x\n", hdr->type);
+    HFI_LOG_DEBUG(s, "\t\tqueue size: 0x%x\n", hdr->queue_size);
+    HFI_LOG_DEBUG(s, "\t\tmsg size: 0x%x\n", hdr->msg_size);
+    HFI_LOG_DEBUG(s, "\t\tread idx: 0x%u\n", hdr->read_index);
+    HFI_LOG_DEBUG(s, "\t\twrite idx: 0x%u\n", hdr->write_index);
+    HFI_LOG_DEBUG(s, "============================================\n");
 }
 
 static void print_msg(QcomGMUState* s, struct qcom_hfi_msg* msg)
 {
-    HFI_LOG(s, "Message %u\n", msg->id);
-    HFI_LOG(s, "\traw value: 0x%x\n", msg->raw[0]);
-    HFI_LOG(s, "\tsize_dwords: 0x%x\n", msg->size_dwords);
-    HFI_LOG(s, "\talign_size: 0x%x\n", msg->align_size);
-    HFI_LOG(s, "\tseqnum: %u\n", msg->seqnum);
-    HFI_LOG(s, "\ttype: 0x%x\n", msg->type);
+    HFI_LOG_DEBUG(s, "================ HFI Message ================");
+    HFI_LOG_DEBUG(s, "\tMessage %u\n", msg->id);
+    HFI_LOG_DEBUG(s, "\t\traw value: 0x%x\n", msg->raw[0]);
+    HFI_LOG_DEBUG(s, "\t\tsize_dwords: 0x%x\n", msg->size_dwords);
+    HFI_LOG_DEBUG(s, "\t\talign_size: 0x%x\n", msg->align_size);
+    HFI_LOG_DEBUG(s, "\t\tseqnum: %u\n", msg->seqnum);
+    HFI_LOG_DEBUG(s, "\t\ttype: 0x%x\n", msg->type);
+    HFI_LOG_DEBUG(s, "=============================================");
+}
+
+static void print_reply(QcomGMUState* s, uint32_t seqnum)
+{
+    HFI_LOG_DEBUG(s, "================ HFI Reply (ACK) ================");
+    HFI_LOG_DEBUG(s, "\t\tseqnum %u\n", seqnum);
+    HFI_LOG_DEBUG(s, "=================================================");
 }
 
 static void qcom_hfi_fetch_qtbl(QcomGMUState* gmu, struct hfi_queue_table* qtbl)
@@ -617,6 +628,8 @@ static bool send_reply(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct q
 
     assert(nb_words >= 3);
 
+    print_reply(gmu, gmu->hfi.msg_seqnum);
+
     reply[0] = ACK_MSG_HDR(0); // id is never used, only the type matters
     reply[0] = MSG_HDR_SET_SEQNUM_SIZE(reply[0], gmu->hfi.msg_seqnum++, nb_words);
     reply[1] = msg->raw[0];
@@ -682,7 +695,7 @@ static bool qcom_hfi_get_pending_msg(QcomGMUState* gmu, struct hfi_queue_header*
         msg->type = type;
         msg->id = id;
 
-        // remove one, since we already read the 
+        // remove one, since we already read
         if (align_size == 0) {
             HFI_LOG_ERROR(gmu, "invalid align_size: 0x%x (size_dwords = 0x%x)\n", align_size, size_dwords);
             print_msg(gmu, msg);
