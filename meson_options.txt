@@ -276,6 +276,11 @@ option('fuse', type: 'feature', value: 'auto',
 option('fuse_lseek', type : 'feature', value : 'auto',
        description: 'SEEK_HOLE/SEEK_DATA support for FUSE exports')
 
+option('devlog', type: 'boolean', value: false,
+       description: 'Enable devlog logging')
+option('devlog_debug', type: 'boolean', value: false,
+       description: 'Enable devlog logging, with more verbose traces')
+
 option('trace_backends', type: 'array', value: ['log'],
        choices: ['dtrace', 'ftrace', 'log', 'nop', 'simple', 'syslog', 'ust'],
        description: 'Set available tracing backends')

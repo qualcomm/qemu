@@ -10,6 +10,7 @@ hwcore_ss.add(files(
   'irq.c',
   'clock.c',
   'qdev-clock.c',
+  'devlog.c'
 ))
 
 common_ss.add(files('cpu-common.c'))

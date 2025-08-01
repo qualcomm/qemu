@@ -186,6 +186,7 @@ static int num_serial_hds;
 static Chardev **serial_hds;
 static const char *log_mask;
 static const char *log_file;
+static const char *devlog_types;
 static bool list_data_dirs;
 static const char *qtest_chrdev;
 static const char *qtest_log;
@@ -3132,6 +3133,11 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_DFILTER:
                 qemu_set_dfilter_ranges(optarg, &error_fatal);
                 break;
+#ifdef CONFIG_DEVLOG
+            case QEMU_OPTION_devlog:
+                devlog_types = optarg;
+                break;
+#endif
 #if defined(CONFIG_TCG) && defined(CONFIG_LINUX)
             case QEMU_OPTION_perfmap:
                 perf_enable_perfmap();

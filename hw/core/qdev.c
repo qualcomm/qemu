@@ -39,6 +39,7 @@
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/core/devlog.h"
 
 static bool qdev_hot_added = false;
 bool qdev_hot_removed = false;
@@ -431,6 +432,56 @@ bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
     return false;
 }
 
+#ifdef CONFIG_DEVLOG
+
+#ifdef CONFIG_DEVLOG_DEBUG
+void qdev_log_trace(const DeviceState *dev, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_trace(dev->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void qdev_log_debug(const DeviceState *dev, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_debug(dev->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void qdev_log_info(const DeviceState *dev, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_info(dev->devlog_id, fmt, ap);
+    va_end (ap);
+}
+#endif
+
+void qdev_log_warn(const DeviceState *dev, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_warn(dev->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void qdev_log_error(const DeviceState *dev, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_error(dev->devlog_id, fmt, ap);
+    va_end (ap);
+}
+#endif
+
 static bool device_get_realized(Object *obj, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -645,7 +696,10 @@ static void device_initfn(Object *obj)
     dev->instance_id_alias = -1;
     dev->realized = false;
     dev->allow_unplug_during_migration = false;
-
+#ifdef CONFIG_DEVLOG
+    dev->devlog_id = devlog_register(object_get_typename(obj));
+#endif
+    
     QLIST_INIT(&dev->gpios);
     QLIST_INIT(&dev->clocks);
 }

@@ -2615,6 +2615,9 @@ config_host_data.set('CONFIG_REPLICATION', get_option('replication').allowed())
 config_host_data.set('CONFIG_FSFREEZE', qga_fsfreeze)
 config_host_data.set('CONFIG_FSTRIM', qga_fstrim)
 
+config_host_data.set('CONFIG_DEVLOG', get_option('devlog'))
+config_host_data.set('CONFIG_DEVLOG_DEBUG', get_option('devlog_debug'))
+
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
 config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
@@ -4547,6 +4550,7 @@ summary_info += {'Trace backends':    ','.join(get_option('trace_backends'))}
 if 'simple' in get_option('trace_backends')
   summary_info += {'Trace output file': get_option('trace_file') + '-<pid>'}
 endif
+summary_info += {'Devlog':            get_option('devlog')}
 summary_info += {'D-Bus display':     dbus_display}
 summary_info += {'QOM debugging':     get_option('qom_cast_debug')}
 summary_info += {'Relocatable install': get_option('relocatable')}
