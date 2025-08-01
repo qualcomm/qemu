@@ -10,6 +10,7 @@ hwcore_ss.add(files(
   'irq.c',
   'clock.c',
   'qdev-clock.c',
+  'devlog.c',
 ))
 
 common_ss.add(files('cpu-common.c'))
@@ -25,7 +26,6 @@ system_ss.add(when: 'CONFIG_SPLIT_IRQ', if_true: files('split-irq.c'))
 system_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files('stream.c'))
 system_ss.add(when: 'CONFIG_PLATFORM_BUS', if_true: files('sysbus-fdt.c'))
 system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutls])
-system_ss.add(when: 'CONFIG_DEVLOG', if_true: files('devlog.c'))
 
 system_ss.add(files(
   'cpu-system.c',
