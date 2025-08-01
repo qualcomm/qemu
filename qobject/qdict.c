@@ -16,6 +16,7 @@
 #include "qobject/qbool.h"
 #include "qobject/qnull.h"
 #include "qobject/qstring.h"
+#include "qobject/qbool.h"
 #include "qobject-internal.h"
 
 /**

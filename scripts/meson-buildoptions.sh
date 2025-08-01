@@ -34,6 +34,8 @@ meson_options_help() {
   printf "%s\n" '  --enable-debug-stack-usage'
   printf "%s\n" '                           measure coroutine stack usage'
   printf "%s\n" '  --enable-debug-tcg       TCG debugging'
+  printf "%s\n" '  --enable-devlog          Enable devlog logging'
+  printf "%s\n" '  --enable-devlog-debug    Enable devlog logging, with more verbose traces'
   printf "%s\n" '  --enable-fdt[=CHOICE]    Whether and how to find the libfdt library'
   printf "%s\n" '                           (choices: auto/disabled/enabled/internal/system)'
   printf "%s\n" '  --enable-fuzzing         build fuzzing targets'
@@ -308,6 +310,10 @@ _meson_option_parse() {
     --disable-debug-stack-usage) printf "%s" -Ddebug_stack_usage=false ;;
     --enable-debug-tcg) printf "%s" -Ddebug_tcg=true ;;
     --disable-debug-tcg) printf "%s" -Ddebug_tcg=false ;;
+    --enable-devlog) printf "%s" -Ddevlog=true ;;
+    --disable-devlog) printf "%s" -Ddevlog=false ;;
+    --enable-devlog-debug) printf "%s" -Ddevlog_debug=true ;;
+    --disable-devlog-debug) printf "%s" -Ddevlog_debug=false ;;
     --enable-dmg) printf "%s" -Ddmg=enabled ;;
     --disable-dmg) printf "%s" -Ddmg=disabled ;;
     --docdir=*) quote_sh "-Ddocdir=$2" ;;

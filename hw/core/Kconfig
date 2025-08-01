@@ -38,3 +38,6 @@ config SPLIT_IRQ
 config EIF
     bool
     depends on LIBCBOR && GNUTLS
+
+config DEVLOG
+    bool

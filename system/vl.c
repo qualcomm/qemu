@@ -35,6 +35,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qstring.h"
 #include "qobject/qjson.h"
+#include "qobject/qbool.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -186,6 +187,7 @@ static int num_serial_hds;
 static Chardev **serial_hds;
 static const char *log_mask;
 static const char *log_file;
+// static const char *devlog_types;
 static bool list_data_dirs;
 static const char *qtest_chrdev;
 static const char *qtest_log;
@@ -272,6 +274,15 @@ static QemuOptsList qemu_accel_opts = {
          * sanity checking will happen later
          * when setting accelerator properties
          */
+        { }
+    },
+};
+
+static QemuOptsList qemu_devlog_opts = {
+    .name = "devlog",
+    .implied_opt_name = "devlog",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_devlog_opts.head),
+    .desc = {
         { }
     },
 };
@@ -1669,6 +1680,63 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
+static QDict *devlog_dict;
+
+static enum devlog_level parse_devlog_arg(const char* name, const char* level)
+{
+    if (!strcmp(level, "error")) {
+        return DEVLOG_LEVEL_ERROR;
+    } else if (!strcmp(level, "warning")) {
+        return DEVLOG_LEVEL_WARNING;
+    } else if (!strcmp(level, "info")) {
+        return DEVLOG_LEVEL_INFO;
+    } else if (!strcmp(level, "trace")) {
+        return DEVLOG_LEVEL_TRACE;
+    } else if (!strcmp(level, "debug")) {
+        return DEVLOG_LEVEL_DEBUG;
+    } else {
+        fprintf(stderr, "%s: unknown value (expected [debug|trace|info|warning|error])\n", name);
+        abort();
+    }
+}
+
+static int do_configure_devlog(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char* qstr;
+    enum devlog_level init_level = DEVLOG_LEVEL_NONE;
+
+    devlog_dict = qdict_new();
+    qemu_opts_to_qdict(opts, devlog_dict);
+
+    if ((qstr = qdict_get_try_str(devlog_dict, "all"))) {
+        init_level = parse_devlog_arg("all", qstr);
+    }
+
+    devlog_init(init_level);
+
+    return 1;
+}
+
+static void devlog_init_finalize(void) {
+    const QDictEntry *e;
+    const char* str;
+    enum devlog_level level = DEVLOG_LEVEL_NONE;
+
+    for (e = qdict_first(devlog_dict); e; e = qdict_next(devlog_dict, e)) {
+        if ((str = qdict_get_str(devlog_dict, e->key))) {
+            level = parse_devlog_arg(e->key, str);
+        } else {
+            fprintf(stderr, "%s: wrong type (expected string)\n", e->key);
+            abort();
+        }
+
+        if (!devlog_set_level(e->key, level)) {
+            fprintf(stderr, "%s: unknown device type\n", e->key);
+            abort();
+        }
+    }
+}
+
 static MachineClass *select_machine(QDict *qdict, Error **errp)
 {
     ERRP_GUARD();
@@ -2810,6 +2878,7 @@ void qmp_x_exit_preconfig(Error **errp)
         return;
     }
 
+    devlog_init_finalize();
     if (loadvm) {
         RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
         load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
@@ -2865,6 +2934,7 @@ void qemu_init(int argc, char **argv)
     qemu_plugin_add_opts();
     qemu_add_opts(&qemu_option_rom_opts);
     qemu_add_opts(&qemu_accel_opts);
+    qemu_add_opts(&qemu_devlog_opts);
     qemu_add_opts(&qemu_mem_opts);
     qemu_add_opts(&qemu_smp_opts);
     qemu_add_opts(&qemu_boot_opts);
@@ -3132,6 +3202,15 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_DFILTER:
                 qemu_set_dfilter_ranges(optarg, &error_fatal);
                 break;
+#ifdef CONFIG_DEVLOG
+            case QEMU_OPTION_devlog:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("devlog"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+#endif
 #if defined(CONFIG_TCG) && defined(CONFIG_LINUX)
             case QEMU_OPTION_perfmap:
                 perf_enable_perfmap();
@@ -3722,6 +3801,9 @@ void qemu_init(int argc, char **argv)
      * Best done right after the loop.  Do not insert code here!
      */
     loc_set_none();
+
+    qemu_opts_foreach(qemu_find_opts("devlog"),
+                      do_configure_devlog, NULL, &error_fatal);
 
     qemu_validate_options(machine_opts_dict);
     qemu_process_sugar_options();
