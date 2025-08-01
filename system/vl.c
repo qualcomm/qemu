@@ -187,7 +187,6 @@ static int num_serial_hds;
 static Chardev **serial_hds;
 static const char *log_mask;
 static const char *log_file;
-// static const char *devlog_types;
 static bool list_data_dirs;
 static const char *qtest_chrdev;
 static const char *qtest_log;
@@ -1694,6 +1693,8 @@ static enum devlog_level parse_devlog_arg(const char* name, const char* level)
         return DEVLOG_LEVEL_TRACE;
     } else if (!strcmp(level, "debug")) {
         return DEVLOG_LEVEL_DEBUG;
+    } else if (!strcmp(level, "none")) {
+        return DEVLOG_LEVEL_NONE;
     } else {
         fprintf(stderr, "%s: unknown value (expected [debug|trace|info|warning|error])\n", name);
         abort();
