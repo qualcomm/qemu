@@ -33,29 +33,29 @@ struct devlog_state {
 
 struct devlog_entry {
     enum devlog_level level;
-    const char* type;
+    char* type;
 
-    const char* prefixes[DEVLOG_LEVEL_MAX];
+    char* prefixes[DEVLOG_LEVEL_END];
 };
-
-static struct devlog_state dstate;
-
-static void devlog_vprintf_level(devlog_id id, devlog_level lvl, const char* fmt, va_list ap);
-
-void devlog_init(enum devlog_level default_init_level)
-{
-    dstate.table = g_hash_table_new(
-        g_direct_hash,
-        g_direct_equal
-    );
-
-    dstate.default_init_lvl = default_init_level;
-}
 
 struct level_info {
     const char* name;
     const char* color;
 };
+
+// used to iterate over the hash table
+struct table_data {
+    // iter input
+    const char* type;
+    enum devlog_level lvl;
+
+    // iter output
+    bool updated;
+};
+
+static struct devlog_state dstate;
+
+static void devlog_vprintf_level(devlog_id id, devlog_level lvl, const char* fmt, va_list ap);
 
 const struct level_info levels_info[] = {
     [DEVLOG_LEVEL_DEBUG] = {
@@ -84,40 +84,60 @@ const struct level_info levels_info[] = {
     },
 };
 
+void devlog_init(enum devlog_level default_init_level)
+{
+    dstate.table = g_hash_table_new(
+        g_direct_hash,
+        g_direct_equal
+    );
+
+    dstate.default_init_lvl = default_init_level;
+}
+
 devlog_id devlog_register(const char* type)
 {
-    size_t i;
+    devlog_level lvl;
     struct devlog_entry *entry = g_new0(struct devlog_entry, 1);
     const char* prefix_fmt = DEVLOG_PRE_COLOR "%s" DEVLOG_POST_COLOR "[%s - %s]" DEVLOG_COLOR_END;
     const struct level_info* info;
+    devlog_id new_id = dstate.next_id++;
 
     entry->level = dstate.default_init_lvl;
-    entry->type = type; // types are static, no need to copy
+
+    entry->type = g_new0(char, strlen(type) + 1);
+    strcpy(entry->type, type);
 
     g_hash_table_insert(
         dstate.table,
-        GINT_TO_POINTER(dstate.next_id++),
+        GINT_TO_POINTER(new_id),
         entry
     );
 
-    for (i = DEVLOG_LEVEL_START; i < DEVLOG_LEVEL_MAX; ++i) {
-        info = &levels_info[i];
+    for (lvl = DEVLOG_LEVEL_START; lvl < DEVLOG_LEVEL_END; ++lvl) {
+        info = &levels_info[lvl];
 
         size_t prefix_bytes = snprintf(NULL, 0, prefix_fmt, info->color, info->name, type) + 1;
         char *prefix = g_new(char, prefix_bytes);
         sprintf(prefix, prefix_fmt, info->color, type, info->name);
-        entry->prefixes[i] = prefix;
+        entry->prefixes[lvl] = prefix;
     }
 
-    return dstate.next_id;
+    return new_id;
 }
 
 bool devlog_unregister(devlog_id id)
 {
+
+    enum devlog_level lvl;
+    
     struct devlog_entry *entry = (struct devlog_entry*) g_hash_table_lookup(
         dstate.table,
         (gpointer) id
     );
+
+    for (lvl = DEVLOG_LEVEL_START; lvl < DEVLOG_LEVEL_END; ++lvl) {
+        g_free(entry->prefixes[lvl]);
+    }
 
     g_hash_table_remove(dstate.table, (gpointer) id);
 
@@ -126,22 +146,12 @@ bool devlog_unregister(devlog_id id)
     return entry != NULL;
 }
 
-struct table_data {
-    // input
-    const char* type;
-    enum devlog_level lvl;
-
-    // output
-    bool updated;
-};
-
 static void set_dev_level(gpointer id, gpointer entry_ptr, gpointer data_ptr)
 {
     struct devlog_entry *entry = entry_ptr;
     struct table_data *data = data_ptr;
 
     if (!strcmp(entry->type, data->type)) {
-        printf("Setting level of %s to %d\n", entry->type, data->lvl);
         entry->level = data->lvl;
         data->updated = true;
     }
@@ -195,15 +205,21 @@ G_GNUC_PRINTF(3, 0) static void devlog_vprintf_level(devlog_id id, devlog_level 
         (gpointer) id
     );
 
+    printf("log request from id %lu (lvl %d)\n", id, lvl);
+
     if (lvl >= entry->level) {
-        ret = snprintf(&dstate.fmt[0], MAX_FMT_SIZE, "%s %s", entry->prefixes[lvl], fmt);
+        ret = snprintf(dstate.fmt, MAX_FMT_SIZE, "%s %s", entry->prefixes[lvl], fmt);
         
         if (ret >= MAX_FMT_SIZE) {
             fprintf(stderr, "The maximum format string size is too small, it must be increased.\n");
             exit(1);
         }
 
-        vprintf(dstate.fmt, ap);
+        if (lvl >= DEVLOG_LEVEL_WARNING) {
+            vfprintf(stderr, dstate.fmt, ap);
+        } else {
+            vfprintf(stdout, dstate.fmt, ap);
+        }
     }
 }
 
