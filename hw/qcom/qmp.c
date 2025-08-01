@@ -5,6 +5,9 @@
 #include "qapi/error.h"
 #include "exec/memory.h"
 
+#define QMP_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define QMP_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 #define QMP_DESC_MAGIC			0x0
 #define QMP_DESC_VERSION		0x4
 #define QMP_DESC_FEATURES		0x8
@@ -46,9 +49,8 @@ static bool is_msg(QcomQMPState* s, hwaddr addr)
 static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
 {
     QcomQMPState *s = QCOM_QMP(opaque);
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
 
-    printf("[%s] Read at address 0x%lx\n", ofdev->name, addr);
+    QMP_LOG(s, "Read at address 0x%lx\n", addr);
 
     switch (addr) {
         case QMP_DESC_MAGIC:
@@ -69,7 +71,7 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
             // commit the message
             if (s->msg_size > 0) {
                 s->msg_buf[sizeof(s->msg_buf) - 1] = '\0';
-                printf("[%s] QMP message received: %s\n", ofdev->name, s->msg_buf);
+                QMP_LOG(s, "QMP message received: %s\n", s->msg_buf);
                 memset(s->msg_buf, 0, sizeof(s->msg_buf));
                 s->msg_size = 0;
             }
@@ -77,7 +79,7 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
             return 0;
         }
         default:
-            printf("\tUnhandled read.\n");
+            QMP_LOG_ERROR(s, "\tUnhandled read.\n");
             return 0;
     }
 }
@@ -99,7 +101,7 @@ static void qcom_qmp_write(void *opaque, hwaddr addr,
     QcomQMPState *s = QCOM_QMP(opaque);
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
 
-    printf("[%s] Write at address 0x%lx of value 0x%lx\n", ofdev->name, addr, value);
+    QMP_LOG(s, "[%s] Write at address 0x%lx of value 0x%lx\n", ofdev->name, addr, value);
 
     if (is_msg(s, addr)) {
         write_msg(s, addr, value);

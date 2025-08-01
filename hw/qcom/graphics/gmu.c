@@ -11,6 +11,9 @@
 #include "hw/qcom/graphics/hfi.h"
 #include "hw/qcom/graphics/gmu.h"
 
+#define GMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define GMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 #define GX_GDSC_POWER_OFF	BIT(0)
 #define GX_CLK_OFF		BIT(1)
 #define is_on(val)		(!(val & (GX_GDSC_POWER_OFF | GX_CLK_OFF)))
@@ -92,13 +95,12 @@ static bool is_rsc_addr(hwaddr addr)
 
 static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size)
 {
-    OfSysBusDevice* of = OF_SYS_BUS_DEVICE(s);
     hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
-    printf("[%s] read detected @addr 0x%lx (addr_idx = 0x%lx)\n", of->name, addr, addr_idx);
+    GMU_LOG(s, "read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
 
     if (is_rsc_addr(addr)) {
-        printf("Is RSC address\n");
+        GMU_LOG(s, "Is RSC address\n");
 
         addr_idx = qcom_graphics_decode_addr(addr - 0x50000);
 
@@ -113,21 +115,21 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
             case GEN8_RSCC_TCS7_DRV0_STATUS:
             case GEN8_RSCC_TCS8_DRV0_STATUS:
             case GEN8_RSCC_TCS9_DRV0_STATUS: {
-                printf("\tTCS read\n");
+                GMU_LOG(s, "\tTCS read\n");
                 return 1;
             }
             case GEN8_GPU_RSCC_RSC_STATUS0_DRV0: {
                 return BIT(30);
             }
             default: {
-                printf("\t(RSC) Unknown addr\n");
+                GMU_LOG(s, "\t(RSC) Unknown addr\n");
             }
         }
     } else {
         switch (addr_idx) {
             case GEN8_GMUCX_GFX_PWR_CLK_STATUS: {
                 uint32_t read_val = s->regs[addr_idx];
-                printf("\tpwr clk status: 0x%x\n", read_val);
+                GMU_LOG(s, "\tpwr clk status: 0x%x\n", read_val);
                 return read_val;
             }
             case GEN8_GMUCX_CM3_FW_INIT_RESULT: {
@@ -155,7 +157,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 return 7;
             }
             default: {
-                printf("\tUnknown addr\n");
+                GMU_LOG_ERROR(s, "\tUnknown addr\n");
             }
         }
     }
@@ -165,7 +167,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
 
 static void handle_oob_request(QcomGMUState* s, enum oob_request req)
 {
-    printf("\t\tReceived OOB request: %u\n", req);
+    GMU_LOG(s, "\t\tReceived OOB request: %u\n", req);
 }
 
 #define OOB_SET_MASK(req) (BIT(30 - (req) * 2))
@@ -173,10 +175,9 @@ static void handle_oob_request(QcomGMUState* s, enum oob_request req)
 
 static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, unsigned size)
 {
-    OfSysBusDevice* of = OF_SYS_BUS_DEVICE(s);
     hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
-    printf("[%s] write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", of->name, addr, addr_idx, value);
+    GMU_LOG(s, "write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", addr, addr_idx, value);
 
     switch(addr_idx) {
         case GEN8_GMUAO_RSCC_CONTROL_REQ: {
@@ -190,7 +191,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
                 s->regs[GEN8_GMUAO_RSCC_CONTROL_ACK] |= BIT(1);
             }
 
-            printf("\tpwr rscc control req: 0x%lx\n", value);
+            GMU_LOG(s, "\tpwr rscc control req: 0x%lx\n", value);
 
             break;
         }
@@ -214,7 +215,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
 
             s->regs[GEN8_GMUCX_CM3_FW_INIT_RESULT] = BIT(8);
 
-            printf("\tcm3 sysreset\n");
+            GMU_LOG(s, "\tcm3 sysreset\n");
 
             break;
         }
@@ -225,7 +226,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             s->regs[GEN8_GMUCX_HFI_QTBL_ADDR] = value;
             break;
         case GEN8_GMUCX_HOST2GMU_INTR_SET: {
-            printf("\tGMU interruped\n");
+            GMU_LOG(s, "\tGMU interruped\n");
 
             if (value & BIT(0)) {
                 qcom_hfi_handle(s);\
@@ -242,7 +243,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
                 handle_oob_request(s, oob_dcvs);
                 s->regs[GEN8_GMUCX_GMU2HOST_INTR_INFO] |= OOB_CHECK_MASK(oob_dcvs);
             } else {
-                printf("\t\t-> Unknown GMU interrupt value: 0x%lx\n", value);
+                GMU_LOG_ERROR(s, "\t\t-> Unknown GMU interrupt value: 0x%lx\n", value);
             }
 
             break;
@@ -252,7 +253,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             break;
         }
         default: {
-            printf("\tUnknown addr\n");
+            GMU_LOG_ERROR(s, "\tUnknown addr\n");
             break;
         }
     }

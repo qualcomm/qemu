@@ -2,16 +2,19 @@
 #include "hw/arm/qcom-virt.h"
 #include "hw/qcom/logger.h"
 
+#define LOGGER_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define LOGGER_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 static uint64_t qcom_logger_read(void *opaque, hwaddr addr, unsigned size)
 {
-    printf("[*] logger: read detected @addr 0x%lx\n", addr);
+    LOGGER_LOG(opaque, "read detected @addr 0x%lx\n", addr);
     return 0;
 }
 
 static void qcom_logger_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    printf("[*] logger: write detected @addr 0x%lx\n", addr);
+    LOGGER_LOG(opaque, "write detected @addr 0x%lx\n", addr);
 }
 
 static void qcom_logger_init(Object* obj)

@@ -8,6 +8,9 @@
 #include "hw/qcom/cc/dispcc.h"
 #include "hw/qcom/cc/gcc.h"
 
+#define CC_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define CC_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 static const struct of_device_id cc_of_match_table[] = {
     { .compatible = GPUCC_COMPATIBLE, .data = &gpu_cc_canoe_desc },
     { .compatible = DISPCC_COMPATIBLE, .data = &disp_cc_canoe_desc },
@@ -78,7 +81,7 @@ static enum qcom_cc_reg_kind decode_addr(struct QcomCCState* ccs, struct qcom_cc
         return CC_REG_GMU_CBCR;
     }
 
-    printf("[%s] Unknown address: 0x%lx\n", ccs->name, addr);
+    CC_LOG_ERROR(ccs, "[%s] Unknown address: 0x%lx\n", ccs->name, addr);
 
     return CC_REG_MAX;
 }
@@ -129,11 +132,11 @@ static uint64_t qcom_cc_read(void *opaque, hwaddr addr, unsigned size)
             break;
 
         default:
-            printf("[%s - !]\tRead @addr %lx failed, defaulting to 0.\n", ccs->name, addr);
+            CC_LOG_ERROR(ccs, "\tRead @addr %lx failed, defaulting to 0.\n", addr);
             return 0;
     }
 
-    printf("[%s] read @addr 0x%lx of value 0x%x\n", ccs->name, addr, val);
+    CC_LOG_ERROR(ccs, "read @addr 0x%lx of value 0x%x\n", addr, val);
 
     return val;
 }
@@ -145,7 +148,7 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
     OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
     struct qcom_cc_desc* cc_desc = (struct qcom_cc_desc*) ofdev->data;
 
-    printf("[%s] write @addr 0x%lx of value %lx\n", ccs->name, addr, value);
+    CC_LOG(ccs, "write @addr 0x%lx of value %lx\n", addr, value);
 
     enum qcom_cc_reg_kind reg = decode_addr(ccs, cc_desc, addr);
 
@@ -154,7 +157,7 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
             ccs->reg[CC_REG_PLL_MODE] = value;
 
             if (value & BIT(14)) {
-                printf("ACK Latch\n");
+                CC_LOG(ccs, "ACK Latch\n");
                 ccs->reg[CC_REG_PLL_MODE] |= BIT(13);
             }
 
@@ -191,7 +194,7 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
                 value |= BIT(31);
             }
 
-            printf("\twrite to GMU CBCR of value %lx\n", value);
+            CC_LOG(ccs, "\twrite to GMU CBCR of value %lx\n", value);
 
             ccs->reg[CC_REG_GMU_CBCR] = value;
             break;
@@ -203,13 +206,13 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
                 value |= BIT(31);
             }
 
-            printf("\twrite to CXO CBCR of value %lx\n", value);
+            CC_LOG(ccs, "\twrite to CXO CBCR of value %lx\n", value);
 
             ccs->reg[CC_REG_CXO_CBCR] = value;
             break;
         }
         default:
-            printf("[%s]\tWrite failed, nothing changed.\n", ccs->name);
+            CC_LOG_ERROR(ccs, "[%s]\tWrite failed, nothing changed.\n", ccs->name);
             return;
     }
 }
