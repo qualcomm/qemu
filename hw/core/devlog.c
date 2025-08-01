@@ -1,3 +1,5 @@
+#ifdef CONFIG_DEVLOG
+
 #include "qemu/osdep.h"
 
 #include "hw/core/devlog.h"
@@ -138,3 +140,4 @@ G_GNUC_PRINTF(3, 0) static void devlog_vprintf_level(devlog_id id, devlog_level 
         vprintf(dstate.fmt, ap);
     }
 }
+#endif
