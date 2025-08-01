@@ -11,7 +11,10 @@
 #include "hw/resettable.h"
 #include "hw/core/devlog.h"
 
+#define QDEV_LOG_DEBUG(dev, fmt, ...) qdev_log_debug(DEVICE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define QDEV_LOG_TRACE(dev, fmt, ...) qdev_log_trace(DEVICE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
 #define QDEV_LOG_INFO(dev, fmt, ...) qdev_log_info(DEVICE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define QDEV_LOG_WARN(dev, fmt, ...) qdev_log_warn(DEVICE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
 #define QDEV_LOG_ERROR(dev, fmt, ...) qdev_log_error(DEVICE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
 
 /**

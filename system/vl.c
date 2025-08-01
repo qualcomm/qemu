@@ -1685,7 +1685,7 @@ static enum devlog_level parse_devlog_arg(const char* name, const char* level)
 {
     if (!strcmp(level, "error")) {
         return DEVLOG_LEVEL_ERROR;
-    } else if (!strcmp(level, "warning")) {
+    } else if (!strcmp(level, "warn")) {
         return DEVLOG_LEVEL_WARNING;
     } else if (!strcmp(level, "info")) {
         return DEVLOG_LEVEL_INFO;
@@ -1694,9 +1694,9 @@ static enum devlog_level parse_devlog_arg(const char* name, const char* level)
     } else if (!strcmp(level, "debug")) {
         return DEVLOG_LEVEL_DEBUG;
     } else if (!strcmp(level, "none")) {
-        return DEVLOG_LEVEL_MAX;
+        return DEVLOG_LEVEL_END;
     } else {
-        fprintf(stderr, "%s: unknown value (expected [debug|trace|info|warning|error])\n", name);
+        fprintf(stderr, "%s: unknown value (expected [debug|trace|info|warn|error])\n", name);
         abort();
     }
 }
@@ -1704,7 +1704,7 @@ static enum devlog_level parse_devlog_arg(const char* name, const char* level)
 static int do_configure_devlog(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char* qstr;
-    enum devlog_level init_level = DEVLOG_LEVEL_MAX;
+    enum devlog_level init_level = DEVLOG_LEVEL_END;
 
     devlog_dict = qdict_new();
     qemu_opts_to_qdict(opts, devlog_dict);
@@ -1722,7 +1722,7 @@ static int do_configure_devlog(void *opaque, QemuOpts *opts, Error **errp)
 static void devlog_init_finalize(void) {
     const QDictEntry *e;
     const char* str;
-    enum devlog_level level = DEVLOG_LEVEL_MAX;
+    enum devlog_level level = DEVLOG_LEVEL_END;
 
     for (e = qdict_first(devlog_dict); e; e = qdict_next(devlog_dict, e)) {
         if ((str = qdict_get_str(devlog_dict, e->key))) {
