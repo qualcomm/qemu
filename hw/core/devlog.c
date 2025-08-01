@@ -103,7 +103,7 @@ devlog_id devlog_register(const char* type)
     for (i = DEVLOG_LEVEL_START; i < DEVLOG_LEVEL_MAX; ++i) {
         info = &levels_info[i];
 
-        size_t prefix_bytes = snprintf(NULL, 0, prefix_fmt, info->color, type, info->name) + 1;
+        size_t prefix_bytes = snprintf(NULL, 0, prefix_fmt, info->color, info->name, type) + 1;
         char *prefix = g_new(char, prefix_bytes);
         sprintf(prefix, prefix_fmt, info->color, type, info->name);
         entry->prefixes[i] = prefix;
@@ -196,16 +196,14 @@ G_GNUC_PRINTF(3, 0) static void devlog_vprintf_level(devlog_id id, devlog_level 
     );
 
     if (lvl >= entry->level) {
-        ret = snprintf(&dstate.fmt[0], MAX_FMT_SIZE, "%s %s", entry->prefixes[entry->level], fmt);
+        ret = snprintf(&dstate.fmt[0], MAX_FMT_SIZE, "%s %s", entry->prefixes[lvl], fmt);
         
         if (ret >= MAX_FMT_SIZE) {
-            fprintf(stderr, "The maximum format size is too small, it must be increased.\n");
+            fprintf(stderr, "The maximum format string size is too small, it must be increased.\n");
             exit(1);
         }
 
         vprintf(dstate.fmt, ap);
-    } else {
-        printf("IGNORE: %d vs %d\n", entry->level, lvl);
     }
 }
 
