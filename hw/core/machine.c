@@ -710,6 +710,53 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
     nvdimms_state->persistence_string = g_strdup(value);
 }
 
+#ifdef CONFIG_DEVLOG
+#ifdef CONFIG_DEVLOG_DEBUG
+void machine_log_trace(const MachineState *m, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_trace(m->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void machine_log_debug(const MachineState *m, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_debug(m->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void machine_log_info(const MachineState *m, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_info(m->devlog_id, fmt, ap);
+    va_end (ap);
+}
+#endif
+void machine_log_warn(const MachineState *m, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_warn(m->devlog_id, fmt, ap);
+    va_end (ap);
+}
+
+void machine_log_error(const MachineState *m, const char* fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    devlog_vprintf_error(m->devlog_id, fmt, ap);
+    va_end (ap);
+}
+#endif
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
     QAPI_LIST_PREPEND(mc->allowed_dynamic_sysbus_devices, g_strdup(type));
@@ -1267,6 +1314,9 @@ static void machine_initfn(Object *obj)
     ms->kernel_cmdline = g_strdup("");
     ms->ram_size = mc->default_ram_size;
     ms->maxram_size = mc->default_ram_size;
+#ifdef CONFIG_DEVLOG
+    ms->devlog_id = devlog_register(object_get_typename(obj));
+#endif
 
     if (mc->nvdimm_supported) {
         ms->nvdimms_state = g_new0(NVDIMMState, 1);

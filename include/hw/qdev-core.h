@@ -891,7 +891,6 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
 BusState *qdev_get_parent_bus(const DeviceState *dev);
 
 #ifdef CONFIG_DEVLOG
-
 #ifdef CONFIG_DEVLOG_DEBUG
 G_GNUC_PRINTF(2, 3) void qdev_log_trace(const DeviceState *dev, const char* fmt, ...);
 G_GNUC_PRINTF(2, 3) void qdev_log_debug(const DeviceState *dev, const char* fmt, ...);
@@ -901,10 +900,8 @@ G_GNUC_PRINTF(2, 3) static inline void qdev_log_trace(const DeviceState *dev, co
 G_GNUC_PRINTF(2, 3) static inline void qdev_log_debug(const DeviceState *dev, const char* fmt, ...) {}
 G_GNUC_PRINTF(2, 3) static inline void qdev_log_info(const DeviceState *dev, const char* fmt, ...) {}
 #endif
-
 G_GNUC_PRINTF(2, 3) void qdev_log_warn(const DeviceState *dev, const char* fmt, ...);
 G_GNUC_PRINTF(2, 3) void qdev_log_error(const DeviceState *dev, const char* fmt, ...);
-
 #else
 G_GNUC_PRINTF(2, 3) static inline void qdev_log_trace(const DeviceState *dev, const char* fmt, ...) {}
 G_GNUC_PRINTF(2, 3) static inline void qdev_log_debug(const DeviceState *dev, const char* fmt, ...) {}
