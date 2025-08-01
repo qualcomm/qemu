@@ -1709,8 +1709,8 @@ static int do_configure_devlog(void *opaque, QemuOpts *opts, Error **errp)
     devlog_dict = qdict_new();
     qemu_opts_to_qdict(opts, devlog_dict);
 
-    if ((qstr = qdict_get_try_str(devlog_dict, "all"))) {
-        init_level = parse_devlog_arg("all", qstr);
+    if ((qstr = qdict_get_try_str(devlog_dict, "default"))) {
+        init_level = parse_devlog_arg("default", qstr);
     }
 
     devlog_init(init_level);
