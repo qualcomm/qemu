@@ -408,7 +408,7 @@ static void qcom_virt_modify_dtb(const struct arm_boot_info *info, void *fdt, Ma
 
     // check global fdt consistency
     qemu_fdt_check_memory_consistency(ms->fdt, "/soc", get_system_io(), &error_abort);
-    save_device_tree(ms->fdt, "/tmp/qemu.dtb", &error_abort);
+    // save_device_tree(ms->fdt, "/tmp/qemu.dtb", &error_abort);
     qemu_fdt_check(ms->fdt, &error_abort);
 }
 
