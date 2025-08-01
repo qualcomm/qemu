@@ -3249,7 +3249,8 @@ host_kconfig = \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : []) + \
   (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : []) + \
-  (have_rust ? ['CONFIG_HAVE_RUST=y'] : [])
+  (have_rust ? ['CONFIG_HAVE_RUST=y'] : [] + \
+  ['CONFIG_DEVLOG=n'])
 
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 

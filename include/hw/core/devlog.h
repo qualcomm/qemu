@@ -6,46 +6,51 @@
 
 #define DEVLOG_INVALID_ID UINT64_MAX
 
-#define DEVLOG_LEVEL_TRACE 0
-#define DEVLOG_LEVEL_DEBUG 1
-#define DEVLOG_LEVEL_INFO  2
-#define DEVLOG_LEVEL_WARN  3
-#define DEVLOG_LEVEL_ERROR 4
+enum devlog_level {
+    DEVLOG_LEVEL_NONE,
+    DEVLOG_LEVEL_TRACE,
+    DEVLOG_LEVEL_DEBUG,
+    DEVLOG_LEVEL_INFO,
+    DEVLOG_LEVEL_WARNING,
+    DEVLOG_LEVEL_ERROR,
+};
 
-#define DEVLOG_DEFAULT_LEVEL DEVLOG_LEVEL_WARN
 
 typedef uint64_t devlog_id;
 typedef unsigned int devlog_level;
 
 #ifdef CONFIG_DEVLOG
 
+void devlog_init(enum devlog_level default_init_level);
 devlog_id devlog_register(const char* type);
 bool devlog_unregister(devlog_id id);
+bool devlog_set_level(const char* type, enum devlog_level level);
 
 #ifdef CONFIG_DEVLOG_DEBUG
-void devlog_vprintf_trace(devlog_id id, const char* fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-void devlog_vprintf_debug(devlog_id id, const char* fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-void devlog_vprintf_info(devlog_id id, const char* fmt, va_list ap) G_GNUC_PRINTF(2, 0);
+G_GNUC_PRINTF(2, 0) void devlog_vprintf_trace(devlog_id id, const char* fmt, va_list ap);
+G_GNUC_PRINTF(2, 0) void devlog_vprintf_debug(devlog_id id, const char* fmt, va_list ap);
+G_GNUC_PRINTF(2, 0) void devlog_vprintf_info(devlog_id id, const char* fmt, va_list ap);
 #else
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_trace(devlog_id id, const char* fmt, va_list ap) {}
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_debug(devlog_id id, const char* fmt, va_list ap) {}
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_info(devlog_id id, const char* fmt, va_list ap) {}
 #endif
 
-void devlog_vprintf_warn(devlog_id id, const char* fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-void devlog_vprintf_error(devlog_id id, const char* fmt, va_list ap) G_GNUC_PRINTF(2, 0);
+G_GNUC_PRINTF(2, 0) void devlog_vprintf_warn(devlog_id id, const char* fmt, va_list ap);
+G_GNUC_PRINTF(2, 0) void devlog_vprintf_error(devlog_id id, const char* fmt, va_list ap);
 
 #else
 
-static inline devlog_id devlog_register(const char* type) { return 0; }
+static inline void devlog_init(enum devlog_level default_init_level) {}
+static inline devlog_id devlog_register(const char* type) { return DEVLOG_INVALID_ID; }
 static inline bool devlog_unregister(devlog_id id) { return true; }
+static inline bool devlog_set_level(const char* type, enum devlog_level level) { return true; }
 
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_trace(devlog_id id, const char* fmt, va_list ap) {}
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_debug(devlog_id id, const char* fmt, va_list ap) {}
 G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_info(devlog_id id, const char* fmt, va_list ap) {}
-G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_trace(devlog_id id, const char* fmt, va_list ap) {}
-G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_debug(devlog_id id, const char* fmt, va_list ap) {}
-G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_info(devlog_id id, const char* fmt, va_list ap) {}
+G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_warn(devlog_id id, const char* fmt, va_list ap) {}
+G_GNUC_PRINTF(2, 0) static inline void devlog_vprintf_error(devlog_id id, const char* fmt, va_list ap) {}
 
 #endif
 #endif
