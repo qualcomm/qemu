@@ -6,6 +6,7 @@
 #include "exec/memory.h"
 
 #define QMP_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define QMP_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define QMP_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define QMP_DESC_MAGIC			0x0
@@ -79,7 +80,7 @@ static uint64_t qcom_qmp_read(void *opaque, hwaddr addr, unsigned size)
             return 0;
         }
         default:
-            QMP_LOG_ERROR(s, "\tUnhandled read.\n");
+            QMP_LOG_WARN(s, "Unhandled read @addr 0x%lx.\n", addr);
             return 0;
     }
 }

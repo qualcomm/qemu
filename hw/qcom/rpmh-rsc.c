@@ -8,6 +8,7 @@
 #include "hw/qcom/cmd-db.h"
 
 #define RPMH_RSC_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define RPMH_RSC_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define RPMH_RSC_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 static const char* rpmh_rsc_str[] = {
@@ -293,7 +294,7 @@ static enum rpmh_regs decode_tcs_cmd_addr(QcomRpmhRscState* s, const uint32_t* r
         }
     }
 
-    RPMH_RSC_LOG_ERROR(s, "Illegal tcs cmd addr: 0x%lx\n", tcs_cmd_addr);
+    RPMH_RSC_LOG_WARN(s, "Illegal tcs cmd addr: 0x%lx\n", tcs_cmd_addr);
 
     return RSC_MAX;
 }
@@ -361,8 +362,6 @@ static bool is_tcs_cmd_access(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs*
 
 static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_tcs* tcs)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     size_t tcs_cmd_id = get_tcs_cmd_id(s, addr, tcs);
     size_t tcs_cmd_addr = get_tcs_cmd_addr(s, addr, tcs, tcs_cmd_id);
     enum rpmh_regs tcs_cmd_reg = decode_tcs_cmd_addr(s, s->regtable, tcs_cmd_addr);
@@ -374,7 +373,7 @@ static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned siz
 
     struct rpmh_tcs_cmd* tcs_cmd = &tcs->tcs_cmds[tcs_cmd_id];
 
-    RPMH_RSC_LOG_ERROR(s, "[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
+    RPMH_RSC_LOG(s, "tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
 
     return read_tcs_cmd_reg(tcs_cmd, tcs_cmd_reg);
 }
@@ -384,7 +383,7 @@ static uint64_t rpmh_read_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, s
     hwaddr drv_addr = addr % drv->size;
     enum rpmh_regs drv_reg = decode_drv_addr(s, s->regtable, drv_addr);
 
-    RPMH_RSC_LOG_ERROR(s, "drv read @addr 0x%lx (reg %s)\n", drv_addr, rpmh_rsc_str[drv_reg]);
+    RPMH_RSC_LOG(s, "drv read @addr 0x%lx (reg %s)\n", drv_addr, rpmh_rsc_str[drv_reg]);
 
     return read_drv_reg(drv, drv_reg);
 }
@@ -470,7 +469,7 @@ static void rpmh_write_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned size, 
     enum rpmh_regs tcs_reg = decode_tcs_cmd_addr(s, s->regtable, tcs_cmd_addr);
 
     if (tcs_reg == RSC_MAX) {
-        RPMH_RSC_LOG_ERROR(s, "[!] Illegal write.\n");
+        RPMH_RSC_LOG_WARN(s, "[!] Illegal write @addr 0x%lx\n", addr);
         return;
     }
 

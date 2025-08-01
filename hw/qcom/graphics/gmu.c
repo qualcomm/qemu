@@ -12,6 +12,7 @@
 #include "hw/qcom/graphics/gmu.h"
 
 #define GMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define GMU_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define GMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define GX_GDSC_POWER_OFF	BIT(0)
@@ -122,7 +123,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 return BIT(30);
             }
             default: {
-                GMU_LOG(s, "\t(RSC) Unknown addr\n");
+                GMU_LOG_WARN(s, "(RSC) Unknown read @addr 0x%lx\n", addr);
             }
         }
     } else {
@@ -157,7 +158,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 return 7;
             }
             default: {
-                GMU_LOG_ERROR(s, "\tUnknown addr\n");
+                GMU_LOG_WARN(s, "Unknown read @addr 0x%lx\n", addr);
             }
         }
     }
@@ -253,7 +254,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             break;
         }
         default: {
-            GMU_LOG_ERROR(s, "\tUnknown addr\n");
+            GMU_LOG_WARN(s, "Unknown write @addr 0x%lx of value 0x%lx\n", addr, value);
             break;
         }
     }

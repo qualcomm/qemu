@@ -7,6 +7,7 @@
 #include "qemu/error-report.h"
 
 #define SMMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define SMMU_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define SMMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 /* Configuration registers for the dummy device */
@@ -62,7 +63,7 @@ static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
         case 0x800:
             return 0;
         default:
-            SMMU_LOG_ERROR(opaque, "\tUnhandled read.\n");
+            SMMU_LOG_WARN(opaque, "Unhandled read @addr 0x%lx\n", addr);
             return 0;
     }
 }
@@ -173,7 +174,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
             break;
         }
         default:
-            SMMU_LOG_ERROR(s, "\tUnknown write address.\n");
+            SMMU_LOG_WARN(s, "Unknown write @addr 0x%lx of value 0x%x\n", addr, value);
             break;
     }
 }

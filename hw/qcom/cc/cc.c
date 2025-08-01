@@ -8,7 +8,9 @@
 #include "hw/qcom/cc/dispcc.h"
 #include "hw/qcom/cc/gcc.h"
 
+#define CC_LOG_TRACE(dev, fmt, ...) QDEV_LOG_TRACE(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define CC_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define CC_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define CC_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 static const struct of_device_id cc_of_match_table[] = {
@@ -81,7 +83,7 @@ static enum qcom_cc_reg_kind decode_addr(struct QcomCCState* ccs, struct qcom_cc
         return CC_REG_GMU_CBCR;
     }
 
-    CC_LOG_ERROR(ccs, "[%s] Unknown address: 0x%lx\n", ccs->name, addr);
+    // CC_LOG_WARN(ccs, "[%s] Unknown address: 0x%lx\n", ccs->name, addr);
 
     return CC_REG_MAX;
 }
@@ -132,11 +134,11 @@ static uint64_t qcom_cc_read(void *opaque, hwaddr addr, unsigned size)
             break;
 
         default:
-            CC_LOG_ERROR(ccs, "\tRead @addr %lx failed, defaulting to 0.\n", addr);
+            CC_LOG_WARN(ccs, "Unknwon read @addr %lx.\n", addr);
             return 0;
     }
 
-    CC_LOG_ERROR(ccs, "read @addr 0x%lx of value 0x%x\n", addr, val);
+    CC_LOG_TRACE(ccs, "read @addr 0x%lx of value 0x%x\n", addr, val);
 
     return val;
 }
@@ -212,7 +214,7 @@ static void qcom_cc_write(void *opaque, hwaddr addr,
             break;
         }
         default:
-            CC_LOG_ERROR(ccs, "[%s]\tWrite failed, nothing changed.\n", ccs->name);
+            CC_LOG_WARN(ccs, "Write failed, nothing changed.\n");
             return;
     }
 }

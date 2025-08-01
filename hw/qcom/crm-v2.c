@@ -6,6 +6,7 @@
 #include "hw/qcom/crm-v2.h"
 
 #define CRM_V2_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define CRM_V2_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define CRM_V2_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define field_set(_mask, _val) (((_val) & (_mask >> (ffs(_mask) - 1))) << (ffs(_mask) - 1))
@@ -688,7 +689,7 @@ static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int e
             return cfg;
         }
         default:
-            CRM_V2_LOG(cdev, "[common]: unknown read detected @idx %d\n", enum_idx);
+            CRM_V2_LOG_WARN(cdev, "[common]: unknown read detected @idx %d\n", enum_idx);
             return 0;
     }
 
@@ -697,7 +698,7 @@ static uint64_t read_common(QcomCrmState* cdev, const uint32_t* reg_param, int e
 
 static void write_common(QcomCrmState* cdev, const uint32_t* reg_param, int enum_idx, uint64_t value)
 {
-    CRM_V2_LOG(cdev, "[common]: write@idx %d of value 0x%lx\n", enum_idx, value);
+    CRM_V2_LOG_WARN(cdev, "[common]: write@idx %d of value 0x%lx. Not handled.\n", enum_idx, value);
 }
 
 typedef uint64_t(*CrmRdHdlr)(QcomCrmState*, const uint32_t*, int);
