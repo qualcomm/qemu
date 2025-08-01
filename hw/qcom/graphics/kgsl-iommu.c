@@ -14,6 +14,9 @@
 
 #include "hw/qcom/graphics/kgsl-iommu.h"
 
+#define IOMMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define IOMMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 struct qcom_kgsl_cb* qcom_kgsl_iommu_cb_by_vmid(QcomKgslIOMMUState* s, uint32_t vmid)
 {
     for (size_t i = 0; i < s->nb_cbs; ++i) {

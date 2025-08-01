@@ -6,6 +6,9 @@
 #include "exec/memory.h"
 #include "qemu/error-report.h"
 
+#define SMMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define SMMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 /* Configuration registers for the dummy device */
 #define QCOM_SMMU_DUMMY_PADDR_LO	0x39000
 #define QCOM_SMMU_DUMMY_PADDR_HI	0x39004
@@ -39,9 +42,7 @@ const DMAMap* qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint6
 
 static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
-
-    printf("[%s] Read at address 0x%lx\n", ofdev->name, addr);
+    SMMU_LOG(opaque, "Read at address 0x%lx\n", addr);
 
     switch (addr) {
         case 0x00:
@@ -61,20 +62,20 @@ static uint64_t qcom_smmu_read(void *opaque, hwaddr addr, unsigned size)
         case 0x800:
             return 0;
         default:
-            printf("\tUnhandled read.\n");
+            SMMU_LOG_ERROR(opaque, "\tUnhandled read.\n");
             return 0;
     }
 }
 
-static void print_dma_map(DMAMap* map, uint32_t vmid, bool remove)
+static void print_dma_map(QcomSMMUState* s, DMAMap* map, uint32_t vmid, bool remove)
 {
     const char* status = remove ? "Delete" : "Add";
-    printf("%s entry with VMID %d\n", status, vmid);
-    printf("\t- iova: 0x%lx\n", map->iova);
-    printf("\t- size: 0x%lx\n", map->size);
+    SMMU_LOG(s, "%s entry with VMID %d\n", status, vmid);
+    SMMU_LOG(s, "\t- iova: 0x%lx\n", map->iova);
+    SMMU_LOG(s, "\t- size: 0x%lx\n", map->size);
     if (!remove) {
-        printf("\t- paddr: 0x%lx\n", map->translated_addr);
-        printf("\t- perm: 0x%x\n", map->perm);
+        SMMU_LOG(s, "\t- paddr: 0x%lx\n", map->translated_addr);
+        SMMU_LOG(s, "\t- perm: 0x%x\n", map->perm);
     }
 }
 
@@ -82,10 +83,9 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
                               uint64_t _value, unsigned int size)
 {
     QcomSMMUState *s = QCOM_SMMU(opaque);
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(opaque);
     uint32_t value = _value;
 
-    printf("[%s] Write at address 0x%lx of value 0x%x\n", ofdev->name, addr, value);
+    SMMU_LOG(s, "Write at address 0x%lx of value 0x%x\n", addr, value);
 
     switch (addr) {
         case QCOM_SMMU_DUMMY_PADDR_LO: {
@@ -153,7 +153,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
                     s->dummy_state.domains[vmid]->maps = iova_tree_new();
                 }
 
-                print_dma_map(map, vmid, false);
+                print_dma_map(s, map, vmid, false);
 
                 struct smmu_dummy_domain* domain = s->dummy_state.domains[vmid];
                 iova_tree_insert(domain->maps, map);
@@ -164,7 +164,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
                 map->size *= s->dummy_state.cached_pgcount;
                 map->size--;
 
-                print_dma_map(map, vmid, true);
+                print_dma_map(s, map, vmid, true);
 
                 assert(s->dummy_state.domains[vmid]);
 
@@ -173,7 +173,7 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
             break;
         }
         default:
-            printf("\tUnknown write address.\n");
+            SMMU_LOG_ERROR(s, "\tUnknown write address.\n");
             break;
     }
 }

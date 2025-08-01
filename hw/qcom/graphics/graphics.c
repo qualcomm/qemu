@@ -5,6 +5,9 @@
 #include "hw/qcom/graphics/gen8_reg.h"
 #include "hw/sysbus-of.h"
 
+#define GRAPHICS_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define GRAPHICS_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 #define GX_GDSC_POWER_OFF	BIT(0)
 #define GX_CLK_OFF		BIT(1)
 #define is_on(val)		(!(val & (GX_GDSC_POWER_OFF | GX_CLK_OFF)))
@@ -47,16 +50,16 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    printf("[qcom_gpu] read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
+    GRAPHICS_LOG(s, "read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
 
     switch (addr_idx) {
         case GEN8_GBIF_REINIT_DONE: {
-            printf("\tGBIF reinit done request\n");
+            GRAPHICS_LOG(s, "\tGBIF reinit done request\n");
             return 1;
         }
         case GEN8_GMUCX_GFX_PWR_CLK_STATUS: {
             uint32_t read_val = s->regs[addr_idx];
-            printf("\tpwr clk status: 0x%x\n", read_val);
+            GRAPHICS_LOG(s, "\tpwr clk status: 0x%x\n", read_val);
             return read_val;
         }
         case GEN8_GMUCX_CM3_FW_INIT_RESULT: {
@@ -82,7 +85,7 @@ static uint64_t qcom_graphics_read(void *opaque, hwaddr addr, unsigned size)
             return s->regs[GEN8_RBBM_PERFCTR_FLUSH_HOST_STATUS];
         };
         default: {
-            printf("\tUnknown addr\n");
+            GRAPHICS_LOG_ERROR(s, "\tUnknown addr\n");
         }
     }
 
@@ -93,7 +96,6 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
     QcomGraphicsState *s = QCOM_GRAPHICS(opaque);
-    OfSysBusDevice* of = OF_SYS_BUS_DEVICE(opaque);
 
     hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
@@ -102,21 +104,21 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
         return;
     }
 
-    printf("[%s] write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", of->name, addr, addr_idx, value);
+    GRAPHICS_LOG(s, "write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", addr, addr_idx, value);
 
     switch (addr_idx) {
         case GEN8_RBBM_INT_0_MASK: {
-            printf("INT 0 MASK\n");
+            GRAPHICS_LOG(s, "INT 0 MASK\n");
             uint32_t is_off = GX_GDSC_POWER_OFF | GX_CLK_OFF;
 
             if (value & 1) {
                 // power on
-                printf("\tWake up...\n");
+                GRAPHICS_LOG(s, "\tWake up...\n");
                 s->regs[GEN8_GMUCX_RPMH_POWER_STATE] = GPU_HW_ACTIVE;
                 s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] &= ~is_off;
             } else if (~value & 1) {
                 // power off
-                printf("\tSlumber...\n");
+                GRAPHICS_LOG(s, "\tSlumber...\n");
                 s->regs[GEN8_GMUCX_RPMH_POWER_STATE] = GPU_HW_MINBW;
                 s->regs[GEN8_GMUCX_GFX_PWR_CLK_STATUS] |= is_off;
             }
@@ -136,7 +138,7 @@ static void qcom_graphics_write(void *opaque, hwaddr addr,
             break;
         };
         default: {
-            printf("\tUnknown addr\n");
+            GRAPHICS_LOG_ERROR(s, "\tUnknown addr\n");
         }
     }
 }
@@ -178,7 +180,7 @@ static void qcom_graphics_realize(OfSysBusDevice* of, Error **errp)
     s->gmu->gpu_offset = s->gmu->iomem.addr;
     s->gmu->gpu_offset_ao_blk = s->gmu->iomem_ao_blk.addr;
 
-    printf("%s: nb entries: %ld\n", of->name, s->iommu->nb_cbs);
+    GRAPHICS_LOG(s, "%s: nb entries: %ld\n", of->name, s->iommu->nb_cbs);
 }
 
 static void qcom_graphics_class_init(ObjectClass* oc, void* data)

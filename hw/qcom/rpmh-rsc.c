@@ -7,6 +7,9 @@
 #include "hw/irq.h"
 #include "hw/qcom/cmd-db.h"
 
+#define RPMH_RSC_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define RPMH_RSC_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+
 static const char* rpmh_rsc_str[] = {
     [RSC_DRV_TCS_OFFSET] = "RSC_DRV_TCS_OFFSET",
     [RSC_DRV_CMD_OFFSET] = "RSC_DRV_CMD_OFFSET",
@@ -248,65 +251,55 @@ static void reset_tcs_cmd_regs(rpmh_reset_regs reset_table, struct rpmh_tcs_cmd*
 }
 
 static enum rpmh_regs decode_drv_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr drv_addr) {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = RSC_DRV_START; i < RSC_DRV_END; ++i) {
         if (regtable[i] == drv_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal drv addr: 0x%lx\n", ofdev->name, drv_addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal drv addr: 0x%lx\n", drv_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_common_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_common_addr) {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = RSC_TCS_COMMON_START; i < RSC_TCS_COMMON_END; ++i) {
         if (regtable[i] == tcs_common_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs common addr: 0x%lx\n", ofdev->name, tcs_common_addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal tcs common addr: 0x%lx\n", tcs_common_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_addr) {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = RSC_TCS_START; i < RSC_TCS_END; ++i) {
         if (regtable[i] == tcs_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs addr: 0x%lx\n", ofdev->name, tcs_addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal tcs addr: 0x%lx\n", tcs_addr);
 
     return RSC_MAX;
 }
 
 static enum rpmh_regs decode_tcs_cmd_addr(QcomRpmhRscState* s, const uint32_t* regtable, hwaddr tcs_cmd_addr) {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = RSC_TCS_CMD_START; i < RSC_TCS_CMD_END; ++i) {
         if (regtable[i] == tcs_cmd_addr) {
             return i;
         }
     }
 
-    printf("[! - %s] Illegal tcs cmd addr: 0x%lx\n", ofdev->name, tcs_cmd_addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal tcs cmd addr: 0x%lx\n", tcs_cmd_addr);
 
     return RSC_MAX;
 }
 
 static size_t get_drv_id(QcomRpmhRscState* s, hwaddr addr)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     // we ignore size / alignment considerations since it is enforced by the definition of the memop.
     for (size_t i = 0; i < s->nb_drvs; ++i) {
         if (s->drvs[i].present && addr >= s->drvs[i].base && addr < s->drvs[i].base + s->drvs[i].size) {
@@ -314,15 +307,13 @@ static size_t get_drv_id(QcomRpmhRscState* s, hwaddr addr)
         }
     }
 
-    printf("[! - %s] Illegal drv id: 0x%lx\n", ofdev->name, addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal drv id: 0x%lx\n", addr);
 
     return RSC_MAX;
 }
 
 static int get_tcs_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_drv* drv)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = 0; i < drv->nb_tcss; ++i) {
         hwaddr tcs_addr = drv->tcs_base + drv->tcs_size * i;
         if (addr >= tcs_addr && addr < tcs_addr + drv->tcs_size) {
@@ -330,14 +321,12 @@ static int get_tcs_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_drv* drv)
         }
     }
 
-    printf("[! - %s] Illegal tcs id: 0x%lx\n", ofdev->name, addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal tcs id: 0x%lx\n", addr);
     exit(1);
 }
 
 static int get_tcs_cmd_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs* tcs)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     for (size_t i = 0; i < tcs->nb_tcs_cmds; ++i) {
         hwaddr tcs_cmd_addr = tcs->tcs_cmd_base + tcs->tcs_cmd_size * i;
         if (addr >= tcs_cmd_addr && addr < tcs_cmd_addr + tcs->tcs_cmd_size) {
@@ -345,7 +334,7 @@ static int get_tcs_cmd_id(QcomRpmhRscState* s, hwaddr addr, struct rpmh_tcs* tcs
         }
     }
 
-    printf("[! - %s] Illegal tcs id: 0x%lx\n", ofdev->name, addr);
+    RPMH_RSC_LOG_ERROR(s, "Illegal tcs id: 0x%lx\n", addr);
     exit(1);
 }
 
@@ -379,37 +368,33 @@ static uint64_t rpmh_read_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned siz
     enum rpmh_regs tcs_cmd_reg = decode_tcs_cmd_addr(s, s->regtable, tcs_cmd_addr);
 
     if (tcs_cmd_reg == RSC_MAX) {
-        printf("[!] Illegal read, returning 0.\n");
+        RPMH_RSC_LOG_ERROR(s, "[!] Illegal read, returning 0.\n");
         return 0;
     }
 
     struct rpmh_tcs_cmd* tcs_cmd = &tcs->tcs_cmds[tcs_cmd_id];
 
-    printf("[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
+    RPMH_RSC_LOG_ERROR(s, "[%s] tcs_cmd read for tcs_cmd %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_cmd_id, tcs_cmd_addr, rpmh_rsc_str[tcs_cmd_reg]);
 
     return read_tcs_cmd_reg(tcs_cmd, tcs_cmd_reg);
 }
 
 static uint64_t rpmh_read_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     hwaddr drv_addr = addr % drv->size;
     enum rpmh_regs drv_reg = decode_drv_addr(s, s->regtable, drv_addr);
 
-    printf("[%s] drv read @addr 0x%lx (reg %s)\n", ofdev->name, drv_addr, rpmh_rsc_str[drv_reg]);
+    RPMH_RSC_LOG_ERROR(s, "drv read @addr 0x%lx (reg %s)\n", drv_addr, rpmh_rsc_str[drv_reg]);
 
     return read_drv_reg(drv, drv_reg);
 }
 
 static uint64_t rpmh_read_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[%s] TCS common read @addr 0x%lx (reg %s)\n", ofdev->name, tcs_common_addr, rpmh_rsc_str[tcs_reg]);
+    RPMH_RSC_LOG(s, "TCS common read @addr 0x%lx (reg %s)\n", tcs_common_addr, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -420,15 +405,13 @@ static uint64_t rpmh_read_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned 
             // illegal read
             return 0;
         default:
-            printf("Unhandled TCS common read.\n");
+            RPMH_RSC_LOG_ERROR(s, "Unhandled TCS common read.\n");
             return 0;
     }
 }
 
 static uint64_t rpmh_read_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, struct rpmh_drv* drv)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     size_t tcs_id = get_tcs_id(s, addr, drv);
     struct rpmh_tcs* tcs = &drv->tcss[tcs_id];
 
@@ -438,7 +421,7 @@ static uint64_t rpmh_read_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, s
         size_t tcs_addr = get_tcs_addr(s, addr, drv, tcs_id);
         enum rpmh_regs tcs_reg = decode_tcs_addr(s, s->regtable, tcs_addr);
 
-        printf("[%s] read for tcs %lx @addr 0x%lx (reg %s)\n", ofdev->name, tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
+        RPMH_RSC_LOG(s, "read for tcs %lx @addr 0x%lx (reg %s)\n", tcs_id, tcs_addr, rpmh_rsc_str[tcs_reg]);
 
         return read_tcs_reg(tcs, tcs_reg);
     }
@@ -449,17 +432,15 @@ static void rpmh_write_drv(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint
     hwaddr drv_addr = addr % drv->size;
     enum rpmh_regs drv_reg = decode_drv_addr(s, s->regtable, drv_addr);
 
-    printf("[!] drv write 0x%x at reg %s -> trying to write at read-only register!!!\n", val, rpmh_rsc_str[drv_reg]);
+    RPMH_RSC_LOG_ERROR(s, "[!] drv write 0x%x at reg %s -> trying to write at read-only register!!!\n", val, rpmh_rsc_str[drv_reg]);
 }
 
 static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint32_t val, struct rpmh_drv* drv)
 {
-    OfSysBusDevice* ofdev = OF_SYS_BUS_DEVICE(s);
-
     size_t tcs_common_addr = get_tcs_common_addr(s, addr, drv);
     enum rpmh_regs tcs_reg = decode_tcs_common_addr(s, s->regtable, tcs_common_addr);
 
-    printf("[%s] common 0x%x at reg %s\n", ofdev->name, val, rpmh_rsc_str[tcs_reg]);
+    RPMH_RSC_LOG(s, "common 0x%x at reg %s\n", val, rpmh_rsc_str[tcs_reg]);
 
     switch (tcs_reg) {
         case RSC_DRV_IRQ_ENABLE:
@@ -477,7 +458,7 @@ static void rpmh_write_tcs_common(QcomRpmhRscState* s, hwaddr addr, unsigned siz
             return;
         }
         default:
-            printf("Unhandled TCS common write.\n");
+            RPMH_RSC_LOG_ERROR(s, "Unhandled TCS common write.\n");
             return;
     }
 }
@@ -489,11 +470,11 @@ static void rpmh_write_tcs_cmd(QcomRpmhRscState* s, hwaddr addr, unsigned size, 
     enum rpmh_regs tcs_reg = decode_tcs_cmd_addr(s, s->regtable, tcs_cmd_addr);
 
     if (tcs_reg == RSC_MAX) {
-        printf("[!] Illegal write.\n");
+        RPMH_RSC_LOG_ERROR(s, "[!] Illegal write.\n");
         return;
     }
 
-    printf("[*] TCS common 0x%x at reg %s\n", val, rpmh_rsc_str[tcs_reg]);
+    RPMH_RSC_LOG(s, "[*] TCS common 0x%x at reg %s\n", val, rpmh_rsc_str[tcs_reg]);
 
     struct rpmh_tcs_cmd* tcs_cmd = &tcs->tcs_cmds[tcs_cmd_id];
 
@@ -514,7 +495,7 @@ static void rpmh_write_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint
         size_t tcs_addr = get_tcs_addr(s, addr, drv, tcs_id);
         enum rpmh_regs tcs_reg = decode_tcs_addr(s, s->regtable, tcs_addr);
 
-        printf("[*] TCS write for tcs %lx 0x%x at reg %s\n", tcs_id, val, rpmh_rsc_str[tcs_reg]);
+        RPMH_RSC_LOG(s, "[*] TCS write for tcs %lx 0x%x at reg %s\n", tcs_id, val, rpmh_rsc_str[tcs_reg]);
 
         switch (tcs_reg) {
             case RSC_DRV_CMD_WAIT_FOR_CMPL: {
@@ -542,7 +523,7 @@ static void rpmh_write_tcs(QcomRpmhRscState* s, hwaddr addr, unsigned size, uint
                 break;
             }
             default: {
-                printf("Unexpected TSC reg: %s (%d)\n", rpmh_rsc_str[tcs_reg], tcs_reg);
+                RPMH_RSC_LOG_ERROR(s, "Unexpected TSC reg: %s (%d)\n", rpmh_rsc_str[tcs_reg], tcs_reg);
                 break;
             }
         }

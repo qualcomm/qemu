@@ -1,7 +1,11 @@
 #include "qemu/osdep.h"
+#include "hw/qdev-core.h"
 #include "hw/qcom/graphics/gmu.h"
 #include "hw/qcom/graphics/hfi.h"
 #include "hw/qcom/graphics/gen8_reg.h"
+
+#define HFI_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define CREATE_MSG_HDR(id, type) \
 	(((type) << 16) | ((id) & 0xFF))
@@ -483,26 +487,26 @@ static inline int _CMD_MSG_HDR(uint32_t *hdr, int id, size_t size)
 //     printf("\n");
 // }
 
-static void print_hdr(struct hfi_queue_header* hdr, size_t idx)
+static void print_hdr(QcomGMUState* s, struct hfi_queue_header* hdr, size_t idx)
 {
-    printf("Header %ld\n", idx);
-    printf("\tstatus: 0x%x\n", hdr->status);
-    printf("\tstart_addr: 0x%x\n", hdr->start_addr);
-    printf("\ttype: 0x%x\n", hdr->type);
-    printf("\tqueue size: 0x%x\n", hdr->queue_size);
-    printf("\tmsg size: 0x%x\n", hdr->msg_size);
-    printf("\tread idx: 0x%u\n", hdr->read_index);
-    printf("\twrite idx: 0x%u\n", hdr->write_index);
+    HFI_LOG(s, "Header %ld\n", idx);
+    HFI_LOG(s, "\tstatus: 0x%x\n", hdr->status);
+    HFI_LOG(s, "\tstart_addr: 0x%x\n", hdr->start_addr);
+    HFI_LOG(s, "\ttype: 0x%x\n", hdr->type);
+    HFI_LOG(s, "\tqueue size: 0x%x\n", hdr->queue_size);
+    HFI_LOG(s, "\tmsg size: 0x%x\n", hdr->msg_size);
+    HFI_LOG(s, "\tread idx: 0x%u\n", hdr->read_index);
+    HFI_LOG(s, "\twrite idx: 0x%u\n", hdr->write_index);
 }
 
-static void print_msg(struct qcom_hfi_msg* msg)
+static void print_msg(QcomGMUState* s, struct qcom_hfi_msg* msg)
 {
-    printf("Message %u\n", msg->id);
-    printf("\traw value: 0x%x\n", msg->raw[0]);
-    printf("\tsize_dwords: 0x%x\n", msg->size_dwords);
-    printf("\talign_size: 0x%x\n", msg->align_size);
-    printf("\tseqnum: %u\n", msg->seqnum);
-    printf("\ttype: 0x%x\n", msg->type);
+    HFI_LOG(s, "Message %u\n", msg->id);
+    HFI_LOG(s, "\traw value: 0x%x\n", msg->raw[0]);
+    HFI_LOG(s, "\tsize_dwords: 0x%x\n", msg->size_dwords);
+    HFI_LOG(s, "\talign_size: 0x%x\n", msg->align_size);
+    HFI_LOG(s, "\tseqnum: %u\n", msg->seqnum);
+    HFI_LOG(s, "\ttype: 0x%x\n", msg->type);
 }
 
 static void qcom_hfi_fetch_qtbl(QcomGMUState* gmu, struct hfi_queue_table* qtbl)
@@ -539,10 +543,11 @@ static bool queue_read(QcomGMUState* gmu, struct hfi_queue_header* qhdr, uint32_
     uint32_t high_write_index = MIN(read_index + nb_words, qhdr->queue_size);
     uint32_t to_read = high_write_index - read_index;
     if (!qcom_gmu_gpumem_read(gmu, 0, qhdr->start_addr + (read_index * sizeof(uint32_t)), (char*) buf, to_read * sizeof(uint32_t))) {
-        fprintf(stderr, "Error while reading GPU memory at gaddr 0x%lx of 0x%lx bytes\n", qhdr->start_addr + (read_index * sizeof(uint32_t)), to_read * sizeof(uint32_t));
-        fprintf(stderr, "Read index: 0x%x\n", read_index);
-        fprintf(stderr, "Write index: 0x%x\n", write_index);
-        fprintf(stderr, "queue size: 0x%x\n", qhdr->queue_size);
+        HFI_LOG_ERROR(gmu, "Error while reading GPU memory at gaddr 0x%lx of 0x%lx bytes\n", qhdr->start_addr + (read_index * sizeof(uint32_t)), to_read * sizeof(uint32_t));
+        HFI_LOG_ERROR(gmu, "Read index: 0x%x\n", read_index);
+        HFI_LOG_ERROR(gmu, "Write index: 0x%x\n", write_index);
+        HFI_LOG_ERROR(gmu, "queue size: 0x%x\n", qhdr->queue_size);
+
         exit(1);
     }
 
@@ -646,7 +651,7 @@ static bool send_mem_alloc(QcomGMUState* gmu, struct hfi_queue_table* qtbl, stru
     mem_alloc.hdr = CREATE_MSG_HDR(F2H_MSG_MEM_ALLOC, HFI_MSG_CMD);
     mem_alloc.hdr = MSG_HDR_SET_SEQNUM_SIZE(mem_alloc.hdr, gmu->hfi.msg_seqnum++, nb_words);
 
-    printf("mem_alloc hdr: 0x%x\n", mem_alloc.hdr);
+    HFI_LOG(gmu, "mem_alloc hdr: 0x%x\n", mem_alloc.hdr);
 
     mem_alloc.version = 1;
 
@@ -678,8 +683,8 @@ static bool qcom_hfi_get_pending_msg(QcomGMUState* gmu, struct hfi_queue_header*
 
         // remove one, since we already read the 
         if (align_size == 0) {
-            printf("Error: invalid align_size: 0x%x (size_dwords = 0x%x)\n", align_size, size_dwords);
-            print_msg(msg);
+            HFI_LOG_ERROR(gmu, "invalid align_size: 0x%x (size_dwords = 0x%x)\n", align_size, size_dwords);
+            print_msg(gmu, msg);
             exit(1);
         }
 
@@ -699,7 +704,7 @@ static void qcom_hfi_msg_table(QcomGMUState* gmu, struct hfi_queue_table* qtbl, 
 static void qcom_hfi_msg_get_value(QcomGMUState* gmu, struct hfi_queue_table* qtbl, struct hfi_queue_header* qhdr, struct qcom_hfi_msg* msg) {
     struct hfi_get_value_cmd* get_value_cmd = (struct hfi_get_value_cmd*) msg->raw;
 
-    printf("Get value for type %u and subtype %u\n", get_value_cmd->type, get_value_cmd->subtype);
+    HFI_LOG(gmu, "Get value for type %u and subtype %u\n", get_value_cmd->type, get_value_cmd->subtype);
 
     assert(send_ack_get(gmu, qtbl, msg, gmu->hfi.values[get_value_cmd->type]));
 }
@@ -740,7 +745,7 @@ static void qcom_hfi_msg_start(QcomGMUState* gmu, struct hfi_queue_table* qtbl, 
     // allocate memory from descriptors
     // TODO: take feature flags into account
     for (size_t i = 0; i < ARRAY_SIZE(mem_descs); ++i) {
-        printf("allocating memory...\n");
+        HFI_LOG(gmu, "allocating memory...\n");
         struct hfi_mem_desc* desc = &mem_descs[i];
         assert(send_mem_alloc(gmu, qtbl, desc));
     }
@@ -826,12 +831,12 @@ void qcom_hfi_handle(QcomGMUState* gmu)
 
         struct qcom_hfi_ops* ops = &hfi_ops[msg.id];
         if (ops->handler) {
-            printf("Received Message: %s\n", ops->name);
-            print_msg(&msg);
+            HFI_LOG(gmu, "Received Message: %s\n", ops->name);
+            print_msg(gmu, &msg);
             ops->handler(gmu, qtbl, qhdr, &msg);
         } else {
-            printf("Received unknown message with ID %u\n", msg.id);
-            print_msg(&msg);
+            HFI_LOG(gmu, "Received unknown message with ID %u\n", msg.id);
+            print_msg(gmu, &msg);
         }
 
         g_free(msg.raw);
@@ -841,5 +846,5 @@ void qcom_hfi_handle(QcomGMUState* gmu)
 
     gmu->regs[GEN8_GMUCX_GMU2HOST_INTR_INFO] |= HFI_IRQ_MSGQ_MASK;
 
-    print_hdr(&qtbl->qhdr[HFI_MSG_ID], HFI_MSG_ID);
+    print_hdr(gmu, &qtbl->qhdr[HFI_MSG_ID], HFI_MSG_ID);
 }

@@ -4733,6 +4733,14 @@ SRST
     items.
 ERST
 
+DEF("devlog", HAS_ARG, QEMU_OPTION_devlog,
+    "-devlog type1,...    logs devices with type type1,...\n",
+    QEMU_ARCH_ALL)
+SRST
+``-devlog type1[,...]``
+    Logs devices with with the given types.
+ERST
+
 DEF("D", HAS_ARG, QEMU_OPTION_D, \
     "-D logfile      output log to logfile (default stderr)\n",
     QEMU_ARCH_ALL)
