@@ -4,8 +4,9 @@
 #include "hw/qcom/graphics/hfi.h"
 #include "hw/qcom/graphics/gen8_reg.h"
 
-#define HFI_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
-#define HFI_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_PREFIX "HFI: "
+#define HFI_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, HFI_PREFIX fmt __VA_OPT__(,) __VA_ARGS__)
+#define HFI_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, HFI_PREFIX fmt __VA_OPT__(,) __VA_ARGS__)
 
 #define CREATE_MSG_HDR(id, type) \
 	(((type) << 16) | ((id) & 0xFF))
