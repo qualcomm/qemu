@@ -205,8 +205,6 @@ G_GNUC_PRINTF(3, 0) static void devlog_vprintf_level(devlog_id id, devlog_level 
         (gpointer) id
     );
 
-    printf("log request from id %lu (lvl %d)\n", id, lvl);
-
     if (lvl >= entry->level) {
         ret = snprintf(dstate.fmt, MAX_FMT_SIZE, "%s %s", entry->prefixes[lvl], fmt);
         

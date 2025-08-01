@@ -10,6 +10,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
+#include "hw/core/devlog.h"
 #include "hw/resettable.h"
 
 #define TYPE_MACHINE_SUFFIX "-machine"
@@ -22,6 +23,12 @@
 #define TYPE_MACHINE "machine"
 #undef MACHINE  /* BSD defines it and QEMU does not use it */
 OBJECT_DECLARE_TYPE(MachineState, MachineClass, MACHINE)
+
+#define MACHINE_LOG_DEBUG(dev, fmt, ...) machine_log_debug(MACHINE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define MACHINE_LOG_TRACE(dev, fmt, ...) machine_log_trace(MACHINE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define MACHINE_LOG_INFO(dev, fmt, ...) machine_log_info(MACHINE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define MACHINE_LOG_WARN(dev, fmt, ...) machine_log_warn(MACHINE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
+#define MACHINE_LOG_ERROR(dev, fmt, ...) machine_log_error(MACHINE(dev), fmt __VA_OPT__(,) __VA_ARGS__)
 
 extern MachineState *current_machine;
 
@@ -55,6 +62,26 @@ void machine_set_cache_topo_level(MachineState *ms, CacheLevelAndType cache,
                                   CpuTopologyLevel level);
 bool machine_check_smp_cache(const MachineState *ms, Error **errp);
 void machine_memory_devices_init(MachineState *ms, hwaddr base, uint64_t size);
+
+#ifdef CONFIG_DEVLOG
+#ifdef CONFIG_DEVLOG_DEBUG
+G_GNUC_PRINTF(2, 3) void machine_log_trace(const MachineState *m, const char* fmt, ...);
+G_GNUC_PRINTF(2, 3) void machine_log_debug(const MachineState *m, const char* fmt, ...);
+G_GNUC_PRINTF(2, 3) void machine_log_info(const MachineState *m, const char* fmt, ...);
+#else
+G_GNUC_PRINTF(2, 3) static inline void machine_log_trace(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_debug(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_info(const MachineState *m, const char* fmt, ...) {}
+#endif
+G_GNUC_PRINTF(2, 3) void machine_log_warn(const MachineState *m, const char* fmt, ...);
+G_GNUC_PRINTF(2, 3) void machine_log_error(const MachineState *m, const char* fmt, ...);
+#else
+G_GNUC_PRINTF(2, 3) static inline void machine_log_trace(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_debug(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_info(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_warn(const MachineState *m, const char* fmt, ...) {}
+G_GNUC_PRINTF(2, 3) static inline void machine_log_error(const MachineState *m, const char* fmt, ...) {}
+#endif
 
 /**
  * machine_class_allow_dynamic_sysbus_dev: Add type to list of valid devices
@@ -444,6 +471,9 @@ struct MachineState {
     SmpCache smp_cache;
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
+#ifdef CONFIG_DEVLOG
+    devlog_id devlog_id;
+#endif
 };
 
 /*

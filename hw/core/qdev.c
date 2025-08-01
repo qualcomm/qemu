@@ -433,7 +433,6 @@ bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
 }
 
 #ifdef CONFIG_DEVLOG
-
 #ifdef CONFIG_DEVLOG_DEBUG
 void qdev_log_trace(const DeviceState *dev, const char* fmt, ...)
 {
@@ -462,7 +461,6 @@ void qdev_log_info(const DeviceState *dev, const char* fmt, ...)
     va_end (ap);
 }
 #endif
-
 void qdev_log_warn(const DeviceState *dev, const char* fmt, ...)
 {
     va_list ap;
