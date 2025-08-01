@@ -7,12 +7,17 @@
 #define DEVLOG_INVALID_ID UINT64_MAX
 
 enum devlog_level {
-    DEVLOG_LEVEL_NONE,
+    // always keep the the beginning
+    DEVLOG_LEVEL_START,
+
+    DEVLOG_LEVEL_DEBUG = DEVLOG_LEVEL_START,
     DEVLOG_LEVEL_TRACE,
-    DEVLOG_LEVEL_DEBUG,
     DEVLOG_LEVEL_INFO,
     DEVLOG_LEVEL_WARNING,
     DEVLOG_LEVEL_ERROR,
+
+    // always keep at the end
+    DEVLOG_LEVEL_MAX,
 };
 
 
