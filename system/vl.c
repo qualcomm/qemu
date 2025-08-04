@@ -1724,17 +1724,19 @@ static void devlog_init_finalize(void) {
     const char* str;
     enum devlog_level level = DEVLOG_LEVEL_END;
 
-    for (e = qdict_first(devlog_dict); e; e = qdict_next(devlog_dict, e)) {
-        if ((str = qdict_get_str(devlog_dict, e->key))) {
-            level = parse_devlog_arg(e->key, str);
-        } else {
-            fprintf(stderr, "%s: wrong type (expected string)\n", e->key);
-            abort();
-        }
+    if (devlog_dict) {
+        for (e = qdict_first(devlog_dict); e; e = qdict_next(devlog_dict, e)) {
+            if ((str = qdict_get_str(devlog_dict, e->key))) {
+                level = parse_devlog_arg(e->key, str);
+            } else {
+                fprintf(stderr, "%s: wrong type (expected string)\n", e->key);
+                abort();
+            }
 
-        if (!devlog_set_level(e->key, level)) {
-            fprintf(stderr, "%s: unknown device type\n", e->key);
-            abort();
+            if (!devlog_set_level(e->key, level)) {
+                fprintf(stderr, "%s: unknown device type\n", e->key);
+                abort();
+            }
         }
     }
 }

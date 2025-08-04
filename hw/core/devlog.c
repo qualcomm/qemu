@@ -101,6 +101,7 @@ devlog_id devlog_register(const char* type)
     const char* prefix_fmt = DEVLOG_PRE_COLOR "%s" DEVLOG_POST_COLOR "[%s - %s]" DEVLOG_COLOR_END;
     const struct level_info* info;
     devlog_id new_id = dstate.next_id++;
+    assert(dstate.table);
 
     entry->level = dstate.default_init_lvl;
 
