@@ -780,11 +780,33 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         int new_unit = parse_context_idx(env, new_XA);
         trace_hexagon_ssr_xa(env->threadId, old_XA, new_XA);
 
+        CPUState *cs = env_cpu(env);
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        uint32_t rev = cpu->rev_reg & 0xff;
         /* Ownership exchange */
-        memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
-        memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
-        memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
-        memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+        if (rev > 0x75) {
+            memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+            memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+            memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+            memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+        } else {
+            if ((old_XA != 0) && (new_XA != 0)) {
+                memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+                memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+                memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+                memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+            }
+            /* New owner acquire */
+            else if (new_XA != 0) {
+                memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+                memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+            }
+            /* Done using HVX */
+            else {
+                memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+                memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+            }
+        }
 
         check_overcommitted_hvx(env, new);
     }
