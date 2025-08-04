@@ -101,19 +101,23 @@ int main()
      * 101      HVX Context 1  HVX Context 1  HVX Context 5  HVX Context 5
      * 110      HVX Context 0  HVX Context 2  HVX Context 2  HVX Context 6
      * 111      HVX Context 1  HVX Context 3  HVX Context 3  HVX Context 7
+     *
+     * Test only covers DSP revisions after 0x75 which changed the
+     * meaning of SSR.XA bits.
      */
-    for (int i = 0; i < 8; i++) {
-        int expected = (i % num_contexts) + 1;
-        /* Exception for num_contexts=6 */
-        if (num_contexts == 6 && i >= 6) {
-            expected = (i - 6 + 2) + 1;
+    if ((get_rev() & 0xff) > 0x75) {
+        for (int i = 0; i < 8; i++) {
+            int expected = (i % num_contexts) + 1;
+            /* Exception for num_contexts=6 */
+            if (num_contexts == 6 && i >= 6) {
+                expected = (i - 6 + 2) + 1;
+            }
+            for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+                expect[i].w[j] = expected;
+            }
         }
-        for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
-            expect[i].w[j] = expected;
-        }
+        check_output_w(__LINE__, 8);
     }
-
-    check_output_w(__LINE__, 8);
     puts(err ? "FAIL" : "PASS");
     return !!err;
 }
