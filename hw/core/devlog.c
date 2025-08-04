@@ -101,6 +101,11 @@ devlog_id devlog_register(const char* type)
     const char* prefix_fmt = DEVLOG_PRE_COLOR "%s" DEVLOG_POST_COLOR "[%s - %s]" DEVLOG_COLOR_END;
     const struct level_info* info;
     devlog_id new_id = dstate.next_id++;
+
+    if (!dstate.table) {
+        return DEVLOG_INVALID_ID;
+    }
+    
     assert(dstate.table);
 
     entry->level = dstate.default_init_lvl;
@@ -136,6 +141,10 @@ bool devlog_unregister(devlog_id id)
         (gpointer) id
     );
 
+    if (!entry) {
+        return true;
+    }
+
     for (lvl = DEVLOG_LEVEL_START; lvl < DEVLOG_LEVEL_END; ++lvl) {
         g_free(entry->prefixes[lvl]);
     }
@@ -164,6 +173,10 @@ bool devlog_set_level(const char* type, enum devlog_level level)
         .type = type,
         .lvl = level
     };
+
+    if (!dstate.table) {
+        return true;
+    }
 
     g_hash_table_foreach(dstate.table, set_dev_level, &data);
 
@@ -201,12 +214,12 @@ G_GNUC_PRINTF(3, 0) static void devlog_vprintf_level(devlog_id id, devlog_level 
 {
     int ret;
     
-    struct devlog_entry *entry = (struct devlog_entry*) g_hash_table_lookup(
+    struct devlog_entry *entry = id == DEVLOG_INVALID_ID ? NULL : (struct devlog_entry*) g_hash_table_lookup(
         dstate.table,
         (gpointer) id
     );
 
-    if (lvl >= entry->level) {
+    if (entry && lvl >= entry->level) {
         ret = snprintf(dstate.fmt, MAX_FMT_SIZE, "%s %s", entry->prefixes[lvl], fmt);
         
         if (ret >= MAX_FMT_SIZE) {
