@@ -1500,7 +1500,7 @@ void qemu_fdt_set_nodes_addr(void *fdt, const char *node_path, hwaddr root_node_
     hwaddr addr;
 
     // TODO: remove when handled...
-    if (strstr(node_path, "qcom,gpu-pwrlevel-bins")) {
+    if (strstr(node_path, "qcom,gpu-pwrlevel-bins") || strstr(node_path, "clock-controller@9ba4000") || strstr(node_path, "clock-controller@9ba4000")) {
         return;
     }
 
@@ -1559,7 +1559,7 @@ void qemu_fdt_check_memory_consistency(void* fdt, const char* node_path, MemoryR
     int len, ret;
 
     // TODO: remove when handled...
-    if (strstr(node_path, "qcom,gpu-pwrlevel-bins")) {
+    if (strstr(node_path, "qcom,gpu-pwrlevel-bins") || strstr(node_path, "clock-controller@9ba4000")) {
         return;
     }
 
