@@ -3,7 +3,9 @@
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
  *
- * Only provides minimal support, mostly to pass probe checks.
+ * This does not support the official SMMU, but the franksmmu alternative.
+ * The translation is not done by fetching in-memory tables, but instead with
+ * a custom version using MMIO accesses to register page registrations.
  */
 
 #ifndef QEMU_QCOM_SMMU_H
@@ -19,16 +21,16 @@ OBJECT_DECLARE_TYPE(QcomSMMUState, QcomSMMUClass, QCOM_SMMU)
 
 #define TYPE_QCOM_SMMU_IOMMU_MEMORY_REGION "qcom-smmu-iommu-memory-region"
 
-struct smmu_dummy_domain {
+struct franksmmu_domain {
     IOVATree* maps;
 };
 
-struct QcomSMMUDummyState {
+struct QcomFrankSMMUState {
     DMAMap cached_map;
     uint32_t cached_vmid;
     uint32_t cached_pgcount;
 
-    struct smmu_dummy_domain** domains;
+    struct franksmmu_domain** domains;
     size_t nb_domains;
 };
 
@@ -37,7 +39,7 @@ struct QcomSMMUState {
 
     MemoryRegion iomem;
 
-    struct QcomSMMUDummyState dummy_state;
+    struct QcomFrankSMMUState franksmmu_state;
 };
 
 struct QcomSMMUClass {

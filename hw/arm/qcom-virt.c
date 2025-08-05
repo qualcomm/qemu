@@ -396,6 +396,8 @@ static void qcom_virt_modify_dtb(const struct arm_boot_info *info, void *fdt, Ma
     // should have been initialized in the init stage
     assert(qcom_fdt);
 
+    qemu_fdt_copy_node(ms->fdt, qcom_fdt, "/__symbols__", &error_abort);
+
     // merge virt psci with qcom psci (best effort)
     // we first copy the full node, merge /psci into /soc/psci
     // and finally remove the old node.
@@ -478,7 +480,7 @@ static void qcom_create_devices(MachineState* machine)
         qemu_fdt_copy_node(machine->fdt, qvms->fdt, icc_node, &error_abort);
     }
 
-    const char compat_adreno_qsmmu[] = "qcom,qsmmu-v500\0qcom,adreno-smmu\0qcom,adreno-smmu-dummy";
+    const char compat_adreno_qsmmu[] = "qcom,qsmmu-v500\0qcom,adreno-smmu\0qcom,adreno-franksmmu";
     qemu_fdt_delprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", &error_abort);
     qemu_fdt_setprop(machine->fdt, "/soc/kgsl-smmu@3da0000", "compatible", compat_adreno_qsmmu, sizeof(compat_adreno_qsmmu));
 
@@ -506,6 +508,8 @@ static void qcom_create_devices(MachineState* machine)
     // TODO: find a better way to do that...
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/aop_cmd_db_region@81c60000", qvms->base_addr, &error_abort);
     qemu_fdt_set_nodes_addr(machine->fdt, "/reserved-memory/linux,cma", qvms->base_addr, &error_abort);
+
+    save_device_tree(machine->fdt, "/tmp/arm_qcom_virt.dtb", &error_abort);
 
     // we need to hook into dtb modification
     vms->bootinfo.modify_dtb = qcom_virt_modify_dtb;

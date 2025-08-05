@@ -10,16 +10,16 @@
 #define SMMU_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define SMMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 
-/* Configuration registers for the dummy device */
-#define QCOM_SMMU_DUMMY_PADDR_LO	0x39000
-#define QCOM_SMMU_DUMMY_PADDR_HI	0x39004
-#define QCOM_SMMU_DUMMY_IOVA_LO		0x39008
-#define QCOM_SMMU_DUMMY_IOVA_HI		0x3900c
-#define QCOM_SMMU_DUMMY_PGSIZE		0x39010
-#define QCOM_SMMU_DUMMY_PGCOUNT		0x39014
-#define QCOM_SMMU_DUMMY_PERM		0x39018
-#define QCOM_SMMU_DUMMY_VMID		0x3901c
-#define QCOM_SMMU_DUMMY_COMMIT		0x39020
+/* Configuration registers for the franksmmu device */
+#define QCOM_FRANKSMMU_PADDR_LO	    0x39000
+#define QCOM_FRANKSMMU_PADDR_HI	    0x39004
+#define QCOM_FRANKSMMU_IOVA_LO		0x39008
+#define QCOM_FRANKSMMU_IOVA_HI		0x3900c
+#define QCOM_FRANKSMMU_PGSIZE		0x39010
+#define QCOM_FRANKSMMU_PGCOUNT		0x39014
+#define QCOM_FRANKSMMU_PERM		    0x39018
+#define QCOM_FRANKSMMU_VMID		    0x3901c
+#define QCOM_FRANKSMMU_COMMIT		0x39020
 
 #define BITS32_MASK                 0xffffffff
 
@@ -27,16 +27,21 @@ const DMAMap* qcom_smmu_iova2paddr(struct QcomSMMUState* s, uint32_t vmid, uint6
 {
     assert (size > 0);
 
+    SMMU_LOG(s, "Translation requested:\n");
+    SMMU_LOG(s, "\tVMID: %d\n", vmid);
+    SMMU_LOG(s, "\tiova: 0x%lx\n", iova);
+    SMMU_LOG(s, "\tsize: 0x%lx\n", size);
+
     DMAMap needle = {
         .iova = iova,
         .size = size - 1,
     };
 
-    assert(s->dummy_state.domains[vmid]);
-    assert(s->dummy_state.domains[vmid]->maps);
-    assert(vmid < s->dummy_state.nb_domains);
+    assert(s->franksmmu_state.domains[vmid]);
+    assert(s->franksmmu_state.domains[vmid]->maps);
+    assert(vmid < s->franksmmu_state.nb_domains);
 
-    const DMAMap* res = iova_tree_find(s->dummy_state.domains[vmid]->maps, &needle);
+    const DMAMap* res = iova_tree_find(s->franksmmu_state.domains[vmid]->maps, &needle);
 
     return res;
 }
@@ -89,87 +94,87 @@ static void qcom_smmu_write(void *opaque, hwaddr addr,
     SMMU_LOG(s, "Write at address 0x%lx of value 0x%x\n", addr, value);
 
     switch (addr) {
-        case QCOM_SMMU_DUMMY_PADDR_LO: {
-            s->dummy_state.cached_map.translated_addr &= ~BITS32_MASK;
-            s->dummy_state.cached_map.translated_addr |= value;
+        case QCOM_FRANKSMMU_PADDR_LO: {
+            s->franksmmu_state.cached_map.translated_addr &= ~BITS32_MASK;
+            s->franksmmu_state.cached_map.translated_addr |= value;
             break;
         }
-        case QCOM_SMMU_DUMMY_PADDR_HI: {
-            s->dummy_state.cached_map.translated_addr &= BITS32_MASK;
-            s->dummy_state.cached_map.translated_addr |= (_value << 32);
+        case QCOM_FRANKSMMU_PADDR_HI: {
+            s->franksmmu_state.cached_map.translated_addr &= BITS32_MASK;
+            s->franksmmu_state.cached_map.translated_addr |= (_value << 32);
             break;
         }
-        case QCOM_SMMU_DUMMY_IOVA_LO: {
-            s->dummy_state.cached_map.iova &= ~BITS32_MASK;
-            s->dummy_state.cached_map.iova |= value;
+        case QCOM_FRANKSMMU_IOVA_LO: {
+            s->franksmmu_state.cached_map.iova &= ~BITS32_MASK;
+            s->franksmmu_state.cached_map.iova |= value;
             break;
         }
-        case QCOM_SMMU_DUMMY_IOVA_HI: {
-            s->dummy_state.cached_map.iova &= BITS32_MASK;
-            s->dummy_state.cached_map.iova |= (_value << 32);
+        case QCOM_FRANKSMMU_IOVA_HI: {
+            s->franksmmu_state.cached_map.iova &= BITS32_MASK;
+            s->franksmmu_state.cached_map.iova |= (_value << 32);
             break;
         }
-        case QCOM_SMMU_DUMMY_PGSIZE: {
-            s->dummy_state.cached_map.size = value;
+        case QCOM_FRANKSMMU_PGSIZE: {
+            s->franksmmu_state.cached_map.size = value;
             break;
         }
-        case QCOM_SMMU_DUMMY_PGCOUNT: {
-            s->dummy_state.cached_pgcount = value;
+        case QCOM_FRANKSMMU_PGCOUNT: {
+            s->franksmmu_state.cached_pgcount = value;
             break;
         }
-        case QCOM_SMMU_DUMMY_PERM: {
-            s->dummy_state.cached_map.perm = value;
+        case QCOM_FRANKSMMU_PERM: {
+            s->franksmmu_state.cached_map.perm = value;
             break;
         }
-        case QCOM_SMMU_DUMMY_VMID: {
-            s->dummy_state.cached_vmid = value;
+        case QCOM_FRANKSMMU_VMID: {
+            s->franksmmu_state.cached_vmid = value;
             break;
         }
-        case QCOM_SMMU_DUMMY_COMMIT: {
+        case QCOM_FRANKSMMU_COMMIT: {
             if (value & BIT(0)) {
-                struct DMAMap* map = &s->dummy_state.cached_map;
-                uint32_t vmid = s->dummy_state.cached_vmid;
+                struct DMAMap* map = &s->franksmmu_state.cached_map;
+                uint32_t vmid = s->franksmmu_state.cached_vmid;
 
-                map->size *= s->dummy_state.cached_pgcount;
+                map->size *= s->franksmmu_state.cached_pgcount;
                 map->size--;
 
-                if (s->dummy_state.cached_vmid > 1024) {
+                if (s->franksmmu_state.cached_vmid > 1024) {
                     error_report("a high value of VMID has been provided. It's either a bug or the current domain implementation should be changed for a hashmap.");
                     exit(1);
                 }
 
-                if (vmid >= s->dummy_state.nb_domains) {
-                    uint64_t nb_new_bytes = (vmid + 1 - s->dummy_state.nb_domains) * sizeof(struct smmu_dummy_domain*);
-                    uint64_t old_nb_domains = s->dummy_state.nb_domains;
+                if (vmid >= s->franksmmu_state.nb_domains) {
+                    uint64_t nb_new_bytes = (vmid + 1 - s->franksmmu_state.nb_domains) * sizeof(struct smmu_franksmmu_domain*);
+                    uint64_t old_nb_domains = s->franksmmu_state.nb_domains;
 
-                    s->dummy_state.domains = g_realloc_n(s->dummy_state.domains, vmid + 1, sizeof(struct smmu_dummy_domain*));
-                    s->dummy_state.nb_domains = vmid + 1;
+                    s->franksmmu_state.domains = g_realloc_n(s->franksmmu_state.domains, vmid + 1, sizeof(struct smmu_franksmmu_domain*));
+                    s->franksmmu_state.nb_domains = vmid + 1;
 
-                    memset(s->dummy_state.domains + old_nb_domains, 0, nb_new_bytes);
+                    memset(s->franksmmu_state.domains + old_nb_domains, 0, nb_new_bytes);
                 }
-                assert(vmid < s->dummy_state.nb_domains);
+                assert(vmid < s->franksmmu_state.nb_domains);
 
-                if (!s->dummy_state.domains[vmid]) {
-                    s->dummy_state.domains[vmid] = g_new(struct smmu_dummy_domain, 1);
-                    s->dummy_state.domains[vmid]->maps = iova_tree_new();
+                if (!s->franksmmu_state.domains[vmid]) {
+                    s->franksmmu_state.domains[vmid] = g_new(struct franksmmu_domain, 1);
+                    s->franksmmu_state.domains[vmid]->maps = iova_tree_new();
                 }
 
                 print_dma_map(s, map, vmid, false);
 
-                struct smmu_dummy_domain* domain = s->dummy_state.domains[vmid];
+                struct franksmmu_domain* domain = s->franksmmu_state.domains[vmid];
                 iova_tree_insert(domain->maps, map);
             } else if (value & BIT(1)) {
-                struct DMAMap* map = &s->dummy_state.cached_map;
-                uint32_t vmid = s->dummy_state.cached_vmid;
+                struct DMAMap* map = &s->franksmmu_state.cached_map;
+                uint32_t vmid = s->franksmmu_state.cached_vmid;
 
-                map->size *= s->dummy_state.cached_pgcount;
+                map->size *= s->franksmmu_state.cached_pgcount;
                 map->size--;
 
                 print_dma_map(s, map, vmid, true);
 
-                assert(s->dummy_state.domains[vmid]);
+                assert(s->franksmmu_state.domains[vmid]);
 
-                iova_tree_remove(s->dummy_state.domains[vmid]->maps, *map);
+                iova_tree_remove(s->franksmmu_state.domains[vmid]->maps, *map);
             }
             break;
         }

@@ -11,6 +11,7 @@
 #include "hw/qcom/graphics/hfi.h"
 #include "hw/qcom/graphics/gmu.h"
 
+#define GMU_LOG_TRACE(dev, fmt, ...) QDEV_LOG_TRACE(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define GMU_LOG(dev, fmt, ...) QDEV_LOG_INFO(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define GMU_LOG_WARN(dev, fmt, ...) QDEV_LOG_WARN(dev, fmt __VA_OPT__(,) __VA_ARGS__)
 #define GMU_LOG_ERROR(dev, fmt, ...) QDEV_LOG_ERROR(dev, fmt __VA_OPT__(,) __VA_ARGS__)
@@ -98,7 +99,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
 {
     hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
-    GMU_LOG(s, "read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
+    GMU_LOG_TRACE(s, "read detected @addr 0x%lx (addr_idx = 0x%lx)\n", addr, addr_idx);
 
     if (is_rsc_addr(addr)) {
         GMU_LOG(s, "Is RSC address\n");
@@ -123,7 +124,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 return BIT(30);
             }
             default: {
-                GMU_LOG_WARN(s, "(RSC) Unknown read @addr 0x%lx\n", addr);
+                GMU_LOG_TRACE(s, "(RSC) Unknown read @addr 0x%lx\n", addr);
             }
         }
     } else {
@@ -158,7 +159,7 @@ static uint64_t qcom_global_gmu_read(QcomGMUState* s, hwaddr addr, unsigned size
                 return 7;
             }
             default: {
-                GMU_LOG_WARN(s, "Unknown read @addr 0x%lx\n", addr);
+                GMU_LOG_TRACE(s, "Unknown read @addr 0x%lx\n", addr);
             }
         }
     }
@@ -178,7 +179,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
 {
     hwaddr addr_idx = qcom_graphics_decode_addr(addr);
 
-    GMU_LOG(s, "write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", addr, addr_idx, value);
+    GMU_LOG_TRACE(s, "write detected @addr 0x%lx (addr_idx = 0x%lx) of value 0x%lx\n", addr, addr_idx, value);
 
     switch(addr_idx) {
         case GEN8_GMUAO_RSCC_CONTROL_REQ: {
@@ -227,7 +228,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             s->regs[GEN8_GMUCX_HFI_QTBL_ADDR] = value;
             break;
         case GEN8_GMUCX_HOST2GMU_INTR_SET: {
-            GMU_LOG(s, "GMU interruped\n");
+            GMU_LOG_WARN(s, "GMU interruped\n");
 
             if (value & BIT(0)) {
                 qcom_hfi_handle(s);\
@@ -254,7 +255,7 @@ static void qcom_global_gmu_write(QcomGMUState* s, hwaddr addr, uint64_t value, 
             break;
         }
         default: {
-            GMU_LOG_WARN(s, "Unknown write @addr 0x%lx of value 0x%lx\n", addr, value);
+            GMU_LOG_TRACE(s, "Unknown write @addr 0x%lx of value 0x%lx\n", addr, value);
             break;
         }
     }
