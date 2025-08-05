@@ -22,6 +22,7 @@
 #include "riscv.h"
 #include "cpu-qom.h"
 #include "riscv-callbacks.h"
+#include "system/reset.h"
 
 typedef struct MeipCallbackState {
     LibQemuRiscvMipUpdateCallbackFn cb;
