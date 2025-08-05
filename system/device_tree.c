@@ -647,17 +647,41 @@ static bool getprop_reg(void *fdt,
     int parent_node = fdt_parent_offset(fdt, node_offset);
     int len;
 
+    // fetch #address-cells
     const uint32_t *address_cells = fdt_getprop(fdt, parent_node, QEMU_FDT_PROP_ADDRESS_CELLS, &len);
-    if (len != 4) {
-        return false;
+
+    if (address_cells) {
+        if (len != 4) {
+            return false;
+        }
+        assert(len == 4);
+        *nb_reg_cells = be32_to_cpu(*address_cells);
+    } else {
+        if (len == -FDT_ERR_NOTFOUND) {
+            *nb_reg_cells = QEMU_FDT_DEFAULT_ADDRESS_CELLS;
+        } else {
+            // another error occured, treat it as a real error
+            return false;
+        }
     }
 
-    assert(len == 4);
-    *nb_reg_cells = be32_to_cpu(*address_cells);
-
+    // fetch #size-cells
     const uint32_t *size_cells = fdt_getprop(fdt, parent_node, QEMU_FDT_PROP_SIZE_CELLS, &len);
-    assert(len == 4);
-    *nb_size_cells = be32_to_cpu(*size_cells);
+
+    if (size_cells) {
+        if (len != 4) {
+            return false;
+        }
+        assert(len == 4);
+        *nb_size_cells = be32_to_cpu(*size_cells);
+    } else {
+        if (len == -FDT_ERR_NOTFOUND) {
+            *nb_size_cells = QEMU_FDT_DEFAULT_SIZE_CELLS;
+        } else {
+            // another error occured, treat it as a real error
+            return false;
+        }
+    }
 
     uint32_t cell_size = (*nb_reg_cells + *nb_size_cells) * sizeof(uint32_t);
 

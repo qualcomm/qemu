@@ -28,6 +28,9 @@
 #define QEMU_FDT_PROP_COMPATIBLE            "compatible"
 #define QEMU_FDT_PROP_PHANDLE               "phandle"
 
+#define QEMU_FDT_DEFAULT_ADDRESS_CELLS      2
+#define QEMU_FDT_DEFAULT_SIZE_CELLS         1
+
 struct fdt_reg {
     hwaddr addr;
     uint64_t size;
