@@ -1,10 +1,9 @@
-
 /* 
- * Qualcomm Android ICC RPMh stuff
+ * Qualcomm RPMh ISC
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * Only provides minimal support, mostly to pass probe checks.
  */
 
 #ifndef QEMU_QCOM_ICC_RPMH_H

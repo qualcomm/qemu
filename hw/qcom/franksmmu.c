@@ -1,3 +1,11 @@
+/* 
+ * FrankSMMU device
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus-of.h"
 #include "hw/qcom/smmu.h"

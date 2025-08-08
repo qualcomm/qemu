@@ -1,6 +1,7 @@
-/* Qualcomm Android graphics device
+/* 
+ * Qualcomm GPU device
  *
- * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * It has been developed for the Adreno840, on canoe.
  * Versions supported (check the dts file):
@@ -8,9 +9,7 @@
  *  - kgsl_msm_iommu: "qcom,kgsl-smmu-v2"
  *  - gmu: "qcom,gen8-gmu"
  *
- * As of now, it is the only version supported.
- * Using this device for another driver will have uninteded consequences, and will most likely not work.
- *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
  */
 
 #ifndef QEMU_QCOM_GRAPHICS_H

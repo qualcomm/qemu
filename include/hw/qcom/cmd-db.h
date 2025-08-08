@@ -1,9 +1,9 @@
-/* 
- * Qualcomm Android cmd-db device
+/*
+ * Qualcomm cmd-db generator.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * Only provides minimal support, mostly to pass probe checks.
  */
 
 #ifndef QEMU_QCOM_CMD_DB_H

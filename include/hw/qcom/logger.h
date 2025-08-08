@@ -1,10 +1,9 @@
-/* Qualcomm memory logger
+/* 
+ * Qualcomm dummy logger.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * It simply logs memory accesses, to catch devices writing to
- * non-supported memory.
- *
  */
 
 #ifndef QEMU_QCOM_LOGGER_H

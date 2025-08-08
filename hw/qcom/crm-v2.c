@@ -1,3 +1,11 @@
+/* 
+ * Qualcomm CRM V2 device.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ */
+
 #include "hw/sysbus-of.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"

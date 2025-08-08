@@ -1,11 +1,9 @@
 /* 
- * Qualcomm Android RPMh RSC device
+ * FrankSMMU device
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * This does not support the official SMMU, but the franksmmu alternative.
- * The translation is not done by fetching in-memory tables, but instead with
- * a custom version using MMIO accesses to register page registrations.
  */
 
 #ifndef QEMU_QCOM_SMMU_H

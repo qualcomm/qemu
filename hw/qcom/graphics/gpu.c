@@ -1,3 +1,17 @@
+/* 
+ * Qualcomm GPU device
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
+ *
+ * It has been developed for the Adreno840, on canoe.
+ * Versions supported (check the dts file):
+ *  - msm_gpu: "qcom,adreno-gpu-gen8-2-1" (chipid = 0x44050a01)
+ *  - kgsl_msm_iommu: "qcom,kgsl-smmu-v2"
+ *  - gmu: "qcom,gen8-gmu"
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"

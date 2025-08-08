@@ -1,13 +1,9 @@
-/* Qualcomm HFI protocol implementation
+/* 
+ * Qualcomm HFI Protocol
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * It has been developed for the Adreno840, on canoe.
- * Versions supported (check the dts file): "qcom,gen8-gmu"
- *
- * As of now, it is the only version supported.
- * Using this device for another driver will have uninteded consequences, and will most likely not work.
- *
  */
 
 #ifndef QEMU_QCOM_HFI_H

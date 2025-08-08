@@ -1,9 +1,9 @@
 /* 
- * Qualcomm Android RPMh RSC device
+ * Qualcomm RPMh RSC device.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * Only provides minimal support, mostly to pass probe checks.
  */
 
 #ifndef QEMU_QCOM_RPMH_RSC_H

@@ -1,9 +1,9 @@
 /* 
- * Qualcomm Android CRM (v2) device
+ * Qualcomm CRM V2 device.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * Only provides minimal support, mostly to pass probe checks.
  */
 
 #ifndef QEMU_QCOM_CRM_H

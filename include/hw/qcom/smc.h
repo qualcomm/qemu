@@ -1,10 +1,9 @@
 /*
- * SMC emulation for Qualcomm SoC.
+ * SCM handler
  *
  * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
  */
 
 #ifndef QEMU_QCOM_SMC_H

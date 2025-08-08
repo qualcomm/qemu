@@ -1,3 +1,11 @@
+/* 
+ * Qualcomm dummy logger.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ */
+
 #include "qemu/osdep.h"
 #include "hw/arm/qcom-virt.h"
 #include "hw/qcom/logger.h"

@@ -1,4 +1,10 @@
-// cmd db memory
+/*
+ * Qualcomm cmd-db generator.
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
+ *
+ * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
+ */
 
 #include "qemu/osdep.h"
 #include "exec/memory.h"

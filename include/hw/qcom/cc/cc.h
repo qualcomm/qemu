@@ -1,9 +1,9 @@
-/* Qualcomm generic CC device
+/* 
+ * Qualcomm RPMh disp CC
+ *
+ * Copyright (c) 2025 Qualcomm Technologies, Inc. All Rights Reserved.
  *
  * Author: Romain Malmain <rmalmain@qti.qualcomm.com>
- *
- * Generic object to handle CC devices.
- *
  */
 
 #ifndef QEMU_QCOM_CC_H

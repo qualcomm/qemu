@@ -1,3 +1,0 @@
-config QCOM_SMMU
-    bool
-
