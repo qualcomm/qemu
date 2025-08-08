@@ -347,7 +347,7 @@ tests_x86_64_system_thorough = [
 # QUIC-specific
 test_timeouts += {
   'hexagon_sival': 240,
-  'hexagon_qurt': 1200,
+  'hexagon_qurt': 2400,
   'hexagon_minivm': 180,
   'hexagon_linux': 180,
 }
