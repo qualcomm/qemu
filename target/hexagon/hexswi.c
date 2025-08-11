@@ -28,6 +28,150 @@
 
 #ifndef CONFIG_USER_ONLY
 
+enum {
+  TARGET_HEX_EDOM = 33,
+  TARGET_HEX_EFAULT = 14,
+  TARGET_HEX_EFBIG = 27,
+  TARGET_HEX_EFPOS = 152,
+  TARGET_HEX_EMLINK = 31,
+  TARGET_HEX_ENFILE = 23,
+  TARGET_HEX_ENOENT = 2,
+  TARGET_HEX_ENOSPC = 28,
+  TARGET_HEX_ENOTTY = 25,
+  TARGET_HEX_EPIPE = 32,
+  TARGET_HEX_ERANGE = 34,
+  TARGET_HEX_EROFS = 30,
+  TARGET_HEX_ESPIPE = 29,
+  TARGET_HEX_E2BIG = 7,
+  TARGET_HEX_EACCES = 13,
+  TARGET_HEX_EAGAIN = 11,
+  TARGET_HEX_EBADF = 9,
+  TARGET_HEX_EBUSY = 16,
+  TARGET_HEX_ECHILD = 10,
+  TARGET_HEX_EEXIST = 17,
+  TARGET_HEX_EINTR = 4,
+  TARGET_HEX_EINVAL = 22,
+  TARGET_HEX_EIO = 5,
+  TARGET_HEX_EISDIR = 21,
+  TARGET_HEX_EMFILE = 24,
+  TARGET_HEX_ENODEV = 19,
+  TARGET_HEX_ENOEXEC = 8,
+  TARGET_HEX_ENOMEM = 12,
+  TARGET_HEX_ENOTDIR = 20,
+  TARGET_HEX_ENXIO = 6,
+  TARGET_HEX_EPERM = 1,
+  TARGET_HEX_ESRCH = 3,
+  TARGET_HEX_EXDEV = 18,
+  TARGET_HEX_EBADMSG = 77,
+  TARGET_HEX_ECANCELED = 47,
+  TARGET_HEX_EDEADLK = 45,
+  TARGET_HEX_EILSEQ = 88,
+  TARGET_HEX_EINPROGRESS = 150,
+  TARGET_HEX_EMSGSIZE = 97,
+  TARGET_HEX_ENAMETOOLONG = 78,
+  TARGET_HEX_ENOLCK = 46,
+  TARGET_HEX_ENOSYS = 89,
+  TARGET_HEX_ENOTEMPTY = 93,
+  TARGET_HEX_ENOTSUP = 48,
+  TARGET_HEX_ETIMEDOUT = 145,
+};
+
+static int MapErrno(int error_number) {
+  switch (error_number) {
+  case EDOM:
+    return TARGET_HEX_EDOM;
+  case EFAULT:
+    return TARGET_HEX_EFAULT;
+  case EFBIG:
+    return TARGET_HEX_EFBIG;
+  case EFPOS:
+    return TARGET_HEX_EFPOS;
+  case EMLINK:
+    return TARGET_HEX_EMLINK;
+  case ENFILE:
+    return TARGET_HEX_ENFILE;
+  case ENOENT:
+    return TARGET_HEX_ENOENT;
+  case ENOSPC:
+    return TARGET_HEX_ENOSPC;
+  case ENOTTY:
+    return TARGET_HEX_ENOTTY;
+  case EPIPE:
+    return TARGET_HEX_EPIPE;
+  case ERANGE:
+    return TARGET_HEX_ERANGE;
+  case EROFS:
+    return TARGET_HEX_EROFS;
+  case ESPIPE:
+    return TARGET_HEX_ESPIPE;
+  case E2BIG:
+    return TARGET_HEX_E2BIG;
+  case EACCES:
+    return TARGET_HEX_EACCES;
+  case EAGAIN:
+    return TARGET_HEX_EAGAIN;
+  case EBADF:
+    return TARGET_HEX_EBADF;
+  case EBUSY:
+    return TARGET_HEX_EBUSY;
+  case ECHILD:
+    return TARGET_HEX_ECHILD;
+  case EEXIST:
+    return TARGET_HEX_EEXIST;
+  case EINTR:
+    return TARGET_HEX_EINTR;
+  case EINVAL:
+    return TARGET_HEX_EINVAL;
+  case EIO:
+    return TARGET_HEX_EIO;
+  case EISDIR:
+    return TARGET_HEX_EISDIR;
+  case EMFILE:
+    return TARGET_HEX_EMFILE;
+  case ENODEV:
+    return TARGET_HEX_ENODEV;
+  case ENOEXEC:
+    return TARGET_HEX_ENOEXEC;
+  case ENOMEM:
+    return TARGET_HEX_ENOMEM;
+  case ENOTDIR:
+    return TARGET_HEX_ENOTDIR;
+  case ENXIO:
+    return TARGET_HEX_ENXIO;
+  case EPERM:
+    return TARGET_HEX_EPERM;
+  case ESRCH:
+    return TARGET_HEX_ESRCH;
+  case EXDEV:
+    return TARGET_HEX_EXDEV;
+  case EBADMSG:
+    return TARGET_HEX_EBADMSG;
+  case ECANCELED:
+    return TARGET_HEX_ECANCELED;
+  case EDEADLK:
+    return TARGET_HEX_EDEADLK;
+  case EILSEQ:
+    return TARGET_HEX_EILSEQ;
+  case EINPROGRESS:
+    return TARGET_HEX_EINPROGRESS;
+  case EMSGSIZE:
+    return TARGET_HEX_EMSGSIZE;
+  case ENAMETOOLONG:
+    return TARGET_HEX_ENAMETOOLONG;
+  case ENOLCK:
+    return TARGET_HEX_ENOLCK;
+  case ENOSYS:
+    return TARGET_HEX_ENOSYS;
+  case ENOTEMPTY:
+    return TARGET_HEX_ENOTEMPTY;
+  case ENOTSUP:
+    return TARGET_HEX_ENOTSUP;
+  case ETIMEDOUT:
+    return TARGET_HEX_ETIMEDOUT;
+  default:
+    return TARGET_HEX_EINVAL; // fallback to EINVAL if no mapping found
+  }
+
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
     DEF_SWI_FLAG(EXCEPTION,        0x18) \
@@ -276,7 +420,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 i++;
             } while ((i < BUFSIZ) && filename[i - 1]);
             rc = stat(filename, &st_buf);
-            err = errno;
+            err = MapErrno(errno);
         } else{
             int fd = physicalFilenameAddr;
             GuestFD *gf = get_guestfd(fd);
@@ -285,7 +429,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 g_assert_not_reached();
             }
             rc = fstat(gf->hostfd, &st_buf);
-            err = errno;
+            err = MapErrno(errno);
         }
         if (rc == 0) {
             sys_stat.dev   = st_buf.st_dev;
@@ -344,7 +488,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
         rc = access(filename, BufferMode);
         if (rc != 0) {
-            err = errno;
+            err = MapErrno(errno);
         }
         common_semi_cb(cs, rc, err);
     }
@@ -361,11 +505,11 @@ static void sim_handle_trap0(CPUHexagonState *env)
         hexagon_read_memory(env, swi_info + 4, 4, &BufferSize, retaddr);
 
         if (!getcwd(cwdPtr, PATH_MAX)) {
-            err = errno;
+            err = MapErrno(errno);
         } else {
             size_t cwd_size = strlen(cwdPtr);
             if (cwd_size > BufferSize) {
-                err = ERANGE;
+                err = MapErrno(ERANGE);
             } else {
                 for (int i = 0; i < cwd_size; i++) {
                     hexagon_write_memory(env, BufferAddr + i, 1,
@@ -402,7 +546,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             env->dir_list = g_list_append(env->dir_list, dir);
             rc = g_list_index(env->dir_list, dir) + DIR_INDEX_OFFSET;
         } else {
-            err = errno;
+            err = MapErrno(errno);
         }
         common_semi_cb(cs, rc, err);
         break;
@@ -419,10 +563,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
             errno = 0;
             host_dir_entry = readdir(dir);
             if (host_dir_entry == NULL) {
-                err = errno;
+                err = MapErrno(errno);
             }
         } else {
-            err = EBADF;
+            err = MapErrno(EBADF);
         }
 
         if (host_dir_entry) {
@@ -451,10 +595,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
         if (dir != NULL) {
             ret = closedir(dir);
             if (ret != 0) {
-                err = errno;
+                err = MapErrno(errno);
             }
         } else {
-            err = EBADF;
+            err = MapErrno(EBADF);
         }
         common_semi_cb(cs, ret, err);
         break;
