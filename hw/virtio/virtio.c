@@ -3416,7 +3416,8 @@ void virtio_reset(VirtIODevice *vdev)
     int i;
 
     virtio_set_status(vdev, 0);
-    if (current_cpu) {
+    /* Ensure that the current_cpu is not blocked */
+    if (current_cpu && current_cpu->coroutine_yield_info.io_info.done) {
         /* Guest initiated reset */
         vdev->device_endian = virtio_current_cpu_endian();
     } else {
