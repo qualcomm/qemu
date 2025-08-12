@@ -24,6 +24,10 @@
 #include "qemu/lockable.h"
 #include "trace/trace-root.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "qemu/error-report.h"
+#endif
+
 QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
 static QemuCond exclusive_resume;
@@ -156,6 +160,15 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
      * thread is blocked, we allow the function to complete on this thread.
      */
     if (current_cpu == cpu && !cpu->coroutine_yield_info.io_info.done) {
+        /*
+         * This is REALLY DANGEROUS because were not on the CPU thread,
+         * If somebody really needs to run on a cpu, presumably they need the
+         * thread local data.
+         */
+        warn_report(
+            "An attempt was made to run on CPU from a different thread, "
+            "but the CPU is blocked, the function will be executed "
+            "on the calling thread, this may not work!");
         func(cpu, data);
         return;
     }
