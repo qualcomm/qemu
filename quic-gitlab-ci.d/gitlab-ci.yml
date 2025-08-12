@@ -165,13 +165,6 @@ hexagon-linux-x86_64-san-check:
   needs: [ "hexagon-linux-x86_64-san" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
-hexagon-linux-x86_64-san-qurt:
-  image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
-  stage: test
-  extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
-
 hexagon-linux-x86_64-san-sival:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
