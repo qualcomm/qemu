@@ -14,3 +14,5 @@ config HEX_VIRT
     select DEVICE_TREE
     select VIRTIO_MMIO
     select PL011
+    select VIRTIO_BLK
+    select VIRTIO_SCSI
