@@ -50,6 +50,14 @@ hexagon-linux-x86_64:
     paths: [ build ]
     expire_in: 1 day
 
+# Keep the nightly builds for a little longer, just in case
+hexagon-linux-x86_64-schedule:
+  extends: hexagon-linux-x86_64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  artifacts:
+    expire_in: 3 days
+
 hexagon-linux-x86_64-tag:
   extends: hexagon-linux-x86_64
   rules:
