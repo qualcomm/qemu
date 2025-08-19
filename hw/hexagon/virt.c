@@ -364,6 +364,22 @@ static uint64_t setup_boot(const HexagonVirtMachineState *vms)
     return bootl_base;
 }
 
+static uint64_t load_bios(HexagonVirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    /* Load BIOS at reset vector address 0x0 */
+    uint64_t bios_addr = 0x0;
+    int bios_size;
+
+    bios_size = load_image_targphys(ms->firmware, bios_addr, 64 * 1024);
+    if (bios_size < 0) {
+        error_report("Could not load BIOS '%s'", ms->firmware);
+        exit(1);
+    }
+
+    return bios_addr;
+}
+
 static void do_cpu_reset(void *opaque)
 {
     HexagonCPU *cpu = opaque;
@@ -410,7 +426,9 @@ static void virt_init(MachineState *ms)
             cpu_0 = cpu;
             if (ms->kernel_filename) {
                 uint64_t entry = setup_boot(vms);
-
+                qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
+            } else if (ms->firmware) {
+                uint64_t entry = load_bios(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
             }
         }
