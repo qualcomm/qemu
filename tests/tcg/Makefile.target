@@ -167,8 +167,8 @@ ifneq ($(filter %-softmmu, $(TARGET)),)
 DISABLE_PLUGINS += libsyscall.so
 endif
 
-#PLUGINS=$(filter-out $(DISABLE_PLUGINS), \
-#	$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c))))
+PLUGINS=$(filter-out $(DISABLE_PLUGINS), \
+	$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c))))
 
 strip-plugin = $(wordlist 1, 1, $(subst -with-, ,$1))
 extract-plugin = $(wordlist 2, 2, $(subst -with-, ,$1))
