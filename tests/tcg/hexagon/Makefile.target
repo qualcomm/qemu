@@ -28,6 +28,7 @@ VPATH += $(HEX_SRC)
 	$(CC) -static -mv67 -nostdlib $^ -o $@
 
 HEX_TESTS = first
+HEX_TESTS += hello
 HEX_TESTS += hex_sigsegv
 HEX_TESTS += misc
 HEX_TESTS += usr
