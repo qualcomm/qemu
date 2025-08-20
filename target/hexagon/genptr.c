@@ -916,10 +916,12 @@ static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
 /* Stack overflow check */
 static void gen_framecheck(TCGv EA, int framesize)
 {
-    /* Not modelled in linux-user mode */
-    /* Placeholder for system mode */
 #ifndef CONFIG_USER_ONLY
-    g_assert_not_reached();
+    TCGLabel *ok = gen_new_label();
+    tcg_gen_brcond_tl(TCG_COND_GEU, addr, hex_gpr[HEX_REG_FRAMELIMIT], ok);
+    gen_helper_raise_stack_overflow(tcg_env, tcg_constant_i32(ctx->insn->slot),
+                                     ea);
+    gen_set_label(ok);
 #endif
 }
 
