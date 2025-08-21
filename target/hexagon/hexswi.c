@@ -91,12 +91,101 @@ static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
     hexagon_touch_memory(env, addr, count, load ? MMU_DATA_LOAD : MMU_DATA_STORE);
 }
 
+/* We start from 1 as 0 is used to signal an error from opendir() */
+static const int DIR_INDEX_OFFSET = 1;
+
+/* Hexagon semihosting errno values */
+enum HexagonErrno {
+    HEX_EPERM           = 1,
+    HEX_ENOENT          = 2,
+    HEX_EINTR           = 4,
+    HEX_EIO             = 5,
+    HEX_ENXIO           = 6,
+    HEX_EBADF           = 9,
+    HEX_EAGAIN          = 11,
+    HEX_ENOMEM          = 12,
+    HEX_EACCES          = 13,
+    HEX_EFAULT          = 14,
+    HEX_EBUSY           = 16,
+    HEX_EEXIST          = 17,
+    HEX_EXDEV           = 18,
+    HEX_ENODEV          = 19,
+    HEX_ENOTDIR         = 20,
+    HEX_EISDIR          = 21,
+    HEX_EINVAL          = 22,
+    HEX_ENFILE          = 23,
+    HEX_EMFILE          = 24,
+    HEX_ENOTTY          = 25,
+    HEX_ETXTBSY         = 26,
+    HEX_EFBIG           = 27,
+    HEX_ENOSPC          = 28,
+    HEX_ESPIPE          = 29,
+    HEX_EROFS           = 30,
+    HEX_EMLINK          = 31,
+    HEX_EPIPE           = 32,
+    HEX_ERANGE          = 34,
+    HEX_ENAMETOOLONG    = 36,
+    HEX_ENOSYS          = 38,
+    HEX_ELOOP           = 40,
+    HEX_EOVERFLOW       = 75,
+};
+
+/* Map host errno to hexagon semihosting errno */
+static void semi_cb(CPUState *cs, uint64_t ret, int err)
+{
+#define E(N) case E##N: err = HEX_E##N; break
+
+    switch (err) {
+    case 0:
+        break;
+    E(PERM);
+    E(NOENT);
+    E(INTR);
+    E(IO);
+    E(NXIO);
+    E(BADF);
+    E(AGAIN);
+    E(NOMEM);
+    E(ACCES);
+    E(FAULT);
+    E(BUSY);
+    E(EXIST);
+    E(XDEV);
+    E(NODEV);
+    E(NOTDIR);
+    E(ISDIR);
+    E(INVAL);
+    E(NFILE);
+    E(MFILE);
+    E(NOTTY);
+    E(TXTBSY);
+    E(FBIG);
+    E(NOSPC);
+    E(SPIPE);
+    E(ROFS);
+    E(MLINK);
+    E(PIPE);
+    E(RANGE);
+    E(NAMETOOLONG);
+    E(NOSYS);
+    E(LOOP);
+    E(OVERFLOW);
+    default:
+        err = HEX_EINVAL;
+        break;
+    }
+
+#undef E
+
+    common_semi_cb(cs, ret, err);
+}
+
 static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (err) {
         ret = -1;
     }
-    common_semi_cb(cs, ret, err);
+    semi_cb(cs, ret, err);
 }
 
 static void coredump(CPUHexagonState *env)
@@ -312,7 +401,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             associate_guestfd(guestfd, ret);
             ret = guestfd;
         }
-        common_semi_cb(cs, ret, err);
+        semi_cb(cs, ret, err);
     }
     break;
 
@@ -337,7 +426,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_WRITECREG:
         fprintf(stdout, "%c", swi_info);
         fflush(stdout);
-        common_semi_cb(cs, 0, 0);
+        semi_cb(cs, 0, 0);
         break;
 
     /* We override arm-compatible version to print at stdout, not console. */
@@ -365,7 +454,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         int fd;
         hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
-        common_semi_cb(cs, isatty(fd), 0);
+        semi_cb(cs, isatty(fd), 0);
     }
     break;
 
@@ -440,7 +529,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             hexagon_write_memory(env, statBufferAddr + i, 1, st_bufptr[i],
                                  retaddr);
         }
-        common_semi_cb(cs, rc, rc == 0 ? 0 : err);
+        semi_cb(cs, rc, rc == 0 ? 0 : err);
     }
     break;
 
@@ -450,7 +539,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         off_t size_limit;
         hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
         hexagon_read_memory(env, swi_info + 4, 8, &size_limit, retaddr);
-        semihost_sys_ftruncate(cs, common_semi_cb, fd, size_limit);
+        semihost_sys_ftruncate(cs, semi_cb, fd, size_limit);
     }
     break;
 
@@ -474,7 +563,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         hexagon_read_memory(env, swi_info + 4, 4, &BufferMode, retaddr);
 
         rc = access(filename, BufferMode);
-        common_semi_cb(cs, rc,  rc == 0 ? 0 : errno);
+        semi_cb(cs, rc,  rc == 0 ? 0 : errno);
     }
     break;
 
@@ -502,14 +591,14 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 rc = BufferAddr;
             }
         }
-        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        semi_cb(cs, rc, rc != 0 ? 0 : err);
         break;
     }
 
     case HEX_SYS_EXEC:
     {
         qemu_log_mask(LOG_UNIMP, "SYS_EXEC is deprecated\n");
-        common_semi_cb(cs, -1, ENOSYS);
+        semi_cb(cs, -1, ENOSYS);
     }
     break;
 
@@ -532,7 +621,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         } else {
             err = errno;
         }
-        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        semi_cb(cs, rc, rc != 0 ? 0 : err);
         break;
     }
 
@@ -566,7 +655,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             }
             rc = guest_dir_entry;
         }
-        common_semi_cb(cs, rc, err);
+        semi_cb(cs, rc, err);
         break;
     }
 
@@ -585,7 +674,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         } else {
             err = EBADF;
         }
-        common_semi_cb(cs, ret, ret == 0 ? 0 : err);
+        semi_cb(cs, ret, ret == 0 ? 0 : err);
         break;
     }
 
@@ -624,7 +713,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_PROF_STATSRESET:
     case HEX_SYS_DUMP_PMU_STATS:
     case HEX_SYS_HEAPINFO:
-        common_semi_cb(cs, -1, ENOSYS);
+        semi_cb(cs, -1, ENOSYS);
         qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
                       what_swi);
         break;
@@ -683,10 +772,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     BQL_LOCK_GUARD();
 
-    qemu_log_mask(CPU_LOG_INT, "\t%s: event 0x%x:%s, cause 0x%x(%d)\n",
+    qemu_log_mask(CPU_LOG_INT,
+                  "\t%s: event 0x%" PRIx32 ":%s, cause 0x" TARGET_FMT_lx
+                  "(%" PRId32 ")\n",
                   __func__, cs->exception_index,
                   event_name[cs->exception_index], env->cause_code,
-                  env->cause_code);
+                  (int32_t)env->cause_code);
 
     env->llsc_addr = ~0;
 
