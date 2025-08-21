@@ -35,7 +35,6 @@ enum {
     VIRT_GPT,
     VIRT_MMIO,
     VIRT_FDT,
-    VIRT_BOOT,
 };
 
 #define TYPE_HEXAGON_VIRT_MACHINE MACHINE_TYPE_NAME("virt")
