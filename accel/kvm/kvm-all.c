@@ -2461,7 +2461,20 @@ static int kvm_init(MachineState *ms)
         kvm_check_extension(s, KVM_CAP_USER_MEMORY2) &&
         (kvm_supported_memory_attributes & KVM_MEMORY_ATTRIBUTE_PRIVATE);
 
+    /*
+     * TODO: We are not doing this in QQVP mode because we see very
+     * intermittent Data Aborts during system reset.
+     * We are cannont replicate the issue with our internal tests
+     * and will require a customer image.
+     * It appears that if the DataAbort doesn't happen within the first
+     * 10 resets it will not happen, so it is also possible this is a problem
+     * with the system itself.
+     */
+#ifdef CONFIG_LIBQEMU
+    kvm_immediate_exit = 0;
+#else
     kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
+#endif
     s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
 
     /* If unspecified, use the default value */
