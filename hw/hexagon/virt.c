@@ -431,6 +431,11 @@ static void virt_init(MachineState *ms)
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
+        qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
+        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
+                             m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
+
         if (i == 0) {
             cpu_0 = cpu;
             if (ms->kernel_filename) {
@@ -446,6 +451,7 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
         object_property_set_link(OBJECT(cpu), "global-regs",
                                  OBJECT(gsregs_dev), &error_fatal);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",

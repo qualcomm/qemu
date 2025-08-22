@@ -29,6 +29,7 @@
 #include "semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
+#include "machine_cfg_sa8775_cdsp0.h.inc"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -110,12 +111,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, sram);
 
-    Error **errp = NULL;
 
     DeviceState *glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    object_property_add_child(OBJECT(machine), "global-regs",
+                              OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
     HexagonCPU **cpus = g_new(HexagonCPU *, machine->smp.cpus);
     HexagonCPU *cpu0;
@@ -130,35 +133,32 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
          * explicitly enabled via start instruction.
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        if (!object_property_set_link(OBJECT(cpu), "global-regs",
-                                      OBJECT(glob_regs_dev), errp)) {
-            error_report("Failed to link global system registers to CPU %d", i);
-            return;
-        }
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
+        object_property_set_link(OBJECT(cpu), "global-regs",
+                                 OBJECT(glob_regs_dev), &error_fatal);
 
 
         if (i == 0) {
             cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal)) {
                 return;
             }
         } else {
             if (cpu0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
             }
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal)) {
                 env->dir_list = NULL;
                 return;
             }
         }
 
     }
-
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
 
@@ -175,7 +175,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
      * Finally, realize the CPUs
      */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
+        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, &error_fatal)) {
             error_report("Failed to realize CPU %d", i);
             goto out;
         }
@@ -252,11 +252,33 @@ static void v66g_1024_init(ObjectClass *oc, const void *data)
     mc->default_cpus = 4;
 }
 
+static void SA8775P_cdsp0_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+}
+
+static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "SA8775P CDSP0";
+    mc->init = SA8775P_cdsp0_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
+    mc->default_cpus = 6;
+    mc->max_cpus = 6;
+}
+
 static const TypeInfo hexagon_machine_types[] = {
     {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
         .parent = TYPE_MACHINE,
         .class_init = v66g_1024_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("SA8775P_CDSP0"),
+        .parent = TYPE_MACHINE,
+        .class_init = SA8775P_cdsp0_init,
     },
 };
 
