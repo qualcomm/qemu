@@ -77,7 +77,6 @@ DEF_ATTRIB(COPBYADDRESS, "Cache operation by address", "", "")
 DEF_ATTRIB(COPBYIDX, "Cache operation by index", "", "")
 DEF_ATTRIB(RELEASE, "Releases a lock", "", "")
 DEF_ATTRIB(ACQUIRE, "Acquires a lock", "", "")
-DEF_ATTRIB(LLSC, "load-locked/store-conditional instruction", "", "")
 
 DEF_ATTRIB(RLS_INNER, "Store release inner visibility", "", "")
 DEF_ATTRIB(RLS_OUTER, "Store release outer visibility", "", "")

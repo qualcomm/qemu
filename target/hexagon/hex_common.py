@@ -127,8 +127,6 @@ def calculate_attribs():
     add_qemu_macro_attrib("fTRAP", "A_IMPLICIT_READS_PC")
     add_qemu_macro_attrib("fSET_OVERFLOW", "A_IMPLICIT_WRITES_USR")
     add_qemu_macro_attrib("fSET_LPCFG", "A_IMPLICIT_WRITES_USR")
-    add_qemu_macro_attrib("fLOAD_LOCKED", "A_LLSC")
-    add_qemu_macro_attrib("fSTORE_LOCKED", "A_LLSC")
     add_qemu_macro_attrib("fCLEAR_RTE_EX", "A_IMPLICIT_WRITES_SSR")
     add_qemu_macro_attrib('fCLEAR_RTE_EX', 'A_RTE')
     add_qemu_macro_attrib("fLOAD", "A_SCALAR_LOAD")
