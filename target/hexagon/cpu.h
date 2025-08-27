@@ -195,6 +195,7 @@ struct ArchCPU {
     struct HexagonTLBState *tlb;
     uint32_t l2vic_base_addr;
     uint32_t boot_addr;
+    struct HexagonGlobalRegState *globalregs;
 #endif
 };
 
