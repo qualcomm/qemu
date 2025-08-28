@@ -88,25 +88,25 @@ hexagon-linux-x86_64-qurt:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_qurt
+  script: quic/scripts/run-functional-test.sh func-hexagon-qurt
 
 hexagon-linux-x86_64-sival:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
+  script: quic/scripts/run-functional-test.sh func-hexagon-sival
 
 hexagon-linux-x86_64-boot:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
+  script: quic/scripts/run-functional-test.sh func-hexagon-linux
 
 hexagon-linux-x86_64-virtio:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
+  script: quic/scripts/run-functional-test.sh func-hexagon-virtio
 
 hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -202,21 +202,21 @@ hexagon-linux-x86_64-san-sival:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_sival
+  script: quic/scripts/run-functional-test.sh func-hexagon-sival
 
 hexagon-linux-x86_64-san-boot:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_linux
+  script: quic/scripts/run-functional-test.sh func-hexagon-linux
 
 hexagon-linux-x86_64-san-virtio:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-hexagon_virtio
+  script: quic/scripts/run-functional-test.sh func-hexagon-virtio
 
 # QEMU Hexagon for macOS
 hexagon-mac:
