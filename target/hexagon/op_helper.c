@@ -113,7 +113,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     env->gpr[HEX_REG_PC] = PC;
     cs->exception_index = exception;
     cpu_loop_exit_restore(cs, retaddr);
-    cs->halted = false;
 }
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
