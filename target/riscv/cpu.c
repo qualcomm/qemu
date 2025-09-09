@@ -37,6 +37,10 @@
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "target/riscv/debug.h"
+#endif
+#include "xqci/xqci-csr.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -3177,6 +3181,29 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_RV32E, TYPE_RISCV_BARE_CPU,
         .misa_mxl_max = MXL_RV32,
         .misa_ext = RVE
+    ),
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_QC_IU, TYPE_RISCV_VENDOR_CPU,
+        .misa_mxl_max = MXL_RV32,
+        .misa_ext = RVI | RVU | RVC | RVA | RVM,
+        .priv_spec = PRIV_VERSION_1_12_0,
+        .cfg.max_satp_mode = VM_1_10_SV32,
+        .cfg.pmp = false,
+        .cfg.mmu = false,
+        .cfg.ext_zca = true,
+        .cfg.ext_zcb = true,
+        .cfg.ext_xqci = true,
+        .cfg.ext_xqccmp = true,
+        .cfg.ext_smrnmi = true,
+        .cfg.ext_zicsr = true,
+        .cfg.ext_zba = true,
+        .cfg.ext_zbb = true,
+        .cfg.ext_zbc = true,
+        .cfg.ext_zbs = true,
+        .cfg.ext_zclsd = true,
+        .cfg.ext_smrnmi = true,
+#ifndef CONFIG_USER_ONLY
+        .custom_csrs = xqci_csr_list,
+#endif
     ),
 #endif
 
