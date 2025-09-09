@@ -874,6 +874,52 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
+#ifndef CONFIG_USER_ONLY
+    if (cpu->cfg.ext_svpbmt && cpu->cfg.max_satp_mode < VM_1_10_SV39) {
+        cpu->cfg.ext_svpbmt = false;
+        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_svpbmt))) {
+            warn_report("svpbmt requires at least satp sv39, "
+                        "current satp mode: %s",
+                        satp_mode_str(cpu->cfg.max_satp_mode,
+                                     riscv_cpu_is_32bit(cpu)));
+        }
+    }
+
+    if (cpu->cfg.ext_svnapot && cpu->cfg.max_satp_mode < VM_1_10_SV39) {
+        cpu->cfg.ext_svnapot = false;
+        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_svnapot))) {
+            warn_report("svnapot requires at least satp sv39, "
+                        "current satp mode: %s",
+                        satp_mode_str(cpu->cfg.max_satp_mode,
+                                      riscv_cpu_is_32bit(cpu)));
+        }
+    }
+#endif
+
+    /* Verify conflicts and requirements for Xqci/Xqccmp extensions */
+
+    if (cpu->cfg.ext_xqccmp) {
+        if ((riscv_has_ext(env, RVC) && riscv_has_ext(env, RVD)) || cpu->cfg.ext_zcd || cpu->cfg.ext_zcmp) {
+            error_setg(errp, "Any of the extensions: xqccmp conflicts with C,D,Zcd,Zcmp");
+            return;
+        }
+    }
+
+    if (cpu->cfg.ext_xqcicm || cpu->cfg.ext_xqciac) {
+        if ((riscv_has_ext(env, RVC) && riscv_has_ext(env, RVD)) || cpu->cfg.ext_zcd) {
+            error_setg(errp, "Any of the extensions: xqcicm,xqciac conflicts with C,D,Zcd");
+            return;
+        }
+    }
+
+    if (cpu->cfg.ext_xqciac || cpu->cfg.ext_xqcilia || cpu->cfg.ext_xqcibi || cpu->cfg.ext_xqcisim || cpu->cfg.ext_xqccmp || cpu->cfg.ext_xqcibm || cpu->cfg.ext_xqciint || cpu->cfg.ext_xqcicm || cpu->cfg.ext_xqcilb || cpu->cfg.ext_xqcili || cpu->cfg.ext_xqcisync) {
+        if (!cpu->cfg.ext_zca) {
+            error_setg(errp, "Any of the extensions: xqciac,xqcilia,xqcibi,xqcisim,xqccmp,xqcibm,xqciint,xqcicm,xqcilb,xqcili,xqcisync requires Zca");
+            return;
+        }
+    }
+
+
     /*
      * Disable isa extensions based on priv spec after we
      * validated and set everything we need.
