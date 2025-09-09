@@ -36,6 +36,7 @@
 #include "elf.h"
 #include "cpu.h"
 #include "hex_mmu.h"
+#include "opcodes.h"
 #include "include/migration/cpu.h"
 #include "include/system/system.h"
 #include "target/hexagon/internal.h"

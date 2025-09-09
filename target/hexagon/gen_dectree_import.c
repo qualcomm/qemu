@@ -23,6 +23,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "opcodes.h"
 
 #define STRINGIZE(X)    #X
@@ -51,6 +52,16 @@ const char * const opcode_syntax[XX_LAST_OPCODE] = {
    [TAG] = BEH,
 #define EXTINSN(TAG, BEH, ATTRIBS, DESCR, SEM) \
    [TAG] = BEH,
+#include "imported/allidefs.def"
+#undef Q6INSN
+#undef EXTINSN
+};
+
+char *opcode_attribs[XX_LAST_OPCODE] = {
+#define Q6INSN(TAG, BEH, ATTRS, DESCR, SEM) \
+    [TAG] = STRINGIZE(ATTRS),
+#define EXTINSN(TAG, BEH, ATTRS, DESCR, SEM) \
+    [TAG] = STRINGIZE(ATTRS),
 #include "imported/allidefs.def"
 #undef Q6INSN
 #undef EXTINSN
@@ -103,6 +114,23 @@ static const char *get_opcode_enc_class(int opcode)
     return opcode_enc_class_names[opcode_encodings[opcode].enc_class];
 }
 
+static void adjust_attribs(void)
+{
+    const int prefix_len = strlen("ATTRIBS(");
+    for (int i = 0; i < XX_LAST_OPCODE; i++) {
+        char *this = strdup(opcode_attribs[i] + prefix_len);
+        this[strlen(this) - 1] = '\0';
+        opcode_attribs[i] = this;
+    }
+}
+
+static void release_attribs(void)
+{
+    for (int i = 0; i < XX_LAST_OPCODE; i++) {
+        free(opcode_attribs[i]);
+    }
+}
+
 static void gen_iset_table(FILE *out)
 {
     int i;
@@ -114,6 +142,7 @@ static void gen_iset_table(FILE *out)
         fprintf(out, "\t\t\'syntax\' : \'%s\',\n", opcode_syntax[i]);
         fprintf(out, "\t\t\'enc\' : \'%s\',\n", get_opcode_enc(i));
         fprintf(out, "\t\t\'enc_class\' : \'%s\',\n", get_opcode_enc_class(i));
+        fprintf(out, "\t\t\'attrs\' : \'%s\',\n", opcode_attribs[i]);
         fprintf(out, "\t},\n");
     }
     fprintf(out, "};\n\n");
@@ -144,8 +173,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    adjust_attribs();
+    fprintf(outfile, "q6version = '" STRINGIZE(HEXAGON_LATEST_REV) "';\n");
     gen_iset_table(outfile);
     gen_tags_list(outfile);
+    release_attribs();
 
     fclose(outfile);
     return 0;
