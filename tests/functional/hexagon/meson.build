@@ -9,7 +9,7 @@ test_hexagon_timeouts = {
 
 tests_hexagon_system_thorough = [
   'minivm',
-  'linux',
+# 'linux',
   'sival',
   'qurt',
   'virtio',

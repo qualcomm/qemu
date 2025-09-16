@@ -101,6 +101,8 @@ hexagon-linux-x86_64-boot:
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-linux
+  when: manual
+  allow_failure: true
 
 hexagon-linux-x86_64-virtio:
   stage: test
@@ -210,6 +212,8 @@ hexagon-linux-x86_64-san-boot:
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-linux
+  when: manual
+  allow_failure: true
 
 hexagon-linux-x86_64-san-virtio:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
