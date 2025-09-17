@@ -473,6 +473,9 @@ typedef struct Attributes {
     uint8_t refresh_freq;
     uint8_t refresh_unit;
     uint8_t refresh_method;
+#ifdef CONFIG_LIBQEMU
+    uint64_t timestamp;
+#endif
 } Attributes;
 
 #define UFS_TRANSACTION_SPECIFIC_FIELD_SIZE 20
@@ -896,6 +899,9 @@ enum attr_idn {
     UFS_QUERY_ATTR_IDN_REFRESH_STATUS = 0x2C,
     UFS_QUERY_ATTR_IDN_REFRESH_FREQ = 0x2D,
     UFS_QUERY_ATTR_IDN_REFRESH_UNIT = 0x2E,
+#ifdef CONFIG_LIBQEMU
+    UFS_QUERY_ATTR_IDN_TIMESTAMP = 0x30,
+#endif
     UFS_QUERY_ATTR_IDN_COUNT,
 };
 
