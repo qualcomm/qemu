@@ -103,11 +103,15 @@ package repository server at `https://repo.msys2.org/mingw/clangarm64/` and
 renames the archive to `glib2.pkg.tar.zst`. Afterwards, only the required
 library `libglib-2.0-0.dll` is unpacked.
 
-There is a script called `install_win_aarch64_deps.bat` which is included with
-QEMU Hexagon and can be used to download the required dependencies.
+There are two scripts included with QEMU Hexagon to download the required
+dependencies. They are called `install_win_aarch64_deps.bat` and
+`install_win_aarch64_deps.ps1`, and exist as alternatives for each other to
+accomodate different workflows.
 
-IMPORTANT: In case `install_win_aarch64_deps.bat` is used, it is possible that
-the versions it contains are outdated and need to be updated.
+IMPORTANT: In case `install_win_aarch64_deps.bat` or
+`install_win_aarch64_deps.ps1` is used, it is possible that the versions of
+some dependencies are outdated and need to be updated by manually modifying the
+script used.
 
 A common error related to libraries is that QEMU immediately exits. Either with
 or without showing an error message box. In both cases a [dependency
