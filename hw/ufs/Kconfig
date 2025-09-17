@@ -1,4 +1,8 @@
+config UFS
+    bool
+    default y if SCSI
+
 config UFS_PCI
     bool
     default y if PCI_DEVICES
-    depends on PCI
+    depends on PCI && UFS
