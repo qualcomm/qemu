@@ -4,6 +4,9 @@
 # CONFIG_PCI_DEVICES=n
 # CONFIG_TEST_DEVICES=n
 
+# Enable QCT QTimer device for RISC-V testing
+CONFIG_DRAGON=y
+
 # Boards are selected by default, uncomment to keep out of the build.
 # CONFIG_SPIKE=n
 # CONFIG_SIFIVE_E=n
