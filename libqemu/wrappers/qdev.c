@@ -37,5 +37,5 @@ void libqemu_qdev_prop_set_uint_array(DeviceState *dev, const char *label,
 void libqemu_qdev_set_id(DeviceState *dev, const char *id)
 {
     assert(!dev->id && !dev->realized);
-    dev->id = id;
+    dev->id = (char *) id;
 }
