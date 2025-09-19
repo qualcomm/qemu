@@ -18,6 +18,17 @@ static void ufs_sysbus_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /*
+     * FIXME: disable io memory reentrancy guard for now to prevent this
+     * sporadic warning "libqbox: warning: Blocked re-entrant IO on
+     * MemoryRegion: ufs-sysbus at addr:%d" as it might be caused by the way
+     * irq is currently handled in qbox, or may be it is an inherent problem
+     * in scsi as shown here:
+     * https://github.com/qemu/qemu/commit/d139fe9ad8a27bcc50b4ead77d2f97d191a0e95e
+     */
+#ifdef CONFIG_LIBQEMU
+    s->ufs.iomem.disable_reentrancy_guard = true;
+#endif
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->ufs.iomem);
 }
 
