@@ -16,7 +16,7 @@ $packages = @(
     },
     @{
         Name = "winpthread"
-        Url = "https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-libwinpthread-git-12.0.0.r619.g850703ae4-1-any.pkg.tar.zst"
+        Url = "https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-libwinpthread-git-12.0.0.r747.g1a99f8514-1-any.pkg.tar.zst"
         FileName = "winpthread.pkg.tar.zst"
         ExtractPath = "clangarm64/bin/libwinpthread-1.dll"
     },
