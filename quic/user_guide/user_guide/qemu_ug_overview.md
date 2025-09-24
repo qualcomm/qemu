@@ -76,6 +76,10 @@ have a corporate networking environment where all of the secure traffic is
 diverted, defeating the trust feature of the msys2 package manager.  See
 ["How can I make MSYS2/pacman trust my company's custom TLS CA certificate" in the MSYS2 FAQ](https://www.msys2.org/docs/faq/#how-can-i-make-msys2pacman-trust-my-companys-custom-tls-ca-certificate) for more info.
 
+Similar to the aarch64 version there is a powershell script now that doesn't
+use msys2 and comes with the same restrictions as the aarch64 script. See the
+section on aarch64 for more details.
+
 ### Windows aarch64 dependencies
 
 Dependencies need to be downloaded manually for now, because there is no stable
