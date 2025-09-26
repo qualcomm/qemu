@@ -5,6 +5,7 @@ test_hexagon_timeouts = {
   'qurt': 2400,
   'minivm': 180,
   'linux': 180,
+  'systests': 180,
 }
 
 tests_hexagon_system_thorough = [
@@ -13,4 +14,5 @@ tests_hexagon_system_thorough = [
   'sival',
   'qurt',
   'virtio',
+  'systests',
 ]
