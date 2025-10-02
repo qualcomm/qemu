@@ -42,7 +42,6 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
-typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define NUM_SREGS 106
 #define NUM_GREGS 32
 #define GREG_WRITES_MAX 2
@@ -424,7 +423,6 @@ typedef struct CPUArchState {
     int32_t slot;                    /* Needed for exception generation */
     hex_exception_info einfo;
     systemstate_t systemstate;
-    CPUHexagonTLBContext *hex_tlb;
     target_ulong imprecise_exception;
     hex_lock_state_t tlb_lock_state; /* different threads modify */
     hex_lock_state_t k0_lock_state; /* different threads modify */
@@ -490,6 +488,7 @@ struct ArchCPU {
     uint32_t hvx_contexts;
 #ifndef CONFIG_USER_ONLY
     struct HexagonGlobalRegState *globalregs;
+    struct HexagonTLBState *tlb;
 #endif
 };
 

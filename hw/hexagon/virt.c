@@ -13,6 +13,7 @@
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/loader.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
@@ -30,6 +31,7 @@
 #include "system/reset.h"
 #include "system/system.h"
 #include <libfdt.h>
+#include "target/hexagon/macros.h"  /* For DMA_TLB_OFFSET */
 
 static const int VIRTIO_DEV_COUNT = 8;
 
@@ -262,13 +264,32 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
 static void create_qtimer(HexagonVirtMachineState *vms,
                           const hexagon_machine_config *m_cfg)
 {
-    Error **errp = NULL;
+    Error *err = NULL;
     QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
 
-    object_property_set_uint(OBJECT(qtimer), "nr_frames", 2, errp);
-    object_property_set_uint(OBJECT(qtimer), "nr_views", 1, errp);
-    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, errp);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), errp);
+    object_property_set_uint(OBJECT(qtimer), "nr_frames", 2, &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+
+    object_property_set_uint(OBJECT(qtimer), "nr_views", 1, &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+
+    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
 
 
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
@@ -457,7 +478,25 @@ static void virt_init(MachineState *ms)
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
     }
 
-    /* Create L2VIC first */
+    /* Create TLB object first */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(ms), "hexagon-tlb", OBJECT(tlb_dev));
+
+    /* Set the number of TLB entries based on machine configuration */
+    /* Need to allocate enough for both regular and DMA entries */
+    uint32_t total_tlb_entries =
+        DMA_TLB_OFFSET + m_cfg->cfgtable.dma_jtlb_entries;
+    if (m_cfg->cfgtable.jtlb_size_entries > total_tlb_entries) {
+        total_tlb_entries = m_cfg->cfgtable.jtlb_size_entries;
+    }
+    qdev_prop_set_uint32(tlb_dev, "num-entries", total_tlb_entries);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(tlb_dev), errp)) {
+        error_report("Failed to realize TLB object");
+        goto out;
+    }
+
+    /* Create L2VIC */
     vms->l2vic = sysbus_create_varargs(
         "l2vic", m_cfg->l2vic_base, qdev_get_gpio_in(DEVICE(cpus[0]), 0),
         qdev_get_gpio_in(DEVICE(cpus[0]), 1), qdev_get_gpio_in(DEVICE(cpus[0]), 2),
@@ -480,6 +519,11 @@ static void virt_init(MachineState *ms)
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(gsregs_dev), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {

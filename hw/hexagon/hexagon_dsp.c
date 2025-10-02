@@ -26,6 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -40,6 +41,7 @@
 #include "include/migration/cpu.h"
 #include "include/system/system.h"
 #include "target/hexagon/internal.h"
+#include "target/hexagon/macros.h"  /* For DMA_TLB_OFFSET */
 #include "libgen.h"
 #include "system/reset.h"
 #include "system/qtest.h"
@@ -281,8 +283,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     if (vtcm_size_bytes > 0) {
         MemoryRegion *vtcm = g_new(MemoryRegion, 1);
 
-        vtcm_addr = setup_vtcm(vtcm_size_bytes,
-                               (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0, 0);
+        vtcm_addr = setup_vtcm(vtcm_size_bytes, 0, 0);
         memory_region_init_ram_ptr(vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
                                    vtcm_addr);
         memory_region_add_subregion(address_space,
@@ -314,6 +315,21 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
 
+    /* Create TLB object */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
+
+    /* Set the number of TLB entries based on machine configuration */
+    /* Need to allocate enough for both regular and DMA entries */
+    uint32_t total_tlb_entries =
+        DMA_TLB_OFFSET + m_cfg->cfgtable.dma_jtlb_entries;
+    if (m_cfg->cfgtable.jtlb_size_entries > total_tlb_entries) {
+        total_tlb_entries = m_cfg->cfgtable.jtlb_size_entries;
+    }
+    qdev_prop_set_uint32(tlb_dev, "num-entries", total_tlb_entries);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
+
     /* Now create CPUs. */
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
@@ -335,8 +351,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
          * explicitly enabled via start instruction.
          */
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        qdev_prop_set_uint32(DEVICE(cpu), "num-coproc-instance",
-                             (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0);
+        qdev_prop_set_uint32(DEVICE(cpu), "num-coproc-instance", 0);
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
@@ -371,6 +386,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(glob_regs_dev), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {

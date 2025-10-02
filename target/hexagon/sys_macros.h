@@ -169,7 +169,7 @@
         ? fTLB_NONPOW2WRAP(fDMATLB_IDXMASK(INDEX - DMA_TLB_OFFSET)) + DMA_TLB_OFFSET \
         : fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX)))
 #define fTLBR(INDEX) \
-    (env->hex_tlb->entries[TLB_WRAP_INDEX(INDEX)])
+    hex_tlb_read(env, INDEX)
 #define fTLBR_EXTENDED(INDEX) \
     fTLBR(INDEX)
 

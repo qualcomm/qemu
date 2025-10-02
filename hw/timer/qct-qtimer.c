@@ -525,7 +525,7 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
-    DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
+    DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11)
 };
 
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
