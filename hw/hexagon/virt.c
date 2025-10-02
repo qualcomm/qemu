@@ -13,6 +13,7 @@
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/loader.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
@@ -30,6 +31,7 @@
 #include "system/reset.h"
 #include "system/system.h"
 #include <libfdt.h>
+#include "target/hexagon/macros.h"
 
 static const int VIRTIO_DEV_COUNT = 8;
 
@@ -456,17 +458,28 @@ static void virt_init(MachineState *ms)
                              m_cfg->cfgtable.vtcm_size_kb);
         qdev_prop_set_uint32(DEVICE(cpu), "l2line-size",
                              m_cfg->cfgtable.l2line_size);
-        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
-                             m_cfg->cfgtable.jtlb_size_entries);
-        qdev_prop_set_uint32(DEVICE(cpu), "dma-jtlb-entries",
-                             m_cfg->cfgtable.dma_jtlb_entries);
         qdev_prop_set_bit(DEVICE(cpu), "coproc2-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
     }
 
-    /* Create L2VIC first */
+    /* Create TLB object first */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(ms), "hexagon-tlb", OBJECT(tlb_dev));
+
+    /* Set the number of TLB entries based on machine configuration */
+    qdev_prop_set_uint32(tlb_dev, "num-entries",
+                         m_cfg->cfgtable.jtlb_size_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries",
+                         m_cfg->cfgtable.dma_jtlb_entries);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(tlb_dev), errp)) {
+        error_report("Failed to realize TLB object");
+        goto out;
+    }
+
+    /* Create L2VIC */
     vms->l2vic = sysbus_create_varargs(
         "l2vic", m_cfg->l2vic_base, qdev_get_gpio_in(DEVICE(cpus[0]), 0),
         qdev_get_gpio_in(DEVICE(cpus[0]), 1), qdev_get_gpio_in(DEVICE(cpus[0]), 2),
@@ -489,6 +502,11 @@ static void virt_init(MachineState *ms)
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(gsregs_dev), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {

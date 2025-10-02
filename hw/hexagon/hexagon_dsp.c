@@ -26,6 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -40,6 +41,7 @@
 #include "include/migration/cpu.h"
 #include "include/system/system.h"
 #include "target/hexagon/internal.h"
+#include "target/hexagon/macros.h"
 #include "libgen.h"
 #include "system/reset.h"
 #include "system/qtest.h"
@@ -314,6 +316,16 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
 
+    /* Create TLB object */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
+    qdev_prop_set_uint32(tlb_dev, "num-entries",
+                         m_cfg->cfgtable.jtlb_size_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries",
+                         m_cfg->cfgtable.dma_jtlb_entries);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
+
     /* Now create CPUs. */
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
@@ -339,10 +351,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              (m_cfg->cfgtable.coproc2_reg0) ? 1 : 0);
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
-        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
-                             m_cfg->cfgtable.jtlb_size_entries);
-        qdev_prop_set_uint32(DEVICE(cpu), "dma-jtlb-entries",
-                             m_cfg->cfgtable.dma_jtlb_entries);
         qdev_prop_set_bit(DEVICE(cpu), "coproc2-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
@@ -371,6 +379,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(glob_regs_dev), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {

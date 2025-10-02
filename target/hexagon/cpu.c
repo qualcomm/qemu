@@ -44,6 +44,7 @@
 #include "qemu/cutils.h"
 #include "hexswi.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #endif
 #include "opcodes.h"
 #include "coproc.h"
@@ -116,10 +117,10 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
                        0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
-    DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, jtlb_entries, MAX_TLB_ENTRIES),
-    DEFINE_PROP_UINT32("dma-jtlb-entries", HexagonCPU, dma_jtlb_entries, 0),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
+    DEFINE_PROP_LINK("tlb", HexagonCPU, tlb,
+                     TYPE_HEXAGON_TLB, HexagonTLBState *),
 #endif
     DEFINE_PROP_BOOL("hvx-bfloat", HexagonCPU, hvx_bfloat, false),
     DEFINE_PROP_BOOL("coproc2-bfloat", HexagonCPU, coproc2_bfloat, false),
@@ -639,15 +640,6 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 
 #define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 
-#ifndef CONFIG_USER_ONLY
-static void mmu_reset(CPUHexagonState *env)
-{
-    CPUState *cs = env_cpu(env);
-    if (cs->cpu_index == 0) {
-        memset(env->hex_tlb, 0, sizeof(*env->hex_tlb));
-    }
-}
-#endif
 
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
@@ -693,7 +685,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         }
 
         memset(env->g_gcycle, 0, sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
-        memset(env->pmu.g_ctrs_off, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
+        memset(env->pmu.g_ctrs_off, 0,
+               NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
         memset(env->pmu.g_events, 0, NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
 
         /* Global register initialization moved to hexagon_globalreg_reset */
@@ -732,7 +725,6 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->tlb_lock_count = 0;
     env->ss_pending = false;
 
-    mmu_reset(env);
     hexagon_cpu_soft_reset(env);
     arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
 #endif
@@ -798,18 +790,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
-    /*
-     * 0    jtlb_entries   DMA_TLB_OFFSET    dma_jtlb_entries
-     * v         v             v                    v
-     * |*********|.............|++++++++++++++++++++|
-     *
-     * Where '*' are jtlb entries and '+' are dma jtlb entries.
-     */
-    if (cpu->dma_jtlb_entries && DMA_TLB_OFFSET < cpu->jtlb_entries) {
-        error_report("Number of TLBs selected is invalid");
-        exit(1);
-    }
-    cpu->num_tlbs = DMA_TLB_OFFSET + cpu->dma_jtlb_entries;
 #endif
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
@@ -830,7 +810,8 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #ifndef CONFIG_USER_ONLY
     env->processor_ptr = &ProcessorStateV68;
     env->processor_ptr->runnable_threads_max = cpu->cluster_thread_count;
-    env->processor_ptr->thread_system_mask   = (1 << cpu->cluster_thread_count) - 1;
+    env->processor_ptr->thread_system_mask   =
+        (1 << cpu->cluster_thread_count) - 1;
     env->processor_ptr->thread[env->threadId] = env;
     env->processor_ptr->dma[env->threadId] = dma_adapter_init(
         env->processor_ptr,
@@ -838,12 +819,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     cpu->vmstate_num_g_gcycle = NUM_GLOBAL_GCYCLE;
     env->pmu.vmstate_num_ctrs = NUM_PMU_CTRS;
-
-    hex_mmu_realize(env);
     if (cs->cpu_index == 0) {
         env->g_gcycle = g_new0(target_ulong, NUM_GLOBAL_GCYCLE);
-        env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
-        env->pmu.g_events = g_malloc0(NUM_PMU_CTRS * sizeof(*env->pmu.g_events));
+        env->pmu.g_ctrs_off = g_malloc0(NUM_PMU_CTRS *
+                                         sizeof(*env->pmu.g_ctrs_off));
+        env->pmu.g_events = g_malloc0(NUM_PMU_CTRS *
+                                      sizeof(*env->pmu.g_events));
         env->g_dir_list = g_malloc0(sizeof(GList *));
 
         if (cpu->num_coproc_instance) {
@@ -891,6 +872,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #endif
 
     mcc->parent_realize(dev, errp);
+
     cpu_reset(cs);
 }
 
@@ -1295,7 +1277,8 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
     case HEX_GREG_GPMUCNT5:
     case HEX_GREG_GPMUCNT6:
     case HEX_GREG_GPMUCNT7:
-        return ssr_pe ? hexagon_get_pmu_counter(env, pmu_index_from_greg(reg)) : 0;
+        return ssr_pe ?
+            hexagon_get_pmu_counter(env, pmu_index_from_greg(reg)) : 0;
     default:
         return 0;
     }

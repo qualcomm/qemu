@@ -89,32 +89,6 @@ static const VMStateInfo vmstate_info_mmqreg = {
 #define VMSTATE_MMQREG_ARRAY(_f, _s, _n) \
     VMSTATE_SUB_ARRAY(_f, _s, 0, _n, 0, vmstate_info_mmqreg, MMQReg)
 
-static int get_hex_tlb_ptr(QEMUFile *f, void *pv, size_t size,
-                       const VMStateField *field)
-{
-    CPUHexagonTLBContext *tlb = pv;
-    for (int i = 0; i < ARRAY_SIZE(tlb->entries); i++) {
-        tlb->entries[i] = qemu_get_be64(f);
-    }
-    return 0;
-}
-
-static int put_hex_tlb_ptr(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, JSONWriter *vmdesc)
-{
-    CPUHexagonTLBContext *tlb = pv;
-    for (int i = 0; i < ARRAY_SIZE(tlb->entries); i++) {
-        qemu_put_be64(f,  tlb->entries[i]);
-    }
-    return 0;
-}
-
-const VMStateInfo vmstate_info_hex_tlb_ptr = {
-    .name = "hex_tlb_pointer",
-    .get  = get_hex_tlb_ptr,
-    .put  = put_hex_tlb_ptr,
-};
-
 const VMStateDescription vmstate_pmustate = {
     .name = "pmu_state",
     .version_id = 0,
@@ -224,9 +198,6 @@ const VMStateDescription vmstate_hexagon_cpu = {
 
         VMSTATE_MMQREG_ARRAY(env.QRegs, HexagonCPU, NUM_QREGS),
         VMSTATE_MMQREG_ARRAY(env.future_QRegs, HexagonCPU, NUM_QREGS),
-
-        VMSTATE_POINTER(env.hex_tlb, HexagonCPU, 0,
-                        vmstate_info_hex_tlb_ptr, CPUHexagonTLBContext *),
 
         VMSTATE_STRUCT(env.pmu, HexagonCPU, 0, vmstate_pmustate, PMUState),
         VMSTATE_STRUCT(env.einfo, HexagonCPU, 0, vmstate_hex_exception_info,

@@ -752,6 +752,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 /* Extended DMA TLB is in entries 512 512+QDSP6_DMAJTLB_SZ */
 #define DMA_TLB_OFFSET 512
+#define DMA_TLB_SIZE   64
 #define NUM_DMATLB_REGS(PROC) ((PROC)->arch_proc_options->QDSP6_DMAJTLB_SZ)
 
 /* Grabs the .tmp data, wherever it is, and clears the .tmp status */

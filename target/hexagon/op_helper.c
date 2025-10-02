@@ -26,6 +26,7 @@
 #include "internal.h"
 #include "int16_emu.h"
 #include "macros.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "sys_macros.h"
 #include "arch.h"
 #include "hex_arch_types.h"

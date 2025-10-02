@@ -140,17 +140,22 @@
 #define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
 
 #define fTLB_IDXMASK(INDEX) \
-    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->jtlb_entries)) - 1))
+    ((INDEX) & (fPOW2_ROUNDUP(\
+        fCAST4u(hexagon_tlb_get_num_entries(env_archcpu(env)->tlb))) - 1))
 #define fDMATLB_IDXMASK(INDEX) \
-       ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->dma_jtlb_entries)) - 1))
+    ((INDEX) & \
+     (fPOW2_ROUNDUP(\
+        fCAST4u(hexagon_tlb_get_dma_entries(env_archcpu(env)->tlb))) - 1))
 
 #define fTLB_NONPOW2WRAP(INDEX) ({ \
     uint32_t _wrapped_idx = (INDEX); \
-    if ((INDEX) >= env_archcpu(env)->jtlb_entries) { \
+    uint32_t _num_entries = \
+        hexagon_tlb_get_num_entries(env_archcpu(env)->tlb); \
+    if ((INDEX) >= _num_entries) { \
         qemu_log_mask(LOG_GUEST_ERROR, \
                       "TLB index beyond limit, wrapping around. PC: 0x%x\n", \
                       env->gpr[HEX_REG_PC]); \
-        _wrapped_idx = ((INDEX) - env_archcpu(env)->jtlb_entries); \
+        _wrapped_idx = ((INDEX) - _num_entries); \
     } \
     _wrapped_idx; \
 })
@@ -164,11 +169,13 @@
 #define fTLB_ENTRY_OVERLAP_IDX(VALUE, INDEX) \
     hex_tlb_check_overlap(env, VALUE, INDEX)
 #define TLB_WRAP_INDEX(INDEX) \
-       (((INDEX >= DMA_TLB_OFFSET) && (env_archcpu(env)->dma_jtlb_entries > 0)) \
-        ? fTLB_NONPOW2WRAP(fDMATLB_IDXMASK(INDEX - DMA_TLB_OFFSET)) + DMA_TLB_OFFSET \
-        : fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX)))
+    (((INDEX >= DMA_TLB_OFFSET) && \
+      (hexagon_tlb_get_dma_entries(env_archcpu(env)->tlb) > 0)) \
+     ? fTLB_NONPOW2WRAP(fDMATLB_IDXMASK(INDEX - DMA_TLB_OFFSET)) + \
+       DMA_TLB_OFFSET \
+     : fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX)))
 #define fTLBR(INDEX) \
-    (env->hex_tlb->entries[TLB_WRAP_INDEX(INDEX)])
+    hex_tlb_read(env, INDEX)
 #define fTLBR_EXTENDED(INDEX) \
     fTLBR(INDEX)
 
@@ -234,6 +241,6 @@
 
 #endif
 
-#define NUM_TLB_REGS(x) (env_archcpu(env)->num_tlbs)
+#define NUM_TLB_REGS(x) hexagon_tlb_get_total_entries(env_archcpu(env)->tlb)
 
 #endif
