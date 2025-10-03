@@ -490,6 +490,8 @@ static void virt_init(MachineState *ms)
         total_tlb_entries = m_cfg->cfgtable.jtlb_size_entries;
     }
     qdev_prop_set_uint32(tlb_dev, "num-entries", total_tlb_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries",
+                         m_cfg->cfgtable.dma_jtlb_entries);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(tlb_dev), errp)) {
         error_report("Failed to realize TLB object");

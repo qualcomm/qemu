@@ -327,6 +327,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         total_tlb_entries = m_cfg->cfgtable.jtlb_size_entries;
     }
     qdev_prop_set_uint32(tlb_dev, "num-entries", total_tlb_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries",
+                         m_cfg->cfgtable.dma_jtlb_entries);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
 

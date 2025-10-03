@@ -123,7 +123,19 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
         hex_log_tlbw(index, value);
-        hexagon_tlb_write(cpu->tlb, env, index, value);
+        uint32_t idx = TLB_WRAP_INDEX(index);
+        bool old_entry_valid = GET_TLB_FIELD(
+            hexagon_tlb_read(cpu->tlb, idx), PTE_V);
+        bool mmu_enabled = cpu->globalregs ?
+            GET_SYSCFG_FIELD(SYSCFG_MMUEN,
+                             arch_get_system_reg(env, HEX_SREG_SYSCFG)) : 0;
+        if (old_entry_valid && mmu_enabled) {
+            /* FIXME - Do we have to invalidate everything here? */
+            CPUState *cs = env_cpu(env);
+            tlb_flush(cs);
+        }
+        hexagon_tlb_write(cpu->tlb, index, value, old_entry_valid,
+                          mmu_enabled, env->threadId, idx);
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "TLB write attempted but TLB not initialized\n");
@@ -158,8 +170,16 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 {
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
-        return hexagon_tlb_find_match(cpu->tlb, env, VA, access_type, PA, prot,
-                                      size, excp, mmu_idx);
+        uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+        uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
+        int32_t cause_code = 0;
+        bool result = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
+                                             PA, prot, size, excp, &cause_code,
+                                             mmu_idx, cpu->num_tlbs);
+        if (cause_code) {
+            env->cause_code = cause_code;
+        }
+        return result;
     }
     /* No TLB - return miss */
     *PA = 0;
@@ -174,8 +194,18 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
 {
     HexagonCPU *cpu = env_archcpu(env);
     uint32_t result;
+    uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     if (cpu->tlb) {
-        result = hexagon_tlb_lookup(cpu->tlb, env, ssr, VA);
+        uint32_t imprecise_exception = 0;
+        int32_t cause_code = 0;
+        result = hexagon_tlb_lookup(cpu->tlb, asid, VA, &imprecise_exception,
+                                   &cause_code, cpu->jtlb_entries);
+        if (imprecise_exception) {
+            env->imprecise_exception = imprecise_exception;
+        }
+        if (cause_code) {
+            env->cause_code = cause_code;
+        }
     } else {
         /* No TLB - return not found */
         result = 0x80000000;
@@ -183,7 +213,7 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
 
     if (result == 0x80000000) {
         qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lookup: 0x%x, 0x%x => NOT FOUND\n",
-                      GET_SSR_FIELD(SSR_ASID, ssr), VA);
+                      asid, VA);
     } else if (result >= cpu->jtlb_entries && result < DMA_TLB_OFFSET) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "tlb_lookup found an entry that is neither ordinary"
@@ -192,7 +222,7 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
                       result, VA, env->gpr[HEX_REG_PC]);
     } else {
         qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lookup: 0x%x, 0x%x => %"PRId32"\n",
-                      GET_SSR_FIELD(SSR_ASID, ssr), VA, result);
+                      asid, VA, result);
     }
 
     return result;
@@ -211,8 +241,19 @@ uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr,
                       env->gpr[HEX_REG_PC]);
     }
 
+    uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     if (cpu->tlb) {
-        result = hexagon_tlb_lookup_extended(cpu->tlb, env, ssr, VA);
+        uint32_t imprecise_exception = 0;
+        int32_t cause_code = 0;
+        result = hexagon_tlb_lookup_extended(cpu->tlb, asid, VA,
+                                            &imprecise_exception, &cause_code,
+                                            cpu->jtlb_entries);
+        if (imprecise_exception) {
+            env->imprecise_exception = imprecise_exception;
+        }
+        if (cause_code) {
+            env->cause_code = cause_code;
+        }
     } else {
         /* No TLB - return not found */
         result = 0x80000000;
@@ -222,7 +263,7 @@ uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr,
         qemu_log_mask(CPU_LOG_MMU,
                       "hex_tlb_lookup_extended: 0x%x, 0x%016"PRIx64
                       " => NOT FOUND\n",
-                      GET_SSR_FIELD(SSR_ASID, ssr), VA);
+                      asid, VA);
     } else if (result >= cpu->jtlb_entries && result < DMA_TLB_OFFSET) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "tlb_lookup found an entry that is neither ordinary"
@@ -233,7 +274,7 @@ uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr,
         qemu_log_mask(CPU_LOG_MMU,
                       "hex_tlb_lookup_extended: 0x%x, 0x%016"PRIx64
                       " => %"PRId32"\n",
-                      GET_SSR_FIELD(SSR_ASID, ssr), VA, result);
+                      asid, VA, result);
     }
 
     return result;
@@ -249,7 +290,7 @@ int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry, uint64_t index)
 {
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
-        return hexagon_tlb_check_overlap(cpu->tlb, env, entry, index);
+        return hexagon_tlb_check_overlap(cpu->tlb, entry, index, cpu->num_tlbs);
     }
     /* No TLB - no overlap */
     return -2;
@@ -338,8 +379,6 @@ void hex_tlb_lock(CPUHexagonState *env)
         print_thread_states("\tThread");
     }
     trace_hexagon_tlb_lock_info(env->threadId, "After hex_tlb_lock\n");
-
-    hexagon_tlb_lock(cpu->tlb, env);
 }
 
 void hex_tlb_unlock(CPUHexagonState *env)
@@ -432,15 +471,14 @@ void hex_tlb_unlock(CPUHexagonState *env)
     }
 
     trace_hexagon_tlb_lock_info(env->threadId, "After hex_tlb_unlock\n");
-
-    hexagon_tlb_unlock(cpu->tlb, env);
 }
 
 uint64_t hex_tlb_read(CPUHexagonState *env, uint32_t index)
 {
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
-        return hexagon_tlb_read(cpu->tlb, env, index);
+        uint32_t myidx = TLB_WRAP_INDEX(index);
+        return hexagon_tlb_read(cpu->tlb, myidx);
     }
     /* No TLB - return 0 */
     return 0;
@@ -450,7 +488,7 @@ void dump_mmu(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
-        hexagon_tlb_dump(cpu->tlb, env);
+        hexagon_tlb_dump(cpu->tlb);
     } else {
         qemu_printf("TLB not initialized\n");
     }

@@ -160,12 +160,11 @@ static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
     return false;
 }
 
-static inline void hex_tlb_entry_get_perm(void *env_ptr, uint64_t entry,
+static inline void hex_tlb_entry_get_perm(uint64_t entry,
                                           MMUAccessType access_type,
                                           int mmu_idx, int *prot,
-                                          int32_t *excp)
+                                          int32_t *excp, int32_t *cause_code)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     bool perm_x = GET_TLB_FIELD(entry, PTE_X);
     bool perm_w = GET_TLB_FIELD(entry, PTE_W);
     bool perm_r = GET_TLB_FIELD(entry, PTE_R);
@@ -182,28 +181,28 @@ static inline void hex_tlb_entry_get_perm(void *env_ptr, uint64_t entry,
     case MMU_INST_FETCH:
         if (user_idx && !perm_u) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_FETCH_NO_UPAGE;
+            *cause_code = HEX_CAUSE_FETCH_NO_UPAGE;
         } else if (!perm_x) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_FETCH_NO_XPAGE;
+            *cause_code = HEX_CAUSE_FETCH_NO_XPAGE;
         }
         break;
     case MMU_DATA_LOAD:
         if (user_idx && !perm_u) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_PRIV_NO_UREAD;
+            *cause_code = HEX_CAUSE_PRIV_NO_UREAD;
         } else if (!perm_r) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_PRIV_NO_READ;
+            *cause_code = HEX_CAUSE_PRIV_NO_READ;
         }
         break;
     case MMU_DATA_STORE:
         if (user_idx && !perm_u) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_PRIV_NO_UWRITE;
+            *cause_code = HEX_CAUSE_PRIV_NO_UWRITE;
         } else if (!perm_w) {
             *excp = HEX_EVENT_PRECISE;
-            env->cause_code = HEX_CAUSE_PRIV_NO_WRITE;
+            *cause_code = HEX_CAUSE_PRIV_NO_WRITE;
         }
         break;
     }
@@ -221,14 +220,16 @@ static inline void hex_tlb_entry_get_perm(void *env_ptr, uint64_t entry,
     }
 }
 
-static inline bool hex_tlb_entry_match(void *env, uint64_t entry,
-                                       uint8_t asid, target_ulong VA,
-                                       MMUAccessType access_type, hwaddr *PA,
-                                       int *prot, uint64_t *size, int32_t *excp,
+static inline bool hex_tlb_entry_match(uint64_t entry, uint8_t asid,
+                                       target_ulong VA,
+                                       MMUAccessType access_type,
+                                       hwaddr *PA, int *prot, uint64_t *size,
+                                       int32_t *excp, int32_t *cause_code,
                                        int mmu_idx)
 {
     if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
-        hex_tlb_entry_get_perm(env, entry, access_type, mmu_idx, prot, excp);
+        hex_tlb_entry_get_perm(entry, access_type, mmu_idx, prot, excp,
+                               cause_code);
         *PA = hex_tlb_phys_addr(entry);
         *size = hex_tlb_page_size_bytes(entry);
         return true;
@@ -236,8 +237,7 @@ static inline bool hex_tlb_entry_match(void *env, uint64_t entry,
     return false;
 }
 
-static bool hex_tlb_is_match(void *env,
-                             uint64_t entry1, uint64_t entry2,
+static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
                              bool consider_gbit)
 {
     bool valid1 = GET_TLB_FIELD(entry1, PTE_V);
@@ -272,6 +272,7 @@ static bool hex_tlb_is_match(void *env,
 static const Property hexagon_tlb_properties[] = {
     DEFINE_PROP_UINT32("num-entries", HexagonTLBState, num_entries,
                        MAX_TLB_ENTRIES),
+    DEFINE_PROP_UINT32("dma-entries", HexagonTLBState, dma_entries, 0),
 };
 
 static void hexagon_tlb_init(Object *obj)
@@ -279,6 +280,7 @@ static void hexagon_tlb_init(Object *obj)
     HexagonTLBState *s = HEXAGON_TLB(obj);
     /* Initialize fields to safe defaults */
     s->num_entries = 0;
+    s->dma_entries = 0;
     s->entries = NULL;
 }
 
@@ -362,97 +364,84 @@ type_init(hexagon_tlb_register_types)
 
 /* TLB interface functions */
 
-uint64_t hexagon_tlb_read(HexagonTLBState *tlb, void *env_ptr, uint32_t index)
+uint64_t hexagon_tlb_read(HexagonTLBState *tlb, uint32_t index)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     if (!tlb) {
         qemu_log_mask(LOG_GUEST_ERROR, "TLB read with NULL TLB state\n");
         return 0;
     }
 
-    uint32_t myidx = TLB_WRAP_INDEX(index);
-
     /* Bounds check */
-    if (myidx >= tlb->num_entries) {
+    if (index >= tlb->num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "TLB read index %u (wrapped %u) exceeds entries %u\n",
-                      index, myidx, tlb->num_entries);
+                      "TLB read index %u exceeds entries %u\n",
+                      index, tlb->num_entries);
         return 0;
     }
 
-    return tlb->entries[myidx];
+    return tlb->entries[index];
 }
 
-void hexagon_tlb_write(HexagonTLBState *tlb, void *env_ptr,
-                       uint32_t index, uint64_t value)
+void hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index, uint64_t value,
+                       bool old_entry_valid, bool mmu_enabled,
+                       uint32_t threadId, uint32_t wrapped_index)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     if (!tlb) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "TLB write attempted but TLB not initialized\n");
         return;
     }
 
-    uint32_t myidx = TLB_WRAP_INDEX(index);
-
     /* Ensure index is within bounds of this TLB */
-    if (myidx >= tlb->num_entries) {
+    if (wrapped_index >= tlb->num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "TLB write index %u out of bounds (num_entries=%u)\n",
-                      myidx, tlb->num_entries);
+                      wrapped_index, tlb->num_entries);
         return;
     }
 
-    bool old_entry_valid = GET_TLB_FIELD(tlb->entries[myidx], PTE_V);
-    if (old_entry_valid && hexagon_cpu_mmu_enabled(env)) {
-        /* FIXME - Do we have to invalidate everything here? */
-        CPUState *cs = env_cpu(env);
-        tlb_flush(cs);
-    }
     uint64_t VA = hex_tlb_virt_addr(value);
     uint64_t PA = hex_tlb_phys_addr(value);
-    trace_hexagon_tlbw(env->threadId, myidx, VA, PA);
-    tlb->entries[myidx] = value;
+    trace_hexagon_tlbw(threadId, wrapped_index, VA, PA);
+    tlb->entries[wrapped_index] = value;
 }
 
-bool hexagon_tlb_find_match(HexagonTLBState *tlb, void *env_ptr,
+bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
                             target_ulong VA, MMUAccessType access_type,
                             hwaddr *PA, int *prot, uint64_t *size,
-                            int32_t *excp, int mmu_idx)
+                            int32_t *excp, int32_t *cause_code, int mmu_idx,
+                            uint32_t num_tlbs)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     *PA = 0;
     *prot = 0;
     *size = 0;
     *excp = 0;
+    *cause_code = 0;
 
     if (!tlb) {
         /* No TLB - return miss */
         return false;
     }
 
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
-    uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
     int i;
-    HexagonCPU *cpu = env_archcpu(env);
-
     /* Search through available TLB entries */
-    uint32_t search_limit = MIN(cpu->num_tlbs, tlb->num_entries);
+    uint32_t search_limit = MIN(num_tlbs, tlb->num_entries);
     for (i = 0; i < search_limit; i++) {
         uint64_t entry = tlb->entries[i];
-        if (hex_tlb_entry_match(env, entry, asid, VA, access_type, PA, prot,
-                                size, excp, mmu_idx)) {
+        if (hex_tlb_entry_match(entry, asid, VA, access_type, PA, prot,
+                                size, excp, cause_code, mmu_idx)) {
             return true;
         }
     }
     return false;
 }
 
-static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb,
-                                       void *env_ptr, uint32_t asid,
-                                       uint64_t VA, bool extended)
+static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb, uint32_t asid,
+                                       uint64_t VA, bool extended,
+                                       uint32_t *imprecise_exception,
+                                       int32_t *cause_code,
+                                       uint32_t jtlb_entries)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     uint32_t not_found = 0x80000000;
     uint32_t idx = not_found;
 
@@ -461,22 +450,21 @@ static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb,
         return not_found;
     }
 
-    HexagonCPU *cpu = env_archcpu(env);
     uint32_t init_tlb_reg = extended ? DMA_TLB_OFFSET : 0;
     uint32_t max_tlb_reg = extended
-        ? DMA_TLB_OFFSET + cpu->dma_jtlb_entries
-        : cpu->jtlb_entries;
+        ? DMA_TLB_OFFSET + tlb->dma_entries
+        : jtlb_entries;
 
     /* Ensure we don't go beyond allocated entries */
     max_tlb_reg = MIN(max_tlb_reg, tlb->num_entries);
 
-    env->imprecise_exception = 0;
+    *imprecise_exception = 0;
     for (uint32_t i = init_tlb_reg; i < max_tlb_reg; i++) {
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
             if (idx != not_found) {
-                env->imprecise_exception = HEX_EVENT_IMPRECISE;
-                env->cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+                *imprecise_exception = HEX_EVENT_IMPRECISE;
+                *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
                 break;
             }
             idx = i;
@@ -486,18 +474,22 @@ static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb,
     return idx;
 }
 
-uint32_t hexagon_tlb_lookup(HexagonTLBState *tlb, void *env_ptr,
-                            uint32_t ssr, uint32_t VA)
+uint32_t hexagon_tlb_lookup(HexagonTLBState *tlb, uint8_t asid, uint32_t VA,
+                            uint32_t *imprecise_exception, int32_t *cause_code,
+                            uint32_t jtlb_entries)
 {
-    return hex_tlb_lookup_by_asid(tlb, env_ptr, GET_SSR_FIELD(SSR_ASID, ssr),
-                                  VA, false);
+    return hex_tlb_lookup_by_asid(tlb, asid, VA, false,
+                                  imprecise_exception, cause_code,
+                                  jtlb_entries);
 }
 
-uint32_t hexagon_tlb_lookup_extended(HexagonTLBState *tlb, void *env_ptr,
-                                     uint32_t ssr, uint64_t VA)
+uint32_t hexagon_tlb_lookup_extended(HexagonTLBState *tlb, uint8_t asid,
+                                     uint64_t VA, uint32_t *imprecise_exception,
+                                     int32_t *cause_code, uint32_t jtlb_entries)
 {
-    return hex_tlb_lookup_by_asid(tlb, env_ptr, GET_SSR_FIELD(SSR_ASID, ssr),
-                                  VA, true);
+    return hex_tlb_lookup_by_asid(tlb, asid, VA, true,
+                                  imprecise_exception, cause_code,
+                                  jtlb_entries);
 }
 
 /*
@@ -506,10 +498,9 @@ uint32_t hexagon_tlb_lookup_extended(HexagonTLBState *tlb, void *env_ptr,
  * -1                        multiple matches
  * -2                        no match
  */
-int hexagon_tlb_check_overlap(HexagonTLBState *tlb, void *env_ptr,
-                              uint64_t entry, uint64_t index)
+int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
+                              uint64_t index, uint32_t num_tlbs)
 {
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     int matches = 0;
     int last_match = 0;
     int i;
@@ -519,11 +510,10 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, void *env_ptr,
         return 0;
     }
 
-    HexagonCPU *cpu = env_archcpu(env);
-    uint32_t search_limit = MIN(cpu->num_tlbs, tlb->num_entries);
+    uint32_t search_limit = MIN(num_tlbs, tlb->num_entries);
 
     for (i = 0; i < search_limit; i++) {
-        if (hex_tlb_is_match(env, entry, tlb->entries[i], false)) {
+        if (hex_tlb_is_match(entry, tlb->entries[i], false)) {
             matches++;
             last_match = i;
         }
@@ -538,29 +528,15 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, void *env_ptr,
     return -1;
 }
 
-void hexagon_tlb_lock(HexagonTLBState *tlb, void *env_ptr)
+void hexagon_tlb_dump(HexagonTLBState *tlb)
 {
-    /* Lock operation is now handled in the CPU layer */
-}
-
-void hexagon_tlb_unlock(HexagonTLBState *tlb, void *env_ptr)
-{
-    /* Unlock operation is now handled in the CPU layer */
-}
-
-void hexagon_tlb_dump(HexagonTLBState *tlb, void *env_ptr)
-{
-    CPUHexagonState *env = (CPUHexagonState *)env_ptr;
     int i;
 
     if (!tlb) {
         return;
     }
 
-    HexagonCPU *cpu = env_archcpu(env);
-    uint32_t dump_limit = MIN(cpu->num_tlbs, tlb->num_entries);
-
-    for (i = 0; i < dump_limit; i++) {
+    for (i = 0; i < tlb->num_entries; i++) {
         uint64_t entry = tlb->entries[i];
         if (GET_TLB_FIELD(entry, PTE_V)) {
             qemu_printf("0x%016" PRIx64 ": ", entry);
