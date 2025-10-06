@@ -45,7 +45,7 @@ struct target_sigcontext {
     target_ulong cause;
     target_ulong badva;
     target_ulong pred[NUM_PREGS];
-};
+} QEMU_ALIGNED(8);
 
 struct target_ucontext {
     unsigned long uc_flags;
