@@ -172,8 +172,8 @@ This argument has always been ignored.
 Host Architectures
 ------------------
 
-Big endian MIPS since 7.2; 32-bit little endian MIPS since 9.2
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Big endian MIPS since 7.2; 32-bit little endian MIPS since 9.2, MIPS since 11.0
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 As Debian 10 ("Buster") moved into LTS the big endian 32 bit version of
 MIPS moved out of support making it hard to maintain our
@@ -181,10 +181,7 @@ cross-compilation CI tests of the architecture. As we no longer have
 CI coverage support may bitrot away before the deprecation process
 completes.
 
-Likewise, the little endian variant of 32 bit MIPS is not supported by
-Debian 13 ("Trixie") and newer.
-
-64 bit little endian MIPS is still a supported host architecture.
+Likewise, MIPS is not supported by Debian 13 ("Trixie") and newer.
 
 System emulation on 32-bit x86 hosts (since 8.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''
@@ -252,6 +249,15 @@ removed in QEMU 10.0. Since the IBM POWER [8-11] processors uses an
 embedded 405 for power management (OCC) and other internal tasks, it
 is theoretically possible to use QEMU to model them. Let's keep the
 CPU implementation for a while before removing all support.
+
+Power8E and Power8NVL CPUs and corresponding Pnv chips (since 10.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Power8E and Power8NVL variants of Power8 are not really useful anymore
+in qemu, and are old and unmaintained now.
+
+The CPUs as well as corresponding Power8NVL and Power8E PnvChips will also
+be considered deprecated.
 
 System emulator machines
 ------------------------

@@ -50,8 +50,6 @@ static int spice_migration_completed;
 static int spice_display_is_running;
 static int spice_have_target_host;
 
-static QemuThread me;
-
 struct SpiceTimer {
     QEMUTimer *timer;
 };
@@ -128,11 +126,13 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
 static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *opaque)
 {
     SpiceWatch *watch;
-
 #ifdef WIN32
+    g_autofree char *msg = NULL;
+
     fd = _open_osfhandle(fd, _O_BINARY);
     if (fd < 0) {
-        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        msg = g_win32_error_message(WSAGetLastError());
+        warn_report("Couldn't associate a FD with the SOCKET: %s", msg);
         return NULL;
     }
 #endif
@@ -222,7 +222,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * thread and grab the BQL if so before calling qemu
      * functions.
      */
-    bool need_lock = !qemu_thread_is_self(&me);
+    bool need_lock = !bql_locked();
     if (need_lock) {
         bql_lock();
     }
@@ -674,8 +674,6 @@ static void qemu_spice_init(void)
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
     bool seamless_migration;
-
-    qemu_thread_get_self(&me);
 
     if (!opts) {
         return;

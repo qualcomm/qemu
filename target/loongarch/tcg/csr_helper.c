@@ -26,13 +26,14 @@ target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
      * The real hardware only supports the min tlb_ps is 12
      * tlb_ps=0 may cause undefined-behavior.
      */
-    uint8_t tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
+    uint8_t tlb_ps = FIELD_EX64(val, CSR_STLBPS, PS);
     if (!check_ps(env, tlb_ps)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Attempted set ps %d\n", tlb_ps);
     } else {
         /* Only update PS field, reserved bit keeps zero */
-        env->CSR_STLBPS = FIELD_DP64(old_v, CSR_STLBPS, PS, tlb_ps);
+        val = FIELD_DP64(val, CSR_STLBPS, RESERVE, 0);
+        env->CSR_STLBPS = val;
     }
 
     return old_v;
@@ -71,6 +72,27 @@ target_ulong helper_csrrd_tval(CPULoongArchState *env)
     LoongArchCPU *cpu = env_archcpu(env);
 
     return cpu_loongarch_get_constant_timer_ticks(cpu);
+}
+
+target_ulong helper_csrrd_msgir(CPULoongArchState *env)
+{
+    int irq, new;
+
+    irq = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+    if (irq < 256) {
+        clear_bit(irq, (unsigned long *)env->CSR_MSGIS);
+        new = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+        if (new < 256) {
+            return irq;
+        }
+
+        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
+    } else {
+        /* bit 31 set 1 for no invalid irq */
+        irq = BIT(31);
+    }
+
+    return irq;
 }
 
 target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)

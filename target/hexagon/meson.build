@@ -1,5 +1,5 @@
 ##
-##  Copyright(c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2020-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -311,6 +311,9 @@ hexagon_softmmu_ss.add(files(
     'monitor.c',
     'machine.c',
 ))
+
+hexagon_softmmu_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
+		       if_true: files('common-semi-target.c'))
 
 #
 # Step 4.5
