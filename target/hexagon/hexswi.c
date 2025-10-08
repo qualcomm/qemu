@@ -28,6 +28,7 @@
 
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
+    DEF_SWI_FLAG(SEEK,             0x0A) \
     DEF_SWI_FLAG(EXCEPTION,        0x18) \
     DEF_SWI_FLAG(READ_CYCLES,      0x40) \
     DEF_SWI_FLAG(PROF_ON,          0x41) \
@@ -324,6 +325,17 @@ static void sim_handle_trap0(CPUHexagonState *env)
         fflush(stdout);
         semi_cb(cs, 0, 0);
         break;
+
+    case HEX_SYS_SEEK:
+    {
+        int fd;
+        target_ulong off;
+        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        hexagon_read_memory(env, swi_info + 4, 4, &off, retaddr);
+        semihost_sys_lseek(env_cpu(env), common_semi_ftell_cb, fd, off,
+                          GDB_SEEK_SET);
+    }
+    break;
 
     case HEX_SYS_STAT:
     case HEX_SYS_FSTAT:
