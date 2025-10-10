@@ -16,22 +16,23 @@
 
 /**
  * iotlb_to_section:
- * @cpu: CPU performing the access
+ * @as: Address space to access
  * @index: TCG CPU IOTLB entry
  *
  * Given a TCG CPU IOTLB entry, return the MemoryRegionSection that
  * it refers to. @index will have been initially created and returned
  * by memory_region_section_get_iotlb().
  */
-MemoryRegionSection *iotlb_to_section(CPUState *cpu,
-                                      hwaddr index, MemTxAttrs attrs);
+struct MemoryRegionSection *iotlb_to_section(AddressSpace *as,
+                                             hwaddr index, MemTxAttrs attrs);
 
 MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
                                                        int asidx,
                                                        hwaddr addr,
                                                        hwaddr *xlat,
                                                        hwaddr *plen,
-                                                       MemTxAttrs attrs,
+                                                       MemTxAttrs *attrs,
+                                                       AddressSpace **as,
                                                        int *prot);
 
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
