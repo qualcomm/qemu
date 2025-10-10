@@ -20,14 +20,15 @@
 
 void tcg_iommu_init_notifier_list(CPUState *cpu);
 void tcg_iommu_free_notifier_list(CPUState *cpu);
+typedef struct AddressSpace AddressSpace;
 
 MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
                                                        int asidx,
                                                        hwaddr addr,
                                                        hwaddr *xlat,
                                                        hwaddr *plen,
-                                                       MemTxAttrs attrs,
+                                                       MemTxAttrs *attrs,
+                                                       AddressSpace **as,
                                                        int *prot);
 
 #endif
-

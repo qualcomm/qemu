@@ -279,6 +279,8 @@ struct CPUTLBEntryFull {
             bool guarded;
         } arm;
     } extra;
+
+    AddressSpace *as;
 };
 
 /*
