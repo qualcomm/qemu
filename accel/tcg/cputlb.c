@@ -1059,6 +1059,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     vaddr addr_page;
     int asidx, wp_flags, prot;
     bool is_ram, is_romd;
+    AddressSpace *as;
 
     assert_cpu_is_self(cpu);
 
@@ -1074,7 +1075,8 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     prot = full->prot;
     asidx = cpu_asidx_from_attrs(cpu, full->attrs);
     section = address_space_translate_for_iotlb(cpu, asidx, paddr_page,
-                                                &xlat, &sz, full->attrs, &prot);
+                                                &xlat, &sz, &full->attrs, &as,
+                                                &prot);
     assert(sz >= TARGET_PAGE_SIZE);
 
     tlb_debug("vaddr=%016" VADDR_PRIx " paddr=0x" HWADDR_FMT_plx

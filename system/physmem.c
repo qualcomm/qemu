@@ -689,7 +689,8 @@ void tcg_iommu_init_notifier_list(CPUState *cpu)
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
                                   hwaddr *xlat, hwaddr *plen,
-                                  MemTxAttrs attrs, int *prot)
+                                  MemTxAttrs *attrs, AddressSpace **as,
+                                  int *prot)
 {
     MemoryRegionSection *section;
     IOMMUMemoryRegion *iommu_mr;
@@ -697,7 +698,8 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
     IOMMUTLBEntry iotlb;
     int iommu_idx;
     hwaddr addr = orig_addr;
-    AddressSpaceDispatch *d = address_space_to_dispatch(cpu->cpu_ases[asidx].as);
+    *as = cpu->cpu_ases[asidx].as;
+    AddressSpaceDispatch *d = address_space_to_dispatch(*as);
 
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
@@ -709,13 +711,13 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
 
         imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
 
-        iommu_idx = imrc->attrs_to_index(iommu_mr, attrs);
+        iommu_idx = imrc->attrs_to_index(iommu_mr, *attrs);
         tcg_register_iommu_notifier(cpu, iommu_mr, iommu_idx);
         /* We need all the permissions, so pass IOMMU_NONE so the IOMMU
          * doesn't short-cut its translation table walk.
          */
         if (imrc->translate_attr) {
-            iotlb = imrc->translate_attr(iommu_mr, addr, IOMMU_NONE, &attrs);
+            iotlb = imrc->translate_attr(iommu_mr, addr, IOMMU_NONE, attrs);
         } else {
             iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, iommu_idx);
         }
@@ -736,7 +738,8 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
             goto translate_fail;
         }
 
-        d = flatview_to_dispatch(address_space_to_flatview(iotlb.target_as));
+        *as = iotlb.target_as;
+        d = flatview_to_dispatch(address_space_to_flatview(*as));
     }
 
     assert(!memory_region_is_iommu(section->mr));

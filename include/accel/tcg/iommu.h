@@ -14,12 +14,15 @@
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
 
+typedef struct AddressSpace AddressSpace;
+
 MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
                                                        int asidx,
                                                        hwaddr addr,
                                                        hwaddr *xlat,
                                                        hwaddr *plen,
-                                                       MemTxAttrs attrs,
+                                                       MemTxAttrs *attrs,
+                                                       AddressSpace **as,
                                                        int *prot);
 
 #endif
