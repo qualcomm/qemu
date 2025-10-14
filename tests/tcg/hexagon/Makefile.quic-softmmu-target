@@ -169,8 +169,9 @@ checkforpriv.o: checkforpriv.c mmu.h
 checkforpriv: checkforpriv.o
 pend_wake_wait: pend_wake_wait.o util.o thread_common.o
 gregs: gregs.o
-multiple_writes.o: multiple_writes.c mmu.h
-multiple_writes: multiple_writes.o
+multiple_writes_tgts.o: multiple_writes_tgts.S multiple_writes_tgts.h
+multiple_writes.o: multiple_writes.c mmu.h multiple_writes_tgts.h
+multiple_writes: multiple_writes.o multiple_writes_tgts.o
 thread_scheduling: thread_scheduling.o thread_common.o
 rev: rev.o
 rev.o: EXTRA_TEST_CFLAGS=-mv73
