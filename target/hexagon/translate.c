@@ -1424,8 +1424,8 @@ static void gen_commit_packet(DisasContext *ctx)
      * involved in committing the packet.
      */
     bool has_store_s0 = pkt->pkt_has_scalar_store_s0;
-    bool has_store_s1 = (pkt->pkt_has_scalar_store_s1 &&
-                         !ctx->s1_store_processed);
+    bool has_store_s1 =
+        (pkt->pkt_has_scalar_store_s1 && !ctx->s1_store_processed);
     bool has_hvx_store = pkt_has_hvx_store(pkt);
     if (pkt->pkt_has_dczeroa) {
         /*

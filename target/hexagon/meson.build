@@ -28,11 +28,12 @@ imported_dir = meson.current_source_dir() / 'imported'
 # Step 0
 # Create combined ext.idef for mmvec
 #
+compiler = meson.get_compiler('c').get_id()
 preprocessed_mmvec_ext = custom_target(
     'mmvec_ext.preprocessed.idef',
     output: 'mmvec_ext.preprocessed.idef',
     input: imported_dir / 'mmvec_ext.idef',
-    command: [idef_parser_dir / 'prepare', '@INPUT@', '-o', '@OUTPUT@'],
+    command: [compiler, '-x', 'c', '-E', '-o', '@OUTPUT@', '@INPUT@']
 )
 generated_mmvec_ext = custom_target(
     'generated_mmvec_ext.idef',
@@ -339,7 +340,7 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
         output: 'idef_parser_input.preprocessed.h.inc',
         input: idef_parser_input_generated,
         depend_files: [idef_parser_dir / 'macros.h.inc'],
-        command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
+        command: [compiler, '-x', 'c', '-E', '-I', idef_parser_dir, '-o', '@OUTPUT@', '@INPUT@'],
     )
 
     flex = generator(
@@ -377,7 +378,7 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
     )
 
     indent = find_program('indent', required: false)
-    if indent.found() and build_machine.system() != 'darwin'
+    if indent.found() and host_os == 'linux'
         idef_generated_tcg_c = custom_target(
             'indent',
             input: idef_generated_tcg[0],

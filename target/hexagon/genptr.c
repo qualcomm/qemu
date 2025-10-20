@@ -570,7 +570,8 @@ static inline void gen_store_conditional8(DisasContext *ctx,
 
 static TCGv gen_slotval(DisasContext *ctx)
 {
-    int slotval = (ctx->pkt->pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
+    int slotval =
+        (ctx->pkt->pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
     return tcg_constant_tl(slotval);
 }
 

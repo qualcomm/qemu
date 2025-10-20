@@ -437,6 +437,7 @@ def is_coproc(tag):
     return ('A_COPROC' in attribdict[tag])
 # end QUIC SPECIFIC
 
+
 #
 # Every register is either Scalar or Hvx
 #
