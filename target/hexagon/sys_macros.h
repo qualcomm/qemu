@@ -13,7 +13,6 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define READ_SREG(NUM) arch_get_system_reg(env, NUM)
 
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
@@ -104,7 +103,7 @@
 #define fVIRTINSN_GETIE(IMM, REG) { REG = 0xdeafbeef; }
 #define fVIRTINSN_SETIE(IMM, REG)
 #define fVIRTINSN_RTE(IMM)
-#define fGRE_ENABLED() GET_FIELD(CCR_GRE, READ_SREG(HEX_SREG_CCR))
+#define fGRE_ENABLED() GET_FIELD(CCR_GRE, arch_get_system_reg(env, HEX_SREG_CCR))
 #define fTRAP1_VIRTINSN(IMM) \
     (fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))

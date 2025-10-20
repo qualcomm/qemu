@@ -502,7 +502,7 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    iad = READ_SREG(HEX_SREG_IAD) & ~(mask);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD) & ~(mask);
     arch_set_system_reg(env, HEX_SREG_IAD, iad);
     hexagon_clear_last_irq(env, L2VIC_VID_0);
     hex_interrupt_update(env);
@@ -513,7 +513,7 @@ void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    iad = READ_SREG(HEX_SREG_IAD) | mask;
+    iad = arch_get_system_reg(env, HEX_SREG_IAD) | mask;
     arch_set_system_reg(env, HEX_SREG_IAD, iad);
     hex_interrupt_update(env);
 }
