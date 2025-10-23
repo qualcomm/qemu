@@ -430,6 +430,7 @@ static void virt_init(MachineState *ms)
         cpu_model = HEXAGON_CPU_TYPE_NAME("v73");
     }
 
+    DeviceState *gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
@@ -439,10 +440,10 @@ static void virt_init(MachineState *ms)
         if (i == 0) {
             if (ms->kernel_filename) {
                 uint64_t entry = setup_boot(vms);
-                qdev_prop_set_uint32(DEVICE(cpus[0]), "exec-start-addr", entry);
+                qdev_prop_set_uint32(gsregs_dev, "boot-evb", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
-                qdev_prop_set_uint32(DEVICE(cpus[0]), "exec-start-addr", entry);
+                qdev_prop_set_uint32(gsregs_dev, "boot-evb", entry);
             }
         }
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
@@ -474,10 +475,7 @@ static void virt_init(MachineState *ms)
         qdev_get_gpio_in(DEVICE(cpus[0]), 5), qdev_get_gpio_in(DEVICE(cpus[0]), 6),
         qdev_get_gpio_in(DEVICE(cpus[0]), 7), NULL);
 
-    /* Now create and configure globalreg */
-    DeviceState *gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
-
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
     qdev_prop_set_uint32(gsregs_dev, "qtimer-base-addr", m_cfg->qtmr_region);

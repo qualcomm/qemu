@@ -121,7 +121,7 @@ static void hexagon_load_kernel(HexagonCPU *cpu, Rev_t *rev)
                      rev_byte, elf_rev_byte);
     }
 
-    qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", pentry);
+    qdev_prop_set_uint32(DEVICE(cpu->globalregs), "boot-evb", pentry);
 }
 
 static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
@@ -350,6 +350,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
 
+        if (!object_property_set_link(OBJECT(cpu), "global-regs",
+                                      OBJECT(glob_regs_dev), errp)) {
+            error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
 
         env->shm_fd = shm_fd;
         if (i == 0) {
@@ -371,11 +376,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     /* Finally, link cpus to global registers and do realization */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
-                                      OBJECT(glob_regs_dev), errp)) {
-            error_report("Failed to link global system registers to CPU %d", i);
-            goto out;
-        }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
             goto out;

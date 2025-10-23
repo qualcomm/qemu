@@ -54,5 +54,6 @@ void hexagon_globalreg_reset(HexagonCPU *cpu);
 uint64_t hexagon_globalreg_get_pcycle_base(HexagonCPU *cpu);
 void hexagon_globalreg_set_pcycle_base(HexagonCPU *cpu, uint64_t value);
 
+uint32_t hexagon_globalreg_get_boot_evb(HexagonCPU *cpu);
 
 #endif /* HEXAGON_GLOBALREG_H */

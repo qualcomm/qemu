@@ -719,9 +719,7 @@ static void set_addresses(CPUHexagonState *env,
     arch_set_system_reg(env, HEX_SREG_ELR,
         arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t evb = cpu->globalregs ?
-        arch_get_system_reg(env, HEX_SREG_EVB) :
-        cpu->boot_addr;
+    uint32_t evb = cpu->globalregs ? arch_get_system_reg(env, HEX_SREG_EVB) : 0;
     arch_set_thread_reg(env, HEX_REG_PC, evb | (exception_index << 2));
 }
 
