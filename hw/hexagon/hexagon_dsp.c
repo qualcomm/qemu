@@ -123,7 +123,7 @@ static void hexagon_load_kernel(HexagonCPU *cpu, Rev_t *rev)
                      rev_byte, elf_rev_byte);
     }
 
-    qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", pentry);
+    qdev_prop_set_uint32(DEVICE(cpu->globalregs), "boot-evb", pentry);
 }
 
 static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
@@ -355,6 +355,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
+        if (!object_property_set_link(OBJECT(cpu), "global-regs",
+                                      OBJECT(glob_regs_dev), errp)) {
+            error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
 
         env->shm_fd = shm_fd;
         if (i == 0) {
@@ -376,11 +381,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     /* Finally, link cpus to global registers and do realization */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
-                                      OBJECT(glob_regs_dev), errp)) {
-            error_report("Failed to link global system registers to CPU %d", i);
-            goto out;
-        }
         if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
                                       OBJECT(tlb_dev), errp)) {
             error_report("Failed to link TLB to CPU %d", i);

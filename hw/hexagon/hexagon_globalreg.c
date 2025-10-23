@@ -254,6 +254,12 @@ uint64_t hexagon_globalreg_get_pcycle_base(HexagonCPU *cpu)
     return s->g_pcycle_base;
 }
 
+uint32_t hexagon_globalreg_get_boot_evb(HexagonCPU *cpu)
+{
+    HexagonGlobalRegState *s = cpu->globalregs;
+    return s ? s->boot_evb : 0x0;
+}
+
 void hexagon_globalreg_set_pcycle_base(HexagonCPU *cpu, uint64_t value)
 {
     HexagonGlobalRegState *s = cpu->globalregs;
@@ -268,7 +274,6 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
 
     s->g_pcycle_base = 0;
 
-    s->regs[HEX_SREG_EVB] = s->boot_evb;
     s->regs[HEX_SREG_CFGBASE] = HEXAGON_CFG_ADDR_BASE(s->config_table_addr);
     s->regs[HEX_SREG_REV] = s->dsp_rev;
 

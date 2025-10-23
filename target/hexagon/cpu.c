@@ -103,7 +103,6 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
     DEFINE_PROP_STRING("cmdline", HexagonCPU, cmdline),
     DEFINE_PROP_BOOL("virtual-platform-mode", HexagonCPU, vp_mode, false),
-    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
                        0xffffffffULL),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
@@ -633,7 +632,7 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
         target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
         arch_set_thread_reg(env, HEX_REG_PC, evb);
     } else {
-        arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
+        arch_set_thread_reg(env, HEX_REG_PC, 0x0);
     }
 }
 #endif
@@ -726,7 +725,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->ss_pending = false;
 
     hexagon_cpu_soft_reset(env);
-    arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
+    arch_set_thread_reg(env, HEX_REG_PC, hexagon_globalreg_get_boot_evb(cpu));
 #endif
 }
 
