@@ -202,7 +202,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                    __func__, __LINE__, filemode);
         }
 
-        ret = open(filename, real_openmode, 0644);
+        ret = open(filename, real_openmode | O_BINARY, 0644);
 
         if (ret == -1) {
             err = errno;
