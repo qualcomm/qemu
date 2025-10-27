@@ -23,5 +23,8 @@ xtensa_system_ss.add(files(
   'xtensa-semi.c',
 ))
 
+xtensa_system_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
+		     if_true: files('common-semi-target.c'))
+
 target_arch += {'xtensa': xtensa_ss}
 target_system_arch += {'xtensa': xtensa_system_ss}
