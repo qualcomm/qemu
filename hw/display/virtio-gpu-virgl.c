@@ -601,7 +601,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
         return;
     }
 
-#if VIRGL_VERSION_MAJOR >= 1
+#ifdef HAVE_VIRGL_D3D_INFO_EXT
     struct virgl_renderer_resource_info_ext ext;
     memset(&ext, 0, sizeof(ext));
     ret = virgl_renderer_resource_get_info_ext(ss.resource_id, &ext);
