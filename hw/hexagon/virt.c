@@ -385,7 +385,7 @@ static uint64_t load_bios(HexagonVirtMachineState *vms)
     uint64_t bios_addr = 0x0;
     int bios_size;
 
-    bios_size = load_image_targphys(ms->firmware, bios_addr, 64 * 1024);
+    bios_size = load_image_targphys(ms->firmware, bios_addr, 64 * 1024, NULL);
     if (bios_size < 0) {
         error_report("Could not load BIOS '%s'", ms->firmware);
         exit(1);
