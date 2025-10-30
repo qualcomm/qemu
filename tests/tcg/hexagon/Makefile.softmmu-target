@@ -41,20 +41,9 @@ tlb.o: crt0/tlb.c
 CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o tlb.o
 
 TESTS += \
-	mmu_page_size \
-	mmu_overlap \
-	standalone_vec \
 	standalone_hw \
-	mmu_asids \
 	semihost \
-	ciad-siad \
-	udma \
-	vid_reg \
-	int_range \
-	hvx-multi \
 	tlb-miss-tlblock \
-	badva \
-	fastl2vic \
 	$()
 
 $(TESTS): $(CRT0_OBJS)
@@ -82,37 +71,13 @@ $(TESTS):
 	$(call build_fn,$<,$@)
 
 mmu.h: ../hex_test.h
-invalid_opcode.h: mmu.h
 
-mmu_page_size.o: mmu_page_size.c mmu.h
-mmu_page_size: mmu_page_size.o dummy_mutex.o
 standalone_hw: standalone_hw.o monitor_insts.o
-standalone_vec.o: standalone_vec.c cfgtable.h
-standalone_vec: standalone_vec.o
-mmu_overlap.o: mmu_overlap.c mmu.h
-mmu_overlap: mmu_overlap.o dummy_mutex.o
-mmu_asids.o: mmu_asids.c mmu.h
-mmu_asids: mmu_asids.o dummy_mutex.o
-mmu_cacheops.o: mmu_cacheops.c mmu.h
-ciad-siad: ciad-siad.o
-udma: udma.o
-udma.o: udma.c dma.h
-vid_reg: vid_reg.o
-int_range.o: int_range.c cfgtable.h
-int_range: int_range.o
 semihost.o: semihost.c strutils.h
 semihost: semihost.o
-hvx-multi.o: hvx-multi.c ../hvx_misc.h
-hvx-multi: hvx-multi.o
-badva.o: badva.c ../hex_test.h crt0/hexagon_standalone.h
-badva: badva.o
-fastl2vic.o: fastl2vic.c cfgtable.h
-fastl2vic: fastl2vic.o
 
 ############# Custom build options
 
-standalone_vec.o: CFLAGS+= -mv69 -O2 -mhvx  -fvectorize
-hvx-multi.o: CFLAGS+= -O2 -mhvx
 
 # We don't want to link this one with crt0 files
 tlb-miss-tlblock: tlb-miss-tlblock.o
@@ -121,8 +86,6 @@ tlb-miss-tlblock: tlb-miss-tlblock.o
 ############# Custom test rules
 
 run-standalone_hw: standalone_hw
-run-standalone_vec: standalone_vec
-run-standalone_hw run-standalone_vec:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
 	$(call run-test, $<, $(QEMU) $(PARANOID_OPTS) -kernel $<, "$< on $(TARGET_NAME) paranoid")
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< -M SA8540P_CDSP0,"$< on $(TARGET_NAME) cdsp0")

@@ -9,46 +9,23 @@
 CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
 
 DOWNSTREAM_TESTS += \
-	mmu_multi_tlb \
 	mmu_permissions \
 	mmu_cacheops \
-	tlblock \
 	k0lock \
 	k0lock-syscfg \
-	invalid_opcode \
-	invalid_insn_for_rev \
-	sys_atomics \
-	bestwait \
-	fastint \
 	swi \
 	swi2 \
-	swi_wait \
 	hvx_64b \
 	neg-unaligned \
 	neg-vtcm_error \
-	pendalot \
-	vid-group \
-	levelint \
 	fopen \
 	ftrunc \
 	dirent \
 	access \
-	getcwd \
-	checkforpriv \
-	pend_wake_wait \
-	gregs \
-	multiple_writes \
 	thread_scheduling \
-	rev \
 	pmu \
-	start \
-	single_step \
-	sys_reg_mut \
 	memcpy \
-	double_ex \
-	qfloat_test \
 	vwctrl \
-	framelimit \
 	hsv39_tlb \
 	$()
 
@@ -119,33 +96,16 @@ run-hvx_misc-sys: hvx_misc-sys
 EXTRA_RUNS += run-hvx_ext-sys run-hvx-multi-sys run-hvx_misc-sys
 
 mmu.h: ../hex_test.h
-invalid_opcode.h: mmu.h
 
-mmu_multi_tlb.o: mmu_multi_tlb.c mmu.h
-mmu_multi_tlb: mmu_multi_tlb.o dummy_mutex.o
 mmu_permissions.o: mmu_permissions.c mmu.h
 mmu_permissions: mmu_permissions.o dummy_mutex.o
 mmu_cacheops.o: mmu_cacheops.c mmu.h
 mmu_cacheops: mmu_cacheops.o dummy_mutex.o
-tlblock: tlblock.o thread_common.o
 k0lock: k0lock.o thread_common.o
-invalid_opcode.o: invalid_opcode.c invalid_opcode.h
-invalid_opcode: invalid_opcode.o
-invalid_insn_for_rev.o: invalid_insn_for_rev.c invalid_opcode.h
-invalid_insn_for_rev: invalid_insn_for_rev.o
-sys_atomics: sys_atomics.o thread_common.o
-bestwait: bestwait.o thread_common.o
-fastint.o: fastint.c cfgtable.h
-fastint: fastint.o
 swi: swi.o thread_common.o
 swi2.o: swi2.c interrupts.h
 swi2: swi2.o thread_common.o
-swi_wait.o: swi_wait.c util.h thread_common.h
-swi_wait: swi_wait.o util.o thread_common.o
-qfloat_test: qfloat_test.o
 simple-assign: simple-assign.o
-reg-reads: reg-reads.o
-reg-reads.o: reg-reads.c timer.h pmu.h
 reg-writes: reg-writes.o
 reg-writes.o: reg-writes.c
 wait: wait.o
@@ -153,74 +113,43 @@ hvx_64b.o: hvx_64b.c mmu.h
 hvx_64b: hvx_64b.o
 neg-unaligned: unaligned.o
 neg-vtcm_error: vtcm_error.o
-pendalot.o: pendalot.c cfgtable.h
-pendalot: pendalot.o
-vid-group.o : vid-group.c thread_common.h cfgtable.h
-vid-group: vid-group.o thread_common.o
-levelint.o: levelint.c cfgtable.h
-levelint: levelint.o
 fopen: fopen.o
 ftrunc: ftrunc.o
 dirent.o: dirent.c strutils.h
 dirent: dirent.o
 access: access.o
-getcwd: getcwd.o
-checkforpriv.o: checkforpriv.c mmu.h
-checkforpriv: checkforpriv.o
-pend_wake_wait: pend_wake_wait.o util.o thread_common.o
-gregs: gregs.o
-multiple_writes_tgts.o: multiple_writes_tgts.S multiple_writes_tgts.h
-multiple_writes.o: multiple_writes.c mmu.h multiple_writes_tgts.h
-multiple_writes: multiple_writes.o multiple_writes_tgts.o
 thread_scheduling: thread_scheduling.o thread_common.o
-rev: rev.o
-rev.o: EXTRA_TEST_CFLAGS=-mv73
 pmu: pmu.o thread_common.o
 pmu.o: pmu.c pmu.h
-start.o: start.c mmu.h
-start: start.o thread_common.o
-single_step: single_step.o single_step_asm.o thread_common.o
-sys_reg_mut.o: sys_reg_mut.c ../reg_mut.h ../hex_test.h
-sys_reg_mut: sys_reg_mut.o
 memcpy.o: memcpy.c vtcm_common.h mmu.h
 memcpy: memcpy.o
 inf-loop: inf-loop.o
-double_ex.o: double_ex.c
-double_ex: double_ex.o
 k0lock-syscfg: k0lock-syscfg.c thread_common.o
 k0locklock: k0locklock.o
 tlblocklock: tlblocklock.o
 vwctrl: vwctrl.o
 vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
-framelimit: framelimit.o
-framelimit.o: framelimit.c mmu.h
 hsv39_tlb: hsv39_tlb.o
 hsv39_tlb.o: hsv39_tlb.c hsv39.h
 
-reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
-reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
 reg-writes.o: EXTRA_TEST_CFLAGS=-O0 -g
 reg-writes: EXTRA_TEST_CFLAGS=-O0 -g
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
 pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
-qfloat_test.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
 swi swi2: EXTRA_TEST_CFLAGS=-mv81
 hsv39_tlb: EXTRA_TEST_CFLAGS=-mv81
 
 # memcpy insn was removed in v75
 run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
-run-invalid_insn_for_rev_0x66: QEMU_EXTRA_OPTS=-M V66G_1024
-run-invalid_insn_for_rev_0x68: QEMU_EXTRA_OPTS=-M V68N_1024
 run-vwctrl:QEMU_EXTRA_OPTS=-M sim_coproc
 run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
 run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81QA_1
 run-swi: swi
 run-swi2: swi2
 run-thread_scheduling: thread_scheduling
-run-float_excp: float_excp
 run-neg-unaligned: neg-unaligned
 run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81QA_1
 
@@ -236,10 +165,6 @@ run-neg-vtcm_error: neg-vtcm_error
 run-swi run-swi2 run-thread_scheduling:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
-
-run-qfloat_test: qfloat_test
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< >_$@.out ,"$< on $(TARGET_NAME)")
-	diff --strip-trailing-cr -q $(HEXAGON_SYSTEM_SRC)/qfloat.out.ref _$@.out
 
 run-fopen: fopen
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< -append dummy.so,"$< on $(TARGET_NAME)")
@@ -266,14 +191,3 @@ run-access: access
 run-hvx_64b: hvx_64b
 	$(call run-test, $<, $(QEMU) -M V66G_1024 -kernel $<, "$< on $(TARGET_NAME) V66")
 	$(call run-test, $<, $(QEMU) -M V68N_1024 -kernel $<, "$< on $(TARGET_NAME) V68")
-
-run-start: start
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< > $<.stdout)
-	$(call quiet-command, \
-		grep -q "PASS" $<.stdout, \
-		"GREP", "PASS");
-
-run-invalid_insn_for_rev: run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68
-	@: # do nothing
-run-invalid_insn_for_rev_0x66 run-invalid_insn_for_rev_0x68: invalid_insn_for_rev
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)

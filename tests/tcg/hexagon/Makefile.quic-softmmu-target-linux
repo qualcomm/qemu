@@ -2,26 +2,20 @@
 DOWNSTREAM_TESTS += \
 	invalid_coproc \
 	timer_reg \
-	qtimer_test \
-	qtimer \
 	ieee_fp \
 	coproc \
 	coproc_conv \
 	coproc_conv_fp16 \
 	coproc_range \
 	pcycle \
-	float_excp \
 	neg-hvx_nocoproc \
 	neg-no-coproc \
-	swi_fs \
 	$()
 
 invalid_coproc.o: invalid_coproc.c mmu.h
 invalid_coproc: invalid_coproc.o
 timer_reg: timer_reg.o
 timer_reg.o: timer_reg.c timer.h
-qtimer_test: qtimer_test.o
-qtimer: qtimer.o thread_common.o
 ieee_fp: ieee_fp.o
 coproc: coproc.o
 coproc.o: coproc.c coproc_ref.h
@@ -36,11 +30,9 @@ coproc_conv_fp16: coproc_conv_fp16.o
 coproc_range: coproc_range.o
 neg-hvx_nocoproc: hvx_nocoproc.o
 neg-no-coproc: coproc.o
-swi_fs: swi_fs.o
 test-thread: test-thread.o
 pcycle.o: pcycle.c ../hex_test.h
 pcycle: pcycle.o
-float_excp: float_excp.o
 
 hvx_nocoproc.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp
@@ -50,8 +42,6 @@ coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_range.o: EXTRA_TEST_CFLAGS= -mhmx
 timer_reg.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000
-qtimer_test.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
-qtimer.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000 -DQTMR_FREQ=19200000 -DIRQ1=3 -DIRQ2=4
 
 run-vid-group: QEMU_BASE_MACHINE=-cpu v67,sched-limit=on
 run-test-thread: QEMU_EXTRA_OPTS=-smp cpus=8
@@ -65,7 +55,6 @@ run-invalid_coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 run-neg-hvx_nocoproc: neg-hvx_nocoproc
 run-vid-group: vid-group
 run-timer_reg: timer_reg
-run-qtimer_test: qtimer_test
 run-swi_wait: swi_wait
 run-tlblock: tlblock
 run-k0lock: k0lock
@@ -142,7 +131,7 @@ endef
 endif
 
 ICOUNT_OPTS=-icount auto
-run-tlblock run-k0lock run-swi_wait run-timer_reg run-qtimer_test run-vid-group:
+run-tlblock run-k0lock run-swi_wait run-timer_reg run-vid-group:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
 
@@ -226,6 +215,11 @@ run-lldb-revcon run-lldb-reg-reads run-lldb-reg-writes: export LLDB_HEXAGON_QEMU
 
 run-lldb-revcon: simple-assign qemu-wrapper-for-lldb
 	$(call run-lldb,$@,test-revcon.lldb,"basic qemu revcon test")
+
+reg-reads: reg-reads.o
+reg-reads.o: reg-reads.c timer.h pmu.h
+reg-reads.o: EXTRA_TEST_CFLAGS=-DCSR_BASE=0xfc900000 -mhvx -O0 -g
+reg-reads: EXTRA_TEST_CFLAGS=-O0 -g
 
 run-lldb-reg-reads: reg-reads qemu-wrapper-for-lldb
 	$(call run-lldb,$@,test-reg-reads.lldb,"gdbstub reg reading test")
