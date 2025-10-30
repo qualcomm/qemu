@@ -20,12 +20,16 @@
 #include "qemu/osdep.h"
 #include "exec/gdbstub.h"
 #include "gdbserver.h"
+#include "qapi/error.h"
+#include "qemu/error-report.h"
 
 void libqemu_gdbserver_start(const char *port_or_path)
 {
-    if (gdbserver_start(port_or_path, NULL)) {
-        fprintf(stderr, "qemu: could not open gdbserver on %s\n",
-                port_or_path);
+    Error *err = NULL;
+    if (!gdbserver_start(port_or_path, &err)) {
+        fprintf(stderr, "qemu: could not open gdbserver on %s: %s\n",
+                port_or_path, error_get_pretty(err));
+        error_free(err);
         exit(1);
     }
 }
