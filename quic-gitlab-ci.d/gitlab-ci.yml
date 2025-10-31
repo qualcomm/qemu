@@ -110,11 +110,13 @@ hexagon-linux-x86_64-virtio:
   needs: [ "hexagon-linux-x86_64" ]
   script: quic/scripts/run-functional-test.sh func-hexagon-virtio
 
-hexagon-linux-x86_64-systests:
+hexagon-linux-x86_64-misc:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-systests
+  script: >
+    quic/scripts/run-functional-test.sh func-hexagon-systests &&
+    quic/scripts/run-functional-test.sh func-hexagon-sdk
 
 hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
