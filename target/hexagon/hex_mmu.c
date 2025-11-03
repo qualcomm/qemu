@@ -132,7 +132,7 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
         if (old_entry_valid && mmu_enabled) {
             /* FIXME - Do we have to invalidate everything here? */
             CPUState *cs = env_cpu(env);
-            tlb_flush(cs);
+            tlb_flush_all_cpus_synced(cs);
         }
         hexagon_tlb_write(cpu->tlb, index, value, old_entry_valid,
                           mmu_enabled, env->threadId, idx);
