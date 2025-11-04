@@ -284,7 +284,10 @@ qtests_riscv32 = \
 qtests_riscv64 = ['riscv-csr-test'] + \
   (unpack_edk2_blobs ? ['bios-tables-test'] : [])
 
-qtests_hexagon = ['boot-serial-test']
+qtests_hexagon = [
+  'boot-serial-test',
+  'l2vic-test',
+]
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
