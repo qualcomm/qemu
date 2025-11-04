@@ -1837,9 +1837,9 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
     case HEX_REG_UPCYCLEHI:
         return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_high(env) : 0;
     case HEX_REG_UTIMERLO:
-        return hexagon_globalreg_read(cpu, HEX_SREG_TIMERLO);
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERLO);
     case HEX_REG_UTIMERHI:
-        return hexagon_globalreg_read(cpu, HEX_SREG_TIMERHI);
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERHI);
     default:
         return env->gpr[reg];
     }
@@ -2094,7 +2094,7 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
     g_assert(bql_locked());
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         HexagonCPU *cpu = env_archcpu(env);
-        val = hexagon_globalreg_masked_value(cpu, reg, val);
+        val = hexagon_globalreg_masked_value(cpu->globalregs, reg, val);
         hexagon_set_vid(env, (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
                         val);
         arch_set_system_reg(env, reg, val);

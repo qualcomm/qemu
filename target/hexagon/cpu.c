@@ -725,7 +725,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->ss_pending = false;
 
     hexagon_cpu_soft_reset(env);
-    arch_set_thread_reg(env, HEX_REG_PC, hexagon_globalreg_get_boot_evb(cpu));
+    arch_set_thread_reg(env, HEX_REG_PC,
+                        hexagon_globalreg_get_boot_evb(cpu->globalregs));
 #endif
 }
 

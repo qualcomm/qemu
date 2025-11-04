@@ -57,7 +57,7 @@ uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
         cycles += thread_env->t_cycle_count;
     }
     HexagonCPU *cpu = env_archcpu(env);
-    return hexagon_globalreg_get_pcycle_base(cpu) + cycles;
+    return hexagon_globalreg_get_pcycle_base(cpu->globalregs) + cycles;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
@@ -83,7 +83,7 @@ uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
         return env->t_sreg[reg];
     } else {
         HexagonCPU *cpu = env_archcpu(env);
-        return hexagon_globalreg_read(cpu, reg);
+        return hexagon_globalreg_read(cpu->globalregs, reg);
     }
 }
 
@@ -94,7 +94,7 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
         env->t_sreg[reg] = val;
     } else {
         HexagonCPU *cpu = env_archcpu(env);
-        hexagon_globalreg_write(cpu, reg, val);
+        hexagon_globalreg_write(cpu->globalregs, reg, val);
     }
 }
 
@@ -106,7 +106,7 @@ void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
         env->t_sreg[reg] = val;
     } else {
         HexagonCPU *cpu = env_archcpu(env);
-        hexagon_globalreg_write_masked(cpu, reg, val);
+        hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
     }
 }
 
@@ -831,7 +831,7 @@ void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env,
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    hexagon_globalreg_set_pcycle_base(cpu, cycles);
+    hexagon_globalreg_set_pcycle_base(cpu->globalregs, cycles);
 
     CPUState *cs;
     CPU_FOREACH(cs) {
