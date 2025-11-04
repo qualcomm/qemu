@@ -46,8 +46,6 @@
 #define QTIMER_MEM_REGION_SIZE_BYTES 0x1000
 #define QTIMER_DEFAULT_FREQ_HZ   19200000ULL
 #define QTMR_TIMER_INDEX_MASK (0xf000)
-#define HIGH_32(val) (0x0ffffffffULL & (val >> 32))
-#define LOW_32(val) (0x0ffffffffULL & val)
 
 /*
  * QTimer version reg:
@@ -218,7 +216,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = LOW_32((s->cntval));
+            *data = extract64(s->cntval, 0, 32);
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CVAL_HI): /* TimerLoad */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -229,7 +227,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = HIGH_32((s->cntval));
+            *data = extract64(s->cntval, 32, 32);
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_LO:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
@@ -240,7 +238,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = LOW_32((s->cntpct + (ptimer_get_count(s->timer))));
+            *data = extract64(s->cntpct + ptimer_get_count(s->timer), 0, 32);
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_HI:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
@@ -251,7 +249,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = HIGH_32((s->cntpct + (ptimer_get_count(s->timer))));
+            *data = extract64(s->cntpct + ptimer_get_count(s->timer), 32, 32);
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -262,9 +260,10 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = (s->cntval -
-                    (HIGH_32((s->cntpct + (ptimer_get_count(s->timer)))) +
-                     LOW_32((s->cntpct + (ptimer_get_count(s->timer))))));
+            {
+                uint64_t current_count = s->cntpct + ptimer_get_count(s->timer);
+                *data = s->cntval - current_count;
+            }
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CTL): /* TimerMIS */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
