@@ -406,6 +406,17 @@ size_t translator_st_len(const DisasContextBase *db)
     return db->fake_insn ? db->record_len : db->tb->size;
 }
 
+static inline void cpu_slow_store(CPUArchState *env, void *dest, vaddr src,
+                                  size_t len)
+{
+    int mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+    uint8_t *dest_ptr = (uint8_t *)dest;
+    for (int i = 0; i < len; i++) {
+        dest_ptr[i] = cpu_ldb_mmu(env, src, oi, 0);
+    }
+}
+
 bool translator_st_with_fallback(const DisasContextBase *db, void *dest,
                                  vaddr addr, size_t len, CPUArchState *env)
 {
@@ -419,7 +430,12 @@ bool translator_st_with_fallback(const DisasContextBase *db, void *dest,
         }
         unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
         unsigned char *host_addr = probe_read(env, addr, len, mmu_idx, 0);
-        memcpy(dest, host_addr, len);
+
+        if (host_addr) {
+            memcpy(dest, host_addr, len);
+        } else {
+            cpu_slow_store(env, dest, addr, len);
+        }
         return true;
     }
 
