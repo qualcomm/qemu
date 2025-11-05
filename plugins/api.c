@@ -376,6 +376,22 @@ int qemu_plugin_num_vcpus(void)
     return plugin_num_vcpus();
 }
 
+
+void qemu_plugin_cpu_request_pause(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    g_assert(cpu);
+    cpu->stop = true;
+    qemu_cpu_kick(cpu);
+}
+
+void qemu_plugin_cpu_resume(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    g_assert(cpu);
+    cpu_resume(cpu);
+}
+
 /*
  * Plugin output
  */

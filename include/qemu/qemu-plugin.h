@@ -841,6 +841,22 @@ QEMU_PLUGIN_API
 int qemu_plugin_num_vcpus(void);
 
 /**
+ * Pause execution of a specific virtual CPU.
+ *
+ * @vcpu_index: Index of the vCPU to pause.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_cpu_request_pause(unsigned int vcpu_index);
+
+/**
+ * Resume execution of a specific virtual CPU.
+ *
+ * @vcpu_index: Index of the vCPU to resume.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_cpu_resume(unsigned int vcpu_index);
+
+/**
  * qemu_plugin_outs() - output string via QEMU's logging system
  * @string: a string
  */
