@@ -392,6 +392,16 @@ void qemu_plugin_cpu_resume(unsigned int vcpu_index)
     cpu_resume(cpu);
 }
 
+void qemu_plugin_bql_lock(void)
+{
+    bql_lock();
+}
+
+void qemu_plugin_bql_unlock(void)
+{
+    bql_unlock();
+}
+
 /*
  * Plugin output
  */

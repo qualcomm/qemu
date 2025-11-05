@@ -857,6 +857,18 @@ QEMU_PLUGIN_API
 void qemu_plugin_cpu_resume(unsigned int vcpu_index);
 
 /**
+ * Acquire the Big QEMU Lock (BQL).
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_bql_lock(void);
+
+/**
+ * Release the Big QEMU Lock (BQL).
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_bql_unlock(void);
+
+/**
  * qemu_plugin_outs() - output string via QEMU's logging system
  * @string: a string
  */
