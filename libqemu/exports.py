@@ -2,7 +2,7 @@
 # libqemu exported functions and types
 #
 # Copyright (c) 2019 Luc Michel <luc.michel@greensocs.com>
-# Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
+# Copyright (c) 2023-2026 Qualcomm Innovation Center, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -378,6 +378,21 @@ PrivateInclude('include/system/system.h')
 ExportedFct('finish_qemu_init', 'void', [ ], priv='finish_qemu_init', on_iothread = True)
 
 ExportedFct('sysbus_get_default', 'BusState *', [ ])
+
+
+# TCG PLUGIN API exports
+# NOTE: Must use PrivateInclude for qemu-plugin.h, not PublicInclude.
+# qemu-plugin.h includes <glib.h> which has C++ templates. PublicInclude would
+# put it in typedefs.h, which gets included inside extern "C" blocks, causing
+# "template with C linkage" errors. Consumer code needs to redefine the types
+# instead (see /Qbox/qemu-components/common/include/libqemu-cxx/tcg_plugin_api.h).
+PrivateInclude('qemu/qemu-plugin.h')
+PrivateInclude('qemu/plugin.h')
+ExportedType('qemu_plugin_tb')
+ExportedType('qemu_plugin_insn')
+ExportedType('qemu_plugin_hwaddr')
+ExportedType('qemu_plugin_scoreboard')
+ExportedType('qemu_plugin_register')
 
 # AArch64 specific exports
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
