@@ -27,7 +27,6 @@ class MiniVMTest(QemuSystemTest):
                '19.1.5/hexagon_minivm_2024_Dec_15.tar.gz',
         'd7920b5ff14bed5a10b23ada7d4eb927ede08635281f25067e0d5711feee2c2a')
 
-    @skip('fails: QQVPQSP-713')
     def test_minivm_mmu(self):
         self.common_hexagon_minivm('test_mmu')
 

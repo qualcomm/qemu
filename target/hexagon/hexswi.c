@@ -123,12 +123,12 @@ static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
     common_semi_cb(cs, ret, err);
 }
 
-static void do_preload(CPUHexagonState *env, target_ulong swi_info)
+static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
 {
     uint32_t addr, count;
     DEBUG_MEMORY_READ(swi_info + 4, 4, &addr);
     DEBUG_MEMORY_READ(swi_info + 8, 4, &count);
-    hexagon_touch_memory(env, addr, count, MMU_DATA_STORE);
+    hexagon_touch_memory(env, addr, count, load ? MMU_DATA_LOAD : MMU_DATA_STORE);
 }
 
 static void sim_handle_trap0(CPUHexagonState *env)
@@ -141,8 +141,13 @@ static void sim_handle_trap0(CPUHexagonState *env)
     if (!is_hexagon_specific_swi_flag(what_swi)) {
         if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
             what_swi == HEX_SYS_WRITE) {
-            /* avoid page faulting if the dest buffer is not in memory yet. */
-            do_preload(env, swi_info);
+            /*
+             * Avoid page faults if the buffer is not in memory yet.
+             * NOTE: Counterintuitive, but a WRITE must be able to LOAD from
+             * the input address. The contents of that buffer will be
+             * directed to the SWI interface.
+             */
+            do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
         }
         CPUState *cs = env_cpu(env);
         do_common_semihosting(cs);
