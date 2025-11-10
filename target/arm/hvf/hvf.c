@@ -2342,7 +2342,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         uint64_t val = 0;
 
         MemTxResult res = address_space_read(
-            &address_space_memory, hvf_exit->exception.physical_address,
+            &address_space_memory, excp->physical_address,
             MEMTXATTRS_UNSPECIFIED, &val, 4);
         assert(res == MEMTX_OK);
         flush_cpu_state(cpu);
