@@ -1928,6 +1928,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t cm = (syndrome >> 8) & 0x1;
         uint64_t val = 0;
 
+        uint64_t pc;
+        hv_vcpu_get_reg(cpu->accel->fd, HV_REG_PC, &pc);
+
         trace_hvf_data_abort(hvf_exit->exception.virtual_address,
                              hvf_exit->exception.physical_address, isv,
                              iswrite, s1ptw, len, srt);
@@ -1941,7 +1944,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         if (!isv) {
             uint32_t ins;
             CPUARMState *env = &arm_cpu->env;
-            cpu_memory_rw_debug(cpu, env->pc, &ins, 4, false);
+            cpu_memory_rw_debug(cpu, pc, &ins, 4, false);
 
 /*
  * Here we handle instructions that cause invalid
