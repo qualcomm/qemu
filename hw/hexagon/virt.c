@@ -464,6 +464,7 @@ static void virt_init(MachineState *ms)
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
     }
 
     /* Create TLB object first */
