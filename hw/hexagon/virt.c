@@ -18,6 +18,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
+#include "hw/sysbus.h"
 #include "hw/timer/qct-qtimer.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -480,14 +481,6 @@ static void virt_init(MachineState *ms)
         goto out;
     }
 
-    /* Create L2VIC */
-    vms->l2vic = sysbus_create_varargs(
-        "l2vic", m_cfg->l2vic_base, qdev_get_gpio_in(DEVICE(cpus[0]), 0),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 1), qdev_get_gpio_in(DEVICE(cpus[0]), 2),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 3), qdev_get_gpio_in(DEVICE(cpus[0]), 4),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 5), qdev_get_gpio_in(DEVICE(cpus[0]), 6),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 7), NULL);
-
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
@@ -512,6 +505,22 @@ static void virt_init(MachineState *ms)
             goto out;
         }
     }
+
+    /*
+     * L2VIC: This must be done after qdev_realize_and_unref
+     * If interrupts stop working this might be in the wrong spot.
+     */
+    vms->l2vic = sysbus_create_varargs(
+        "l2vic", m_cfg->l2vic_base,
+        qdev_get_gpio_in(DEVICE(cpus[0]), 0),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 1),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 2),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 3),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 4),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 5),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 6),
+        qdev_get_gpio_in(DEVICE(cpus[0]), 7), NULL);
+
     fdt_add_hvm_pic_node(vms, m_cfg);
     fdt_add_virtio_devices(vms);
     fdt_add_cpu_nodes(vms);
