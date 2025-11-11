@@ -1,0 +1,156 @@
+name: QEMU Hexagon Test Configuration
+
+on:
+  push:
+    paths:
+      - 'test_hex.py'
+      - 'target/hexagon/**'
+      - 'tests/tcg/hexagon/**'
+      - 'hw/hexagon/**'
+      - '.github/workflows/test-hex.yml'
+  pull_request:
+    paths:
+      - 'test_hex.py'
+      - 'target/hexagon/**'
+      - 'tests/tcg/hexagon/**'
+      - 'hw/hexagon/**'
+      - '.github/workflows/test-hex.yml'
+  workflow_dispatch:
+
+env:
+  # Force color output for better readability in logs
+  TERM: xterm-256color
+
+jobs:
+  test-hexagon:
+    name: Run Hexagon Test Configurations
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ninja-build \
+            pkg-config \
+            libglib2.0-dev \
+            libpixman-1-dev \
+            libfdt-dev \
+            zlib1g-dev \
+            libnfs-dev \
+            libiscsi-dev \
+            python3-pip \
+            python3-venv \
+            flex \
+            bison \
+            clang \
+            llvm \
+            gcc-multilib \
+            libc6-dev-i386
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          # Install any Python packages that test_hex.py might need
+          python3 -m pip install setuptools wheel
+
+      - name: Install Rust (for --enable-rust builds)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Create work directory
+        run: mkdir -p test_builds
+
+      - name: Run test_hex.py
+        run: |
+          # Run the hexagon test script with verbose output and tagging
+          python3 ./test_hex.py \
+            --source-dir . \
+            --work-dir ./test_builds \
+            --output hexagon_test_report.json \
+            --verbose \
+            --jobs 0.5
+        timeout-minutes: 150
+
+      - name: Upload test logs and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexagon-test-logs
+          path: |
+            test_builds/**/*.log
+            hexagon_test_report.json
+            hexagon_test_report.txt
+          retention-days: 30
+
+      - name: Upload build artifacts (logs only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexagon-build-logs
+          path: |
+            test_builds/**/configure*.log
+            test_builds/**/make*.log
+            test_builds/**/check*.log
+          retention-days: 7
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "=== HEXAGON TEST SUMMARY ==="
+          if [ -f "hexagon_test_report.txt" ]; then
+            cat hexagon_test_report.txt
+          else
+            echo "No summary report found"
+          fi
+
+          echo ""
+          echo "=== LOG FILES GENERATED ==="
+          find test_builds -name "*.log" -type f | head -20
+
+      - name: Check test results
+        run: |
+          # Parse the JSON report to determine if tests passed
+          if [ -f "hexagon_test_report.json" ]; then
+            # Use Python to check the test results
+            python3 -c "
+          import json
+          import sys
+
+          try:
+              with open('hexagon_test_report.json', 'r') as f:
+                  report = json.load(f)
+
+              summary = report.get('summary', {})
+              total_tests = summary.get('total_tests', 0)
+              successful_tests = summary.get('successful_tests', 0)
+
+              print(f'Total tests: {total_tests}')
+              print(f'Successful tests: {successful_tests}')
+
+              if total_tests == 0:
+                  print('ERROR: No tests were executed')
+                  sys.exit(1)
+
+              if successful_tests < total_tests:
+                  failed_tests = total_tests - successful_tests
+                  print(f'ERROR: {failed_tests} tests failed')
+                  sys.exit(1)
+
+              print('SUCCESS: All tests passed')
+
+          except Exception as e:
+              print(f'ERROR: Failed to parse test report: {e}')
+              sys.exit(1)
+          "
+          else
+            echo "ERROR: No test report found"
+            exit 1
+          fi
