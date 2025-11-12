@@ -113,9 +113,9 @@ hexagon-linux-x86_64-misc:
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: >
-    quic/scripts/run-functional-test.sh func-hexagon-systests &&
     quic/scripts/run-functional-test.sh func-hexagon-sdk &&
-    quic/scripts/run-functional-test.sh func-hexagon-minivm
+    quic/scripts/run-functional-test.sh func-hexagon-minivm &&
+    quic/scripts/run-functional-test.sh func-hexagon-systests
 
 hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
