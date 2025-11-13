@@ -409,3 +409,9 @@ ivshmem_flat_interrupt_peer(uint16_t peer_id, uint16_t vector_id) "Interrupting 
 i2c_echo_event(const char *id, const char *event) "%s: %s"
 i2c_echo_recv(const char *id, uint8_t data) "%s: recv 0x%02" PRIx8
 i2c_echo_send(const char *id, uint8_t data) "%s: send 0x%02" PRIx8
+
+# cdsp-pll.c
+cdsp_pll_read(uint64_t offset, uint32_t value) "offset 0x%" PRIx64 " value 0x%08" PRIx32
+cdsp_pll_write(uint64_t offset, uint32_t value) "offset 0x%" PRIx64 " value 0x%08" PRIx32
+cdsp_pll_locked(void) "PLL locked"
+cdsp_pll_unlocked(void) "PLL unlocked"
