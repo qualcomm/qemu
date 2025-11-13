@@ -18,6 +18,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/register.h"
 #include "hw/timer/qct-qtimer.h"
+#include "hw/misc/cdsp-pll.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
@@ -38,6 +39,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
     [VIRT_FDT] = { 0x99800000, 0x00400000 },
     [VIRT_BOOT] = { 0x99c00000, 0x00000200 },
+    [VIRT_PLL] = { 0x26300000, 0x00001000 },
 };
 
 static const int irqmap[] = {
@@ -278,6 +280,35 @@ static void create_qtimer(HexagonVirtMachineState *vms,
                        qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
 }
 
+static void create_pll(HexagonVirtMachineState *vms)
+{
+    Error **errp = NULL;
+    CdspPLLState *pll = CDSP_PLL(qdev_new(TYPE_CDSP_PLL));
+
+    object_property_set_uint(OBJECT(pll), "base-freq", 19200000, errp);
+    object_property_set_uint(OBJECT(pll), "default-l-val", 62, errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(pll), errp);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(pll), 0, base_memmap[VIRT_PLL].base);
+}
+
+static void fdt_add_pll_node(HexagonVirtMachineState *vms)
+{
+    g_autofree char *name = NULL;
+    MachineState *ms = MACHINE(vms);
+
+    name = g_strdup_printf("/soc/pll@%" PRIx64,
+                           (int64_t)base_memmap[VIRT_PLL].base);
+    qemu_fdt_add_subnode(ms->fdt, name);
+    qemu_fdt_setprop_string(ms->fdt, name, "compatible",
+                            "qcom,cdsp-fabia-pll");
+    qemu_fdt_setprop_cells(ms->fdt, name, "reg", 0x0,
+                           base_memmap[VIRT_PLL].base,
+                           base_memmap[VIRT_PLL].size);
+    qemu_fdt_setprop_cell(ms->fdt, name, "base-freq", 19200000);
+    qemu_fdt_setprop_cell(ms->fdt, name, "default-l-val", 62);
+}
+
 static void virt_instance_init(Object *obj)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
@@ -469,6 +500,8 @@ static void virt_init(MachineState *ms)
     fdt_add_uart(vms, VIRT_UART0);
     fdt_add_gpt_node(vms);
     create_qtimer(vms, m_cfg);
+    create_pll(vms);
+    fdt_add_pll_node(vms);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
