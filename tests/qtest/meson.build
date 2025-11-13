@@ -293,6 +293,7 @@ qtests_hexagon = [
   'boot-serial-test',
   'l2vic-test',
   'qct-qtimer-test',
+  'cdsp-pll-test',
 ]
 
 qos_test_ss = ss.source_set()
