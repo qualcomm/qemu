@@ -16,7 +16,7 @@ variables:
   FF_SCRIPT_SECTIONS: True
   GIT_DEPTH: 1
 
-  HEX_COPROC_REF: v10.2.3
+  QUIC_BUILD_DIR: ${CI_PROJECT_DIR}/build
 
 checkpatch:
   stage: .pre
@@ -40,16 +40,28 @@ user_guide:
 .test-artifacts:
   artifacts:
     when: on_failure
-    paths: [ "build" ]
+    paths:
+      - ${QUIC_BUILD_DIR}
     expire_in: 4 days
+
+.build-job:
+  stage: build
+  script: ./quic-gitlab-ci.d/build.sh
+  variables:
+    QUIC_BUILD_LOG: ${QUIC_BUILD_DIR}/build.log
+    QUIC_COPROC_REF: main
+  artifacts:
+    when: always
+    paths:
+      - ${QUIC_BUILD_DIR}
+    expire_in: 1 day
 
 # QEMU Hexagon for Linux on x86_64
 hexagon-linux-x86_64:
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  extends: .build-job
+  variables:
+    QUIC_BUILD_CONFIG: hexagon
+    QUIC_COPROC_JOB: linux-x86_64
 
 # Keep the nightly builds for a little longer, just in case
 hexagon-linux-x86_64-schedule:
@@ -185,12 +197,11 @@ hexagon-linux-x86_64-packet-verif:
 
 # QEMU Hexagon for Linux on x86_64 with sanatizers enabled
 hexagon-linux-x86_64-san:
+  extends: .build-job
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,san
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-san
+    QUIC_COPROC_JOB: linux-x86_64
 
 hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -232,11 +243,10 @@ hexagon-linux-x86_64-san-virtio:
 
 # QEMU Hexagon for macOS
 hexagon-mac:
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -j mac-tag -r $HEX_COPROC_REF hexagon,mac
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  extends: .build-job
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-mac
+    QUIC_COPROC_JOB: mac
   tags:
     - mac
 
@@ -249,12 +259,12 @@ hexagon-mac-tag:
 
 # QEMU Hexagon for Windows on x86_64
 hexagon-windows-x86_64:
+  extends: .build-job
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -p windows-x86_64 -s quic/install_win_deps.bat hexagon,windows-x86_64
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-minimal
+    QUIC_INSTALL_SCRIPT: ${CI_PROJECT_DIR}/quic/install_win_deps.bat
+    QUIC_TARBALL_PREFIX: windows-x86_64
 
 hexagon-windows-x86_64-tag:
   extends: hexagon-windows-x86_64
@@ -273,12 +283,12 @@ hexagon-windows-x86_64-check-tcg:
 
 # QEMU Hexagon for Windows on aarch64
 hexagon-windows-aarch64:
+  extends: .build-job
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -p windows-aarch64 -s quic/install_win_aarch64_deps.bat hexagon,windows-aarch64
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-minimal
+    QUIC_INSTALL_SCRIPT: ${CI_PROJECT_DIR}/quic/install_win_deps.bat
+    QUIC_TARBALL_PREFIX: windows-aarch64
 
 hexagon-windows-aarch64-tag:
   extends: hexagon-windows-aarch64
@@ -289,11 +299,10 @@ hexagon-windows-aarch64-tag:
 
 # QEMU Hexagon for Linux on x86_64 without idef parser
 hexagon-linux-x86_64-no-idef-parser:
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,no-idef-parser
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  extends: .build-job
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-no-idef-parser
+    QUIC_COPROC_JOB: linux-x86_64
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
@@ -321,11 +330,9 @@ hexagon-linux-x86_64-no-idef-parser-check:
 
 # QEMU Hexagon for Linux on aarch64
 aarch64-linux:
-  stage: build
-  script: ./quic-gitlab-ci.d/build.sh aarch64,linux-x86_64
-  artifacts:
-    paths: [ build ]
-    expire_in: 1 day
+  extends: .build-job
+  variables:
+    QUIC_BUILD_CONFIG: aarch64
 
 aarch64-linux-tag:
   extends: aarch64-linux
