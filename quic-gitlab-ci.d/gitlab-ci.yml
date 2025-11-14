@@ -46,7 +46,7 @@ user_guide:
 # QEMU Hexagon for Linux on x86_64
 hexagon-linux-x86_64:
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64
+  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -70,13 +70,13 @@ hexagon-linux-x86_64-check-tcg:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-check-tcg.sh
+  script: ./quic/run-check-tcg.sh
 
 hexagon-linux-x86_64-check-tcg-mttcg:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-check-tcg.sh -m
+  script: ./quic/run-check-tcg.sh -m
 
 hexagon-linux-x86_64-check:
   stage: test
@@ -89,34 +89,34 @@ hexagon-linux-x86_64-qurt:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-qurt
+  script: ./quic/run-functional-test.sh func-hexagon-qurt
 
 hexagon-linux-x86_64-sival:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-sival
+  script: ./quic/run-functional-test.sh func-hexagon-sival
 
 hexagon-linux-x86_64-boot:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-linux
+  script: ./quic/run-functional-test.sh func-hexagon-linux
 
 hexagon-linux-x86_64-virtio:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-virtio
+  script: ./quic/run-functional-test.sh func-hexagon-virtio
 
 hexagon-linux-x86_64-misc:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64" ]
   script: >
-    quic/scripts/run-functional-test.sh func-hexagon-sdk &&
-    quic/scripts/run-functional-test.sh func-hexagon-minivm &&
-    quic/scripts/run-functional-test.sh func-hexagon-systests
+    ./quic/run-functional-test.sh func-hexagon-sdk &&
+    ./quic/run-functional-test.sh func-hexagon-minivm &&
+    ./quic/run-functional-test.sh func-hexagon-systests
 
 hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -124,7 +124,7 @@ hexagon-linux-x86_64-perf:
   needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
-  script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf.sh
+  script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf.sh
   artifacts:
     paths: [ "perf-results.json" ]
     expire_in: 4 days
@@ -135,7 +135,7 @@ hexagon-linux-x86_64-perf-mttcg:
   needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
-  script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf-mttcg.sh
+  script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-mttcg.sh
   artifacts:
     paths: [ "perf-results.json" ]
     expire_in: 4 days
@@ -146,7 +146,7 @@ hexagon-linux-x86_64-perf-ml:
   needs: [ "hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
-  script: quic-gitlab-ci.d/scripts/hexagon-linux-x86_64-perf-ml.sh
+  script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-ml.sh
   artifacts:
     when: always
     paths: [ "perf-results.json",  ]
@@ -172,7 +172,7 @@ hexagon-linux-x86_64-packet-verif:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   needs: [ "hexagon-linux-x86_64", "fetch-iset" ]
-  script: quic-gitlab-ci.d/scripts/packet-verif.sh
+  script: ./quic-gitlab-ci.d/packet-verif.sh
   artifacts:
     when: on_failure
     paths: [ "verif-qemu-hexagon",  ]
@@ -187,7 +187,7 @@ hexagon-linux-x86_64-packet-verif:
 hexagon-linux-x86_64-san:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,san
+  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,san
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -197,7 +197,7 @@ hexagon-linux-x86_64-san-check-tcg:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-check-tcg.sh
+  script: ./quic/run-check-tcg.sh
 
 hexagon-linux-x86_64-san-check:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -212,14 +212,14 @@ hexagon-linux-x86_64-san-sival:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-sival
+  script: ./quic/run-functional-test.sh func-hexagon-sival
 
 hexagon-linux-x86_64-san-boot:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-linux
+  script: ./quic/run-functional-test.sh func-hexagon-linux
   when: manual
   allow_failure: true
 
@@ -228,12 +228,12 @@ hexagon-linux-x86_64-san-virtio:
   stage: test
   extends: .test-artifacts
   needs: [ "hexagon-linux-x86_64-san" ]
-  script: quic/scripts/run-functional-test.sh func-hexagon-virtio
+  script: ./quic/run-functional-test.sh func-hexagon-virtio
 
 # QEMU Hexagon for macOS
 hexagon-mac:
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -j mac-tag -r $HEX_COPROC_REF hexagon,mac
+  script: ./quic-gitlab-ci.d/build.sh -j mac-tag -r $HEX_COPROC_REF hexagon,mac
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -251,7 +251,7 @@ hexagon-mac-tag:
 hexagon-windows-x86_64:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win:latest
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -p windows-x86_64 -s quic/install_win_deps.bat hexagon,windows-x86_64
+  script: ./quic-gitlab-ci.d/build.sh -p windows-x86_64 -s quic/install_win_deps.bat hexagon,windows-x86_64
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -269,13 +269,13 @@ hexagon-windows-x86_64-check-tcg:
   extends: .test-artifacts
   dependencies:
     - hexagon-windows-x86_64
-  script: quic/scripts/run-check-tcg.sh
+  script: ./quic/run-check-tcg.sh
 
 # QEMU Hexagon for Windows on aarch64
 hexagon-windows-aarch64:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-win-aarch64:latest
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -p windows-aarch64 -s quic/install_win_aarch64_deps.bat hexagon,windows-aarch64
+  script: ./quic-gitlab-ci.d/build.sh -p windows-aarch64 -s quic/install_win_aarch64_deps.bat hexagon,windows-aarch64
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -290,7 +290,7 @@ hexagon-windows-aarch64-tag:
 # QEMU Hexagon for Linux on x86_64 without idef parser
 hexagon-linux-x86_64-no-idef-parser:
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,no-idef-parser
+  script: ./quic-gitlab-ci.d/build.sh -j linux-x86-tag -r $HEX_COPROC_REF hexagon,linux-x86_64,no-idef-parser
   artifacts:
     paths: [ build ]
     expire_in: 1 day
@@ -303,7 +303,7 @@ hexagon-linux-x86_64-no-idef-parser-check-tcg:
   extends: .test-artifacts
   dependencies:
     - hexagon-linux-x86_64-no-idef-parser
-  script: quic/scripts/run-check-tcg.sh
+  script: ./quic/run-check-tcg.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
@@ -322,7 +322,7 @@ hexagon-linux-x86_64-no-idef-parser-check:
 # QEMU Hexagon for Linux on aarch64
 aarch64-linux:
   stage: build
-  script: quic-gitlab-ci.d/scripts/build.sh aarch64,linux-x86_64
+  script: ./quic-gitlab-ci.d/build.sh aarch64,linux-x86_64
   artifacts:
     paths: [ build ]
     expire_in: 1 day

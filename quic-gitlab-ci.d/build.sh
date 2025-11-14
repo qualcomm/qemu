@@ -46,12 +46,12 @@ fi
 
 set -ex
 
-./quic/scripts/build-qemu.sh "${QEMU_TARGET}"
+./quic/build.sh "${QEMU_TARGET}"
 
 if [ -n "${DOWNLOAD_COPROC}" ]; then
-    ./quic/scripts/download-coproc-gitlab.sh \
+    ./quic/download-coproc-gitlab.sh \
         -j "${CI_JOB_TOKEN}" "${COPROC_JOB}" "${COPROC_REF}"
-    ./quic/scripts/install-coproc.sh
+    ./quic/install-coproc.sh
 fi
 
-./quic/scripts/create-tarball.sh -s "${INSTALL_SCRIPT}" -p "${TARBALL_PREFIX}"
+./quic/create-tarball.sh -s "${INSTALL_SCRIPT}" -p "${TARBALL_PREFIX}"

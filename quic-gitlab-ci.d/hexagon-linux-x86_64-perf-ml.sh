@@ -5,15 +5,14 @@
 
 set -ex
 
-"${PWD}"/quic-gitlab-ci.d/scripts/clone-perf-repos.sh
+"${PWD}"/quic-gitlab-ci.d/clone-perf-repos.sh
 
-TEST_CFG="${PWD}/quic-gitlab-ci.d/minimal_test_config.py"
-ITERS="3"
+TEST_CFG="${PWD}/quic-gitlab-ci.d/hex_nn_v3.py"
+ITERS="1"
 if [ "${CI_PIPELINE_SOURCE}" = "schedule" ] || [ "${CI_PIPELINE_SOURCE}" = "web" ]; then
-    TEST_CFG="${PWD}/quic-gitlab-ci.d/default_test_config.py"
-    ITERS="6"
+    ITERS="3"
 fi
 readonly TEST_CFG
 readonly ITERS
 
-"${PWD}"/quic/scripts/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat
+"${PWD}"/quic/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat

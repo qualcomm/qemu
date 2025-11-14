@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # shellcheck source=/dev/null
-. "$(pwd)/quic-gitlab-ci.d/scripts/merge-request.sh"
+. "$(pwd)/quic-gitlab-ci.d/merge-request.sh"
 
 set +e
 set -x

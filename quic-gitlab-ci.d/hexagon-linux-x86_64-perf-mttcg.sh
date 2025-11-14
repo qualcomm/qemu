@@ -5,7 +5,7 @@
 
 set -ex
 
-"${PWD}"/quic-gitlab-ci.d/scripts/clone-perf-repos.sh
+"${PWD}"/quic-gitlab-ci.d/clone-perf-repos.sh
 
 TEST_CFG="${PWD}/quic-gitlab-ci.d/mttcg_min_test_config.py"
 ITERS="3"
@@ -18,4 +18,4 @@ readonly ITERS
 
 readonly SYS_ARGS="-accel tcg,thread=multi"
 
-"${PWD}"/quic/scripts/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat "${SYS_ARGS}"
+"${PWD}"/quic/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat "${SYS_ARGS}"
