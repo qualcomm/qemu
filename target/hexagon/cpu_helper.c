@@ -742,19 +742,16 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     bool new_IE = GET_SSR_FIELD(SSR_IE, new);
     bool new_XE2 = GET_SSR_FIELD(SSR_XE2, new);
     uint8_t new_XA = GET_SSR_FIELD(SSR_XA, new);
+    uint8_t old_asid = GET_SSR_FIELD(SSR_ASID, old);
+    uint8_t new_asid = GET_SSR_FIELD(SSR_ASID, new);
 
     if ((old_EX != new_EX) ||
         (old_UM != new_UM) ||
-        (old_GM != new_GM)) {
+        (old_GM != new_GM) ||
+        (new_asid != old_asid)) {
         hex_mmu_mode_change(env);
     }
 
-    uint8_t old_asid = GET_SSR_FIELD(SSR_ASID, old);
-    uint8_t new_asid = GET_SSR_FIELD(SSR_ASID, new);
-    if (new_asid != old_asid) {
-        CPUState *cs = env_cpu(env);
-        tlb_flush(cs);
-    }
 
     if (old_XE2 != new_XE2) {
         CPUState *cs;
