@@ -872,7 +872,12 @@ int main(int argc, char **argv)
     context.header_str = g_string_new(NULL);
     context.ternary = g_array_new(FALSE, TRUE, sizeof(Ternary));
     /* Read input file */
-    FILE *input_file = fopen(argv[ARG_INDEX_IDEFS], "r");
+    FILE *input_file = fopen(argv[ARG_INDEX_IDEFS], "rb");
+    if (!input_file) {
+        fprintf(stderr, "Error: could not open input file '%s': %s\n",
+                argv[ARG_INDEX_IDEFS], strerror(errno));
+        return -1;
+    }
     fseek(input_file, 0L, SEEK_END);
     long input_size = ftell(input_file);
     context.input_buffer = (char *) calloc(input_size + 1, sizeof(char));

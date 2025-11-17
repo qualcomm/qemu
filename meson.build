@@ -4442,16 +4442,10 @@ foreach target : target_dirs
       exe_name += '-unsigned'
     endif
 
-    libs_to_link = []
-    if target_name == 'hexagon' and host_os != 'windows'
-      libs_to_link = [coproc_rpc]
-    endif
-
     emulator = executable(exe_name, exe['sources'],
                install: true,
                c_args: c_args,
                dependencies: arch_deps + exe['dependencies'],
-               link_with : libs_to_link,
                objects: lib.extract_all_objects(recursive: true),
                link_depends: [block_syms, qemu_syms],
                link_args: link_args,

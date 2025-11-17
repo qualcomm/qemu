@@ -1,18 +1,6 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -775,8 +763,6 @@ static struct ProcessorState ProcessorStateV68 = {
 };
 #endif
 
-#include "coproc.inc"
-
 static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
@@ -828,17 +814,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->g_dir_list = g_malloc0(sizeof(GList *));
 
         if (cpu->num_coproc_instance) {
-#if !defined(_WIN32)
-            const char *coproc_path = get_coproc_path(env);
-            if (coproc_path) {
-                int hex_rev = cpu->rev_reg;
-                trace_hexagon_coproc_file(coproc_path);
-                if (hexagon_coproc_rpclib_init(coproc_path, hex_rev) == 1) {
-                    g_assert_not_reached();
-                }
-                g_free((void *)coproc_path);
+            trace_hexagon_coproc_file(cpu->coproc_path);
+            if (COPROC_SUCCESS != coproc_init(cpu->coproc_path, cpu->rev_reg)) {
+                g_assert_not_reached();
             }
-#endif
+
             CoprocArgs args = {0};
             args.opcode = COPROC_INIT;
             args.vtcm_base = cpu->vtcm_base_addr;

@@ -1,18 +1,6 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef HEXAGON_CPU_H
@@ -24,7 +12,6 @@ typedef struct CPUArchState CPUHexagonState;
 typedef struct ProcessorState processor_t;
 
 #include "fpu/softfloat-types.h"
-
 
 uint8_t hexagon_rev_byte(CPUHexagonState *env);
 
@@ -39,7 +26,6 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "hw/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/intc/l2vic.h"
-#include "coproc_rpc.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
@@ -419,7 +405,6 @@ typedef struct CPUArchState {
     uint32_t exec_ctr_tb;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
     hex_memop_pc memop_pc;
-    int32_t shm_fd;
 #ifndef CONFIG_USER_ONLY
     int32_t slot;                    /* Needed for exception generation */
     hex_exception_info einfo;

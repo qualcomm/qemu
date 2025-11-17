@@ -298,7 +298,6 @@ hexagon_ss.add(files(
     'int16_emu.c',
     'system.c',
     'arch_options_calc.c',
-    'coproc.c',
     'dma_adapter.c',
     'dma/dma.c',
     'dma/dma_descriptor.c',
@@ -452,23 +451,45 @@ analyze_funcs_generated = custom_target(
 )
 hexagon_ss.add(analyze_funcs_generated)
 
-if host_os != 'windows'
-  rpclib_dir = 'subprojects/rpclib'
-  cmake = import('cmake')
-  cmake_opts = cmake.subproject_options()
-  cmake_opts.append_compile_args('cpp', ['-Wno-class-memaccess', '-Wno-unused-but-set-variable'] + qemu_cflags)
-  rpclib_proj = cmake.subproject('rpclib', options:cmake_opts)
-  rpclib_dep = rpclib_proj.dependency('rpc')
-  hexagon_ss.add(rpclib_dep)
+cmake = import('cmake')
 
-  rpclib = 'rpc'
-  rpclib_dir_abs_lib = meson.project_build_root() / rpclib_dir
-  rpclib_dir_inc = include_directories('../../'+rpclib_dir / 'include')
-  rpclib_dep = declare_dependency(
-      link_args : ['-L' + rpclib_dir_abs_lib, '-l' + rpclib] + qemu_ldflags,
-      include_directories : rpclib_dir_inc, sources: opcodes_def_generated)
-  coproc_rpc = static_library('coproc_rpc', 'coproc_rpc.cpp',dependencies : [rpclib_dep])
+rpclib_cmake_opts = cmake.subproject_options()
+rpclib_cmake_opts.append_compile_args(
+  'cpp', '-Wno-unused-but-set-variable', '-Wno-unused-variable'
+)
+
+if host_machine.system() == 'linux' or host_machine.system() == 'windows'
+  rpclib_cmake_opts.append_compile_args(
+    'cpp', '-Wno-class-memaccess'
+  )
 endif
+
+if host_machine.system() == 'windows'
+  rpclib_cmake_opts.append_compile_args(
+    'cpp', '-DWINVER=0x0A00', '-D_WIN32_WINNT=0x0A00'
+  )
+endif
+
+rpclib_proj = cmake.subproject('rpclib', options:rpclib_cmake_opts)
+rpclib_dep = rpclib_proj.dependency('rpc')
+
+coproc_lib = static_library(
+  'coproc',
+  files('coproc.h', 'coproc.cpp', 'coproc_trace.c'),
+  cpp_args: '-std=c++20',
+  include_directories : [
+    include_directories('../../include'),
+  ],
+  dependencies : [ rpclib_dep, glib ],
+  sources: [ genh, opcodes_def_generated ],
+)
+
+coproc_dep = declare_dependency(
+  link_with: coproc_lib,
+  link_args: [ qemu_ldflags, '-static-libstdc++', '-static-libgcc' ]
+)
+
+hexagon_ss.add(coproc_dep)
 
 target_arch += {'hexagon': hexagon_ss}
 target_system_arch += {'hexagon': hexagon_softmmu_ss}

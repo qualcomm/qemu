@@ -1,25 +1,19 @@
 /*
- *  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *  Copyright(c) 2023-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef HEX_COPROC_H
 #define HEX_COPROC_H
-#include <sys/types.h>
-#include <stdio.h>
-#include <unistd.h>
+
+#include "exec/hwaddr.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define COPROC_SUCCESS 0
+#define COPROC_ERROR -1
 
 typedef enum {
 #define OPCODE(IID) COPROC_ ##IID
@@ -46,5 +40,11 @@ typedef struct {
 } CoprocArgs;
 
 void coproc(const CoprocArgs *args);
+int coproc_init(const char *coproc_location_user, int hex_rev);
+void coproc_trace_op(int opcode);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
