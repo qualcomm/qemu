@@ -484,12 +484,24 @@ coproc_lib = static_library(
   sources: [ genh, opcodes_def_generated ],
 )
 
+coproc_link_args = [ qemu_ldflags ]
+if 'CONFIG_WIN32' in config_host or host_os == 'windows'
+  coproc_link_args += [ '-static-libstdc++', '-static-libgcc' ]
+endif
+
 coproc_dep = declare_dependency(
   link_with: coproc_lib,
-  link_args: [ qemu_ldflags, '-static-libstdc++', '-static-libgcc' ]
+  link_args: coproc_link_args
 )
 
 hexagon_ss.add(coproc_dep)
+
+if 'CONFIG_WIN32' in config_host or host_os == 'windows'
+  install_data(meson.project_source_root() / 'quic/install_win_deps.ps1',
+               install_dir: get_option('prefix'))
+  install_data(meson.project_source_root() / 'quic/mingw_packages.json',
+               install_dir: get_option('prefix'))
+endif
 
 target_arch += {'hexagon': hexagon_ss}
 target_system_arch += {'hexagon': hexagon_softmmu_ss}

@@ -17,17 +17,15 @@ print_help()
     echo "    -i    name of the install directory"
     echo "          (default: ${INSTALL_DIR})"
     echo "    -p    tarball prefix"
-    echo "    -s    script for installing custom dependencies"
     echo "    -h    print this help"
 }
 
-readonly OPTIONS="hb:i:p:s:"
+readonly OPTIONS="hb:i:p:"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
         "i") readonly INSTALL_DIR="${OPTARG}";;
         "p") readonly TARBALL_PREFIX="${OPTARG}";;
-        "s") readonly INSTALL_SCRIPT="${OPTARG}";;
         "h") print_help; exit 0;;
         "*") print_help; exit 1;;
     esac
@@ -40,11 +38,6 @@ set -ex
 if [ ! -d "${BUILD_DIR}" ] || [ ! -d "${INSTALL_DIR}" ]; then
     echo "Error: Build artifacts missing"
     exit 1
-fi
-
-if test -n "${INSTALL_SCRIPT}"
-then
-    cp "${INSTALL_SCRIPT}" "${INSTALL_DIR}"
 fi
 
 cp quic/RELEASE-NOTES.txt "${INSTALL_DIR}"

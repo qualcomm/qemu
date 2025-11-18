@@ -1,0 +1,50 @@
+{
+  "windows-x86_64": {
+    "mirror": "https://repo.msys2.org",
+    "prefix": "mingw/mingw64",
+    "packages": [
+      {
+        "name": "glib2",
+        "package": "mingw-w64-x86_64-glib2-2.84.1-2-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libglib-2.0-0.dll"
+        ]
+      },
+      {
+        "name": "gettext",
+        "package": "mingw-w64-x86_64-gettext-0.22.4-3-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libintl-8.dll"
+        ]
+      },
+      {
+        "name": "libiconv",
+        "package": "mingw-w64-x86_64-libiconv-1.18-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libiconv-2.dll"
+        ]
+      },
+      {
+        "name": "libwinpthread",
+        "package": "mingw-w64-x86_64-libwinpthread-13.0.0.r91.gfc0b67305-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libwinpthread-1.dll"
+        ]
+      },
+      {
+        "name": "pcre2",
+        "package": "mingw-w64-x86_64-pcre2-10.45-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libpcre2-8-0.dll"
+        ]
+      },
+      {
+        "name": "zlib",
+        "package": "mingw-w64-x86_64-zlib-1.3.1-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/zlib1.dll"
+        ]
+      }
+    ]
+  }
+}

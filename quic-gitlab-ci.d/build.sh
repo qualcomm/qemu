@@ -5,7 +5,6 @@
 
 : "${QUIC_COPROC_JOB:=}"
 : "${QUIC_COPROC_REF:=}"
-: "${QUIC_INSTALL_SCRIPT:=}"
 : "${QUIC_TARBALL_PREFIX:=}"
 
 set -euxo pipefail
@@ -23,6 +22,5 @@ mkdir -p "${QUIC_BUILD_DIR}"
         ./quic/install-coproc.sh
     fi
 
-    ./quic/create-tarball.sh -s "${QUIC_INSTALL_SCRIPT}" \
-        -p "${QUIC_TARBALL_PREFIX}"
+    ./quic/create-tarball.sh -p "${QUIC_TARBALL_PREFIX}"
 } 2>&1 | tee "${QUIC_BUILD_LOG}"
