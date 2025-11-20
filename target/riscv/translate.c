@@ -1320,6 +1320,9 @@ static void xqci_raise_IllegalInstruction(DisasContext *ctx)
 {
     gen_helper_raise_exception(tcg_env, tcg_constant_tl(RISCV_EXCP_ILLEGAL_INST));
 }
+
+#include "xqci/xqci-tcg.c"
+
 #endif /* TARGET_RISCV32 */
 
 /* The specification allows for longer insns, but not supported by qemu. */
