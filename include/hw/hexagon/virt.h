@@ -12,6 +12,15 @@
 #include "hw/clock.h"
 #include "target/hexagon/cpu.h"
 
+typedef struct HexagonBootInfo {
+    hwaddr kernel_start;
+    hwaddr kernel_size;
+    hwaddr initrd_start;
+    hwaddr initrd_size;
+    hwaddr image_low_addr;
+    hwaddr image_high_addr;
+} HexagonBootInfo;
+
 struct HexagonVirtMachineState {
     /*< private >*/
     MachineState parent_obj;
@@ -25,6 +34,7 @@ struct HexagonVirtMachineState {
     MemoryRegion bios;
     DeviceState *l2vic;
     Clock *apb_pclk;
+    HexagonBootInfo bootinfo;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);

@@ -319,6 +319,9 @@ static void virt_instance_init(Object *obj)
     vms->apb_pclk = clock_new(obj, "apb-pclk");
     clock_set_hz(vms->apb_pclk, 24000000);
 
+    /* Initialize boot info */
+    memset(&vms->bootinfo, 0, sizeof(vms->bootinfo));
+
     create_fdt(vms);
 }
 
@@ -377,20 +380,82 @@ enum {
 };
 
 
-static uint64_t load_kernel(const HexagonVirtMachineState *vms)
+static void hexagon_load_initrd(MachineState *machine, HexagonBootInfo *info)
+{
+    const char *filename = machine->initrd_filename;
+    uint64_t mem_size = machine->ram_size;
+    void *fdt = machine->fdt;
+    hwaddr start, end;
+    ssize_t size;
+
+    g_assert(filename != NULL);
+
+    /*
+     * Place the initrd in RAM after the kernel, with enough space to avoid
+     * kernel decompression clobbering it. Following ARM/RISC-V approach:
+     * - For smaller memory systems (< 1GB), place at halfway point
+     * - For larger systems, place at 512MB to allow large kernels
+     * - Ensure it's after the kernel image with some padding
+     */
+    if (mem_size < 1 * GiB) {
+        start = mem_size / 2;
+    } else {
+        start = 512 * MiB;
+    }
+
+    /* Ensure we're after the kernel image with at least 64MB padding */
+    if (start < info->image_high_addr + 64 * MiB) {
+        start = info->image_high_addr + 64 * MiB;
+    }
+
+    start = QEMU_ALIGN_UP(start, 4 * MiB); /* Align to 4MB boundary */
+
+    size = load_ramdisk(filename, start, mem_size - start);
+    if (size == -1) {
+        size = load_image_targphys(filename, start, mem_size - start, NULL);
+        if (size == -1) {
+            error_report("could not load ramdisk '%s'", filename);
+            exit(1);
+        }
+    }
+
+    info->initrd_start = start;
+    info->initrd_size = size;
+
+    if (fdt) {
+        end = start + size;
+        qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-start", start);
+        qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-end", end);
+    }
+}
+
+static uint64_t load_kernel(HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
+    HexagonBootInfo *info = &vms->bootinfo;
     uint64_t entry = 0;
-    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, &entry, NULL,
-                         NULL, NULL, 0, EM_HEXAGON, 0, 0, &address_space_memory,
-                         false, NULL) > 0) {
+    uint64_t lowaddr = 0, highaddr = 0;
+
+    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, &entry,
+                         &lowaddr, &highaddr, NULL, 0, EM_HEXAGON, 0, 0,
+                         &address_space_memory, false, NULL) > 0) {
+        info->kernel_start = entry;
+        info->image_low_addr = lowaddr;
+        info->image_high_addr = highaddr;
+        info->kernel_size = highaddr - lowaddr;
+
+        /* Load initrd if specified */
+        if (ms->initrd_filename) {
+            hexagon_load_initrd(ms, info);
+        }
+
         return entry;
     }
     error_report("error loading '%s'", ms->kernel_filename);
     exit(1);
 }
 
-static uint64_t setup_boot(const HexagonVirtMachineState *vms)
+static uint64_t setup_boot(HexagonVirtMachineState *vms)
 {
     uint64_t entry_addr = load_kernel(vms);
     uint32_t entry_addr_low = extract64(entry_addr, 0, 32);
