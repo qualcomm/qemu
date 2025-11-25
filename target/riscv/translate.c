@@ -1229,6 +1229,99 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 /* Include decoders for factored-out extensions */
 #include "decode-XVentanaCondOps.c.inc"
 
+#ifdef TARGET_RISCV32
+static void xqci_jump(DisasContext *ctx, TCGv pc, int imm)
+{
+    TCGv target_pc = tcg_temp_new();
+    tcg_gen_addi_tl(target_pc, pc, imm);
+    tcg_gen_mov_tl(cpu_pc, target_pc);
+    lookup_and_goto_ptr(ctx);
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static vaddr xqci_current_pc(DisasContext *ctx)
+{
+    return ctx->base.pc_next;
+}
+
+static void xqci_jump_pcrel(DisasContext *ctx, int imm)
+{
+    gen_goto_tb(ctx, 0, imm);
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void xqci_jump_conditional_pcrel(DisasContext *ctx, int imm)
+{
+    target_ulong orig_pc = ctx->pc_save;
+    gen_goto_tb(ctx, 1, imm);
+    ctx->pc_save = orig_pc;
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void xqci_jump_fallthrough_pcrel(DisasContext *ctx)
+{
+    gen_goto_tb(ctx, 0, ctx->cur_insn_len);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    ctx->pc_save = -1;
+}
+
+
+static TCGv xqci_get_gpr(DisasContext *ctx, int nr)
+{
+    return get_gpr(ctx, nr, EXT_NONE);
+}
+
+static TCGv xqci_csrr(DisasContext *ctx, TCGv_env env, int csrno)
+{
+    TCGv ret = tcg_temp_new();
+    gen_helper_csrr(ret, env, tcg_constant_tl(csrno));
+    return ret;
+}
+
+static TCGv xqci_csrr_field(DisasContext *ctx, TCGv_env env, int csrno, int field)
+{
+    TCGv ret = tcg_temp_new();
+    gen_helper_csrr(ret, env, tcg_constant_tl(csrno));
+    tcg_gen_andi_tl(ret, ret, field);
+    return ret;
+}
+
+static void xqci_csrw(DisasContext *ctx, TCGv_env env, int csrno, TCGv value)
+{
+    gen_helper_csrw(env, tcg_constant_tl(csrno), value);
+}
+
+static void xqci_csrw_field(DisasContext *ctx, TCGv_env env, int csrno, int field, TCGv value) {
+    TCGv_i32 ret = tcg_temp_new();
+    gen_helper_csrrw(ret, env, tcg_constant_tl(csrno), value, tcg_constant_tl(field));
+}
+
+static void xqci_set_mode_M(DisasContext *ctx) {}
+static void xqci_set_mode_S(DisasContext *ctx) {}
+static void xqci_set_mode_U(DisasContext *ctx) {}
+
+static void xqci_syscall(DisasContext *ctx, int32_t func, TCGv arg)
+{
+    generate_exception(ctx, RISCV_EXCP_U_ECALL);
+}
+
+static TCGv get_and_validate_stack_pointer(DisasContext *ctx, TCGv ptr, int i)
+{
+    return ptr;
+}
+
+static TCGv xqci_implemented_U(DisasContext *ctx) {return tcg_constant_tl(1);}
+static TCGv xqci_implemented_Zcmp(DisasContext *ctx) {return tcg_constant_tl(1);}
+static TCGv xqci_implemented_Xqccmp(DisasContext *ctx) {return tcg_constant_tl(1);}
+/* Implemented in a default rv32 QEMU machine */
+static TCGv xqci_implemented_Smdbltrp(DisasContext *ctx) {return tcg_constant_tl(1);}
+
+static void xqci_raise_IllegalInstruction(DisasContext *ctx)
+{
+    gen_helper_raise_exception(tcg_env, tcg_constant_tl(RISCV_EXCP_ILLEGAL_INST));
+}
+#endif /* TARGET_RISCV32 */
+
 /* The specification allows for longer insns, but not supported by qemu. */
 #define MAX_INSN_LEN  8
 
