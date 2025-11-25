@@ -491,7 +491,23 @@ static void virt_init(MachineState *ms)
     Error **errp = NULL;
     const hexagon_machine_config *m_cfg = &v68n_1024;
 
-    qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
+    /*
+     * If an external DTB is specified, load it instead of generating one.
+     * Load it early so that runtime properties (like initrd) can be added.
+     */
+    if (ms->dtb) {
+        ms->fdt = load_device_tree(ms->dtb, &vms->fdt_size);
+        if (!ms->fdt) {
+            error_report("load_device_tree() failed");
+            exit(1);
+        }
+    }
+
+    /* Set kernel command line in chosen node only if using generated FDT */
+    if (ms->dtb == NULL && ms->kernel_cmdline && *ms->kernel_cmdline) {
+        qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs",
+                                ms->kernel_cmdline);
+    }
 
     vms->sys = get_system_memory();
 
@@ -512,7 +528,11 @@ static void virt_init(MachineState *ms)
     memory_region_init_rom(&vms->cfgtable, NULL, "config_table.rom",
                            sizeof(m_cfg->cfgtable), errp);
     memory_region_add_subregion(vms->sys, m_cfg->cfgbase, &vms->cfgtable);
-    fdt_add_hvx(vms, m_cfg, errp);
+    /* Only add dynamic device tree nodes if using generated FDT */
+    if (ms->dtb == NULL) {
+        fdt_add_hvx(vms, m_cfg, errp);
+    }
+
     const char *cpu_model = ms->cpu_type;
 
     if (!cpu_model) {
@@ -561,12 +581,15 @@ static void virt_init(MachineState *ms)
         qdev_get_gpio_in(DEVICE(cpu_0), 5), qdev_get_gpio_in(DEVICE(cpu_0), 6),
         qdev_get_gpio_in(DEVICE(cpu_0), 7), NULL);
 
-    fdt_add_hvm_pic_node(vms, m_cfg);
-    fdt_add_virtio_devices(vms);
-    fdt_add_cpu_nodes(vms);
-    fdt_add_clocks(vms);
-    fdt_add_uart(vms, VIRT_UART0);
-    fdt_add_gpt_node(vms);
+    /* Only add device tree nodes if using generated FDT */
+    if (ms->dtb == NULL) {
+        fdt_add_hvm_pic_node(vms, m_cfg);
+        fdt_add_virtio_devices(vms);
+        fdt_add_cpu_nodes(vms);
+        fdt_add_clocks(vms);
+        fdt_add_uart(vms, VIRT_UART0);
+        fdt_add_gpt_node(vms);
+    }
     create_qtimer(vms, m_cfg);
     create_pll(vms);
     fdt_add_pll_node(vms);
@@ -574,7 +597,6 @@ static void virt_init(MachineState *ms)
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
-
 
     hexagon_load_fdt(vms);
 }
