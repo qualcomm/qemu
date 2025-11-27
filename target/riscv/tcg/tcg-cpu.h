@@ -30,16 +30,30 @@ extern const TCGCPUOps riscv_tcg_ops;
 
 struct DisasContext;
 struct RISCVCPUConfig;
-typedef struct RISCVDecoder {
+typedef struct RISCVDecoder16 {
+    bool (*guard_func)(const struct RISCVCPUConfig *);
+    bool (*riscv_cpu_decode_fn)(struct DisasContext *, uint16_t);
+} RISCVDecoder16;
+typedef struct RISCVDecoder32 {
     bool (*guard_func)(const struct RISCVCPUConfig *);
     bool (*riscv_cpu_decode_fn)(struct DisasContext *, uint32_t);
-} RISCVDecoder;
+} RISCVDecoder32;
+typedef struct RISCVDecoder48 {
+    bool (*guard_func)(const struct RISCVCPUConfig *);
+    bool (*riscv_cpu_decode_fn)(struct DisasContext *, uint64_t);
+} RISCVDecoder48;
 
-typedef bool (*riscv_cpu_decode_fn)(struct DisasContext *, uint32_t);
+typedef bool (*riscv_cpu_decode_16_fn)(struct DisasContext *, uint16_t);
+typedef bool (*riscv_cpu_decode_32_fn)(struct DisasContext *, uint32_t);
+typedef bool (*riscv_cpu_decode_48_fn)(struct DisasContext *, uint64_t);
 
-extern const size_t decoder_table_size;
+extern const size_t decoder_table_size_16;
+extern const size_t decoder_table_size_32;
+extern const size_t decoder_table_size_48;
 
-extern const RISCVDecoder decoder_table[];
+extern const RISCVDecoder16 decoder_table_16[];
+extern const RISCVDecoder32 decoder_table_32[];
+extern const RISCVDecoder48 decoder_table_48[];
 
 void riscv_tcg_cpu_finalize_dynamic_decoder(RISCVCPU *cpu);
 
