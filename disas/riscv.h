@@ -213,6 +213,9 @@ typedef struct {
     uint8_t   vm;
     uint32_t  vzimm;
     uint8_t   rlist;
+    /* Xqci specific fields */
+    uint32_t  uimm;
+    uint64_t  offset;
 } rv_decode;
 
 enum {
