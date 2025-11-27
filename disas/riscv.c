@@ -5409,11 +5409,12 @@ static void decode_inst_decompress(rv_decode *dec, rv_isa isa)
 /* disassemble instruction */
 
 static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
-                            const RISCVCPUConfig *cfg)
+                            size_t inst_length, const RISCVCPUConfig *cfg)
 {
     rv_decode dec = { 0 };
     dec.pc = pc;
     dec.inst = inst;
+    dec.inst_length = inst_length;
     dec.cfg = cfg;
 
     static const struct {
@@ -5509,7 +5510,7 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
     }
 
     g_autoptr(GString) str =
-        disasm_inst(isa, memaddr, inst,
+        disasm_inst(isa, memaddr, inst, len,
                     (const RISCVCPUConfig *)info->target_info);
     (*info->fprintf_func)(info->stream, "%s", str->str);
 
