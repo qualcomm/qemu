@@ -143,13 +143,19 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
 
         if (i == 0) {
+            cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
             if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
                 return;
             }
-        } else if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-            env->dir_list = NULL;
-            return;
+        } else {
+            if (cpu0->usefs) {
+                qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
+            }
+            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+                env->dir_list = NULL;
+                return;
+            }
         }
 
     }
