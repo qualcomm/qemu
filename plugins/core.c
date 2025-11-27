@@ -606,7 +606,7 @@ bool qemu_plugin_maybe_fetch_time(int64_t *tptr)
     /* there should only be one callback */
     if (!QLIST_EMPTY(&plugin.cb_lists[ev])) {
         struct qemu_plugin_cb *cb = QLIST_FIRST(&plugin.cb_lists[ev]);
-        qemu_plugin_time_cb_t func = cb->f.generic;
+        qemu_plugin_time_cb_t func = cb->f.time;
         *tptr = func(cb->udata);
         return true;
     }

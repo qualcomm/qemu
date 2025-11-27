@@ -720,7 +720,7 @@ QEMU_PLUGIN_API
 const void *qemu_plugin_request_time_control(qemu_plugin_id_t id);
 
 /**
- * typedef qemu_plugin_vcpu_mem_cb_t - time callback function
+ * typedef qemu_plugin_time_cb_t - time callback function
  * @userdata: a ptr supplied by the plugin
  *
  * This callback may not be in the vCPU context as time requests come

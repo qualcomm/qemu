@@ -248,7 +248,8 @@ int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
  * ignore whether or not the clock should be used in deadline
  * calculations.
  */
-int64_t qemu_clock_deadline_ns_all_with_ts(QEMUClockType type, int attr_mask, int64_t time)
+int64_t qemu_clock_deadline_ns_all_with_ts(QEMUClockType type, int attr_mask,
+                                           int64_t time)
 {
     int64_t deadline = -1;
     int64_t delta;
