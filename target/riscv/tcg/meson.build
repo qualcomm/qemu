@@ -16,6 +16,7 @@ riscv_ss.add(files(
   'vector_helper.c',
   'vector_internals.c',
   'xsf_helper.c',
+  '../xqci/xqci-csr.c',
   'zce_helper.c'))
 
 
