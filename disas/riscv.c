@@ -4561,6 +4561,9 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
     rv_inst inst = dec->inst;
     dec->codec = opcode_data[dec->op].codec;
     switch (dec->codec) {
+    case rv_codec_skip:
+        /* do nothing */
+        break;
     case rv_codec_none:
         dec->rd = dec->rs1 = dec->rs2 = rv_ireg_zero;
         dec->imm = 0;
