@@ -31,6 +31,7 @@
 #include "accel/tcg/cpu-loop.h"
 #include "system/tcg.h"
 #include "system/replay.h"
+#include "system/cpu-timers.h"
 #include "exec/icount.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
@@ -199,10 +200,11 @@ static void tcg_remove_all_gdbstub_breakpoints(CPUState *cpu)
 
 static int64_t tcg_get_virtual_clock(void)
 {
+#ifdef CONFIG_PLUGIN
     int64_t from_plugin;
     if (qemu_plugin_maybe_fetch_time(&from_plugin)) {
-        static int64_t bias = 0;
-        static int64_t last_reported_time = 0;
+        static int64_t bias;
+        static int64_t last_reported_time;
         /*
          * If the plugin reports negative time its because everything
          * is sleeping (or we haven't started yet). We ignore that
@@ -226,6 +228,7 @@ static int64_t tcg_get_virtual_clock(void)
         last_reported_time = from_plugin + bias;
         return last_reported_time;
     }
+#endif
     return cpu_get_clock();
 }
 
