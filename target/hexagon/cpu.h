@@ -197,6 +197,7 @@ struct ArchCPU {
     uint32_t hvx_contexts;
     uint32_t boot_addr;
     struct HexagonGlobalRegState *globalregs;
+    gchar *usefs;
 #endif
 };
 
