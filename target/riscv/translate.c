@@ -62,8 +62,8 @@ typedef struct DisasContext {
     RISCVMXL misa_mxl_max;
     RISCVMXL xl;
     RISCVMXL address_xl;
+    uint64_t opcode;
     uint32_t misa_ext;
-    uint32_t opcode;
     RISCVExtStatus mstatus_fs;
     RISCVExtStatus mstatus_vs;
     uint32_t mem_idx;
@@ -113,7 +113,9 @@ typedef struct DisasContext {
     /* FRM is known to contain a valid value. */
     bool frm_valid;
     bool insn_start_updated;
-    const GPtrArray *decoders;
+    const GPtrArray *decoders_16;
+    const GPtrArray *decoders_32;
+    const GPtrArray *decoders_48;
     /* zicfilp extension. fcfi_enabled, lp expected or not */
     bool fcfi_enabled;
     bool fcfi_lp_expected;
@@ -1228,20 +1230,28 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 #include "decode-XVentanaCondOps.c.inc"
 
 /* The specification allows for longer insns, but not supported by qemu. */
-#define MAX_INSN_LEN  4
+#define MAX_INSN_LEN  8
 
-const RISCVDecoder decoder_table[] = {
+const RISCVDecoder16 decoder_table_16[] = {
+};
+
+const RISCVDecoder32 decoder_table_32[] = {
     { always_true_p, decode_insn32 },
     { has_xmips_p, decode_xmips},
     { has_xthead_p, decode_xthead},
     { has_XVentanaCondOps_p, decode_XVentanaCodeOps},
 };
 
-const size_t decoder_table_size = ARRAY_SIZE(decoder_table);
+const RISCVDecoder48 decoder_table_48[] = {
+};
+
+const size_t decoder_table_size_16 = ARRAY_SIZE(decoder_table_16);
+const size_t decoder_table_size_32 = ARRAY_SIZE(decoder_table_32);
+const size_t decoder_table_size_48 = ARRAY_SIZE(decoder_table_48);
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
-    uint32_t opcode;
+    uint64_t opcode;
     bool pc_is_4byte_align = ((ctx->base.pc_next % 4) == 0);
 
     ctx->virt_inst_excp = false;
@@ -1279,7 +1289,14 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
             decode_insn16(ctx, opcode)) {
             return;
         }
-    } else {
+
+        for (guint i = 0; i < ctx->decoders_16->len; ++i) {
+            riscv_cpu_decode_16_fn func = g_ptr_array_index(ctx->decoders_16, i);
+            if (func(ctx, opcode)) {
+                return;
+            }
+        }
+    } else if (ctx->cur_insn_len == 4) {
         if (!pc_is_4byte_align) {
             /* Load last 2 bytes of instruction here */
             opcode = deposit32(opcode, 16, 16,
@@ -1289,8 +1306,31 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
         }
         ctx->opcode = opcode;
 
-        for (guint i = 0; i < ctx->decoders->len; ++i) {
-            riscv_cpu_decode_fn func = g_ptr_array_index(ctx->decoders, i);
+        for (guint i = 0; i < ctx->decoders_32->len; ++i) {
+            riscv_cpu_decode_32_fn func = g_ptr_array_index(ctx->decoders_32, i);
+            if (func(ctx, opcode)) {
+                return;
+            }
+        }
+    } else if (ctx->cur_insn_len == 6) {
+        if (pc_is_4byte_align) {
+            /* Load last 2 bytes */
+            opcode = deposit64(opcode, 32, 16,
+                               translator_lduw_end(env, &ctx->base,
+                                                   ctx->base.pc_next + 4,
+                                                   MO_LE));
+        } else {
+            /* Load last 4 bytes */
+            opcode = deposit64(opcode, 16, 32,
+                               translator_ldl_end(env, &ctx->base,
+                                                  ctx->base.pc_next + 2,
+                                                  MO_LE));
+        }
+        opcode <<= (64-48);
+        ctx->opcode = opcode;
+
+        for (guint i = 0; i < ctx->decoders_48->len; ++i) {
+            riscv_cpu_decode_48_fn func = g_ptr_array_index(ctx->decoders_48, i);
             if (func(ctx, opcode)) {
                 return;
             }
@@ -1345,7 +1385,9 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->fcfi_enabled = FIELD_EX32(tb_flags, TB_FLAGS, FCFI_ENABLED);
     ctx->zero = tcg_constant_tl(0);
     ctx->virt_inst_excp = false;
-    ctx->decoders = cpu->decoders;
+    ctx->decoders_16 = cpu->decoders_16;
+    ctx->decoders_32 = cpu->decoders_32;
+    ctx->decoders_48 = cpu->decoders_48;
 }
 
 static void riscv_tr_tb_start(DisasContextBase *db, CPUState *cpu)

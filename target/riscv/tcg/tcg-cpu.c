@@ -1199,17 +1199,37 @@ void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 
 void riscv_tcg_cpu_finalize_dynamic_decoder(RISCVCPU *cpu)
 {
-    GPtrArray *dynamic_decoders;
-    dynamic_decoders = g_ptr_array_sized_new(decoder_table_size);
-    for (size_t i = 0; i < decoder_table_size; ++i) {
-        if (decoder_table[i].guard_func &&
-            decoder_table[i].guard_func(&cpu->cfg)) {
-            g_ptr_array_add(dynamic_decoders,
-                            (gpointer)decoder_table[i].riscv_cpu_decode_fn);
+    GPtrArray *dynamic_decoders_16;
+    GPtrArray *dynamic_decoders_32;
+    GPtrArray *dynamic_decoders_48;
+    dynamic_decoders_16 = g_ptr_array_sized_new(decoder_table_size_16);
+    dynamic_decoders_32 = g_ptr_array_sized_new(decoder_table_size_32);
+    dynamic_decoders_48 = g_ptr_array_sized_new(decoder_table_size_48);
+    for (size_t i = 0; i < decoder_table_size_16; ++i) {
+        if (decoder_table_16[i].guard_func &&
+            decoder_table_16[i].guard_func(&cpu->cfg)) {
+            g_ptr_array_add(dynamic_decoders_16,
+                            (gpointer)decoder_table_16[i].riscv_cpu_decode_fn);
+        }
+    }
+    for (size_t i = 0; i < decoder_table_size_32; ++i) {
+        if (decoder_table_32[i].guard_func &&
+            decoder_table_32[i].guard_func(&cpu->cfg)) {
+            g_ptr_array_add(dynamic_decoders_32,
+                            (gpointer)decoder_table_32[i].riscv_cpu_decode_fn);
+        }
+    }
+    for (size_t i = 0; i < decoder_table_size_48; ++i) {
+        if (decoder_table_48[i].guard_func &&
+            decoder_table_48[i].guard_func(&cpu->cfg)) {
+            g_ptr_array_add(dynamic_decoders_48,
+                            (gpointer)decoder_table_48[i].riscv_cpu_decode_fn);
         }
     }
 
-    cpu->decoders = dynamic_decoders;
+    cpu->decoders_16 = dynamic_decoders_16;
+    cpu->decoders_32 = dynamic_decoders_32;
+    cpu->decoders_48 = dynamic_decoders_48;
 }
 
 bool riscv_cpu_tcg_compatible(RISCVCPU *cpu)
