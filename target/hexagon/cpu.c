@@ -67,6 +67,7 @@ static const Property hexagon_cpu_properties[] = {
                      TYPE_L2VIC_INTERFACE, L2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
+    DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
