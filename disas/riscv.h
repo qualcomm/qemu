@@ -97,6 +97,7 @@ typedef enum {
 
 typedef enum {
     rv_codec_illegal,
+    rv_codec_skip,
     rv_codec_none,
     rv_codec_u,
     rv_codec_uj,
