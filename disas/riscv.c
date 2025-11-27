@@ -5320,6 +5320,12 @@ static GString *format_inst(size_t tab, rv_decode *dec)
         case 'h':
             g_string_append(buf, rv_fli_name_const[dec->imm]);
             break;
+        case 'k':
+            g_string_append_printf(buf, "%u", dec->uimm);
+            break;
+        case 'Z':
+            g_string_append_printf(buf, "%lu", dec->offset);
+            break;
         default:
             break;
         }
