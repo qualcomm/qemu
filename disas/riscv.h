@@ -192,6 +192,7 @@ typedef struct {
     const RISCVCPUConfig *cfg;
     uint64_t  pc;
     uint64_t  inst;
+    size_t    inst_length;
     const rv_opcode_data *opcode_data;
     int32_t   imm;
     int32_t   imm1;
