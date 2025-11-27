@@ -593,7 +593,9 @@ struct ArchCPU {
     GHashTable *user_options;
     GHashTable *misa_ext_user_opts;
     GHashTable *multi_ext_user_opts;
-    const GPtrArray *decoders;
+    const GPtrArray *decoders_16;
+    const GPtrArray *decoders_32;
+    const GPtrArray *decoders_48;
 };
 
 typedef struct RISCVCSR RISCVCSR;
