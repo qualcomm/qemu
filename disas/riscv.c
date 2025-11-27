@@ -26,6 +26,7 @@
 /* Vendor extensions */
 #include "disas/riscv-xthead.h"
 #include "disas/riscv-xventana.h"
+#include "disas/riscv-xqci.h"
 
 typedef enum {
     /* 0 is reserved for rv_op_illegal. */
@@ -5425,6 +5426,7 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
         const rv_opcode_data *opcode_data;
         void (*decode_func)(rv_decode *, rv_isa);
     } decoders[] = {
+        { has_xqci_p, xqci_opcode_data, decode_xqci },
         { always_true_p, rvi_opcode_data, decode_inst_opcode },
         { has_xtheadba_p, xthead_opcode_data, decode_xtheadba },
         { has_xtheadbb_p, xthead_opcode_data, decode_xtheadbb },
