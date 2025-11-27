@@ -187,6 +187,8 @@ typedef struct {
     uint64_t  pc;
     uint64_t  inst;
     size_t    inst_length;
+    /* Opcode index, set by decodetree translators (Xqci, Xqccmp) */
+    rv_opcode op;
     int32_t   imm;
     int32_t   imm1;
     uint8_t   rd;

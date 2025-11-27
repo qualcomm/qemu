@@ -28,6 +28,7 @@
 #include "disas/riscv-xventana.h"
 #include "disas/riscv-xlrbr.h"
 #include "disas/riscv-xsf.h"
+#include "disas/riscv-xqci.h"
 
 /* register names */
 
@@ -3462,6 +3463,7 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
             bool (*guard_func)(const RISCVCPUConfig *);
             const rv_opcode_data *(*decode_func)(rv_decode *, rv_isa);
         } decoders[] = {
+            { has_xqci_p, decode_xqci },
             { has_xtheadba_p, decode_xtheadba },
             { has_xtheadbb_p, decode_xtheadbb },
             { has_xtheadbs_p, decode_xtheadbs },
