@@ -65,6 +65,18 @@ target_ulong HELPER(brev8)(target_ulong rs1)
     return x;
 }
 
+target_ulong HELPER(brev32)(target_ulong rs1)
+{
+    target_ulong x = rs1;
+
+    x = do_swap(x, 0x5555555555555555ull, 1);
+    x = do_swap(x, 0x3333333333333333ull, 2);
+    x = do_swap(x, 0x0f0f0f0f0f0f0f0full, 4);
+    x = do_swap(x, 0x00ff00ff00ff00ffull, 8);
+    x = do_swap(x, 0x0000ffff0000ffffull, 16);
+    return x;
+}
+
 static const uint64_t shuf_masks[] = {
     dup_const(MO_8, 0x44),
     dup_const(MO_8, 0x30),
