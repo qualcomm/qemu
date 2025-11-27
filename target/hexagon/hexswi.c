@@ -396,7 +396,26 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
         if (ret == -1) {
             err = errno;
-        } else {
+            HexagonCPU *cpu = env_archcpu(env);
+            if (cpu->usefs && g_strrstr(filename, ".so") != NULL
+                && errno == ENOENT) {
+                /*
+                 * Didn't find it, so now we also try to open in the
+                 * 'search dir':
+                 */
+                GString *lib_filename_str = g_string_new(cpu->usefs);
+
+                g_string_append_printf(lib_filename_str, "/%s", filename);
+                gchar *lib_filename = g_string_free(lib_filename_str, false);
+                ret = open(lib_filename, real_openmode, 0644);
+                if (ret == -1) {
+                    err = errno;
+                }
+                g_free(lib_filename);
+            }
+        }
+
+        if (ret != -1) {
             int guestfd = alloc_guestfd();
             associate_guestfd(guestfd, ret);
             ret = guestfd;
