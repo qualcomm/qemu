@@ -202,6 +202,7 @@ struct ArchCPU {
     uint32_t boot_addr;
     struct HexagonGlobalRegState *globalregs;
     L2VicInterface *l2vic;
+    gchar *usefs;
 #endif
 };
 
