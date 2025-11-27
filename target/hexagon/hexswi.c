@@ -23,6 +23,8 @@
 #endif
 
 #include "semihosting/common-semi.h"
+#include "semihosting/syscalls.h"
+#include "semihosting/guestfd.h"
 
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
@@ -89,11 +91,21 @@ static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
     hexagon_touch_memory(env, addr, count, load ? MMU_DATA_LOAD : MMU_DATA_STORE);
 }
 
+static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
+{
+    if (err) {
+        ret = -1;
+    }
+    common_semi_cb(cs, ret, err);
+}
+
 static void sim_handle_trap0(CPUHexagonState *env)
 {
     g_assert(bql_locked());
     target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
     target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
+    uintptr_t retaddr = 0;
+    CPUState *cs = env_cpu(env);
 
     if (!is_hexagon_specific_swi_flag(what_swi)) {
         if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
@@ -106,19 +118,309 @@ static void sim_handle_trap0(CPUHexagonState *env)
              */
             do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
         }
-        CPUState *cs = env_cpu(env);
         do_common_semihosting(cs);
         return;
     }
 
     switch (what_swi) {
 
+    case HEX_SYS_OPEN:
+    {
+        char filename[BUFSIZ];
+        target_ulong physicalFilenameAddr;
+
+        unsigned int filemode;
+        int length;
+        int real_openmode;
+        int ret, err = 0;
+        static const unsigned int mode_table[] = {
+            O_RDONLY,
+            O_RDONLY | O_BINARY,
+            O_RDWR,
+            O_RDWR | O_BINARY,
+            O_WRONLY | O_CREAT | O_TRUNC,
+            O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
+            O_RDWR | O_CREAT | O_TRUNC,
+            O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
+            O_WRONLY | O_APPEND | O_CREAT,
+            O_WRONLY | O_APPEND | O_CREAT | O_BINARY,
+            O_RDWR | O_APPEND | O_CREAT,
+            O_RDWR | O_APPEND | O_CREAT | O_BINARY,
+            O_RDWR | O_CREAT,
+            O_RDWR | O_CREAT | O_EXCL
+        };
+
+
+        hexagon_read_memory(env, swi_info, 4, &physicalFilenameAddr, retaddr);
+        hexagon_read_memory(env, swi_info + 4, 4, &filemode, retaddr);
+        hexagon_read_memory(env, swi_info + 8, 4, &length, retaddr);
+
+        if (length >= BUFSIZ) {
+            printf("%s:%d: ERROR: filename too large\n",
+                    __func__, __LINE__);
+        }
+
+        int i = 0;
+        do {
+            hexagon_read_memory(env, physicalFilenameAddr + i, 1, &filename[i],
+                                retaddr);
+            i++;
+        } while (filename[i - 1]);
+
+        /* convert ARM ANGEL filemode into host filemode */
+        if (filemode < 14)
+            real_openmode = mode_table[filemode];
+        else {
+            real_openmode = 0;
+            printf("%s:%d: ERROR: invalid OPEN mode: %d\n",
+                   __func__, __LINE__, filemode);
+        }
+
+        ret = open(filename, real_openmode | O_BINARY, 0644);
+
+        if (ret == -1) {
+            err = errno;
+        } else {
+            int guestfd = alloc_guestfd();
+            associate_guestfd(guestfd, ret);
+            ret = guestfd;
+        }
+        common_semi_cb(cs, ret, err);
+    }
+    break;
+
     case HEX_SYS_EXCEPTION:
         arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
         exit(arch_get_thread_reg(env, HEX_REG_R02));
         break;
 
-    /* TODO: implement other hexagon-specific semihosting calls */
+    /* We override arm-compatible version to print at stdout, not console. */
+    case HEX_SYS_WRITEC:
+    {
+        FILE *fp = stdout;
+        char c;
+        rcu_read_lock();
+        hexagon_read_memory(env, swi_info, 1, &c, retaddr);
+        fprintf(fp, "%c", c);
+        fflush(fp);
+        rcu_read_unlock();
+    }
+    break;
+
+    case HEX_SYS_WRITECREG:
+        fprintf(stdout, "%c", swi_info);
+        fflush(stdout);
+        common_semi_cb(cs, 0, 0);
+        break;
+
+    /* We override arm-compatible version to print at stdout, not console. */
+    case HEX_SYS_WRITE0:
+    {
+        FILE *fp = stdout;
+        char c;
+        int i = 0;
+        rcu_read_lock();
+        do {
+            hexagon_read_memory(env, swi_info + i, 1, &c, retaddr);
+            fprintf(fp, "%c", c);
+            i++;
+        } while (c);
+        fflush(fp);
+        rcu_read_unlock();
+        break;
+    }
+
+    /*
+     * Hexagon's SYS_ISTTY is a bit different than arm's: we do not return -1
+     * on error, neither errno. So we override with out own implementation.
+     */
+    case HEX_SYS_ISTTY:
+    {
+        int fd;
+        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        common_semi_cb(cs, isatty(fd), 0);
+    }
+    break;
+
+    case HEX_SYS_STAT:
+    case HEX_SYS_FSTAT:
+    {
+        /*
+         * This must match the caller's definition, it would be in the
+         * caller's angel.h or equivalent header.
+         */
+        struct __SYS_STAT {
+            uint64_t dev;
+            uint64_t ino;
+            uint32_t mode;
+            uint32_t nlink;
+            uint64_t rdev;
+            uint32_t size;
+            uint32_t __pad1;
+            uint32_t atime;
+            uint32_t mtime;
+            uint32_t ctime;
+            uint32_t __pad2;
+        } sys_stat;
+        struct stat st_buf;
+        uint8_t *st_bufptr = (uint8_t *)&sys_stat;
+        int rc, err = 0;
+        char filename[BUFSIZ];
+        target_ulong physicalFilenameAddr;
+        target_ulong statBufferAddr;
+        hexagon_read_memory(env, swi_info, 4, &physicalFilenameAddr, retaddr);
+
+        if (what_swi == HEX_SYS_STAT) {
+            int i = 0;
+            do {
+                hexagon_read_memory(env, physicalFilenameAddr + i, 1,
+                                    &filename[i], retaddr);
+                i++;
+            } while ((i < BUFSIZ) && filename[i - 1]);
+            rc = stat(filename, &st_buf);
+            err = errno;
+        } else{
+            int fd = physicalFilenameAddr;
+            GuestFD *gf = get_guestfd(fd);
+            if (gf->type != GuestFDHost) {
+                fprintf(stderr,
+                        "fstat semihosting only implemented for native mode.\n");
+                g_assert_not_reached();
+            }
+            rc = fstat(gf->hostfd, &st_buf);
+            err = errno;
+        }
+        if (rc == 0) {
+            sys_stat.dev   = st_buf.st_dev;
+            sys_stat.ino   = st_buf.st_ino;
+            sys_stat.mode  = st_buf.st_mode;
+            sys_stat.nlink = (uint32_t) st_buf.st_nlink;
+            sys_stat.rdev  = st_buf.st_rdev;
+            sys_stat.size  = (uint32_t) st_buf.st_size;
+#if defined(__linux__)
+            sys_stat.atime = (uint32_t) st_buf.st_atim.tv_sec;
+            sys_stat.mtime = (uint32_t) st_buf.st_mtim.tv_sec;
+            sys_stat.ctime = (uint32_t) st_buf.st_ctim.tv_sec;
+#elif defined(_WIN32)
+            sys_stat.atime = st_buf.st_atime;
+            sys_stat.mtime = st_buf.st_mtime;
+            sys_stat.ctime = st_buf.st_ctime;
+#endif
+        }
+        hexagon_read_memory(env, swi_info + 4, 4, &statBufferAddr, retaddr);
+
+        for (int i = 0; i < sizeof(sys_stat); i++) {
+            hexagon_write_memory(env, statBufferAddr + i, 1, st_bufptr[i],
+                                 retaddr);
+        }
+        common_semi_cb(cs, rc, rc == 0 ? 0 : err);
+    }
+    break;
+
+    case HEX_SYS_FTRUNC:
+    {
+        int fd;
+        off_t size_limit;
+        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        hexagon_read_memory(env, swi_info + 4, 8, &size_limit, retaddr);
+        semihost_sys_ftruncate(cs, common_semi_cb, fd, size_limit);
+    }
+    break;
+
+    case HEX_SYS_ACCESS:
+    {
+        char filename[BUFSIZ];
+        uint32_t FileNameAddr;
+        uint32_t BufferMode;
+        int rc;
+
+        int i = 0;
+
+        hexagon_read_memory(env, swi_info, 4, &FileNameAddr, retaddr);
+        do {
+            hexagon_read_memory(env, FileNameAddr + i, 1, &filename[i],
+                                retaddr);
+            i++;
+        } while ((i < BUFSIZ) && (filename[i - 1]));
+        filename[i] = 0;
+
+        hexagon_read_memory(env, swi_info + 4, 4, &BufferMode, retaddr);
+
+        rc = access(filename, BufferMode);
+        common_semi_cb(cs, rc,  rc == 0 ? 0 : errno);
+    }
+    break;
+
+    case HEX_SYS_GETCWD:
+    {
+        char cwdPtr[PATH_MAX];
+        uint32_t BufferAddr;
+        uint32_t BufferSize;
+        uint32_t rc = 0, err = 0;
+
+        hexagon_read_memory(env, swi_info, 4, &BufferAddr, retaddr);
+        hexagon_read_memory(env, swi_info + 4, 4, &BufferSize, retaddr);
+
+        if (!getcwd(cwdPtr, PATH_MAX)) {
+            err = errno;
+        } else {
+            size_t cwd_size = strlen(cwdPtr);
+            if (cwd_size > BufferSize) {
+                err = ERANGE;
+            } else {
+                for (int i = 0; i < cwd_size; i++) {
+                    hexagon_write_memory(env, BufferAddr + i, 1,
+                                         (uint64_t)cwdPtr[i], retaddr);
+                }
+                rc = BufferAddr;
+            }
+        }
+        common_semi_cb(cs, rc, rc != 0 ? 0 : err);
+        break;
+    }
+
+    case HEX_SYS_EXEC:
+    {
+        qemu_log_mask(LOG_UNIMP, "SYS_EXEC is deprecated\n");
+        common_semi_cb(cs, -1, ENOSYS);
+    }
+    break;
+
+    case HEX_SYS_FTELL:
+    {
+        int fd;
+        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        semihost_sys_lseek(cs, common_semi_ftell_cb, fd, 0, GDB_SEEK_CUR);
+    }
+    break;
+
+    case HEX_SYS_READ_CYCLES:
+    case HEX_SYS_READ_TCYCLES:
+    case HEX_SYS_READ_ICOUNT:
+    {
+        arch_set_thread_reg(env, HEX_REG_R00, 0);
+        arch_set_thread_reg(env, HEX_REG_R01, 0);
+        break;
+    }
+
+    case HEX_SYS_READ_PCYCLES:
+    {
+        arch_set_thread_reg(env, HEX_REG_R00,
+            arch_get_system_reg(env, HEX_SREG_PCYCLELO));
+        arch_set_thread_reg(env, HEX_REG_R01,
+            arch_get_system_reg(env, HEX_SREG_PCYCLEHI));
+        break;
+    }
+
+    case HEX_SYS_PROF_ON:
+    case HEX_SYS_PROF_OFF:
+    case HEX_SYS_PROF_STATSRESET:
+    case HEX_SYS_DUMP_PMU_STATS:
+    case HEX_SYS_HEAPINFO:
+        common_semi_cb(cs, -1, ENOSYS);
+        qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
+                      what_swi);
+        break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "unknown swi request: 0x%x\n", what_swi);
