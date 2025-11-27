@@ -11,6 +11,7 @@ common_ss.add(when: 'CONFIG_RISCV_DIS', if_true: files(
     'riscv-xlrbr.c',
     'riscv-xsf.c',
     'riscv-xqci.c',
+    'riscv-xqccmp.c',
 ))
 common_ss.add(when: 'CONFIG_SH4_DIS', if_true: files('sh4.c'))
 common_ss.add(when: 'CONFIG_SPARC_DIS', if_true: files('sparc.c'))
