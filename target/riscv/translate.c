@@ -1335,6 +1335,7 @@ static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
 #pragma GCC diagnostic pop
 
 #include "xqci/xqci-tcg.c"
+#include "xqccmp/xqccmp-tcg.c"
 #include "xqci/xqci-tcg-manual.c.inc"
 #include "xqci/xqci-trans-decode.c.inc"
 
