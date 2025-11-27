@@ -115,6 +115,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
+    HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         CPUHexagonState *env = &cpu->env;
@@ -138,6 +139,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
 
         if (i == 0) {
+            cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
             if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
                 return;
@@ -156,9 +158,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                     NULL);
             sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                 m_cfg->cfgtable.fastl2vic_base << 16);
-        } else if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-            env->dir_list = NULL;
-            return;
+        } else {
+            if (cpu0->usefs) {
+                qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
+            }
+            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+                env->dir_list = NULL;
+                return;
+            }
         }
 
     }
