@@ -1,0 +1,11 @@
+%r1s_7_3 7:3
+%r2s_2_3 2:3
+%rlist_4_4 4:4
+%spimm_2_2 2:2
+qc_cm_mva01s 101011 ... 11 ... 10 r1s=%r1s_7_3 r2s=%r2s_2_3
+qc_cm_mvsa01 101011 ... 01 ... 10 r1s=%r1s_7_3 r2s=%r2s_2_3
+qc_cm_pop 10111010 ...... 10 rlist=%rlist_4_4 spimm=%spimm_2_2
+qc_cm_popret 10111110 ...... 10 rlist=%rlist_4_4 spimm=%spimm_2_2
+qc_cm_popretz 10111100 ...... 10 rlist=%rlist_4_4 spimm=%spimm_2_2
+qc_cm_push 10111000 ...... 10 rlist=%rlist_4_4 spimm=%spimm_2_2
+qc_cm_pushfp 10111001 ...... 10 rlist=%rlist_4_4 spimm=%spimm_2_2
