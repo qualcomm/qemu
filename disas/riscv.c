@@ -3444,11 +3444,12 @@ static const rv_opcode_data *decode_inst_lift_pseudo(rv_decode *dec,
 /* disassemble instruction */
 
 static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
-                            const RISCVCPUConfig *cfg)
+                            size_t inst_length, const RISCVCPUConfig *cfg)
 {
     rv_decode dec = {
         .pc = pc,
         .inst = inst,
+        .inst_length = inst_length,
         .cfg = cfg,
     };
     const rv_opcode_data *op = decode_inst_opcode(&dec, isa);
@@ -3537,7 +3538,7 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
     }
 
     g_autoptr(GString) str =
-        disasm_inst(isa, memaddr, inst,
+        disasm_inst(isa, memaddr, inst, len,
                     (const RISCVCPUConfig *)info->target_info);
     (*info->fprintf_func)(info->stream, "%s", str->str);
 
