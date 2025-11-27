@@ -1329,6 +1329,7 @@ static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
 
 #include "decode-xqci-16.c.inc"
 #include "decode-xqci-32.c.inc"
+#include "decode-xqccmp-16.c.inc"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "decode-xqci-48.c.inc"
@@ -1348,6 +1349,7 @@ static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
 const RISCVDecoder16 decoder_table_16[] = {
 #ifdef TARGET_RISCV32
     { has_xqci_p, decode_xqci_16},
+    { has_xqccmp_p, decode_xqccmp_16},
 #endif
 };
 
