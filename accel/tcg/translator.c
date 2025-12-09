@@ -411,7 +411,7 @@ static inline void cpu_slow_store(CPUArchState *env, void *dest, vaddr src,
     MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
     uint8_t *dest_ptr = (uint8_t *)dest;
     for (int i = 0; i < len; i++) {
-        dest_ptr[i] = cpu_ldb_mmu(env, src, oi, 0);
+        dest_ptr[i] = cpu_ldb_mmu(env, src + i, oi, 0);
     }
 }
 
