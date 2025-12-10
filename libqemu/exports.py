@@ -119,13 +119,17 @@ ExportedFct('memory_region_init_alias', 'void',
         [ 'MemoryRegion *', 'Object *', 'const char *', 'MemoryRegion *', 'hwaddr', 'uint64_t' ])
 
 ExportedFct('memory_region_add_subregion', 'void',
-        [ 'MemoryRegion *', 'hwaddr', 'MemoryRegion *' ], iothread_locked = True)
+        [ 'MemoryRegion *', 'hwaddr', 'MemoryRegion *' ],
+        priv = 'libqemu_memory_region_add_subregion',
+        iothread_locked = True)
 
 ExportedFct('memory_region_add_subregion_overlap', 'void',
         [ 'MemoryRegion *', 'hwaddr' , 'MemoryRegion *', 'int' ], iothread_locked = True)
 
 ExportedFct('memory_region_del_subregion', 'void',
-        [ 'MemoryRegion *', 'MemoryRegion *' ], iothread_locked = True)
+        [ 'MemoryRegion *', 'MemoryRegion *' ],
+        priv = 'libqemu_memory_region_del_subregion',
+        iothread_locked = True)
 
 ExportedFct('memory_region_dispatch_read', 'MemTxResult',
         [ 'MemoryRegion *', 'hwaddr', 'uint64_t *', 'unsigned int', 'MemTxAttrs' ],
