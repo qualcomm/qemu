@@ -26,6 +26,7 @@
 #include "system/ramblock.h"
 #include "system/address-spaces.h"
 #include "iommu_translate_cb.h"
+#include "exec/cputlb.h"
 
 MemoryRegionOps * libqemu_mr_ops_new(void)
 {
@@ -273,6 +274,26 @@ void libqemu_memory_listener_free(MemoryListener *ml)
 void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb)
 {
     ml->map = cb;
+}
+
+void libqemu_memory_region_add_subregion(MemoryRegion *mr, hwaddr offset,
+                                         MemoryRegion *subregion)
+{
+    memory_region_add_subregion(mr, offset, subregion);
+
+    if (current_cpu != NULL) {
+        tlb_flush(current_cpu);
+    }
+}
+
+void libqemu_memory_region_del_subregion(MemoryRegion *mr,
+                                         MemoryRegion *subregion)
+{
+    memory_region_del_subregion(mr, subregion);
+
+    if (current_cpu != NULL) {
+        tlb_flush(current_cpu);
+    }
 }
 
 IOMMUMemoryRegion *libqemu_iommu_memory_region_new(void)
