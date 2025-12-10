@@ -56,8 +56,6 @@ typedef struct L2VICState {
      */
     uint32_t vid_group[4];
     uint32_t vid0;
-    /* Clear Status of Active Edge interrupt, not used: */
-    DECLARE_BITMAP32(int_clear, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Enable interrupt source */
     DECLARE_BITMAP32(int_enable, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Clear (set to 0) corresponding bit in int_enable */
@@ -201,7 +199,7 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
     } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
         bitmap32_write_word(s->int_status, (offset - L2VIC_INT_STATUSn) >> 2, val);
     } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
-        bitmap32_write_word(s->int_clear, (offset - L2VIC_INT_CLEARn) >> 2, val);
+        bitmap32_clear_word(s->int_status, (offset - L2VIC_INT_CLEARn) >> 2, val);
     } else if (offset >= L2VIC_INT_PENDINGn &&
                offset < L2VIC_INT_PENDINGn + 0x80) {
         bitmap32_write_word(s->int_pending, (offset - L2VIC_INT_PENDINGn) >> 2, val);
@@ -268,7 +266,8 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset, unsigned size)
     } else if (offset >= L2VIC_INT_STATUSn && offset < L2VIC_INT_CLEARn) {
         value = bitmap32_read_word(s->int_status, (offset - L2VIC_INT_STATUSn) >> 2);
     } else if (offset >= L2VIC_INT_CLEARn && offset < L2VIC_SOFT_INTn) {
-        value = bitmap32_read_word(s->int_clear, (offset - L2VIC_INT_CLEARn) >> 2);
+        /* INT_CLEARn is write-only, return 0 on read */
+        value = 0;
     } else if (offset >= L2VIC_SOFT_INTn && offset < L2VIC_INT_PENDINGn) {
         value = 0;
     } else if (offset >= L2VIC_INT_PENDINGn &&
@@ -343,7 +342,6 @@ static const MemoryRegionOps fastl2vic_ops = {
 static void l2vic_reset_hold(Object *obj, ResetType type G_GNUC_UNUSED)
 {
     L2VICState *s = L2VIC(obj);
-    memset(s->int_clear, 0, sizeof(s->int_clear));
     memset(s->int_enable, 0, sizeof(s->int_enable));
     memset(s->int_pending, 0, sizeof(s->int_pending));
     memset(s->int_status, 0, sizeof(s->int_status));
@@ -404,7 +402,6 @@ static const VMStateDescription vmstate_l2vic = {
             VMSTATE_UINT32(int_enable_set, L2VICState),
             VMSTATE_UINT32_ARRAY(int_type, L2VICState, SLICE_MAX),
             VMSTATE_UINT32_ARRAY(int_status, L2VICState, SLICE_MAX),
-            VMSTATE_UINT32_ARRAY(int_clear, L2VICState, SLICE_MAX),
             VMSTATE_UINT32(int_soft, L2VICState),
             VMSTATE_UINT32_ARRAY(int_pending, L2VICState, SLICE_MAX),
             VMSTATE_UINT32_ARRAY(int_group_n0, L2VICState, SLICE_MAX),
