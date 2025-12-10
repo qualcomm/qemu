@@ -73,6 +73,13 @@ typedef void (*LibQemuMlMapCb)(void *opaque, hwaddr addr, hwaddr len);
 MemoryListener *libqemu_memory_listener_new(void *opaque, const char *name);
 void libqemu_memory_listener_free(MemoryListener *ml);
 void libqemu_memory_listener_set_map_cb(MemoryListener *ml, LibQemuMlMapCb cb);
+
+void libqemu_memory_region_add_subregion(MemoryRegion *mr,
+                                 hwaddr offset,
+                                 MemoryRegion *subregion);
+void libqemu_memory_region_del_subregion(MemoryRegion *mr,
+                                 MemoryRegion *subregion);
+
 IOMMUMemoryRegion *libqemu_iommu_memory_region_new(void);
 typedef IOMMUTLBEntry (*LibQemuIOMMUTranslateFn)(IOMMUMemoryRegion *mr,
                                                  void *opaque, hwaddr addr,
