@@ -321,6 +321,12 @@ static const Property hexagon_globalreg_properties[] = {
                      isdben_secure, false),
     DEFINE_PROP_UINT32("qtimer-base-addr", HexagonGlobalRegState,
                        qtimer_base_addr, 0),
+    DEFINE_PROP_LINK("qtimer", HexagonGlobalRegState,
+                     qtimer, TYPE_QTIMER_INTERFACE,
+                     QTimerInterface *),
+    DEFINE_PROP_LINK("l2vic", HexagonGlobalRegState,
+                     l2vic, TYPE_L2VIC_INTERFACE,
+                     L2VicInterface *),
 };
 
 static void hexagon_globalreg_class_init(ObjectClass *klass, const void *data)
