@@ -14,6 +14,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/core/loader.h"
@@ -118,6 +119,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
+    /* Create TLB object */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
+    qdev_prop_set_uint32(tlb_dev, "num-entries",
+                         m_cfg->cfgtable.jtlb_size_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
+
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
@@ -158,16 +167,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                 return;
             }
         }
-
-    }
-    DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
-
-    /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
-    HexagonCPU *cpu = cpus[0];
-    for (int i = 0; i < 8; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic_dev), i,
-                           qdev_get_gpio_in(DEVICE(cpu), i));
     }
 
     QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
@@ -179,6 +178,51 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_set_uint(OBJECT(qtimer), "cnttid",
                                      0x111, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
+                                  OBJECT(qtimer), errp)) {
+        error_report("Failed to link qtimer interface to global registers");
+        goto out;
+    }
+
+    DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+
+    /* Link the L2VIC interface to globalreg */
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
+                                  OBJECT(l2vic_dev), errp)) {
+        error_report("Failed to link L2VIC interface to global registers");
+        goto out;
+    }
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+
+    /*
+     * Finally, link cpus to global registers, L2VIC interface, and do
+     * realization
+     */
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
+            goto out;
+        }
+        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
+            error_report("Failed to realize CPU %d", i);
+            goto out;
+        }
+    }
+
+    /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
+    HexagonCPU *cpu = cpus[0];
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic_dev), i,
+                           qdev_get_gpio_in(DEVICE(cpu), i));
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+                     m_cfg->cfgtable.fastl2vic_base << 16);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
@@ -193,6 +237,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
+    out:
 }
 
 static void init_mc(MachineClass *mc)
