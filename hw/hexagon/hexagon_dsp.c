@@ -376,10 +376,40 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
     }
 
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                                     2, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views",
+                                     1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid",
+                                     0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
+                                  OBJECT(qtimer), errp)) {
+        error_report("Failed to link qtimer interface to global registers");
+        goto out;
+    }
+
+    DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+
+    /* Link the L2VIC interface to globalreg */
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
+                                  OBJECT(l2vic_dev), errp)) {
+        error_report("Failed to link L2VIC interface to global registers");
+        goto out;
+    }
+
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
-    /* Finally, link cpus to global registers and do realization */
+    /*
+     * Finally, link cpus to global registers, L2VIC interface, and do
+     * realization
+     */
     for (int i = 0; i < machine->smp.cpus; i++) {
         if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
                                       OBJECT(tlb_dev), errp)) {
@@ -392,46 +422,25 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         }
     }
 
+    /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
     HexagonCPU *cpu = cpus[0];
-    DeviceState *dev;
-    dev = sysbus_create_varargs(
-        "l2vic", m_cfg->l2vic_base,
-        /* IRQ#, Evnt#,CauseCode */
-        qdev_get_gpio_in(DEVICE(cpu), 0), /* IRQ 0, 16, 0xc0 */
-        qdev_get_gpio_in(DEVICE(cpu), 1), /* IRQ 1, 17, 0xc1 */
-        qdev_get_gpio_in(DEVICE(cpu), 2), /* IRQ 2, 18, 0xc2  VIC0 interface */
-        qdev_get_gpio_in(DEVICE(cpu), 3), /* IRQ 3, 19, 0xc3  VIC1 interface */
-        qdev_get_gpio_in(DEVICE(cpu), 4), /* IRQ 4, 20, 0xc4  VIC2 interface */
-        qdev_get_gpio_in(DEVICE(cpu), 5), /* IRQ 5, 21, 0xc5  VIC3 interface */
-        qdev_get_gpio_in(DEVICE(cpu), 6), /* IRQ 6, 22, 0xc6 */
-        qdev_get_gpio_in(DEVICE(cpu), 7), /* IRQ 7, 23, 0xc7 */
-        NULL);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, m_cfg->cfgtable.fastl2vic_base << 16);
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic_dev), i,
+                           qdev_get_gpio_in(DEVICE(cpu), i));
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+                     m_cfg->cfgtable.fastl2vic_base << 16);
 
     /* for linux dts you must add 32 to these values */
-    pl011_create(0x10000000, qdev_get_gpio_in(dev, 15), serial_hd(0));
-
-    /*
-     * This is tightly with the IRQ selected must match the value below
-     * or the interrupts will not be seen
-     */
-    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
-
-    object_property_set_uint(OBJECT(qtimer), "nr_frames",
-                                     2, &error_fatal);
-    object_property_set_uint(OBJECT(qtimer), "nr_views",
-                                     1, &error_fatal);
-    object_property_set_uint(OBJECT(qtimer), "cnttid",
-                                     0x111, &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
-
+    pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15), serial_hd(0));
 
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
-                       qdev_get_gpio_in(dev, QTMR0_IRQ));
+                       qdev_get_gpio_in(l2vic_dev, QTMR0_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
-                       qdev_get_gpio_in(dev, 4));
+                       qdev_get_gpio_in(l2vic_dev, 4));
 
     hexagon_config_table *config_table = &m_cfg->cfgtable;
 
