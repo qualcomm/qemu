@@ -82,4 +82,24 @@ struct QCTQtimerState {
 #define QCT_QTIMER_AC_CNTACR_START 0x40
 #define QCT_QTIMER_AC_CNTACR_END 0x5C
 
+/* QTimer Interface for external access */
+#define TYPE_QTIMER_INTERFACE "qtimer-interface"
+OBJECT_DECLARE_TYPE(QTimerInterface, QTimerInterfaceClass, QTIMER_INTERFACE)
+
+struct QTimerInterfaceClass {
+    InterfaceClass parent;
+
+    /* Read timer low/high values */
+    uint32_t (*get_timer_lo)(QTimerInterface *obj);
+    uint32_t (*get_timer_hi)(QTimerInterface *obj);
+};
+
+struct QTimerInterface {
+    Object parent;
+};
+
+/* Helper functions to access timer interface */
+uint32_t qtimer_get_timer_lo(QTimerInterface *qtimer);
+uint32_t qtimer_get_timer_hi(QTimerInterface *qtimer);
+
 #endif /* TIMER_QCT_QTIMER_H */

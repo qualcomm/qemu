@@ -13,6 +13,7 @@
 #include "hw/timer/qct-qtimer.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
@@ -491,13 +492,22 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
 };
 
+/* Forward declarations */
+static uint32_t qct_qtimer_get_timer_lo(QTimerInterface *obj);
+static uint32_t qct_qtimer_get_timer_hi(QTimerInterface *obj);
+
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    QTimerInterfaceClass *qic = QTIMER_INTERFACE_CLASS(klass);
 
     device_class_set_props(k, qct_qtimer_properties);
     k->realize = qct_qtimer_realize;
     k->vmsd = &vmstate_qct_qtimer;
+
+    /* Implement QTimerInterface methods */
+    qic->get_timer_lo = qct_qtimer_get_timer_lo;
+    qic->get_timer_hi = qct_qtimer_get_timer_hi;
 }
 
 static const TypeInfo qct_qtimer_info = {
@@ -505,12 +515,66 @@ static const TypeInfo qct_qtimer_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(QCTQtimerState),
     .instance_init = qct_qtimer_init,
-    .class_init = qct_qtimer_class_init,
+    .class_init    = qct_qtimer_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_QTIMER_INTERFACE },
+        { }
+    },
+};
+
+/* QTimer Interface Implementation */
+static uint32_t qct_qtimer_get_timer_lo(QTimerInterface *obj)
+{
+    QCTQtimerState *s = QCT_QTIMER(obj);
+    /* Use frame 0 for timer access */
+    if (s->nr_frames > 0) {
+        QCTHextimerState *timer = &s->timer[0];
+        uint64_t count = timer->cntpct + ptimer_get_count(timer->timer);
+        return extract64(count, 0, 32);
+    }
+    return 0;
+}
+
+static uint32_t qct_qtimer_get_timer_hi(QTimerInterface *obj)
+{
+    QCTQtimerState *s = QCT_QTIMER(obj);
+    /* Use frame 0 for timer access */
+    if (s->nr_frames > 0) {
+        QCTHextimerState *timer = &s->timer[0];
+        uint64_t count = timer->cntpct + ptimer_get_count(timer->timer);
+        return extract64(count, 32, 32);
+    }
+    return 0;
+}
+
+/* Helper functions for external access */
+uint32_t qtimer_get_timer_lo(QTimerInterface *qtimer)
+{
+    QTimerInterfaceClass *klass = QTIMER_INTERFACE_GET_CLASS(qtimer);
+    return klass->get_timer_lo(qtimer);
+}
+
+uint32_t qtimer_get_timer_hi(QTimerInterface *qtimer)
+{
+    QTimerInterfaceClass *klass = QTIMER_INTERFACE_GET_CLASS(qtimer);
+    return klass->get_timer_hi(qtimer);
+}
+
+static void qtimer_interface_class_init(ObjectClass *klass, const void *data)
+{
+}
+
+static const TypeInfo qtimer_interface_info = {
+    .name = TYPE_QTIMER_INTERFACE,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(QTimerInterfaceClass),
+    .class_init = qtimer_interface_class_init,
 };
 
 static void qct_qtimer_register_types(void)
 {
     type_register_static(&qct_qtimer_info);
+    type_register_static(&qtimer_interface_info);
 }
 
 type_init(qct_qtimer_register_types)
