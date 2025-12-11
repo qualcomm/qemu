@@ -14,6 +14,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/core/loader.h"
@@ -118,6 +119,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
+    /* Create TLB object */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
+    qdev_prop_set_uint32(tlb_dev, "num-entries",
+                         m_cfg->cfgtable.jtlb_size_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
+
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
@@ -217,6 +226,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
+    out:
+    ; /* empty statement required before closing brace in pre-C23 */
 }
 
 static void init_mc(MachineClass *mc)
