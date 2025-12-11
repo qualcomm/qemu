@@ -12,6 +12,8 @@
 #include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
+#include "hw/timer/qct-qtimer.h"
+#include "hw/intc/l2vic.h"
 
 #define TYPE_HEXAGON_GLOBALREG "hexagon-globalreg"
 OBJECT_DECLARE_SIMPLE_TYPE(HexagonGlobalRegState, HEXAGON_GLOBALREG)
@@ -35,6 +37,12 @@ struct HexagonGlobalRegState {
     bool isdben_dfd_enable;     /* ISDB DFD enable bit */
     bool isdben_trusted;        /* ISDB trusted mode bit */
     bool isdben_secure;         /* ISDB secure mode bit */
+
+    /* QTimer interface link */
+    QTimerInterface *qtimer;
+
+    /* L2VIC interface link */
+    L2VicInterface *l2vic;
 };
 
 /* Public interface functions */
