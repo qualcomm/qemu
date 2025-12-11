@@ -5,6 +5,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#ifndef HW_INTC_L2VIC_H
+#define HW_INTC_L2VIC_H
+
+#include "qom/object.h"
+
 #define L2VIC_VID_GRP_0 0x0 /* Read */
 #define L2VIC_VID_GRP_1 0x4 /* Read */
 #define L2VIC_VID_GRP_2 0x8 /* Read */
@@ -36,3 +41,50 @@
  * Group 2 interrupts go to IRQ4 via VID 2 (SSR: 0xC4)
  * Group 3 interrupts go to IRQ5 via VID 3 (SSR: 0xC5)
  */
+
+#define TYPE_L2VIC "l2vic"
+/*
+ * L2VIC Interface for CPU/GlobalReg interaction
+ */
+#define TYPE_L2VIC_INTERFACE "l2vic-if"
+
+typedef struct L2VicInterface L2VicInterface;
+
+typedef struct L2VicInterfaceClass {
+    InterfaceClass parent_class;
+
+    /* Read VID register for given group */
+    uint32_t (*read_vid)(L2VicInterface *l2vic, uint32_t group);
+
+    /* Update VID register value */
+    void (*update_vid)(L2VicInterface *l2vic, uint32_t group, uint32_t value);
+
+    /* Clear interrupt using CIAD instruction */
+    void (*clear_interrupt)(L2VicInterface *l2vic);
+} L2VicInterfaceClass;
+
+DECLARE_OBJ_CHECKERS(L2VicInterface, L2VicInterfaceClass,
+                     L2VIC_INTERFACE, TYPE_L2VIC_INTERFACE);
+
+/* Convenience functions for interface users */
+static inline uint32_t l2vic_read_vid(L2VicInterface *l2vic,
+                                       uint32_t group)
+{
+    L2VicInterfaceClass *k = L2VIC_INTERFACE_GET_CLASS(l2vic);
+    return k->read_vid(l2vic, group);
+}
+
+static inline void l2vic_update_vid(L2VicInterface *l2vic, uint32_t group,
+                                     uint32_t value)
+{
+    L2VicInterfaceClass *k = L2VIC_INTERFACE_GET_CLASS(l2vic);
+    k->update_vid(l2vic, group, value);
+}
+
+static inline void l2vic_clear_interrupt(L2VicInterface *l2vic)
+{
+    L2VicInterfaceClass *k = L2VIC_INTERFACE_GET_CLASS(l2vic);
+    k->clear_interrupt(l2vic);
+}
+
+#endif /* HW_INTC_L2VIC_H */
