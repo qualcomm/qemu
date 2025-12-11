@@ -475,19 +475,6 @@ void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
     hex_clear_interrupts(env, mask, CPU_INTERRUPT_SWI);
 }
 
-static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, uint32_t val)
-{
-    g_assert((offset == L2VIC_VID_0) || (offset == L2VIC_VID_1));
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
-    cpu_physical_memory_write(pend_mem, &val, sizeof(val));
-}
-
-static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
-{
-    hexagon_set_vid(env, offset, L2VIC_CIAD_INSTRUCTION);
-}
 
 /*
  * ciad - clear interrupt auto disable
@@ -505,7 +492,14 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
     BQL_LOCK_GUARD();
     iad = arch_get_system_reg(env, HEX_SREG_IAD) & ~(mask);
     arch_set_system_reg(env, HEX_SREG_IAD, iad);
-    hexagon_clear_last_irq(env, L2VIC_VID_0);
+
+    /* Clear interrupt using L2VIC interface */
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    if (cpu->l2vic) {
+        l2vic_clear_interrupt(cpu->l2vic);
+    }
+
     hex_interrupt_update(env);
 }
 
@@ -1797,16 +1791,6 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
     return dest_reg;
 }
 
-static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
-{
-    int offset = (vid ==  HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1;
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
-    uint32_t irq;
-    cpu_physical_memory_read(pend_mem, &irq, sizeof(irq));
-    return irq;
-}
 
 static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
@@ -1860,10 +1844,7 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
                                                     uint32_t reg)
 {
     g_assert(bql_locked());
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        const uint32_t vid = hexagon_find_last_irq(env, reg);
-        arch_set_system_reg(env, reg, vid);
-    } else if (reg == HEX_SREG_BADVA) {
+    if (reg == HEX_SREG_BADVA) {
         target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
             return arch_get_system_reg(env, HEX_SREG_BADVA1);
@@ -2067,13 +2048,7 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
 
 {
     g_assert(bql_locked());
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        if (val != L2VIC_NO_PENDING) {
-            hexagon_set_vid(env, (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
-                            val);
-            arch_set_system_reg(env, reg, val);
-        }
-    } else if (reg == HEX_SREG_SYSCFG) {
+    if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);
@@ -2092,13 +2067,7 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
 
 {
     g_assert(bql_locked());
-    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
-        HexagonCPU *cpu = env_archcpu(env);
-        val = hexagon_globalreg_masked_value(cpu->globalregs, reg, val);
-        hexagon_set_vid(env, (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
-                        val);
-        arch_set_system_reg(env, reg, val);
-    } else if (reg == HEX_SREG_SYSCFG) {
+    if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);

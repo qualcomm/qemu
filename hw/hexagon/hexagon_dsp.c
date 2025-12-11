@@ -416,6 +416,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
+        if (!object_property_set_link(OBJECT(cpus[i]), "l2vic",
+                                      OBJECT(l2vic_dev), errp)) {
+            error_report("Failed to link L2VIC interface to CPU %d", i);
+            goto out;
+        }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
             goto out;

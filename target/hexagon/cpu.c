@@ -116,6 +116,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
                        0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
+    DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
+                     TYPE_L2VIC_INTERFACE, L2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb,

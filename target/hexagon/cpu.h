@@ -38,6 +38,7 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "dma/dma.h"
 #include "hw/registerfields.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/intc/l2vic.h"
 #include "coproc_rpc.h"
 
 #ifndef CONFIG_USER_ONLY
@@ -464,6 +465,7 @@ struct ArchCPU {
     gchar *cmdline;
     bool vp_mode;
     uint32_t l2vic_base_addr;
+    L2VicInterface *l2vic;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
     uint32_t num_coproc_instance;

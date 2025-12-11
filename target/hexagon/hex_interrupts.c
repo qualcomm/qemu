@@ -12,6 +12,7 @@
 #include "macros.h"
 #include "sys_macros.h"
 #include "system/cpus.h"
+#include "hw/intc/l2vic.h"
 
 static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num);
 
