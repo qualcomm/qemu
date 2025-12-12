@@ -141,6 +141,8 @@ static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
     qemu_fdt_setprop_cell(ms->fdt, "/soc/interrupt-controller", "phandle",
                           irq_hvm_ic_phandle);
 
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 0,
+                    m_cfg->l2vic_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 1,
                     m_cfg->cfgtable.fastl2vic_base << 16);
 }
@@ -545,6 +547,9 @@ static void virt_init(MachineState *ms)
 
     vms->gsregs = qdev_new(TYPE_HEXAGON_GLOBALREG);
     create_qtimer(vms, m_cfg);
+    vms->l2vic = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->l2vic), errp);
+
     HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
@@ -605,6 +610,13 @@ static void virt_init(MachineState *ms)
         goto out;
     }
 
+    /* Link the L2VIC interface to globalreg */
+    if (!object_property_set_link(OBJECT(vms->gsregs), "l2vic",
+                                  OBJECT(vms->l2vic), errp)) {
+        error_report("Failed to link L2VIC interface to global registers");
+        goto out;
+    }
+
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
 
@@ -620,26 +632,21 @@ static void virt_init(MachineState *ms)
             error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
+        if (!object_property_set_link(OBJECT(cpus[i]), "l2vic",
+                                      OBJECT(vms->l2vic), errp)) {
+            error_report("Failed to link L2VIC interface to CPU %d", i);
+            goto out;
+        }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
             goto out;
         }
     }
 
-    /*
-     * L2VIC: This must be done after qdev_realize_and_unref
-     * If interrupts stop working this might be in the wrong spot.
-     */
-    vms->l2vic = sysbus_create_varargs(
-        "l2vic", m_cfg->l2vic_base,
-        qdev_get_gpio_in(DEVICE(cpus[0]), 0),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 1),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 2),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 3),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 4),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 5),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 6),
-        qdev_get_gpio_in(DEVICE(cpus[0]), 7), NULL);
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(vms->l2vic), i,
+            qdev_get_gpio_in(DEVICE(cpus[0]), i));
+    }
 
     /* Only add device tree nodes if using generated FDT */
     if (ms->dtb == NULL) {
