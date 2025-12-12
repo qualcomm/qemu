@@ -263,22 +263,16 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
 }
 
 static void create_qtimer(HexagonVirtMachineState *vms,
-                          const hexagon_machine_config *m_cfg)
+        const hexagon_machine_config *m_cfg)
 {
     Error **errp = NULL;
-    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+    vms->qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+    object_property_set_uint(OBJECT(vms->qtimer), "nr_frames", 2, errp);
+    object_property_set_uint(OBJECT(vms->qtimer), "nr_views", 1, errp);
+    object_property_set_uint(OBJECT(vms->qtimer), "cnttid", 0x111, errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->qtimer), errp);
 
-    object_property_set_uint(OBJECT(qtimer), "nr_frames", 2, errp);
-    object_property_set_uint(OBJECT(qtimer), "nr_views", 1, errp);
-    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, errp);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), errp);
-
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
-    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
-                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
-    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
-                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->qtimer), 1, m_cfg->qtmr_region);
 }
 
 static void create_pll(HexagonVirtMachineState *vms)
@@ -541,6 +535,7 @@ static void virt_init(MachineState *ms)
     }
 
     vms->gsregs = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    create_qtimer(vms, m_cfg);
     HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu_0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
@@ -582,6 +577,14 @@ static void virt_init(MachineState *ms)
     qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
     qdev_prop_set_uint32(vms->gsregs, "qtimer-base-addr", m_cfg->qtmr_region);
+
+    /* Link the qtimer interface to globalreg */
+    if (!object_property_set_link(OBJECT(vms->gsregs), "qtimer",
+                                  OBJECT(vms->qtimer), errp)) {
+        error_report("Failed to link qtimer interface to global registers");
+        goto out;
+    }
+
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
 
@@ -622,7 +625,10 @@ static void virt_init(MachineState *ms)
         fdt_add_uart(vms, VIRT_UART0);
         fdt_add_gpt_node(vms);
     }
-    create_qtimer(vms, m_cfg);
+    sysbus_connect_irq(SYS_BUS_DEVICE(vms->qtimer), 0,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
+    sysbus_connect_irq(SYS_BUS_DEVICE(vms->qtimer), 1,
+                       qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR1]));
     create_pll(vms);
     fdt_add_pll_node(vms);
 
