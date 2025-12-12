@@ -549,7 +549,7 @@ static void virt_init(MachineState *ms)
         cpu_model = HEXAGON_CPU_TYPE_NAME("v73");
     }
 
-    DeviceState *gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    vms->gsregs = qdev_new(TYPE_HEXAGON_GLOBALREG);
     HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
@@ -559,10 +559,10 @@ static void virt_init(MachineState *ms)
         if (i == 0) {
             if (ms->kernel_filename) {
                 uint64_t entry = setup_boot(vms);
-                qdev_prop_set_uint32(gsregs_dev, "boot-evb", entry);
+                qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
-                qdev_prop_set_uint32(gsregs_dev, "boot-evb", entry);
+                qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             }
         }
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
@@ -598,17 +598,17 @@ static void virt_init(MachineState *ms)
         goto out;
     }
 
-    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
-    qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
-    qdev_prop_set_uint32(gsregs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
+    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(vms->gsregs));
+    qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
+    qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
+    qdev_prop_set_uint32(vms->gsregs, "qtimer-base-addr", m_cfg->qtmr_region);
     /* Realize the device on sysbus */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
 
     /* Link the global system registers object to all CPUs */
     for (int i = 0; i < ms->smp.cpus; i++) {
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
-                                      OBJECT(gsregs_dev), errp)) {
+                                      OBJECT(vms->gsregs), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
             goto out;
         }
