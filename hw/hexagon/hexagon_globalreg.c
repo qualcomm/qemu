@@ -135,13 +135,6 @@ static inline uint32_t apply_write_mask(uint32_t new_val, uint32_t cur_val,
     return new_val;
 }
 
-static void read_timer(HexagonGlobalRegState *s, uint32_t *low, uint32_t *high)
-{
-    /* Not yet implemented */
-    *low = 0;
-    *high = 0;
-}
-
 uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
 {
     g_assert(reg < NUM_SREGS);
@@ -149,11 +142,13 @@ uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
     g_assert(s);
 
     uint32_t value;
-    uint32_t low;
-    uint32_t high;
-    if ((reg == HEX_SREG_TIMERLO) || (reg == HEX_SREG_TIMERHI)) {
-        read_timer(s, &low, &high);
-        value = (reg == HEX_SREG_TIMERLO) ? low : high;
+    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
+        uint32_t vid_group = (reg == HEX_SREG_VID) ? 0 : 1;
+        value = l2vic_read_vid(s->l2vic, vid_group);
+    } else if (reg == HEX_SREG_TIMERLO) {
+        value = qtimer_get_timer_lo(s->qtimer);
+    } else if (reg == HEX_SREG_TIMERHI) {
+        value = qtimer_get_timer_hi(s->qtimer);
     } else {
         value = s->regs[reg];
     }
@@ -168,6 +163,15 @@ void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
     g_assert(s);
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
+
+    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
+        /* Update VID register through L2VIC interface */
+        if (s->l2vic) {
+            uint32_t vid_group = (reg == HEX_SREG_VID) ? 0 : 1;
+            l2vic_update_vid(s->l2vic, vid_group, value);
+        }
+    }
+
     s->regs[reg] = value;
     trace_hexagon_globalreg_write(get_sreg_name(reg), value);
 }
@@ -188,7 +192,17 @@ void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
                                     uint32_t value)
 {
     g_assert(s);
-    s->regs[reg] = hexagon_globalreg_masked_value(s, reg, value);
+    uint32_t final_value = hexagon_globalreg_masked_value(s, reg, value);
+
+    if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
+        /* Update VID register through L2VIC interface */
+        if (s->l2vic) {
+            uint32_t vid_group = (reg == HEX_SREG_VID) ? 0 : 1;
+            l2vic_update_vid(s->l2vic, vid_group, final_value);
+        }
+    }
+
+    s->regs[reg] = final_value;
 }
 
 uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s)
