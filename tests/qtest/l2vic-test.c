@@ -208,23 +208,33 @@ static void test_l2vic_irq_outputs(void)
     l2vic_write32(L2VIC_BASE, L2VIC_INT_GRPn_3, 0);
 }
 
-int main(int argc, char **argv)
+static void test_l2vic_on_machine(gconstpointer data)
 {
-    int r;
+    const char *machine = (const char *)data;
+    g_autofree char *args = g_strdup_printf("-machine %s", machine);
 
-    g_test_init(&argc, &argv, NULL);
+    qtest_start(args);
 
-    qtest_start("-machine V66G_1024");
-
-    qtest_add_func("/l2vic/register-access", test_l2vic_register_access);
-    qtest_add_func("/l2vic/interrupt-enable", test_l2vic_interrupt_enable);
-    qtest_add_func("/l2vic/basic-functionality",
-                    test_l2vic_basic_functionality);
-    qtest_add_func("/l2vic/irq-outputs", test_l2vic_irq_outputs);
-
-    r = g_test_run();
+    /* Run all the L2VIC tests */
+    test_l2vic_register_access();
+    test_l2vic_interrupt_enable();
+    test_l2vic_basic_functionality();
+    test_l2vic_irq_outputs();
 
     qtest_end();
+}
 
-    return r;
+int main(int argc, char **argv)
+{
+    g_test_init(&argc, &argv, NULL);
+
+    /* Test on virt machine */
+    qtest_add_data_func("/l2vic/virt/all-tests", "virt",
+                        test_l2vic_on_machine);
+
+    /* Test on V66G_1024 machine */
+    qtest_add_data_func("/l2vic/V66G_1024/all-tests", "V66G_1024",
+                        test_l2vic_on_machine);
+
+    return g_test_run();
 }

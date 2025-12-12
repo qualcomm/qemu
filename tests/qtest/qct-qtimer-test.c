@@ -209,29 +209,37 @@ static void test_qtimer_timer_behavior(void)
     qtimer_read32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_TVAL);
 }
 
-int main(int argc, char **argv)
+static void test_qtimer_on_machine(gconstpointer data)
 {
-    int r;
+    const char *machine = (const char *)data;
+    g_autofree char *args = g_strdup_printf("-machine %s", machine);
 
-    g_test_init(&argc, &argv, NULL);
+    qtest_start(args);
 
-    /* Start QEMU with hexagon virt machine which includes the qtimer */
-    qtest_start("-machine virt");
-
-    qtest_add_func("/qct-qtimer/basic-access", test_qtimer_basic_access);
-    qtest_add_func("/qct-qtimer/multiple-frames", test_qtimer_multiple_frames);
-    qtest_add_func("/qct-qtimer/register-reads", test_qtimer_register_reads);
-    qtest_add_func("/qct-qtimer/access-control", test_qtimer_access_control);
-    qtest_add_func("/qct-qtimer/control-registers",
-                    test_qtimer_control_registers);
-    qtest_add_func("/qct-qtimer/cval-access", test_qtimer_cval_access);
-    qtest_add_func("/qct-qtimer/counter-progression",
-                    test_qtimer_counter_progression);
-    qtest_add_func("/qct-qtimer/timer-behavior", test_qtimer_timer_behavior);
-
-    r = g_test_run();
+    /* Run all the qtimer tests */
+    test_qtimer_basic_access();
+    test_qtimer_multiple_frames();
+    test_qtimer_register_reads();
+    test_qtimer_access_control();
+    test_qtimer_control_registers();
+    test_qtimer_cval_access();
+    test_qtimer_counter_progression();
+    test_qtimer_timer_behavior();
 
     qtest_end();
+}
 
-    return r;
+int main(int argc, char **argv)
+{
+    g_test_init(&argc, &argv, NULL);
+
+    /* Test on virt machine */
+    qtest_add_data_func("/qct-qtimer/virt/all-tests", "virt",
+                        test_qtimer_on_machine);
+
+    /* Test on V66G_1024 machine */
+    qtest_add_data_func("/qct-qtimer/V66G_1024/all-tests", "V66G_1024",
+                        test_qtimer_on_machine);
+
+    return g_test_run();
 }
