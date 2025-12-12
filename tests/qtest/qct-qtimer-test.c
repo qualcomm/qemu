@@ -23,7 +23,6 @@ static uint32_t qtimer_read32(uint64_t base, uint32_t offset)
     return readl(base + offset);
 }
 
-__attribute__((unused))
 static void qtimer_write32(uint64_t base, uint32_t offset, uint32_t value)
 {
     writel(base + offset, value);
@@ -144,6 +143,7 @@ static void test_qtimer_cval_access(void)
 static void test_qtimer_counter_progression(void)
 {
     uint64_t count1, count2;
+    uint32_t freq;
 
     /*
      * Read counter twice - in qtest mode, counter does not advance
@@ -155,7 +155,7 @@ static void test_qtimer_counter_progression(void)
     g_assert_cmpuint(count2, ==, count1);
 
     /* Verify frequency register is accessible and has expected value */
-    uint32_t freq = qtimer_read32(QTIMER_VIEW_BASE, QCT_QTIMER_CNT_FREQ);
+    freq = qtimer_read32(QTIMER_VIEW_BASE, QCT_QTIMER_CNT_FREQ);
     g_assert_cmpuint(freq, ==, QTIMER_DEFAULT_FREQ_HZ);
 }
 
@@ -163,6 +163,8 @@ static void test_qtimer_counter_progression(void)
 static void test_qtimer_timer_behavior(void)
 {
     uint64_t current_count, target_count, new_count;
+    uint64_t read_cval;
+    uint64_t half_ns, full_ns;
 
     /* Get current counter value */
     current_count = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
@@ -172,7 +174,7 @@ static void test_qtimer_timer_behavior(void)
     qtimer_write64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CVAL_LO, target_count);
 
     /* Verify CVAL was set correctly */
-    uint64_t read_cval = qtimer_read64(QTIMER_VIEW_BASE,
+    read_cval = qtimer_read64(QTIMER_VIEW_BASE,
         QCT_QTIMER_CNTP_CVAL_LO);
     g_assert_cmpuint(read_cval, ==, target_count);
 
@@ -184,9 +186,9 @@ static void test_qtimer_timer_behavior(void)
      *   ns = ticks * 1e9 / freq
      * For TIMER_TEST_OFFSET=1000 ticks at 19.2 MHz ~ 52083 ns.
      */
-    uint64_t half_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
+    half_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
                        / QTIMER_DEFAULT_FREQ_HZ / 2;
-    uint64_t full_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
+    full_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
                        / QTIMER_DEFAULT_FREQ_HZ;
 
     /* Step virtual clock forward but not past target */
@@ -221,29 +223,37 @@ static void test_qtimer_timer_behavior(void)
     qtimer_read32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_TVAL);
 }
 
-int main(int argc, char **argv)
+static void test_qtimer_on_machine(gconstpointer data)
 {
-    int r;
+    const char *machine = (const char *)data;
+    g_autofree char *args = g_strdup_printf("-machine %s", machine);
 
-    g_test_init(&argc, &argv, NULL);
+    qtest_start(args);
 
-    /* Start QEMU with hexagon virt machine which includes the qtimer */
-    qtest_start("-machine virt");
-
-    qtest_add_func("/qct-qtimer/basic-access", test_qtimer_basic_access);
-    qtest_add_func("/qct-qtimer/multiple-frames", test_qtimer_multiple_frames);
-    qtest_add_func("/qct-qtimer/register-reads", test_qtimer_register_reads);
-    qtest_add_func("/qct-qtimer/access-control", test_qtimer_access_control);
-    qtest_add_func("/qct-qtimer/control-registers",
-                    test_qtimer_control_registers);
-    qtest_add_func("/qct-qtimer/cval-access", test_qtimer_cval_access);
-    qtest_add_func("/qct-qtimer/counter-progression",
-                    test_qtimer_counter_progression);
-    qtest_add_func("/qct-qtimer/timer-behavior", test_qtimer_timer_behavior);
-
-    r = g_test_run();
+    /* Run all the qtimer tests */
+    test_qtimer_basic_access();
+    test_qtimer_multiple_frames();
+    test_qtimer_register_reads();
+    test_qtimer_access_control();
+    test_qtimer_control_registers();
+    test_qtimer_cval_access();
+    test_qtimer_counter_progression();
+    test_qtimer_timer_behavior();
 
     qtest_end();
+}
 
-    return r;
+int main(int argc, char **argv)
+{
+    g_test_init(&argc, &argv, NULL);
+
+    /* Test on virt machine */
+    qtest_add_data_func("/qct-qtimer/virt/all-tests", "virt",
+                        test_qtimer_on_machine);
+
+    /* Test on V66G_1024 machine */
+    qtest_add_data_func("/qct-qtimer/V66G_1024/all-tests", "V66G_1024",
+                        test_qtimer_on_machine);
+
+    return g_test_run();
 }
