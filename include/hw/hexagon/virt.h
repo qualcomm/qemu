@@ -10,6 +10,7 @@
 
 #include "hw/boards.h"
 #include "hw/clock.h"
+#include "hw/timer/qct-qtimer.h"
 #include "target/hexagon/cpu.h"
 
 typedef struct HexagonBootInfo {
@@ -36,6 +37,7 @@ struct HexagonVirtMachineState {
     DeviceState *gsregs;
     Clock *apb_pclk;
     HexagonBootInfo bootinfo;
+    QCTQtimerState *qtimer;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
