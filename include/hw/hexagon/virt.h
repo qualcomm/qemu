@@ -8,7 +8,9 @@
 #ifndef HW_HEXAGONVIRT_H
 #define HW_HEXAGONVIRT_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
+#include "hw/core/clock.h"
+#include "hw/timer/qct-qtimer.h"
 #include "target/hexagon/cpu.h"
 
 typedef struct HexagonBootInfo {
@@ -35,6 +37,7 @@ struct HexagonVirtMachineState {
     Clock *apb_clk;
     DeviceState *gsregs;
     HexagonBootInfo bootinfo;
+    QCTQtimerState *qtimer;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
