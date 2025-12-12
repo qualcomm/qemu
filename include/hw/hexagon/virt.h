@@ -33,6 +33,7 @@ struct HexagonVirtMachineState {
     MemoryRegion bios;
     DeviceState *l2vic;
     Clock *apb_clk;
+    DeviceState *gsregs;
     HexagonBootInfo bootinfo;
 };
 
