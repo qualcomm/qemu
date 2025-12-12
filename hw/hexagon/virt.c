@@ -138,6 +138,8 @@ static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
     qemu_fdt_setprop_cell(ms->fdt, "/soc/interrupt-controller", "phandle",
                           irq_hvm_ic_phandle);
 
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 0,
+                    m_cfg->l2vic_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 1,
                     m_cfg->cfgtable.fastl2vic_base << 16);
 }
@@ -532,6 +534,9 @@ static void virt_init(MachineState *ms)
 
     vms->gsregs = qdev_new(TYPE_HEXAGON_GLOBALREG);
     create_qtimer(vms, m_cfg);
+    vms->l2vic = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->l2vic), &error_fatal);
+
     HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu_0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
@@ -589,6 +594,13 @@ static void virt_init(MachineState *ms)
         goto out;
     }
 
+    /* Link the L2VIC interface to globalreg */
+    if (!object_property_set_link(OBJECT(vms->gsregs), "l2vic",
+                                  OBJECT(vms->l2vic), &error_fatal)) {
+        error_report("Failed to link L2VIC interface to global registers");
+        goto out;
+    }
+
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), &error_fatal);
 
@@ -613,12 +625,11 @@ static void virt_init(MachineState *ms)
             goto out;
         }
     }
-    vms->l2vic = sysbus_create_varargs(
-        "l2vic", m_cfg->l2vic_base, qdev_get_gpio_in(DEVICE(cpu_0), 0),
-        qdev_get_gpio_in(DEVICE(cpu_0), 1), qdev_get_gpio_in(DEVICE(cpu_0), 2),
-        qdev_get_gpio_in(DEVICE(cpu_0), 3), qdev_get_gpio_in(DEVICE(cpu_0), 4),
-        qdev_get_gpio_in(DEVICE(cpu_0), 5), qdev_get_gpio_in(DEVICE(cpu_0), 6),
-        qdev_get_gpio_in(DEVICE(cpu_0), 7), NULL);
+
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(vms->l2vic), i,
+            qdev_get_gpio_in(DEVICE(cpus[0]), i));
+    }
 
     /* Only add device tree nodes if using generated FDT */
     if (ms->dtb == NULL) {
