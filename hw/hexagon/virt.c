@@ -13,10 +13,11 @@
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
-#include "hw/loader.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-clock.h"
-#include "hw/register.h"
+#include "hw/hexagon/hexagon_tlb.h"
+#include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/register.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/misc/cdsp-pll.h"
 #include "qapi/error.h"
@@ -539,16 +540,12 @@ static void virt_init(MachineState *ms)
         cpu_model = HEXAGON_CPU_TYPE_NAME("v73");
     }
 
-    DeviceState *gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
-    qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
-    qdev_prop_set_uint32(gsregs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), errp);
-
+    vms->gsregs = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    HexagonCPU **cpus = g_malloc_n(ms->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu_0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
+        cpus[i] = cpu;
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
@@ -556,22 +553,57 @@ static void virt_init(MachineState *ms)
             if (ms->kernel_filename) {
                 uint64_t entry = setup_boot(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
+                qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
-                qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
+                qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             }
         }
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
-        object_property_set_link(OBJECT(cpu), "global-regs",
-                                 OBJECT(gsregs_dev), errp);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
-                             m_cfg->cfgtable.jtlb_size_entries);
+    }
 
-        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-            return;
+    /* Create TLB object first */
+    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    object_property_add_child(OBJECT(ms), "hexagon-tlb", OBJECT(tlb_dev));
+
+    /* Set the number of TLB entries based on machine configuration */
+    qdev_prop_set_uint32(tlb_dev, "num-entries",
+                         m_cfg->cfgtable.jtlb_size_entries);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(tlb_dev), errp)) {
+        error_report("Failed to realize TLB object");
+        goto out;
+    }
+
+    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(vms->gsregs));
+    qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
+    qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
+    qdev_prop_set_uint32(vms->gsregs, "qtimer-base-addr", m_cfg->qtmr_region);
+    /* Realize the device on sysbus */
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
+
+    /* Link the global system registers object to all CPUs */
+    for (int i = 0; i < ms->smp.cpus; i++) {
+        if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
+                                      OBJECT(vms->gsregs), errp)) {
+            error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
+            goto out;
+        }
+        qdev_prop_set_uint32(DEVICE(cpus[i]), "l2vic-base-addr",
+                             m_cfg->l2vic_base);
+        qdev_prop_set_uint32(DEVICE(cpus[i]), "jtlb-entries",
+                             m_cfg->cfgtable.jtlb_size_entries);
+        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
+            error_report("Failed to realize CPU %d", i);
+            goto out;
         }
     }
     vms->l2vic = sysbus_create_varargs(
@@ -599,6 +631,9 @@ static void virt_init(MachineState *ms)
                           &address_space_memory);
 
     hexagon_load_fdt(vms);
+
+out:
+    g_free(cpus);
 }
 
 
