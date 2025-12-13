@@ -347,7 +347,6 @@ static const VMStateDescription vmstate_hexagon_globalreg = {
         VMSTATE_BOOL(isdben_dfd_enable, HexagonGlobalRegState),
         VMSTATE_BOOL(isdben_trusted, HexagonGlobalRegState),
         VMSTATE_BOOL(isdben_secure, HexagonGlobalRegState),
-        VMSTATE_UINT32(qtimer_base_addr, HexagonGlobalRegState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -365,8 +364,6 @@ static const Property hexagon_globalreg_properties[] = {
                      isdben_trusted, false),
     DEFINE_PROP_BOOL("isdben-secure", HexagonGlobalRegState,
                      isdben_secure, false),
-    DEFINE_PROP_UINT32("qtimer-base-addr", HexagonGlobalRegState,
-                       qtimer_base_addr, 0),
     DEFINE_PROP_LINK("qtimer", HexagonGlobalRegState,
                      qtimer, TYPE_QTIMER_INTERFACE,
                      QTimerInterface *),

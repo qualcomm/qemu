@@ -600,7 +600,6 @@ static void virt_init(MachineState *ms)
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(vms->gsregs));
     qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
-    qdev_prop_set_uint32(vms->gsregs, "qtimer-base-addr", m_cfg->qtmr_region);
 
     /* Link the qtimer interface to globalreg */
     if (!object_property_set_link(OBJECT(vms->gsregs), "qtimer",

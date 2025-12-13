@@ -38,9 +38,6 @@ struct HexagonGlobalRegState {
     bool isdben_trusted;        /* ISDB trusted mode bit */
     bool isdben_secure;         /* ISDB secure mode bit */
 
-    /* Hardware base addresses */
-    uint32_t qtimer_base_addr;  /* QTimer hardware base address */
-
     /* QTimer interface link */
     QTimerInterface *qtimer;
 

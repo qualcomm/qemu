@@ -314,7 +314,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
 
     /* Create TLB object */
     DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
