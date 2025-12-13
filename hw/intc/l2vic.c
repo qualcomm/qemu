@@ -55,7 +55,6 @@ typedef struct L2VICState {
      * are used:
      */
     uint32_t vid_group[4];
-    uint32_t vid0;
     /* Enable interrupt source */
     DECLARE_BITMAP32(int_enable, L2VIC_INTERRUPT_MAX) QEMU_ALIGNED(16);
     /* Clear (set to 0) corresponding bit in int_enable */
@@ -142,7 +141,6 @@ static bool l2vic_update(L2VICState *s, int irq)
         clear_bit32(irq, s->int_pending);
         clear_bit32(irq, s->int_enable);
         /* ensure the irq line goes low after going high */
-        s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
 
         /* already low: now call pulse */
@@ -182,14 +180,7 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
     qemu_mutex_lock(&s->active);
     trace_l2vic_reg_write((unsigned)offset, (uint32_t)val);
 
-    if (offset == L2VIC_VID_0) {
-        if ((int)val != L2VIC_CIAD_INSTRUCTION) {
-            s->vid0 = val;
-        } else {
-            /* ciad issued: clear int_status */
-            clear_bit32(s->vid0, s->int_status);
-        }
-    } else if (offset >= L2VIC_INT_ENABLEn &&
+    if (offset >= L2VIC_INT_ENABLEn &&
                offset < (L2VIC_INT_ENABLE_CLEARn)) {
         bitmap32_write_word(s->int_enable, (offset - L2VIC_INT_ENABLEn) >> 2, val);
     } else if (offset >= L2VIC_INT_ENABLE_CLEARn &&
@@ -254,8 +245,6 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset, unsigned size)
         value = s->vid_group[2];
     } else if (offset == L2VIC_VID_GRP_3) {
         value = s->vid_group[3];
-    } else if (offset == L2VIC_VID_0) {
-        value = s->vid0;
     } else if (offset >= L2VIC_INT_ENABLEn &&
                offset < L2VIC_INT_ENABLE_CLEARn) {
         value = bitmap32_read_word(s->int_enable, (offset - L2VIC_INT_ENABLEn) >> 2);
@@ -409,7 +398,6 @@ static void l2vic_reset_hold(Object *obj, ResetType type G_GNUC_UNUSED)
     memset(s->int_group_n2, 0, sizeof(s->int_group_n2));
     memset(s->int_group_n3, 0, sizeof(s->int_group_n3));
     s->int_soft = 0;
-    s->vid0 = 0;
 
     l2vic_update_all(s);
 }
@@ -454,7 +442,6 @@ static const VMStateDescription vmstate_l2vic = {
         (VMStateField[]){
             VMSTATE_UINT32(level, L2VICState),
             VMSTATE_UINT32_ARRAY(vid_group, L2VICState, 4),
-            VMSTATE_UINT32(vid0, L2VICState),
             VMSTATE_UINT32_ARRAY(int_enable, L2VICState, SLICE_MAX),
             VMSTATE_UINT32(int_enable_clear, L2VICState),
             VMSTATE_UINT32(int_enable_set, L2VICState),
