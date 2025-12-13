@@ -569,7 +569,6 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", ms->smp.cpus);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",

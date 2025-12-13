@@ -334,7 +334,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qemu_register_reset(do_cpu_reset, cpu);
 
         qdev_prop_set_uint32(DEVICE(cpu), "thread-count", machine->smp.cpus);
-        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-base-addr",
                              m_cfg->cfgtable.vtcm_base << 16);
         qdev_prop_set_uint32(DEVICE(cpu), "vtcm-size-kb",
