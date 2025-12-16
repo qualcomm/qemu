@@ -1,10 +1,30 @@
 # PowerShell script to install Windows x86_64 dependencies for QEMU
 # This script downloads mingw-w64 packages directly without requiring msys2 installation
+#
+# Usage:
+#   .\install_win_deps.ps1                    # Install to current directory
+#   .\install_win_deps.ps1 -InstallDir "path" # Install to specified directory
+
+param(
+    [string]$InstallDir = "."
+)
 
 # Set error action preference to stop on errors
 $ErrorActionPreference = "Stop"
 
-Write-Host "Downloading and installing Windows x86_64 dependencies..."
+# Resolve installation directory to absolute path
+if ([System.IO.Path]::IsPathRooted($InstallDir)) {
+    $targetDir = $InstallDir
+} else {
+    $targetDir = Join-Path (Get-Location) $InstallDir
+}
+
+# Create target directory if it doesn't exist
+if (-not (Test-Path $targetDir)) {
+    New-Item -ItemType Directory -Path $targetDir | Out-Null
+}
+
+Write-Host "Installing Windows x86_64 dependencies to: $targetDir"
 
 # Load package database from JSON file
 $packageDbPath = Join-Path $PSScriptRoot "mingw_packages.json"
@@ -27,7 +47,7 @@ $packages = @()
 foreach ($pkg in $winConfig.packages) {
     $packages += @{
         Name = $pkg.name
-        Url = "$($winConfig.mirror)/$($winConfig.prefix)-$($pkg.package)"
+        Url = "$($winConfig.mirror)/$($winConfig.prefix)/$($pkg.package)"
         FileName = $pkg.package
         ExtractPaths = $pkg.extract_paths
     }
@@ -75,13 +95,13 @@ foreach ($package in $packages) {
     }
 }
 
-# Copy all DLL files from mingw64/bin to current directory
-Write-Host "Copying DLL files to current directory..."
+# Copy all DLL files from mingw64/bin to target directory
+Write-Host "Copying DLL files to target directory..."
 $mingwBinPath = Join-Path $tempDir "mingw64\bin"
 if (Test-Path $mingwBinPath) {
     try {
-        Copy-Item -Path "$mingwBinPath\*" -Destination "." -Recurse -Force
-        Write-Host "Files copied successfully"
+        Copy-Item -Path "$mingwBinPath\*" -Destination $targetDir -Recurse -Force
+        Write-Host "Files copied successfully to $targetDir"
     }
     catch {
         Write-Error "Failed to copy files: $_"
@@ -106,4 +126,4 @@ if (Test-Path $tempDir) {
 
 Write-Host ""
 Write-Host "SUCCESS: Windows x86_64 dependencies installation completed successfully!" -ForegroundColor Green
-Write-Host "All required DLL files have been copied to the current directory."
+Write-Host "All required DLL files have been copied to: $targetDir"
