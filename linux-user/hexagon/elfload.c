@@ -38,6 +38,7 @@ const char *get_elf_cpu_model(uint32_t eflags)
     case 0x8071:        /* v71t */
         return "v71";
     case 0x73:
+    case 0x79:
         return "v73";
     }
 
