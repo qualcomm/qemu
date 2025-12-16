@@ -223,10 +223,16 @@ static void gen_end_tb(DisasContext *ctx)
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
 {
+    /*
+     * Use ctx->base.pc_next as the PC for the exception. This is the
+     * address of the packet being translated, which is correct even if
+     * the packet failed to decode (pkt->pc may not be initialized).
+     */
+    target_ulong pc = ctx->base.pc_next;
 #ifdef CONFIG_USER_ONLY
-    gen_exception(excp, ctx->pkt->pc);
+    gen_exception(excp, pc);
 #else
-    gen_precise_exception(excp, ctx->pkt->pc);
+    gen_precise_exception(excp, pc);
 #endif
     ctx->base.is_jmp = DISAS_NORETURN;
 }
