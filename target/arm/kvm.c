@@ -1444,7 +1444,7 @@ static int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
     }
 
     /* Read PC from KVM */
-    kvm_arch_get_registers(cs);
+    kvm_arch_get_registers(cs, &error_abort);
 
     /* Get instruction at PC */
     uint32_t ins;
