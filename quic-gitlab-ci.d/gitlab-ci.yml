@@ -49,7 +49,7 @@ user_guide:
   script: ./quic-gitlab-ci.d/build.sh
   variables:
     QUIC_BUILD_LOG: ${QUIC_BUILD_DIR}/build.log
-    QUIC_COPROC_REF: main
+    QUIC_COPROC_REF: qemu-coproc-plugin-12.0.0
   artifacts:
     when: always
     paths:
@@ -61,7 +61,7 @@ hexagon-linux-x86_64:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon
-    QUIC_COPROC_JOB: linux-x86_64
+    QUIC_COPROC_JOB: linux-x86_64-tag
 
 # Keep the nightly builds for a little longer, just in case
 hexagon-linux-x86_64-schedule:
@@ -201,7 +201,7 @@ hexagon-linux-x86_64-san:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   variables:
     QUIC_BUILD_CONFIG: hexagon-san
-    QUIC_COPROC_JOB: linux-x86_64
+    QUIC_COPROC_JOB: linux-x86_64-tag
 
 hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -246,7 +246,7 @@ hexagon-mac:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon-mac
-    QUIC_COPROC_JOB: mac
+    QUIC_COPROC_JOB: mac-tag
   tags:
     - mac
 
@@ -262,7 +262,7 @@ hexagon-linux-x86_64-no-idef-parser:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon-no-idef-parser
-    QUIC_COPROC_JOB: linux-x86_64
+    QUIC_COPROC_JOB: linux-x86_64-tag
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
@@ -294,7 +294,7 @@ hexagon-windows-x86_64-cross:
   image: docker-registry.qualcomm.com/qqvp/qemu:windows-x86_64-cross
   variables:
     QUIC_BUILD_CONFIG: hexagon-minimal-cross
-    QUIC_COPROC_JOB: windows-x86_64
+    QUIC_COPROC_JOB: windows-x86_64-tag
     QUIC_INSTALL_PREFIX: windows-x86_64
 
 hexagon-windows-x86_64-cross-tag:
