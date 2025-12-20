@@ -14,7 +14,9 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
-#include "hw/loader.h"
+#include "hw/timer/qct-qtimer.h"
+#include "hw/intc/l2vic.h"
+#include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -116,9 +118,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
+    HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        cpus[i] = cpu;
         CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
@@ -145,20 +149,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
                 return;
             }
-            DeviceState *l2vic_dev;
-            l2vic_dev = sysbus_create_varargs("l2vic", m_cfg->l2vic_base,
-                    /* IRQ#, Evnt#,CauseCode */
-                    qdev_get_gpio_in(DEVICE(cpu), 0),
-                    qdev_get_gpio_in(DEVICE(cpu), 1),
-                    qdev_get_gpio_in(DEVICE(cpu), 2),
-                    qdev_get_gpio_in(DEVICE(cpu), 3),
-                    qdev_get_gpio_in(DEVICE(cpu), 4),
-                    qdev_get_gpio_in(DEVICE(cpu), 5),
-                    qdev_get_gpio_in(DEVICE(cpu), 6),
-                    qdev_get_gpio_in(DEVICE(cpu), 7),
-                    NULL);
-            sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
-                m_cfg->cfgtable.fastl2vic_base << 16);
         } else {
             if (cpu0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
@@ -170,6 +160,35 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         }
 
     }
+    DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
+
+    /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
+    HexagonCPU *cpu = cpus[0];
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic_dev), i,
+                           qdev_get_gpio_in(DEVICE(cpu), i));
+    }
+
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                                     2, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views",
+                                     1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid",
+                                     0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(l2vic_dev, 3));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(l2vic_dev, 4));
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+            m_cfg->cfgtable.fastl2vic_base << 16);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
