@@ -14,6 +14,8 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/timer/qct-qtimer.h"
+#include "hw/intc/l2vic.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -114,8 +116,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
+    HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
+    HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        cpus[i] = cpu;
+        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -178,6 +184,26 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                      m_cfg->cfgtable.fastl2vic_base << 16);
+
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+
+    object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                                     2, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views",
+                                     1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid",
+                                     0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
+                       qdev_get_gpio_in(l2vic_dev, 3));
+    sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
+                       qdev_get_gpio_in(l2vic_dev, 4));
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+            m_cfg->cfgtable.fastl2vic_base << 16);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
