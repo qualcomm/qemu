@@ -166,9 +166,11 @@
 #define fTLB_ENTRY_OVERLAP_IDX(VALUE) \
     hex_tlb_check_overlap(env, VALUE, -1)
 #define fTLBR(INDEX) \
-    (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
+    (hexagon_tlb_read(env_archcpu(env)->tlb, \
+                      fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))))
 #define fTLBR_EXTENDED(INDEX) \
-    (env->hex_tlb->entries[fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))])
+    (hexagon_tlb_read(env_archcpu(env)->tlb, \
+                      fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))))
 #define fTLBP(TLBHI) \
     hex_tlb_lookup(env, ((TLBHI) >> 12), ((TLBHI) << 12))
 #define iic_flush_cache(p)
