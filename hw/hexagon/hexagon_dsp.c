@@ -140,6 +140,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              m_cfg->cfgtable.jtlb_size_entries);
         object_property_set_link(OBJECT(cpu), "global-regs",
                                  OBJECT(glob_regs_dev), &error_fatal);
+        object_property_set_link(OBJECT(cpu), "tlb",
+                                 OBJECT(tlb_dev), &error_fatal);
 
 
         if (i == 0) {

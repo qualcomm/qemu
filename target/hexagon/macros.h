@@ -691,3 +691,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fPREDUSE_TIMING()
 
 #define fUNIMP() qemu_log_mask(LOG_UNIMP, "Unimplemented instruction\n")
+
+/* Extended DMA TLB is in entries 512 512+QDSP6_DMAJTLB_SZ */
+#define DMA_TLB_OFFSET 512
+#define DMA_TLB_SIZE   64

@@ -33,6 +33,7 @@
 #include "hw/hexagon/hexagon.h"
 
 #ifndef CONFIG_USER_ONLY
+#include "hw/hexagon/hexagon_tlb.h"
 #include "macros.h"
 #include "sys_macros.h"
 #include "accel/tcg/cpu-ldst.h"
@@ -81,6 +82,8 @@ static const Property hexagon_cpu_properties[] = {
                      TYPE_L2VIC_INTERFACE, L2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
+    DEFINE_PROP_LINK("tlb", HexagonCPU, tlb,
+                     TYPE_HEXAGON_TLB, HexagonTLBState *),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
@@ -574,8 +577,9 @@ static void hexagon_cpu_init(Object *obj)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static bool get_physical_address(CPUHexagonState *env, hwaddr *phys, int *prot,
-                                 int *size, int32_t *excp, target_ulong address,
+static bool get_physical_address(CPUHexagonState *env, hwaddr *phys,
+                                 int *prot, uint64_t *size, int32_t *excp,
+                                 target_ulong address,
                                  MMUAccessType access_type, int mmu_idx)
 
 {
@@ -591,7 +595,7 @@ static bool get_physical_address(CPUHexagonState *env, hwaddr *phys, int *prot,
 }
 
 /* qemu seems to only want to know about TARGET_PAGE_SIZE pages */
-static void find_qemu_subpage(vaddr *addr, hwaddr *phys, int page_size)
+static void find_qemu_subpage(vaddr *addr, hwaddr *phys, uint64_t page_size)
 {
     vaddr page_start = *addr & ~((vaddr)(page_size - 1));
     vaddr offset = ((*addr - page_start) / TARGET_PAGE_SIZE) * TARGET_PAGE_SIZE;
@@ -604,7 +608,7 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     CPUHexagonState *env = cpu_env(cs);
     hwaddr phys_addr;
     int prot;
-    int page_size = 0;
+    uint64_t page_size = 0;
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
     vaddr offset_in_page = addr & ~TARGET_PAGE_MASK;
@@ -693,7 +697,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
     static int slot = 0 /* This is always zero for now */;
     hwaddr phys;
     int prot = 0;
-    int page_size = 0;
+    uint64_t page_size = 0;
     int32_t excp = 0;
     bool ret = 0;
 
