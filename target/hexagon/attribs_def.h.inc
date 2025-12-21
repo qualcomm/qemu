@@ -94,6 +94,8 @@ DEF_ATTRIB(HVX_FLT, "This a floating point HVX instruction.", "", "")
 
 DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers.", "", "")
 
+DEF_ATTRIB(SYNC_MARKER, "This instruction needs a sync marker.", "", "")
+
 /* Change-of-flow attributes */
 DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
 DEF_ATTRIB(INDIRECT, "Absolute register jump", "", "")
