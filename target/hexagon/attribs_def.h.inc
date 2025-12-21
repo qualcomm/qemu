@@ -64,6 +64,8 @@ DEF_ATTRIB(RLS_SAME_THREAD, "Store release with the same thread", "", "")
 
 /* V6 Vector attributes */
 DEF_ATTRIB(CVI, "Executes on the HVX extension", "", "")
+DEF_ATTRIB(NT_VMEM, "Non-temporal memory access", "", "")
+DEF_ATTRIB(VMEMU, "Unaligned memory access", "", "")
 
 DEF_ATTRIB(CVI_NEW, "New value memory instruction executes on HVX", "", "")
 DEF_ATTRIB(CVI_VM, "Memory instruction executes on HVX", "", "")
@@ -79,11 +81,16 @@ DEF_ATTRIB(CVI_VA_DV, "Double vector alu instruction executes on HVX", "", "")
 DEF_ATTRIB(CVI_4SLOT, "Consumes all the vector execution resources", "", "")
 DEF_ATTRIB(CVI_TMP, "Transient Memory Load not written to register", "", "")
 DEF_ATTRIB(CVI_REMAP, "Register Renaming not written to register file", "", "")
+DEF_ATTRIB(CVI_REQUIRES_TMPLOAD, ".tmp load must be included in packet", "", "")
+DEF_ATTRIB(CVI_PUMP_2X, "Goes through the pipeline twice", "", "")
+DEF_ATTRIB(CVI_PUMP_4X, "Goes through the pipeline four times", "", "")
 DEF_ATTRIB(CVI_GATHER, "CVI Gather operation", "", "")
 DEF_ATTRIB(CVI_SCATTER, "CVI Scatter operation", "", "")
 DEF_ATTRIB(CVI_SCATTER_RELEASE, "CVI Store Release for scatter", "", "")
 DEF_ATTRIB(CVI_TMP_DST, "CVI instruction that doesn't write a register", "", "")
 DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
+
+DEF_ATTRIB(HVX_FLT, "This a floating point HVX instruction.", "", "")
 
 DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers.", "", "")
 
