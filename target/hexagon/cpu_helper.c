@@ -181,7 +181,8 @@ uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
     } else {
 #ifndef CONFIG_USER_ONLY
         HexagonCPU *cpu = env_archcpu(env);
-        return cpu->globalregs ? hexagon_globalreg_read(cpu, reg) : 0;
+        return cpu->globalregs ?
+               hexagon_globalreg_read(cpu->globalregs, reg) : 0;
 #else
         return 0;
 #endif
@@ -197,7 +198,7 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
 #ifndef CONFIG_USER_ONLY
         HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
-            hexagon_globalreg_write(cpu, reg, val);
+            hexagon_globalreg_write(cpu->globalregs, reg, val);
         }
 #endif
     }
@@ -213,7 +214,7 @@ void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
 #ifndef CONFIG_USER_ONLY
         HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
-            hexagon_globalreg_write_masked(cpu, reg, val);
+            hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
         }
 #endif
     }
@@ -230,8 +231,9 @@ uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
     }
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = env_archcpu(env);
-    return (cpu->globalregs ? hexagon_globalreg_get_pcycle_base(cpu) : 0) +
-           cycles;
+    uint64_t base = cpu->globalregs ?
+                    hexagon_globalreg_get_pcycle_base(cpu->globalregs) : 0;
+    return base + cycles;
 #else
     return cycles;
 #endif
@@ -270,7 +272,7 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->globalregs) {
-        hexagon_globalreg_set_pcycle_base(cpu, cycles);
+        hexagon_globalreg_set_pcycle_base(cpu->globalregs, cycles);
     }
 #endif
 

@@ -1778,7 +1778,7 @@ static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
     CPUState *cs = env_cpu(env);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     uint32_t qtimer_base_addr = cpu->globalregs ?
-        hexagon_globalreg_get_qtimer_base_addr(cpu) : 0xffffffffUL;
+        hexagon_globalreg_get_qtimer_base_addr(cpu->globalregs) : 0xffffffffUL;
     const hwaddr low_addr  = qtimer_base_addr + QCT_QTIMER_CNTPCT_LO;
     const hwaddr high_addr = qtimer_base_addr + QCT_QTIMER_CNTPCT_HI;
 
@@ -1864,7 +1864,9 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
     g_assert(bql_locked());
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         HexagonCPU *cpu = env_archcpu(env);
-        val = hexagon_globalreg_masked_value(cpu, reg, val);
+        if (cpu->globalregs) {
+            val = hexagon_globalreg_masked_value(cpu->globalregs, reg, val);
+        }
         hexagon_set_vid(env,
                         (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
                         val);
