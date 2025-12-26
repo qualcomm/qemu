@@ -145,11 +145,10 @@ static void read_timer(HexagonGlobalRegState *s, uint32_t *low, uint32_t *high)
     cpu_physical_memory_read(high_addr, high, sizeof(*high));
 }
 
-uint32_t hexagon_globalreg_read(HexagonCPU *cpu, uint32_t reg)
+uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
 {
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
 
     uint32_t value;
@@ -166,10 +165,9 @@ uint32_t hexagon_globalreg_read(HexagonCPU *cpu, uint32_t reg)
     return value;
 }
 
-void hexagon_globalreg_write(HexagonCPU *cpu, uint32_t reg,
+void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
                              uint32_t value)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
@@ -177,10 +175,9 @@ void hexagon_globalreg_write(HexagonCPU *cpu, uint32_t reg,
     trace_hexagon_globalreg_write(get_sreg_name(reg), value);
 }
 
-uint32_t hexagon_globalreg_masked_value(HexagonCPU *cpu, uint32_t reg,
+uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
                                         uint32_t value)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
@@ -190,31 +187,28 @@ uint32_t hexagon_globalreg_masked_value(HexagonCPU *cpu, uint32_t reg,
             apply_write_mask(value, s->regs[reg], reg_mask);
 }
 
-void hexagon_globalreg_write_masked(HexagonCPU *cpu, uint32_t reg,
+void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
                                     uint32_t value)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
-    s->regs[reg] = hexagon_globalreg_masked_value(cpu, reg, value);
+    s->regs[reg] = hexagon_globalreg_masked_value(s, reg, value);
 }
 
-uint64_t hexagon_globalreg_get_pcycle_base(HexagonCPU *cpu)
+uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
     return s->g_pcycle_base;
 }
 
-void hexagon_globalreg_set_pcycle_base(HexagonCPU *cpu, uint64_t value)
+void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s,
+                                       uint64_t value)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
     s->g_pcycle_base = value;
 }
 
-uint32_t hexagon_globalreg_get_qtimer_base_addr(HexagonCPU *cpu)
+uint32_t hexagon_globalreg_get_qtimer_base_addr(HexagonGlobalRegState *s)
 {
-    HexagonGlobalRegState *s = cpu->globalregs;
     g_assert(s);
     return s->qtimer_base_addr;
 }
@@ -270,9 +264,9 @@ static void hexagon_globalreg_realize(DeviceState *dev, Error **errp)
 {
 }
 
-void hexagon_globalreg_reset(HexagonCPU *cpu)
+void hexagon_globalreg_reset(HexagonGlobalRegState *s)
 {
-    do_hexagon_globalreg_reset(cpu->globalregs);
+    do_hexagon_globalreg_reset(s);
 }
 
 static void hexagon_globalreg_reset_hold(Object *obj, ResetType type)

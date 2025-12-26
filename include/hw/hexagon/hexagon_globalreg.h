@@ -41,20 +41,21 @@ struct HexagonGlobalRegState {
 };
 
 /* Public interface functions */
-uint32_t hexagon_globalreg_read(HexagonCPU *cpu, uint32_t reg);
-void hexagon_globalreg_write(HexagonCPU *cpu, uint32_t reg,
+uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg);
+void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
                              uint32_t value);
-uint32_t hexagon_globalreg_masked_value(HexagonCPU *cpu, uint32_t reg,
+uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
                                         uint32_t value);
-void hexagon_globalreg_write_masked(HexagonCPU *cpu, uint32_t reg,
+void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
                                     uint32_t value);
-void hexagon_globalreg_reset(HexagonCPU *cpu);
+void hexagon_globalreg_reset(HexagonGlobalRegState *s);
 
 /* Global performance cycle counter access */
-uint64_t hexagon_globalreg_get_pcycle_base(HexagonCPU *cpu);
-void hexagon_globalreg_set_pcycle_base(HexagonCPU *cpu, uint64_t value);
+uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s);
+void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s,
+                                       uint64_t value);
 
 /* Hardware base address access */
-uint32_t hexagon_globalreg_get_qtimer_base_addr(HexagonCPU *cpu);
+uint32_t hexagon_globalreg_get_qtimer_base_addr(HexagonGlobalRegState *s);
 
 #endif /* HEXAGON_GLOBALREG_H */
