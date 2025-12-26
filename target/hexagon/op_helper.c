@@ -1866,7 +1866,9 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
     g_assert(bql_locked());
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         HexagonCPU *cpu = env_archcpu(env);
-        val = hexagon_globalreg_masked_value(cpu, reg, val);
+        if (cpu->globalregs) {
+            val = hexagon_globalreg_masked_value(cpu->globalregs, reg, val);
+        }
         hexagon_set_vid(env,
                         (reg == HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1,
                         val);
