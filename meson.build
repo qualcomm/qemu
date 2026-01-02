@@ -4621,7 +4621,14 @@ foreach target : target_dirs
       libs_to_link = [coproc_rpc]
     endif
 
+# FOR LIBQEMU
     if enable_libqemu
+      libqemu_link_args = link_args
+      if host_os != 'darwin'
+        libqemu_link_args += ['-Wl,--disable-new-dtags']
+      endif
+      # Use ELF $ORIGIN on non-Darwin, Mach-O @loader_path on Darwin
+      install_rpath_val = (host_os == 'darwin') ? '@loader_path' : '$ORIGIN'
       emulator = shared_library(exe_name, exe['sources'],
                  install: true,
                  c_args: c_args,
@@ -4630,8 +4637,9 @@ foreach target : target_dirs
                  objects: lib.extract_all_objects(recursive: true),
                  link_depends: [block_syms, qemu_syms, 'libqemu/libqemu.version']
                                + exe.get('link_depends', []),
-                 link_args: link_args,
-		 install_dir: 'lib')
+                 link_args: libqemu_link_args,
+                 install_dir: 'lib',
+                 install_rpath: install_rpath_val)
     else
       emulator = executable(exe_name, exe['sources'],
 		 install: true,

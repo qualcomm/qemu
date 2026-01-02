@@ -18,7 +18,9 @@ if get_option('plugins')
     else
       t += shared_module(i, files(i + '.c'),
                         include_directories: '../../include/qemu',
-                        dependencies: glib)
+                        dependencies: glib,
+                        install: true,
+                        install_dir: get_option('libdir')) # FOR LIBQEMU
     endif
   endforeach
 endif

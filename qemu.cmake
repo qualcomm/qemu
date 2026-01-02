@@ -50,6 +50,7 @@ set(QEMU_CONF_ARGS
     --enable-kvm
     --enable-vhost-user
 )
+set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --libdir=lib)
 
 if (GS_ENABLE_VIRCLRENDERER)
     if (WIN32)
