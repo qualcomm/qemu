@@ -33,7 +33,7 @@ if get_option('plugins')
   foreach i : contrib_plugins
     if host_os == 'windows'
       t += shared_module(fs.stem(i), files(i) + 'win32_linker.c',
-                        include_directories: ['../../include/qemu', '../../libqemu'],
+                        include_directories: '../../include/qemu',
                         link_depends: [win32_qemu_plugin_api_lib],
                         link_args: win32_qemu_plugin_api_link_flags,
                         dependencies: glib)
