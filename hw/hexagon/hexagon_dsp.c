@@ -117,7 +117,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     DeviceState *glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
 
     /* Create TLB object */
     DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
@@ -132,7 +132,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         cpus[i] = cpu;
-        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -155,16 +154,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-                return;
-            }
         } else {
             if (cpu0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
-            }
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-                env->dir_list = NULL;
-                return;
             }
         }
     }
@@ -187,7 +179,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
 
     /* Link the L2VIC interface to globalreg */
     if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
@@ -199,15 +190,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
     /*
-     * Finally, link cpus to global registers, L2VIC interface, and do
-     * realization
+     * Finally, realize all CPUs
      */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
-                                      OBJECT(tlb_dev), errp)) {
-            error_report("Failed to link TLB to CPU %d", i);
-            goto out;
-        }
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
             goto out;
@@ -221,6 +206,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                            qdev_get_gpio_in(DEVICE(cpu), i));
     }
 
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                      m_cfg->cfgtable.fastl2vic_base << 16);
 
@@ -230,9 +216,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(l2vic_dev, 4));
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
-            m_cfg->cfgtable.fastl2vic_base << 16);
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
