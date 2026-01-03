@@ -508,10 +508,6 @@ static void virt_init(MachineState *ms)
 
     vms->sys = get_system_memory();
 
-    /* Create APB clock for peripherals */
-    vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
-    clock_set_hz(vms->apb_clk, 24000000);
-
     memory_region_init_ram(&vms->ram, NULL, "ddr.ram", ms->ram_size, errp);
     memory_region_add_subregion(vms->sys, 0x0, &vms->ram);
 
@@ -562,6 +558,7 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
     }
 
     /* Create TLB object first */
@@ -607,21 +604,10 @@ static void virt_init(MachineState *ms)
             error_report("Failed to link global system registers to CPU %d", i);
             goto out;
         }
-        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
-                                      OBJECT(tlb_dev), errp)) {
-            error_report("Failed to link TLB to CPU %d", i);
-            goto out;
-        }
         qdev_prop_set_uint32(DEVICE(cpus[i]), "l2vic-base-addr",
                              m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpus[i]), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
-
-        if (!object_property_set_link(OBJECT(cpus[i]), "l2vic",
-                                      OBJECT(vms->l2vic), errp)) {
-            error_report("Failed to link L2VIC interface to CPU %d", i);
-            goto out;
-        }
 
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
