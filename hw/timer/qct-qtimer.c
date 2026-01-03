@@ -492,13 +492,22 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
 };
 
+/* Forward declarations */
+static uint32_t qct_qtimer_get_timer_lo(QTimerInterface *obj);
+static uint32_t qct_qtimer_get_timer_hi(QTimerInterface *obj);
+
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    QTimerInterfaceClass *qic = QTIMER_INTERFACE_CLASS(klass);
 
     device_class_set_props(k, qct_qtimer_properties);
     k->realize = qct_qtimer_realize;
     k->vmsd = &vmstate_qct_qtimer;
+
+    /* Implement QTimerInterface methods */
+    qic->get_timer_lo = qct_qtimer_get_timer_lo;
+    qic->get_timer_hi = qct_qtimer_get_timer_hi;
 }
 
 static const TypeInfo qct_qtimer_info = {
@@ -553,10 +562,6 @@ uint32_t qtimer_get_timer_hi(QTimerInterface *qtimer)
 
 static void qtimer_interface_class_init(ObjectClass *klass, const void *data)
 {
-    QTimerInterfaceClass *qic = QTIMER_INTERFACE_CLASS(klass);
-
-    qic->get_timer_lo = qct_qtimer_get_timer_lo;
-    qic->get_timer_hi = qct_qtimer_get_timer_hi;
 }
 
 static const TypeInfo qtimer_interface_info = {
