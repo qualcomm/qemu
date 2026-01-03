@@ -544,6 +544,11 @@ static void virt_init(MachineState *ms)
         cpus[i] = cpu;
         qemu_register_reset(do_cpu_reset, cpu);
 
+        qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
+        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
+                             m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
+
         if (i == 0) {
             cpu_0 = cpu;
             if (ms->kernel_filename) {
@@ -555,10 +560,6 @@ static void virt_init(MachineState *ms)
                 qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             }
         }
-        qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
-                             m_cfg->cfgtable.ext_contexts);
-        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
     }
 
     /* Create TLB object first */
@@ -597,17 +598,13 @@ static void virt_init(MachineState *ms)
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
 
-    /* Link the global system registers object to all CPUs */
+    /* Link the global system registers to all CPUs, then realize */
     for (int i = 0; i < ms->smp.cpus; i++) {
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(vms->gsregs), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
             goto out;
         }
-        qdev_prop_set_uint32(DEVICE(cpus[i]), "l2vic-base-addr",
-                             m_cfg->l2vic_base);
-        qdev_prop_set_uint32(DEVICE(cpus[i]), "jtlb-entries",
-                             m_cfg->cfgtable.jtlb_size_entries);
 
         if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
             error_report("Failed to realize CPU %d", i);
