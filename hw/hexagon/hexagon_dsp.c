@@ -150,6 +150,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             error_report("Failed to link global system registers to CPU %d", i);
             return;
         }
+        if (!object_property_set_link(OBJECT(cpu), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
+            return;
+        }
 
 
         if (i == 0) {

@@ -142,7 +142,6 @@ typedef struct CPUArchState {
     hex_lock_state_t k0_lock_state;
     target_ulong tlb_lock_count;
     target_ulong k0_lock_count;
-    CPUHexagonTLBContext *hex_tlb;
     GList *dir_list;
 #endif
     target_ulong next_PC;
@@ -199,6 +198,7 @@ struct ArchCPU {
     uint32_t boot_addr;
     struct HexagonGlobalRegState *globalregs;
     gchar *usefs;
+    struct HexagonTLBState *tlb;
 #endif
 };
 
