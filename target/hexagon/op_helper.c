@@ -40,6 +40,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/l2vic.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hex_interrupts.h"

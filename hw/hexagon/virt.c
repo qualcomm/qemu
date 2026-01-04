@@ -598,11 +598,16 @@ static void virt_init(MachineState *ms)
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), errp);
 
-    /* Link the global system registers to all CPUs, then realize */
+    /* Link the global system registers and TLB to all CPUs, then realize */
     for (int i = 0; i < ms->smp.cpus; i++) {
         if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
                                       OBJECT(vms->gsregs), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
+            goto out;
+        }
+        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                      OBJECT(tlb_dev), errp)) {
+            error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
 
