@@ -346,7 +346,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("single_step")
         self.assertTrue(result, "Test single_step failed")
 
-    @skip("Test times out after 60 seconds")
     def test_standalone_vec(self) -> None:
         """Tests HVX vector scatter/gather operations with various data types
         and addressing modes, including predicated operations and different
