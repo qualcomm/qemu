@@ -23,7 +23,7 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "exec/cputlb.h"
 #include "mmvec/mmvec.h"
 #include "dma/dma.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/intc/l2vic.h"
 
@@ -38,8 +38,6 @@ uint8_t hexagon_rev_byte(CPUHexagonState *env);
 #include "hex_regs.h"
 
 #define TARGET_LONG_BITS 32
-
-#include "hw/registerfields.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64

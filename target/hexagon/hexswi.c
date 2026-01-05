@@ -11,7 +11,7 @@
 #include "qemu.h"
 #include "exec/helper-proto.h"
 #else
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/hexagon/hexagon.h"
 #endif
 #include "accel/tcg/cpu-ldst.h"

@@ -8,8 +8,9 @@
 #ifndef HEXAGON_TLB_H
 #define HEXAGON_TLB_H
 
-#include "hw/qdev-core.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev.h"
+#include "hw/core/sysbus.h"
+#include "exec/mmu-access-type.h"
 #include "qom/object.h"
 #include "exec/cpu-defs.h"
 

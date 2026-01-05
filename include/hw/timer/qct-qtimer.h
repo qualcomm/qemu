@@ -19,8 +19,8 @@
 #ifndef TIMER_QCT_QTIMER_H
 #define TIMER_QCT_QTIMER_H
 
-#include "hw/sysbus.h"
-#include "hw/ptimer.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/ptimer.h"
 
 #define TYPE_QCT_QTIMER "qct-qtimer"
 #define TYPE_QCT_HEXTIMER "qct-hextimer"

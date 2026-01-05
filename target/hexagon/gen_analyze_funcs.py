@@ -78,12 +78,16 @@ def gen_analyze_func(f, tag, regs, imms):
         if reg.is_read() and has_analyze_func(reg, "read"):
             reg.analyze_read(f, regno)
 
+    f.write("    mark_implicit_reads(ctx);\n")
+
     ## Analyze the register writes
     for regno, register in enumerate(regs):
         reg_type, reg_id = register
         reg = hex_common.get_register(tag, reg_type, reg_id)
         if reg.is_written() and has_analyze_func(reg, "write"):
             reg.analyze_write(f, tag, regno)
+
+    f.write("    mark_implicit_writes(ctx);\n")
 
     if ("A_PRIV" in hex_common.attribdict[tag] or
         "A_GUEST" in hex_common.attribdict[tag]):

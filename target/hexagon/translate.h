@@ -74,6 +74,7 @@ typedef struct DisasContext {
     TCGv greg_new_value[NUM_GREGS];
     uint32_t num_coproc_instance;
 #endif
+    bool implicit_usr_write;
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);

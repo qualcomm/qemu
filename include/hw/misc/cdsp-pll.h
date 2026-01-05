@@ -8,7 +8,7 @@
 #ifndef HW_MISC_CDSP_PLL_H
 #define HW_MISC_CDSP_PLL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_CDSP_PLL "cdsp-pll"

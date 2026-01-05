@@ -26,13 +26,13 @@
 #include "qom/object.h"
 #include "trace.h"
 #include "system/physmem.h"
-#include "system/ram_addr.h"
+#include "system/ramblock.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
 #include "system/tcg.h"
 #include "qemu/accel.h"
 #include "accel/accel-ops.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
 
@@ -2424,7 +2424,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 {
     assert(mr->ram_block);
     physical_memory_test_and_clear_dirty(
-        memory_region_get_ram_addr(mr) + addr, size, client);
+        memory_region_get_ram_addr(mr) + addr, size, client, NULL);
 }
 
 int memory_region_get_fd(MemoryRegion *mr)

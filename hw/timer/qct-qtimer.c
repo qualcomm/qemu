@@ -19,8 +19,8 @@
 
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/timer/qct-qtimer.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"

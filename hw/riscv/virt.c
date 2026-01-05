@@ -23,10 +23,10 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
-#include "hw/loader.h"
-#include "hw/sysbus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/boards.h"
+#include "hw/core/loader.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/char/serial-mm.h"
 #include "target/riscv/cpu.h"
 #include "hw/core/sysbus-fdt.h"
@@ -43,7 +43,7 @@
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/sifive_test.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "chardev/char.h"
 #include "system/device_tree.h"
 #include "system/system.h"
@@ -1434,7 +1434,8 @@ static void virt_machine_done(Notifier *notifier, void *data)
                                      machine_done);
     MachineState *machine = MACHINE(s);
     hwaddr start_addr = s->memmap[VIRT_DRAM].base;
-    hwaddr firmware_end_addr, kernel_start_addr;
+    hwaddr firmware_end_addr;
+    vaddr kernel_start_addr;
     const char *firmware_name = riscv_default_firmware_name(&s->soc[0]);
     uint64_t fdt_load_addr;
     uint64_t kernel_entry = 0;

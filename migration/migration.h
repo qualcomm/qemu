@@ -14,8 +14,9 @@
 #ifndef QEMU_MIGRATION_H
 #define QEMU_MIGRATION_H
 
-#include "exec/cpu-common.h"
-#include "hw/qdev-core.h"
+#include "system/ram_addr.h"
+#include "system/ramblock.h"
+#include "hw/core/qdev.h"
 #include "qapi/qapi-types-migration.h"
 #include "qobject/json-writer.h"
 #include "qemu/thread.h"
@@ -514,6 +515,13 @@ struct MigrationState {
     QemuEvent postcopy_package_loaded_event;
 
     GSource *hup_source;
+
+    /*
+     * The block-bitmap-mapping option is allowed to be an empty list,
+     * therefore we need a way to know whether the user has given
+     * anything as input.
+     */
+    bool has_block_bitmap_mapping;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
@@ -525,7 +533,7 @@ void migration_incoming_process(void);
 
 bool  migration_has_all_channels(void);
 
-void migrate_set_error(MigrationState *s, const Error *error);
+void migrate_error_propagate(MigrationState *s, Error *error);
 bool migrate_has_error(MigrationState *s);
 
 void migration_connect(MigrationState *s, Error *error_in);

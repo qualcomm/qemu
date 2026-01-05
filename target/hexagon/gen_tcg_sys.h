@@ -92,7 +92,7 @@
                            tcg_constant_tl(0), \
                            reg_field_info[SSR_EX].offset, \
                            reg_field_info[SSR_EX].width); \
-        gen_log_sreg_write(ctx, HEX_SREG_SSR, new_ssr); \
+        gen_sreg_write(ctx, HEX_SREG_SSR, new_ssr); \
         gen_jumpr(ctx, hex_t_sreg[HEX_SREG_ELR]); \
     } while (0)
 

@@ -30,7 +30,7 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"
-#include "system/ram_addr.h"
+#include "system/ramblock.h"
 #include "exec/mmu-access-type.h"
 #include "exec/tlb-common.h"
 #include "exec/vaddr.h"
@@ -857,8 +857,9 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
 void tlb_protect_code(ram_addr_t ram_addr)
 {
     physical_memory_test_and_clear_dirty(ram_addr & TARGET_PAGE_MASK,
-                                             TARGET_PAGE_SIZE,
-                                             DIRTY_MEMORY_CODE);
+                                         TARGET_PAGE_SIZE,
+                                         DIRTY_MEMORY_CODE,
+                                         NULL);
 }
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer

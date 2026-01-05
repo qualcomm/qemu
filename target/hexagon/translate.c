@@ -41,6 +41,10 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+/* Forward declarations referenced in analyze_funcs_generated.c.inc */
+static void mark_implicit_reads(DisasContext *ctx);
+static void mark_implicit_writes(DisasContext *ctx);
+
 #include "analyze_funcs_generated.c.inc"
 
 typedef void (*AnalyzeInsn)(DisasContext *ctx);
@@ -584,12 +588,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
 {
     uint16_t opcode = ctx->insn->opcode;
     if (GET_ATTRIB(opcode, attrib)) {
-        /*
-         * USR is used to set overflow and FP exceptions,
-         * so treat it as conditional
-         */
-        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
-                             rnum == HEX_REG_USR;
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC);
 
         /* LC0/LC1 is conditionally written by endloop instructions */
         if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
@@ -613,6 +612,14 @@ static void mark_implicit_sreg_write(DisasContext *ctx, int attrib, int snum)
 }
 #endif
 
+static void mark_implicit_usr_write(DisasContext *ctx, int attrib)
+{
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
+        ctx->implicit_usr_write = true;
+    }
+}
+
 static void mark_implicit_reg_writes(DisasContext *ctx)
 {
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
@@ -622,8 +629,9 @@ static void mark_implicit_reg_writes(DisasContext *ctx)
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
+
+    mark_implicit_usr_write(ctx, A_IMPLICIT_WRITES_USR);
+    mark_implicit_usr_write(ctx, A_FPOP);
 
 #ifndef CONFIG_USER_ONLY
     mark_implicit_sreg_write(ctx, A_IMPLICIT_WRITES_SGP0, HEX_SREG_SGP0);
@@ -679,11 +687,6 @@ static bool need_commit(DisasContext *ctx)
         }
     }
 
-    /* Floating point instructions are hard-coded to use new_value */
-    if (check_for_attrib(pkt, A_FPOP)) {
-        return true;
-    }
-
     if (ctx->read_after_write || ctx->has_hvx_overlap) {
         return true;
     }
@@ -706,6 +709,17 @@ static void mark_implicit_pred_reads(DisasContext *ctx)
     mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P3, 3);
 }
 
+static void mark_implicit_reads(DisasContext *ctx)
+{
+    mark_implicit_pred_reads(ctx);
+}
+
+static void mark_implicit_writes(DisasContext *ctx)
+{
+    mark_implicit_reg_writes(ctx);
+    mark_implicit_pred_writes(ctx);
+}
+
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -721,9 +735,6 @@ static void analyze_packet(DisasContext *ctx)
         if (opcode_analyze[insn->opcode]) {
             opcode_analyze[insn->opcode](ctx);
         }
-        mark_implicit_reg_writes(ctx);
-        mark_implicit_pred_writes(ctx);
-        mark_implicit_pred_reads(ctx);
     }
 
     ctx->need_commit = need_commit(ctx);
@@ -924,6 +935,12 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         }
     }
 
+    /* Preload usr to new_value_usr */
+    if (ctx->need_commit && ctx->implicit_usr_write &&
+        !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_new_value_usr, hex_gpr[HEX_REG_USR]);
+    }
+
     /*
      * Preload the predicated pred registers into ctx->new_pred_value[pred_num]
      * Only endloop instructions conditionally write to pred registers
@@ -1082,6 +1099,10 @@ static void gen_reg_writes(DisasContext *ctx)
         if (reg_num == HEX_REG_SA0) {
             ctx->is_tight_loop = false;
         }
+    }
+
+    if (ctx->implicit_usr_write && !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_USR], hex_new_value_usr);
     }
 }
 

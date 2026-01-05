@@ -4,13 +4,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "internal.h"
 #include "system/memory.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"

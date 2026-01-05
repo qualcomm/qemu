@@ -121,11 +121,6 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         COUNT_HELPER({tag});
     """))
 
-    if "A_FPOP" in hex_common.attribdict[tag]:
-        f.write(hex_common.code_fmt(f"""\
-            arch_fpop_end(env);
-        """))
-
     ## Return the scalar result
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
@@ -149,6 +144,9 @@ def main():
         for tag in hex_common.get_user_tags():
             if hex_common.tag_ignore(tag):
                 continue
+            ## Skip the floating point instructions
+            if "A_FPOP" in hex_common.attribdict[tag]:
+                continue
             if hex_common.skip_qemu_helper(tag):
                 continue
             if hex_common.is_idef_parser_enabled(tag):
@@ -157,6 +155,9 @@ def main():
 
         f.write("#if !defined(CONFIG_USER_ONLY)\n")
         for tag in hex_common.get_sys_tags():
+            ## Skip the floating point instructions
+            if "A_FPOP" in hex_common.attribdict[tag]:
+                continue
             if hex_common.skip_qemu_helper(tag):
                 continue
             if hex_common.is_idef_parser_enabled(tag):

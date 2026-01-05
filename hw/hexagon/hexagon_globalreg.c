@@ -7,9 +7,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/hexagon/hexagon_globalreg.h"
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
-#include "hw/resettable.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/resettable.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"

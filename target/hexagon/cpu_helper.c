@@ -24,7 +24,7 @@
 #else
 #include "hex_interrupts.h"
 #include "hex_mmu.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #endif

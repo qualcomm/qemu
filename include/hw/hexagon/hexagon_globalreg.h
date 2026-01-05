@@ -8,8 +8,8 @@
 #ifndef HEXAGON_GLOBALREG_H
 #define HEXAGON_GLOBALREG_H
 
-#include "hw/qdev-core.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
 #include "hw/timer/qct-qtimer.h"

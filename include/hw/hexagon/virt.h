@@ -8,8 +8,8 @@
 #ifndef HW_HEXAGONVIRT_H
 #define HW_HEXAGONVIRT_H
 
-#include "hw/boards.h"
-#include "hw/clock.h"
+#include "hw/core/boards.h"
+#include "hw/core/clock.h"
 #include "hw/timer/qct-qtimer.h"
 #include "target/hexagon/cpu.h"
 
