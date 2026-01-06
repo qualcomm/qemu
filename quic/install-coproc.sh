@@ -36,28 +36,40 @@ done
 
 set -ex
 
-if [ -f "${EXECUTABLE}" ];  then
-    if [ -d "${BUILD_DIR}" ]; then
-        cp "${EXECUTABLE}" "${BUILD_DIR}"
-    fi
+installed=0
 
-    if [ -d "${INSTALL_DIR}" ]; then
-        cp "${EXECUTABLE}" "${INSTALL_DIR}"
-    fi
+if ! [ -f "${EXECUTABLE}" ];  then
+    echo "Missing executable '${EXECUTABLE}'"
+    exit 1
+fi
 
-    readonly BUNDLE_DIR="${BUILD_DIR}/qemu-bundle"
-    if [ -d "${BUNDLE_DIR}" ]; then
-        readonly QEMU_NAME="qemu-system-hexagon"
+if [ -d "${BUILD_DIR}" ]; then
+    installed=1
+    cp "${EXECUTABLE}" "${BUILD_DIR}"
+fi
 
-        # Order matters for `-print` and `-quit`
-        BUNDLE_QEMU_EXECUTABLE="$(find "${BUNDLE_DIR}" -name "${QEMU_NAME}" -print -quit)"
-        readonly BUNDLE_QEMU_EXECUTABLE
+if [ -d "${INSTALL_DIR}" ]; then
+    installed=1
+    cp "${EXECUTABLE}" "${INSTALL_DIR}"
+fi
 
-        if [ -n "${BUNDLE_QEMU_EXECUTABLE}" ]; then
-            BUNDLE_BIN_DIR="$(dirname "${BUNDLE_QEMU_EXECUTABLE}")"
-            readonly BUNDLE_BIN_DIR
-            cp "${EXECUTABLE}" "${BUNDLE_BIN_DIR}"
-        fi
+readonly BUNDLE_DIR="${BUILD_DIR}/qemu-bundle"
+if [ -d "${BUNDLE_DIR}" ]; then
+    installed=1
+    readonly QEMU_NAME="qemu-system-hexagon"
+
+    # Order matters for `-print` and `-quit`
+    BUNDLE_QEMU_EXECUTABLE="$(find "${BUNDLE_DIR}" -name "${QEMU_NAME}" -print -quit)"
+    readonly BUNDLE_QEMU_EXECUTABLE
+
+    if [ -n "${BUNDLE_QEMU_EXECUTABLE}" ]; then
+        BUNDLE_BIN_DIR="$(dirname "${BUNDLE_QEMU_EXECUTABLE}")"
+        readonly BUNDLE_BIN_DIR
+        cp "${EXECUTABLE}" "${BUNDLE_BIN_DIR}"
     fi
 fi
 
+if [ "${installed}" -eq 0 ];  then
+    echo "Couldn't find build and/or install dir to put the coproc at."
+    exit 1
+fi

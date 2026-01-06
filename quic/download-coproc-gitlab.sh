@@ -6,6 +6,7 @@
 ARCHIVE="${PWD}/coproc.zip"
 OUTPUT_DIR="${PWD}"
 SERVER_URL="https://gitlab.qualcomm.com"
+readonly EXECUTABLE_NAME="coproc_rpc_remote"
 
 print_help()
 {
@@ -68,5 +69,8 @@ readonly URL="\
 ${SERVER_URL}/api/v4/projects/${ID}/jobs/artifacts/${REF_NAME}/download?job=${JOB}"
 
 curl --location --output "${ARCHIVE}" --header "${HEADER}" "${URL}"
-unzip -d "${OUTPUT_DIR}" "${ARCHIVE}"
-rm -f "${ARCHIVE}"
+
+# Find the executable inside the archive and extract it to $OUTPUT_DIR
+readonly EXECUTABLE_PATH="$(unzip -l "${ARCHIVE}" | grep "${EXECUTABLE_NAME}" | sed 's/.* //')"
+unzip -j -d "${OUTPUT_DIR}" "${ARCHIVE}" "${EXECUTABLE_PATH}"
+rm -rf "${ARCHIVE}"
