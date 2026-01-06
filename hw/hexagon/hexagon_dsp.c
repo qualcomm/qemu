@@ -15,6 +15,11 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/misc/qcom-hwkm-prng.h"
+#include "hw/misc/qcom-turing-cdsp-pll.h"
+#include "hw/misc/qcom-qdsp6-cc-regs.h"
+#include "hw/misc/qcom-qdsp6-gdscr.h"
+#include "hw/misc/qcom-qdsp6-cc-swi.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -129,6 +134,63 @@ static void do_cpu_reset(void *opaque)
     HexagonCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     cpu_reset(cs);
+}
+
+static void create_hwkm_prng(void)
+{
+    DeviceState *dev = qdev_new(TYPE_HWKM_PRNG);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, HWKM_PRNG_BASE);
+}
+
+static void create_cdsp_pll(void)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* Map MMIO at absolute base 0x26340000 */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + 0x40000);
+
+}
+
+static void create_cdsp_core0_pll(void)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* Map MMIO at absolute base 0x26340000 */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x26000000);
+
+}
+
+static void create_cdsp_clkctl(void)
+{
+    DeviceState *dev = qdev_new(TYPE_QDSP6SS_CLKCTL);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* Map MMIO at absolute base 0x26348000 */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + 0x48000);
+
+}
+
+static void create_cdsp_gdscr(void)
+{
+    DeviceState *dev = qdev_new(TYPE_QCOM_GDSCR);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* Map MMIO at absolute base 0x151000 */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x151000);
+
+}
+
+static void create_cdsp_ccswi(void)
+{
+    DeviceState *dev = qdev_new(TYPE_CDSP0_CLKCTL);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    /* Map MMIO at absolute base 0x151000 */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x26008000);
+
 }
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev,
@@ -348,7 +410,29 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     hwaddr cmd_db_bin_addr = 0x80860000;
     hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
 
-    cpu_physical_memory_write(0x90900000, sa8775p_smem_data, sizeof(sa8775p_smem_data));
+    cpu_physical_memory_write(0x90900000, sa8775p_smem_data,
+                              sizeof(sa8775p_smem_data));
+
+    create_hwkm_prng();
+    create_cdsp_pll();
+    create_cdsp_core0_pll();
+    create_cdsp_clkctl();
+    create_cdsp_gdscr();
+    create_cdsp_ccswi();
+    /* The OS running on the DSP expects the timer to be running */
+    uint32_t enable = 0x1;
+    cpu_physical_memory_write(SA8775P_cdsp0.qtmr_region + QCT_QTIMER_CNTP_CTL,
+                              &enable, sizeof(uint32_t));
+
+    /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
+    uint32_t default_value = 0x20600;
+    cpu_physical_memory_write(0xB2C1000, &default_value, sizeof(uint32_t));
+    default_value = 0x5381;
+    cpu_physical_memory_write(0xB2C1004, &default_value, sizeof(uint32_t));
+    default_value = 0x180411;
+    cpu_physical_memory_write(0xB2C1008, &default_value, sizeof(uint32_t));
+    default_value = 0xa600a;
+    cpu_physical_memory_write(0xB2C100c, &default_value, sizeof(uint32_t));
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
