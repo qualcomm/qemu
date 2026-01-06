@@ -441,3 +441,8 @@ qcom_ipcc_irq_raised(uint32_t client) "IRQ raised for client %u"
 qcom_ipcc_irq_lowered(uint32_t client) "IRQ lowered for client %u"
 qcom_ipcc_irq_cleared_on_read(uint32_t client) "IRQ cleared on read for client %u"
 qcom_ipcc_irq_cleared_explicit(uint32_t client) "IRQ cleared explicitly for client %u"
+
+# qcom-turing-cdsp-pll.c
+qdsp6ss_pll_read(uint64_t addr, uint32_t value) "addr 0x%" PRIx64 " value 0x%08" PRIx32
+qdsp6ss_pll_write(uint64_t addr, uint32_t value) "addr 0x%" PRIx64 " value 0x%08" PRIx32
+
