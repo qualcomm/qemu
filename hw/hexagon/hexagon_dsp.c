@@ -38,6 +38,7 @@
 #include "machine_configs.h.inc"
 #include "qemu/qemu-print.h"
 #include "coproc.h"
+#include "hw/hexagon/cmd-db.h"
 
 static bool syscfg_is_linux;
 
@@ -607,6 +608,10 @@ static void v73m_config_init(MachineState *machine)
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+
+    hwaddr cmd_db_header_addr = 0x0C3F0000;
+    hwaddr cmd_db_bin_addr = 0x80860000;
+    hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
