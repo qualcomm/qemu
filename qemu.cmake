@@ -52,6 +52,10 @@ set(QEMU_CONF_ARGS
 )
 
 if (GS_ENABLE_VIRCLRENDERER)
+    if (WIN32)
+        message(FATAL_ERROR "libqemu: virclrenderer is not supported on Windows")
+    endif()
+
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virclrenderer)
     list(APPEND QEMU_DEPENDENCIES virclrenderer)
 endif()
@@ -63,6 +67,10 @@ if (GS_ENABLE_VIRQNNRENDERER)
 endif()
 
 if (GS_ENABLE_VIRGLRENDERER)
+    if (WIN32)
+        message(FATAL_ERROR "libqemu: virglrender is not supported on Windows")
+    endif()
+
     message(STATUS "libqemu: enabling virglrender")
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virglrenderer)
 endif()
@@ -77,8 +85,14 @@ if (APPLE)
         --disable-sdl-image
         --disable-kvm
     )
+elseif(WIN32)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
+        --disable-kvm
+        --disable-pie
+        --disable-vhost-user
+    )
 else()
-set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --extra-ldflags=-lrt)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --extra-ldflags=-lrt)
 endif()
 
 if (GS_ENABLE_CAPSTONE)
@@ -132,6 +146,28 @@ if(${CMAKE_CXX_STANDARD})
     set(cxxflags "-std=c++${CMAKE_CXX_STANDARD} ${cxxflags}")
 endif()
 
+# Detect if running under MSYS2 (UCRT64 or MINGW64) on Windows ARM64
+# and set up cross-compilation to x86_64 accordingly.
+# Reference:
+#   https://www.qemu.org/docs/master/devel/build-environment.html#build-on-windows-aarch64
+if(DEFINED ENV{MSYSTEM} AND ("$ENV{MSYSTEM}" MATCHES "UCRT64|MINGW64"))
+    # There is not reliable CMake variable to detect the host architecture on Windows,
+    # so we use a PowerShell command to query the Win32_Processor WMI class
+    execute_process(
+        COMMAND powershell -NoProfile -Command "(Get-WmiObject Win32_Processor).Architecture"
+        OUTPUT_VARIABLE WIN_PROC_ARCH_CODE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    # Architecture code 12 = ARM64
+    if(WIN_PROC_ARCH_CODE EQUAL "12")
+        message(STATUS "Detected ARM64 Windows with MSYS2 $ENV{MSYSTEM} - configuring for x86_64 cross-compilation")
+        set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --cpu=x86_64 --cross-prefix=)
+    endif()
+endif()
+
+
 # With cmake 3.12 we could use the list(TRANSFORM ...) operator
 function(list_prefix_suffix var prefix suffix)
     set(tmp)
@@ -170,34 +206,23 @@ set(QEMU_INSTALL_DIR ${INSTALL_DIR})
 install(DIRECTORY ${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(DIRECTORY ${QEMU_INSTALL_DIR}/share/ DESTINATION ${CMAKE_INSTALL_DATAROOTDIR})
 
-if(WIN32)
-    set(LIBEXE "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/Hostx64/x64/lib.exe")
-    foreach(target ${LIBQEMU_TARGETS})
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/qemu-prefix/src/qemu-build/${target}-softmmu/libqemu-system-${target}.dll DESTINATION lib)
-        set(DEF "${CMAKE_CURRENT_BINARY_DIR}/qemu-prefix/src/qemu-build/${target}-softmmu/libqemu-system-${target}.def")
-        install(CODE "execute_process(COMMAND \"${LIBEXE}\" /machine:x64 /NOLOGO /def:${DEF})")
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libqemu-system-${target}.lib DESTINATION lib)
-        install(CODE "execute_process(
-            COMMAND ldd ${CMAKE_CURRENT_BINARY_DIR}/qemu-prefix/src/qemu-build/${target}-softmmu/libqemu-system-${target}.dll
-            COMMAND grep \"/mingw64\"
-            COMMAND cut -d' ' -f 3
-            COMMAND xargs -n1 -IDLL cp -v DLL ${CMAKE_INSTALL_PREFIX}/lib
-        )")
-    endforeach()
-else()
-    foreach(target ${LIBQEMU_TARGETS})
-        add_library(libqemu-${target} INTERFACE)
 
-        if(APPLE)
-            set(lib_name libqemu-system-${target}.dylib)
-        else()
-            set(lib_name libqemu-system-${target}.so)
-        endif()
-        set(lib_path ${QEMU_INSTALL_DIR}/lib/${lib_name})
+foreach(target ${LIBQEMU_TARGETS})
+    add_library(libqemu-${target} INTERFACE)
+    set(lib_name libqemu-system-${target}${CMAKE_SHARED_LIBRARY_SUFFIX})
+    set(lib_path ${QEMU_INSTALL_DIR}/lib/${lib_name})
 
-        target_link_libraries(libqemu-${target} INTERFACE ${lib_name})
+    target_link_libraries(libqemu-${target} INTERFACE ${lib_name})
 
-        install(FILES ${lib_path} DESTINATION ${LIBQEMU_LIB_DIR})
-        install(TARGETS libqemu-${target} DESTINATION ${LIBQEMU_LIB_DIR} EXPORT libqemu-targets)
-    endforeach()
-endif()
+    if (WIN32)
+        install(FILES ${lib_path} DESTINATION ${CMAKE_INSTALL_BINDIR})
+        add_custom_command(TARGET qemu POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${lib_path}
+            ${CMAKE_BINARY_DIR})
+    else()
+        install(FILES ${lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
+
+    install(TARGETS libqemu-${target} DESTINATION ${LIBQEMU_LIB_DIR} EXPORT libqemu-targets)
+endforeach()

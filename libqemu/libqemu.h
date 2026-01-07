@@ -20,8 +20,8 @@
 #ifndef _LIBQEMU_H
 #define _LIBQEMU_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifndef QEMU_BUILD_BUG_ON
 #define QEMU_BUILD_BUG_ON(x) static_assert(!(x), "not expecting " #x)
@@ -31,17 +31,29 @@
 extern "C" {
 #endif
 
-#include "libqemu/exports/typedefs.h"
+
+#ifdef _WIN32
+#ifdef LIBQEMU_BUILD
+#define LIBQEMU_API __declspec(dllexport)
+#else
+#define LIBQEMU_API __declspec(dllimport)
+#endif
+#else
+#define LIBQEMU_API
+#endif
+
 #include "libqemu/exports/struct.h"
+#include "libqemu/exports/typedefs.h"
 
 #define libqemu_strify_(a) #a
 #define libqemu_strify(a) libqemu_strify_(a)
 #define LIBQEMU_INIT_SYM libqemu_init
 #define LIBQEMU_INIT_SYM_STR libqemu_strify(LIBQEMU_INIT_SYM)
 
-typedef LibQemuExports * (*LibQemuInitFct)(int argc, char **argv);
 
-LibQemuExports *LIBQEMU_INIT_SYM(int argc, char **argv);
+typedef LibQemuExports *(*LibQemuInitFct)(int argc, char **argv);
+
+LIBQEMU_API LibQemuExports *LIBQEMU_INIT_SYM(int argc, char **argv);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -1289,7 +1289,7 @@ endif
 slirp = not_found
 if not get_option('slirp').auto() or have_system
   slirp = dependency('slirp', required: get_option('slirp'),
-                     method: 'pkg-config')
+                     method: 'pkg-config', static: true)
   # slirp < 4.7 is incompatible with CFI support in QEMU.  This is because
   # it passes function pointers within libslirp as callbacks for timers.
   # When using a system-wide shared libslirp, the type information for the
@@ -3422,6 +3422,18 @@ endif
 
 # Detect host pointer size for the target configuration loop.
 host_long_bits = cc.sizeof('void *') * 8
+
+# Detect if ConvertStringToBSTR has been defined in _com_util namespace
+if host_os == 'windows'
+  has_convert_string_to_bstr = cxx.compiles('''
+    #include <comutil.h>
+    int main() {
+        BSTR b = _com_util::ConvertStringToBSTR("test");
+        return b ? 0 : 1;
+    }
+  ''')
+  config_host_data.set('CONFIG_CONVERT_STRING_TO_BSTR', has_convert_string_to_bstr)
+endif
 
 ########################
 # Target configuration #
