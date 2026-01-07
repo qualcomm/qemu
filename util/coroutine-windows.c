@@ -98,13 +98,12 @@ Coroutine *qemu_coroutine_self(void)
         set_current(current);
         leader->fiber = ConvertThreadToFiber(NULL);
         if (leader->fiber == NULL && GetLastError() == ERROR_ALREADY_FIBER) {
-            /*
-             * TODO: this was added as a fix for SystemC thread, but it triggers
-             * an error with mingw 12 (possibly a bug). We currently don't
-             * build libqemu/qqvp for Windows anyways, so it's disabled at the
-             * moment.
-             */
-             /* leader->fiber = GetCurrentFiber(); */
+#pragma GCC diagnostic push
+#if !defined(__clang__) || __has_warning("-Warray-bounds=")
+#pragma GCC diagnostic ignored "-Warray-bounds="
+#endif
+            leader->fiber = GetCurrentFiber();
+#pragma GCC diagnostic pop
         }
     }
     return current;
