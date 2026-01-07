@@ -2,6 +2,8 @@ if not enable_libqemu
    subdir_done()
 endif
 
+libqemu_ss.add(declare_dependency(compile_args: ['-DLIBQEMU_BUILD']))
+
 libqemu_ss.add(files('ctors.c', 'run-on-iothread.c', 'libqemu.c'))
 
 subdir('wrappers')
