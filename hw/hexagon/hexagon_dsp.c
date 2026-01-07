@@ -35,6 +35,7 @@
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 #include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
+#include "hw/hexagon/cmd-db.h"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -328,6 +329,10 @@ static void v66g_1024_init(ObjectClass *oc, const void *data)
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+
+    hwaddr cmd_db_header_addr = 0x0C3F0000;
+    hwaddr cmd_db_bin_addr = 0x80860000;
+    hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
