@@ -39,6 +39,8 @@
 #include "qemu/qemu-print.h"
 #include "coproc.h"
 #include "hw/hexagon/cmd-db.h"
+#include "hw/misc/tcsr.h"
+#include "qobject/qlist.h"
 
 static bool syscfg_is_linux;
 
@@ -608,6 +610,15 @@ static void v73m_config_init(MachineState *machine)
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+
+    /* Create and map the TCSR device */
+    DeviceState *tcsr = qdev_new(TYPE_TCSR);
+    /* Set the first WONCE register to 0x90aff320 */
+    QList *wonce_init_list = qlist_new();
+    qlist_append_int(wonce_init_list, 0x90aff320);
+    qdev_prop_set_array(tcsr, "tz-wonce-init", wonce_init_list);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tcsr), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
 
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;

@@ -6,6 +6,7 @@ config HEX_DSP
     select L2VIC  # Vector PIC
     select QTIMER
     select ARM_COMPATIBLE_SEMIHOSTING
+    select TCSR
 
 config HEX_VIRT
     bool
