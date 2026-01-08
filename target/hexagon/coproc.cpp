@@ -25,7 +25,7 @@
 
 #include "coproc.h"
 
-constexpr int COPROC_RPC_VERSION = 0x8100;
+constexpr int COPROC_RPC_VERSION = 10;
 
 #if defined(__unix__) || defined(__APPLE__)
 #include <signal.h>

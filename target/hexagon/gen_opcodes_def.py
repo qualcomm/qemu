@@ -23,25 +23,44 @@ import string
 import hex_common
 import argparse
 
+def read_tag_rev_info(fname):
+    regex = re.compile("\[(.*)\].*introduced *= *([^,]*),.*.removed *= *([^ }]*).*")
+    introduced, removed = {}, {}
+    with open(fname, "r") as f:
+        for line in f.readlines():
+            line = line.strip()
+            if line.startswith("["):
+                tag, tag_introduced, tag_removed = regex.match(line).groups()
+                introduced[tag] = int(tag_introduced, base=16)
+                removed[tag] = int(tag_removed, base=16)
+    return introduced, removed
 
 def main():
     parser = argparse.ArgumentParser(
         description="Emit opaque macro calls with instruction names"
     )
     parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("tag_rev_info", help="tag rev info")
     parser.add_argument("coproc_out", help="output file for coproc")
     parser.add_argument("out", help="output file")
     args = parser.parse_args()
     hex_common.read_semantics_file(args.semantics)
 
+    introduced, _ = read_tag_rev_info(args.tag_rev_info)
+    coproc_tags = [tag for tag in hex_common.get_all_tags() if hex_common.is_coproc(tag)]
+    coproc_tags.sort() # Alphabetically first
+    coproc_tags.sort(key=lambda tag: introduced.get(tag, 0))
+
     ##
     ##     Generate a list of all the opcodes
     ##
-    with open(args.coproc_out, "w") as coproc_f, open(args.out, "w") as all_f:
+    with open(args.out, "w") as f:
         for tag in hex_common.get_all_tags():
-            all_f.write(f"OPCODE({tag}),\n")
-            if hex_common.is_coproc(tag):
-                coproc_f.write(f"OPCODE({tag}),\n")
+            f.write(f"OPCODE({tag}),\n")
+
+    with open(args.coproc_out, "w") as f:
+        for tag in coproc_tags:
+            f.write(f"OPCODE({tag}),\n")
 
 if __name__ == "__main__":
     main()

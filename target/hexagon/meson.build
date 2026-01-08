@@ -104,7 +104,7 @@ opcodes_def_generated = custom_target(
     depends: [semantics_generated],
     depend_files: [hex_common_py],
     command: [python, files('gen_opcodes_def.py'), semantics_generated,
-	      '@OUTPUT0@', '@OUTPUT1@'],
+              meson.current_source_dir() / 'tag_rev_info.h', '@OUTPUT0@', '@OUTPUT1@'],
 )
 hexagon_ss.add(opcodes_def_generated)
 

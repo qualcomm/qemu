@@ -49,7 +49,7 @@ user_guide:
   script: ./quic-gitlab-ci.d/build.sh
   variables:
     QUIC_BUILD_LOG: ${QUIC_BUILD_DIR}/build.log
-    QUIC_COPROC_REF: qemu-coproc-plugin-12.0.0
+    QUIC_COPROC_REF: qemu-coproc-plugin-13.0.0
   artifacts:
     when: always
     paths:
