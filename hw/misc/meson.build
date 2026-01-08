@@ -165,3 +165,4 @@ system_ss.add(when: 'CONFIG_LASI', if_true: files('lasi.c'))
 # Hexagon devices
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('cdsp-pll.c'))
 system_ss.add(when: 'CONFIG_TCSR', if_true: files('tcsr.c'))
+system_ss.add(when: 'CONFIG_DSPSS_PUB', if_true: files('dspss-pub.c'))

@@ -291,6 +291,7 @@ qtests_hexagon = [
   'l2vic-test',
   'qct-qtimer-test',
   'tcsr-test',
+  'dspss-pub-test',
 ]
 
 qos_test_ss = ss.source_set()

@@ -243,4 +243,7 @@ config XLNX_VERSAL_TRNG
 config TCSR
     bool
 
+config DSPSS_PUB
+    bool
+
 source macio/Kconfig

@@ -40,6 +40,7 @@
 #include "coproc.h"
 #include "hw/hexagon/cmd-db.h"
 #include "hw/misc/tcsr.h"
+#include "hw/misc/dspss-pub.h"
 #include "qobject/qlist.h"
 
 static bool syscfg_is_linux;
@@ -619,6 +620,12 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     qdev_prop_set_array(tcsr, "tz-wonce-init", wonce_init_list);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcsr), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
+
+    /* Create and map the DSPSS-PUB device at CSR base */
+    DeviceState *dspss_pub = qdev_new(TYPE_DSPSS_PUB);
+    object_property_add_child(OBJECT(machine), "dspss-pub", OBJECT(dspss_pub));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dspss_pub), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0, SA8775P_cdsp0.csr_base);
 
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;

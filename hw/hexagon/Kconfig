@@ -7,6 +7,7 @@ config HEX_DSP
     select QTIMER
     select ARM_COMPATIBLE_SEMIHOSTING
     select TCSR
+    select DSPSS_PUB
 
 config HEX_VIRT
     bool
