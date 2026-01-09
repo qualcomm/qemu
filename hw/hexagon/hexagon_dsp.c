@@ -234,9 +234,20 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(l2vic_dev, 4));
 
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
+    /* Convert to LE for guest memory */
+    hexagon_config_table *guest_config_table = g_new(hexagon_config_table, 1);
+    memcpy(guest_config_table, &m_cfg->cfgtable, sizeof(*guest_config_table));
+    guest_config_table->subsystem_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
+
+    for (int i = 0; i < ARRAY_SIZE(guest_config_table->raw); i++) {
+        guest_config_table->raw[i] = cpu_to_le32(guest_config_table->raw[i]);
+    }
+
+    rom_add_blob_fixed_as("config_table.rom", guest_config_table,
+                          sizeof(*guest_config_table), m_cfg->cfgbase,
                           &address_space_memory);
+    g_free(guest_config_table);
 out:
     g_free(cpus);
 }
