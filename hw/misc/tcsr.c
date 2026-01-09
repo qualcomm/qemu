@@ -20,7 +20,7 @@
 #define REG_SOC_EMULATION_TYPE    0x8004
 #define REG_SOC_HW_VERSION       0x8000
 #define REG_SW_WONCE_SOC_HW_VERSION 0x8008
-#define REG_TZ_WONCE_BASE        0x4000
+#define REG_TZ_WONCE_BASE        0x14000
 #define REG_TZ_WONCE_SIZE        0x40 /* 16 registers * 4 bytes */
 
 /* SOC_HW_VERSION fields */

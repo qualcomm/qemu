@@ -15,7 +15,7 @@
 #define REG_SOC_EMULATION_TYPE       0x8004
 #define REG_SOC_HW_VERSION          0x8000
 #define REG_SW_WONCE_SOC_HW_VERSION 0x8008
-#define REG_TZ_WONCE_BASE           0x4000
+#define REG_TZ_WONCE_BASE           0x14000
 
 /* SOC_HW_VERSION fields */
 #define SOC_HW_VERSION_MINOR_VERSION_SHIFT 0
