@@ -11,6 +11,7 @@
 #include "hw/misc/dspss-pub.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "migration/vmstate.h"
 #include "hw/core/irq.h"
 
 #define DSPSS_PUB_REG_SIZE 0x3000
@@ -256,12 +257,28 @@ static void dspss_pub_realize(DeviceState *dev, Error **errp)
     qemu_set_irq(s->hex_halt_out, 1); /* hex_halt is inverted boot_status */
 }
 
+static const VMStateDescription vmstate_dspss_pub = {
+    .name = "dspss-pub",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(dbg_cfg, DSPSS_PUBState),
+        VMSTATE_UINT32(ret_cfg, DSPSS_PUBState),
+        VMSTATE_UINT32(cp_clk_ctl, DSPSS_PUBState),
+        VMSTATE_BOOL(nmi_triggered, DSPSS_PUBState),
+        VMSTATE_BOOL(boot_core_start, DSPSS_PUBState),
+        VMSTATE_BOOL(boot_status, DSPSS_PUBState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void dspss_pub_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = dspss_pub_realize;
+    dc->vmsd = &vmstate_dspss_pub;
     rc->phases.hold = dspss_pub_reset_hold;
     dc->desc = "DSPSS pub";
 }
