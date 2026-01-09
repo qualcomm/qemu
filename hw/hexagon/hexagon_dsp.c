@@ -43,6 +43,7 @@
 #include "hw/misc/dspss-pub.h"
 #include "qobject/qlist.h"
 #include "hw/misc/wdog.h"
+#include "hw/misc/rpmh-rsc.h"
 
 static bool syscfg_is_linux;
 
@@ -645,6 +646,16 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     DeviceState *wdog = qdev_new(TYPE_WDOG);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0, SA8775P_cdsp0.csr_base + 0x84000);
+
+    /* Create and map the RPMH-RSC device */
+    DeviceState *rpmh_rsc = qdev_new(TYPE_RPMH_RSC);
+    qdev_prop_set_uint32(rpmh_rsc, "num-drivers", 1);
+    qdev_prop_set_uint32(rpmh_rsc, "tcs-base", 0x00000D00);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(rpmh_rsc), &error_fatal);
+    /* Map DRV registers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 0, 0x260A4000);
+    /* Map TCS registers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 1, 0x260A4D00);
 
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;

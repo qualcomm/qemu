@@ -425,3 +425,11 @@ iommu_testdev_dma_read(uint64_t gva, uint32_t len) "gva=0x%" PRIx64 " len=%u"
 iommu_testdev_dma_verify(uint32_t expected, uint32_t actual) "expected=0x%x actual=0x%x"
 iommu_testdev_dma_result(uint32_t result) "DMA completed result=0x%x"
 iommu_testdev_dma_armed(bool armed) "armed=%d"
+
+# rpmh-rsc.c
+rpmh_rsc_drv_read(uint32_t value, uint32_t offset) "DRV read: value 0x%08" PRIx32 " offset 0x%08" PRIx32
+rpmh_rsc_tcs_read(uint32_t value, uint32_t offset) "TCS read: value 0x%08" PRIx32 " offset 0x%08" PRIx32
+rpmh_rsc_irq_status_read(uint32_t value) "IRQ status read: 0x%08" PRIx32
+rpmh_rsc_irq_enable_write(uint32_t value) "IRQ enable write: 0x%08" PRIx32
+rpmh_rsc_irq_clear_write(uint32_t value) "IRQ clear write: 0x%08" PRIx32
+rpmh_rsc_tcs_trigger(uint32_t tcs_id, uint32_t cmd_enable) "TCS %u triggered with cmd_enable=0x%08" PRIx32
