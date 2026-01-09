@@ -346,6 +346,21 @@ static const uint8_t vrm_aux_data[] = {
     0x03, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
 };
 
+static void convert_entry_headers_to_le(struct entry_header *entries,
+                                         size_t count)
+{
+    for (size_t i = 0; i < count; i++) {
+        /* Convert priority array */
+        for (int j = 0; j < NUM_PRIORITY; j++) {
+            entries[i].priority[j] = cpu_to_le32(entries[i].priority[j]);
+        }
+        /* Convert addr, len, offset */
+        entries[i].addr = cpu_to_le32(entries[i].addr);
+        entries[i].len = cpu_to_le16(entries[i].len);
+        entries[i].offset = cpu_to_le16(entries[i].offset);
+    }
+}
+
 static void build_cmd_db(uint8_t *buf)
 {
     struct cmd_db_header *hdr = (struct cmd_db_header *)buf;
@@ -397,21 +412,43 @@ static void build_cmd_db(uint8_t *buf)
     g_assert(BCM_DATA_OFFSET + sizeof(bcm_aux_data) <= VRM_HEADER_OFFSET);
     g_assert(VRM_HEADER_OFFSET + sizeof(vrm_entries) <= VRM_DATA_OFFSET);
 
-    /* ARC entries and data */
-    memcpy(data_ptr + ARC_HEADER_OFFSET, arc_entries, sizeof(arc_entries));
+    /* Create little-endian copies of entry headers */
+    struct entry_header *arc_entries_le = g_malloc(sizeof(arc_entries));
+    memcpy(arc_entries_le, arc_entries, sizeof(arc_entries));
+    convert_entry_headers_to_le(arc_entries_le, ARRAY_SIZE(arc_entries));
+
+    struct entry_header *arc_mol_entries_le = g_malloc(sizeof(arc_mol_entries));
+    memcpy(arc_mol_entries_le, arc_mol_entries, sizeof(arc_mol_entries));
+    convert_entry_headers_to_le(arc_mol_entries_le,
+                                 ARRAY_SIZE(arc_mol_entries));
+
+    struct entry_header *bcm_entries_le = g_malloc(sizeof(bcm_entries));
+    memcpy(bcm_entries_le, bcm_entries, sizeof(bcm_entries));
+    convert_entry_headers_to_le(bcm_entries_le, ARRAY_SIZE(bcm_entries));
+
+    struct entry_header *vrm_entries_le = g_malloc(sizeof(vrm_entries));
+    memcpy(vrm_entries_le, vrm_entries, sizeof(vrm_entries));
+    convert_entry_headers_to_le(vrm_entries_le, ARRAY_SIZE(vrm_entries));
+
+    /* Copy converted entries and auxiliary data */
+    memcpy(data_ptr + ARC_HEADER_OFFSET, arc_entries_le, sizeof(arc_entries));
     memcpy(data_ptr + ARC_DATA_OFFSET, arc_aux_data, sizeof(arc_aux_data));
 
-    /* ARC_MOL entries and data */
-    memcpy(data_ptr + ARC_MOL_HEADER_OFFSET, arc_mol_entries, sizeof(arc_mol_entries));
+    memcpy(data_ptr + ARC_MOL_HEADER_OFFSET, arc_mol_entries_le,
+           sizeof(arc_mol_entries));
     memcpy(data_ptr + ARC_MOL_DATA_OFFSET, arc_mol_aux_data, sizeof(arc_mol_aux_data));
 
-    /* BCM entries and data */
-    memcpy(data_ptr + BCM_HEADER_OFFSET, bcm_entries, sizeof(bcm_entries));
+    memcpy(data_ptr + BCM_HEADER_OFFSET, bcm_entries_le, sizeof(bcm_entries));
     memcpy(data_ptr + BCM_DATA_OFFSET, bcm_aux_data, sizeof(bcm_aux_data));
 
-    /* VRM entries and data */
-    memcpy(data_ptr + VRM_HEADER_OFFSET, vrm_entries, sizeof(vrm_entries));
+    memcpy(data_ptr + VRM_HEADER_OFFSET, vrm_entries_le, sizeof(vrm_entries));
     memcpy(data_ptr + VRM_DATA_OFFSET, vrm_aux_data, sizeof(vrm_aux_data));
+
+    /* Free temporary converted copies */
+    g_free(arc_entries_le);
+    g_free(arc_mol_entries_le);
+    g_free(bcm_entries_le);
+    g_free(vrm_entries_le);
 }
 
 static void build_cmd_db_hdr(uint8_t *buf)
