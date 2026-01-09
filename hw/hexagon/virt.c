@@ -499,9 +499,9 @@ static uint64_t setup_boot(HexagonVirtMachineState *vms)
     uint64_t fdt_base = base_memmap[VIRT_FDT].base;
     uint32_t fdt_base_low = extract64(fdt_base, 0, 32);
     uint32_t fdt_base_high = extract64(fdt_base, 32, 32);
-    bootloader[FDT_LO] = fdt_base_low;
-    bootloader[FDT_HI] = fdt_base_high;
-    bootloader[ENTRY_ADDR] = entry_addr_low;
+    bootloader[FDT_LO] = cpu_to_le32(fdt_base_low);
+    bootloader[FDT_HI] = cpu_to_le32(fdt_base_high);
+    bootloader[ENTRY_ADDR] = cpu_to_le32(entry_addr_low);
 
     uint64_t bootl_base = base_memmap[VIRT_BOOT].base;
     g_assert(sizeof(bootloader) <= base_memmap[VIRT_BOOT].size);
@@ -679,9 +679,21 @@ static void virt_init(MachineState *ms)
     create_pll(vms);
     fdt_add_pll_node(vms);
 
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
+    /* Create a copy with little-endian byte order for guest memory */
+    hexagon_config_table *guest_config_table = g_new(hexagon_config_table, 1);
+    memcpy(guest_config_table, &m_cfg->cfgtable, sizeof(*guest_config_table));
+    guest_config_table->subsystem_base =
+        HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
+
+    /* Convert all uint32_t fields to little-endian for the guest */
+    for (int i = 0; i < ARRAY_SIZE(guest_config_table->raw); i++) {
+        guest_config_table->raw[i] = cpu_to_le32(guest_config_table->raw[i]);
+    }
+
+    rom_add_blob_fixed_as("config_table.rom", guest_config_table,
+                          sizeof(*guest_config_table), m_cfg->cfgbase,
                           &address_space_memory);
+    g_free(guest_config_table);
 
     hexagon_load_fdt(vms);
 
