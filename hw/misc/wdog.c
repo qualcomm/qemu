@@ -103,12 +103,23 @@ static void wdog_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
+static const VMStateDescription vmstate_wdog = {
+    .name = "wdog",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs, WdogState, 0x100),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void wdog_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = wdog_realize;
+    dc->vmsd = &vmstate_wdog;
     rc->phases.hold = wdog_reset_hold;
     dc->desc = "Watchdog (WDOG)";
 }
