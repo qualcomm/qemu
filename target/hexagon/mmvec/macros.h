@@ -24,6 +24,11 @@
 #include "accel/tcg/getpc.h"
 #include "accel/tcg/probe.h"
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 #ifndef QEMU_GENERATE
 #define VdV      (*(mmvector_t *restrict)(VdV_void))
 #define VsV      (*(mmvector_t *restrict)(VsV_void))
