@@ -208,12 +208,28 @@ static const Property tcsr_properties[] = {
                       tz_wonce_init, qdev_prop_uint32, uint32_t),
 };
 
+static const VMStateDescription vmstate_tcsr = {
+    .name = "tcsr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(soc_emulation_type, TCSRState),
+        VMSTATE_UINT32(soc_hw_version, TCSRState),
+        VMSTATE_UINT32(sw_wonce_soc_hw_version, TCSRState),
+        VMSTATE_UINT32(sw_wonce_soc_hw_version_mask, TCSRState),
+        VMSTATE_UINT32_ARRAY(tz_wonce, TCSRState, 16),
+        VMSTATE_UINT32_ARRAY(tz_wonce_mask, TCSRState, 16),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void tcsr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = tcsr_realize;
+    dc->vmsd = &vmstate_tcsr;
     rc->phases.hold = tcsr_reset_hold;
     device_class_set_props(dc, tcsr_properties);
     dc->desc = "TCSR (Top Control and Status Register)";
