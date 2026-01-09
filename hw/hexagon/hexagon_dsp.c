@@ -326,6 +326,9 @@ static void v66g_1024_init(ObjectClass *oc, const void *data)
     mc->default_cpus = 4;
 }
 
+
+#include "smem_entries.inc"
+
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
@@ -333,6 +336,8 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;
     hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
+
+    cpu_physical_memory_write(0x90900000, sa8775p_smem_data, sizeof(sa8775p_smem_data));
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
