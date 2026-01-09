@@ -667,9 +667,20 @@ static void virt_init(MachineState *ms)
 
     /* FIXME: can we fix this? */
     config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
+
+    /* Create a copy with little-endian byte order for guest memory */
+    hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
+    memcpy(guest_config_table, config_table, sizeof(*config_table));
+
+    /* Convert all uint32_t fields to little-endian for the guest */
+    for (int i = 0; i < ARRAY_SIZE(guest_config_table->raw); i++) {
+        guest_config_table->raw[i] = cpu_to_le32(guest_config_table->raw[i]);
+    }
+
+    rom_add_blob_fixed_as("config_table.rom", guest_config_table,
+                          sizeof(*guest_config_table), m_cfg->cfgbase,
                           &address_space_memory);
+    g_free(guest_config_table);
 
     hexagon_load_fdt(vms);
 out:
