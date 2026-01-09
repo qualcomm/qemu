@@ -36,6 +36,7 @@
 #include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
 #include "hw/hexagon/cmd-db.h"
+#include "hw/misc/rpmh-rsc.h"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -332,6 +333,16 @@ static void v66g_1024_init(ObjectClass *oc, const void *data)
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+
+    /* Create and map the RPMH-RSC device */
+    DeviceState *rpmh_rsc = qdev_new(TYPE_RPMH_RSC);
+    qdev_prop_set_uint32(rpmh_rsc, "num-drivers", 1);
+    qdev_prop_set_uint32(rpmh_rsc, "tcs-base", 0x00000D00);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(rpmh_rsc), &error_fatal);
+    /* Map DRV registers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 0, 0x260A4000);
+    /* Map TCS registers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 1, 0x260A4D00);
 
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;
