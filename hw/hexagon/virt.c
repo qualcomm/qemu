@@ -459,9 +459,9 @@ static uint64_t setup_boot(HexagonVirtMachineState *vms)
     uint64_t fdt_base = base_memmap[VIRT_FDT].base;
     uint32_t fdt_base_low = extract64(fdt_base, 0, 32);
     uint32_t fdt_base_high = extract64(fdt_base, 32, 32);
-    bootloader[FDT_LO] = fdt_base_low;
-    bootloader[FDT_HI] = fdt_base_high;
-    bootloader[ENTRY_ADDR] = entry_addr_low;
+    bootloader[FDT_LO] = cpu_to_le32(fdt_base_low);
+    bootloader[FDT_HI] = cpu_to_le32(fdt_base_high);
+    bootloader[ENTRY_ADDR] = cpu_to_le32(entry_addr_low);
 
     uint64_t bootl_base = base_memmap[VIRT_BOOT].base;
     g_assert(sizeof(bootloader) <= base_memmap[VIRT_BOOT].size);
