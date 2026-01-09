@@ -140,12 +140,12 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
             uint32_t  mem;
             cpu_physical_memory_read(isdb_secure_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
-                mem = 1;
+                mem = cpu_to_le32(1);
                 cpu_physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
             }
             cpu_physical_memory_read(isdb_trusted_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
-                mem = 1;
+                mem = cpu_to_le32(1);
                 cpu_physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
             }
         }
