@@ -293,6 +293,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         return;
     }
 
+#ifndef _WIN32
     switch (what_swi) {
 
     case HEX_SYS_OPEN:
@@ -694,6 +695,12 @@ static void sim_handle_trap0(CPUHexagonState *env)
                   "Hexagon Unsupported swi call 0x%" PRIx32 "\n",
                   (uint32_t)what_swi);
     }
+#else
+    qemu_log_mask(LOG_UNIMP,
+                  "SWI call %" PRIx32 " is unimplemented in QEMU\n",
+                  (uint32_t)what_swi);
+#endif /* _WIN32 */
+
 }
 
 static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
