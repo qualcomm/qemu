@@ -36,6 +36,7 @@
 #include "target/hexagon/internal.h"
 #include "system/reset.h"
 #include "semihosting/semihost.h"
+#include "qom/object.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
 #include "machine_cfg_v68n_1024.h.inc"
