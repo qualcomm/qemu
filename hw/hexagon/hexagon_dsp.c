@@ -44,6 +44,7 @@
 #include "qobject/qlist.h"
 #include "hw/misc/wdog.h"
 #include "hw/misc/rpmh-rsc.h"
+#include "hw/misc/unimp.h"
 
 static bool syscfg_is_linux;
 
@@ -661,7 +662,19 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     hwaddr cmd_db_bin_addr = 0x80860000;
     hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
 
-    cpu_physical_memory_write(0x90900000, sa8775p_smem_data, sizeof(sa8775p_smem_data));
+    cpu_physical_memory_write(0x90900000, sa8775p_smem_data,
+        sizeof(sa8775p_smem_data));
+
+    create_unimplemented_device("cxstmtrace", 0x16000000, 0x1000);
+    create_unimplemented_device("cxstmcfg", 0x10002000, 0x1000);
+    create_unimplemented_device("cxetb", 0x11305000, 0x1000);
+    create_unimplemented_device("tpdm-0", 0x11181000, 0x1000);
+    create_unimplemented_device("tpdm-1", 0x11182000, 0x1000);
+    create_unimplemented_device("tpdm-2", 0x11185000, 0x1000);
+    create_unimplemented_device("tpdm-3", 0x11186000, 0x1000);
+    create_unimplemented_device("funnel-0", 0x10041000, 0x1000);
+    create_unimplemented_device("funnel-1", 0x11304000, 0x1000);
+    create_unimplemented_device("tpda", 0x11188000, 0x1000);
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
