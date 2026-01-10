@@ -339,6 +339,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         return;
     }
 
+#ifndef _WIN32
     switch (what_swi) {
 
     case HEX_SYS_OPEN:
@@ -753,6 +754,12 @@ static void sim_handle_trap0(CPUHexagonState *env)
         qemu_log_mask(LOG_GUEST_ERROR, "unknown swi request: 0x%x\n", what_swi);
         cpu_abort(env_cpu(env), "Hexagon Unsupported swi call 0x%x\n", what_swi);
     }
+#else
+    (void) retaddr;
+    qemu_log_mask(LOG_UNIMP, "SWI call %x is unimplemented in QEMU\n",
+                      what_swi);
+#endif /* _WIN32 */
+
 }
 
 static void set_addresses(CPUHexagonState *env, target_ulong pc_offset,
