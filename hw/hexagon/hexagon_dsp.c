@@ -34,6 +34,8 @@
 #include "system/reset.h"
 #include "system/qtest.h"
 #include "semihosting/semihost.h"
+#include "hw/misc/qcom-ipcc.h"
+#include "qom/object.h"
 
 #include "machine_configs.h.inc"
 #include "qemu/qemu-print.h"
@@ -675,6 +677,19 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     create_unimplemented_device("funnel-0", 0x10041000, 0x1000);
     create_unimplemented_device("funnel-1", 0x11304000, 0x1000);
     create_unimplemented_device("tpda", 0x11188000, 0x1000);
+
+    /* IPCC (Inter-Processor Communication Controller) */
+    DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
+    object_property_add_child(OBJECT(machine), "ipcc", OBJECT(ipcc));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipcc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ipcc), 0, 0x00400000);
+
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        sysbus_connect_irq(SYS_BUS_DEVICE(ipcc), 6,
+                          qdev_get_gpio_in(l2vic, 30));
+    }
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)

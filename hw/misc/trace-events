@@ -433,3 +433,11 @@ rpmh_rsc_irq_status_read(uint32_t value) "IRQ status read: 0x%08" PRIx32
 rpmh_rsc_irq_enable_write(uint32_t value) "IRQ enable write: 0x%08" PRIx32
 rpmh_rsc_irq_clear_write(uint32_t value) "IRQ clear write: 0x%08" PRIx32
 rpmh_rsc_tcs_trigger(uint32_t tcs_id, uint32_t cmd_enable) "TCS %u triggered with cmd_enable=0x%08" PRIx32
+
+# qcom-ipcc.c
+qcom_ipcc_read(uint64_t offset, uint32_t value, uint32_t protocol, uint32_t client) "offset 0x%08" PRIx64 " value 0x%08" PRIx32 " protocol %u client %u"
+qcom_ipcc_write(uint64_t offset, uint32_t value, uint32_t protocol, uint32_t client) "offset 0x%08" PRIx64 " value 0x%08" PRIx32 " protocol %u client %u"
+qcom_ipcc_irq_raised(uint32_t client) "IRQ raised for client %u"
+qcom_ipcc_irq_lowered(uint32_t client) "IRQ lowered for client %u"
+qcom_ipcc_irq_cleared_on_read(uint32_t client) "IRQ cleared on read for client %u"
+qcom_ipcc_irq_cleared_explicit(uint32_t client) "IRQ cleared explicitly for client %u"
