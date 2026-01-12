@@ -143,6 +143,39 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     }
 
+    DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
+
+    /* Link the L2VIC interface to globalreg */
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
+                                  OBJECT(l2vic_dev), errp)) {
+        error_report("Failed to link L2VIC interface to global registers");
+        goto out;
+    }
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
+
+    /*
+     * Finally, realize the CPUs
+     */
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, errp)) {
+            error_report("Failed to realize CPU %d", i);
+            goto out;
+        }
+    }
+
+    /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
+    HexagonCPU *cpu = cpus[0];
+    for (int i = 0; i < 8; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic_dev), i,
+                           qdev_get_gpio_in(DEVICE(cpu), i));
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
+                     m_cfg->cfgtable.fastl2vic_base << 16);
+
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
