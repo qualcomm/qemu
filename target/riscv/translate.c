@@ -1297,10 +1297,7 @@ static TCGv xqci_implemented_Xqccmp(DisasContext *ctx) {return tcg_constant_tl(1
 /* Implemented in a default rv32 QEMU machine */
 static TCGv xqci_implemented_Smdbltrp(DisasContext *ctx) {return tcg_constant_tl(1);}
 
-static void xqci_raise_IllegalInstruction(DisasContext *ctx)
-{
-    gen_helper_raise_exception(tcg_env, tcg_constant_tl(RISCV_EXCP_ILLEGAL_INST));
-}
+/* Removed unused xqci_raise_IllegalInstruction function */
 
 static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
                                           int offset, int length)
