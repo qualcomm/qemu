@@ -1827,25 +1827,6 @@ static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
     return irq;
 }
 
-static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
-                               uint32_t *high)
-{
-#ifndef CONFIG_USER_ONLY
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    uint32_t qtimer_base_addr = cpu->globalregs ?
-        hexagon_globalreg_get_qtimer_base_addr(cpu) : 0xffffffffUL;
-    const hwaddr low_addr  = qtimer_base_addr + QCT_QTIMER_CNTPCT_LO;
-    const hwaddr high_addr = qtimer_base_addr + QCT_QTIMER_CNTPCT_HI;
-
-    cpu_physical_memory_read(low_addr, low, sizeof(*low));
-    cpu_physical_memory_read(high_addr, high, sizeof(*high));
-#else
-    *low = 0;
-    *high = 0;
-#endif
-}
-
 static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
     target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
@@ -1854,18 +1835,17 @@ static inline bool ssr_ce_enabled(CPUHexagonState *env)
 
 static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
 {
-    uint32_t low, high;
+    HexagonCPU *cpu = env_archcpu(env);
     switch (reg) {
     case HEX_REG_UPCYCLELO:
         return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_low(env) : 0;
     case HEX_REG_UPCYCLEHI:
         return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_high(env) : 0;
     case HEX_REG_UTIMERLO:
-        hexagon_read_timer(env, &low, &high);
-        return low;
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERLO);
     case HEX_REG_UTIMERHI:
-        hexagon_read_timer(env, &low, &high);
-        return high;
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERHI);
+
     default:
         return env->gpr[reg];
     }
@@ -1993,12 +1973,6 @@ uint32_t sreg_read(CPUHexagonState *env, uint32_t reg)
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         const uint32_t vid = hexagon_find_last_irq(env, reg);
         arch_set_system_reg(env, reg, vid);
-    } else if ((reg == HEX_SREG_TIMERLO) || (reg == HEX_SREG_TIMERHI)) {
-        uint32_t low = 0;
-        uint32_t high = 0;
-        hexagon_read_timer(env, &low, &high);
-        arch_set_system_reg(env, HEX_SREG_TIMERLO, low);
-        arch_set_system_reg(env, HEX_SREG_TIMERHI, high);
     } else if (reg == HEX_SREG_BADVA) {
         target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
@@ -2024,9 +1998,13 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
     BQL_LOCK_GUARD();
     if (reg == HEX_SREG_TIMERLO) {
-        uint32_t low = 0;
-        uint32_t high = 0;
-        hexagon_read_timer(env, &low, &high);
+        CPUState *cs = env_cpu(env);
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        uint32_t low =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERLO);
+        uint32_t high =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERHI);
+
         arch_set_system_reg(env, HEX_SREG_TIMERLO, low);
         arch_set_system_reg(env, HEX_SREG_TIMERHI, high);
     } else if (reg == HEX_SREG_PCYCLELO) {
