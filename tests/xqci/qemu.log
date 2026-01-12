@@ -1,0 +1,95 @@
+----------------
+IN:
+0x0804818a:  00002197          auipc                   gp,2                    # 0x804a18a
+
+exec_tb tb:0x7c5aa8000040 pc=0x804818a
+----------------
+IN:
+0x0804818e:  6ba18193          addi                    gp,gp,1722
+
+exec_tb tb:0x7c5aa8000180 pc=0x804818e
+----------------
+IN:
+0x08048192:  850a              mv                      a0,sp
+
+exec_tb tb:0x7c5aa80002c0 pc=0x8048192
+----------------
+IN:
+0x08048194:  f7fb8597          auipc                   a1,-32840               # 0x194
+
+exec_tb tb:0x7c5aa8000400 pc=0x8048194
+----------------
+IN:
+0x08048198:  e6c58593          addi                    a1,a1,-404
+
+exec_tb tb:0x7c5aa8000540 pc=0x8048198
+----------------
+IN:
+0x0804819c:  ff017113          andi                    sp,sp,-16
+
+exec_tb tb:0x7c5aa8000680 pc=0x804819c
+----------------
+IN:
+0x080481a0:  a009              j                       2                       # 0x80481a2
+
+exec_tb tb:0x7c5aa80007c0 pc=0x80481a0
+----------------
+IN: _start_c
+0x080481a2:  410c              lw                      a1,0(a0)
+
+exec_tb tb:0x7c5aa80008c0 pc=0x80481a2
+----------------
+IN: _start_c
+0x080481a4:  00001617          auipc                   a2,1                    # 0x80491a4
+
+exec_tb tb:0x7c5aa8000a00 pc=0x80481a4
+----------------
+IN: _start_c
+0x080481a8:  00001697          auipc                   a3,1                    # 0x80491a8
+
+exec_tb tb:0x7c5aa8000b40 pc=0x80481a8
+----------------
+IN: _start_c
+0x080481ac:  00001717          auipc                   a4,1                    # 0x80491ac
+
+exec_tb tb:0x7c5aa8000c80 pc=0x80481ac
+----------------
+IN: _start_c
+0x080481b0:  e6062783          lw                      a5,-416(a2)
+
+exec_tb tb:0x7c5aa8000dc0 pc=0x80481b0
+----------------
+IN: _start_c
+0x080481b4:  e606a683          lw                      a3,-416(a3)
+
+exec_tb tb:0x7c5aa8000f00 pc=0x80481b4
+----------------
+IN: _start_c
+0x080481b8:  e6072703          lw                      a4,-416(a4)
+
+exec_tb tb:0x7c5aa8001040 pc=0x80481b8
+----------------
+IN: _start_c
+0x080481bc:  00450613          addi                    a2,a0,4
+
+exec_tb tb:0x7c5aa8001180 pc=0x80481bc
+----------------
+IN: _start_c
+0x080481c0:  853e              mv                      a0,a5
+
+exec_tb tb:0x7c5aa80012c0 pc=0x80481c0
+----------------
+IN: _start_c
+0x080481c2:  4781              mv                      a5,zero
+
+exec_tb tb:0x7c5aa8001400 pc=0x80481c2
+----------------
+IN: _start_c
+0x080481c4:  a2a9              j                       330                     # 0x804830e
+
+exec_tb tb:0x7c5aa8001540 pc=0x80481c4
+----------------
+IN: __libc_start_main
+0x0804830e:  b872              qc.cm.push              0,7
+
+exec_tb tb:0x7c5aa8001640 pc=0x804830e
