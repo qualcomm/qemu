@@ -312,8 +312,9 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
     memset(words, 0, PACKET_WORDS_MAX * sizeof(uint32_t));
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
         words[nwords] =
-            translator_ldl(env, &ctx->base,
-                           ctx->base.pc_next + nwords * sizeof(uint32_t));
+            translator_ldl_end(env, &ctx->base,
+                               ctx->base.pc_next + nwords * sizeof(uint32_t),
+                               MO_LE);
         found_end = is_packet_end(words[nwords]);
     }
     if (!found_end) {
@@ -1697,7 +1698,7 @@ static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
         if ((src & ~TARGET_PAGE_MASK) == 0) {
             return true;
         }
-        uint32_t word = translator_ldl(env, &ctx->base, src);
+        uint32_t word = translator_ldl_end(env, &ctx->base, src, MO_LE);
         found_end = is_packet_end(word);
     }
     return !found_end;

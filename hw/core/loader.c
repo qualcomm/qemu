@@ -75,14 +75,21 @@ int64_t get_image_size(const char *filename, Error **errp)
 {
     int fd;
     int64_t size;
+
     fd = qemu_open(filename, O_RDONLY | O_BINARY, errp);
-    if (fd < 0)
-        return -1;
-    size = lseek(fd, 0, SEEK_END);
-    if (size < 0) {
-        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+
+    if (fd < 0) {
         return -1;
     }
+
+    size = lseek(fd, 0, SEEK_END);
+
+    if (size < 0) {
+        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+        close(fd);
+        return -1;
+    }
+
     close(fd);
     return size;
 }
@@ -146,8 +153,12 @@ ssize_t load_image_targphys_as(const char *filename,
     }
 
     if (size > max_sz) {
+        char *size_str = size_to_str(max_sz);
+
         error_setg(errp, "%s exceeds maximum image size (%s)",
-                   filename, size_to_str(max_sz));
+                   filename, size_str);
+
+        g_free(size_str);
         return -1;
     }
 
@@ -364,8 +375,9 @@ const char *load_elf_strerror(ssize_t error)
     }
 }
 
-void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
+bool load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
 {
+    bool ok = false;
     int fd;
     uint8_t e_ident_local[EI_NIDENT];
     uint8_t *e_ident;
@@ -379,8 +391,8 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "Failed to open file: %s", filename);
-        return;
+        error_setg_file_open(errp, errno, filename);
+        return false;
     }
     if (read(fd, hdr, EI_NIDENT) != EI_NIDENT) {
         error_setg_errno(errp, errno, "Failed to read file: %s", filename);
@@ -415,8 +427,11 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
         off += br;
     }
 
+    ok = true;
+
 fail:
     close(fd);
+    return ok;
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */

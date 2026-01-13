@@ -445,6 +445,15 @@ if host_arch in ['i386', 'x86_64']
   endif
 endif
 
+# GCC >= 16 automatically tries to link libatomic for all programs.
+#
+# QEMU explicitly does NOT want to use libatomic for int128 types.
+#
+# Later checks assume we won't get atomic ops for int128 without
+# explicitly asking for -latomic, so we must disable GCC's new
+# automatic linking with the new -fno-link-libatomic flag
+qemu_isa_flags += cc.get_supported_arguments('-fno-link-libatomic')
+
 qemu_common_flags = qemu_isa_flags + qemu_common_flags
 
 if get_option('prefer_static')
@@ -4283,9 +4292,11 @@ foreach target : target_dirs
   endif
   if target.endswith('-softmmu')
     target_type='system'
-    t = target_system_arch[target_base_arch].apply(config_target, strict: false)
-    arch_srcs += t.sources()
-    arch_deps += t.dependencies()
+    if target_base_arch in target_system_arch
+      t = target_system_arch[target_base_arch].apply(config_target, strict: false)
+      arch_srcs += t.sources()
+      arch_deps += t.dependencies()
+    endif
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch
     if hw_arch.has_key(hw_dir)

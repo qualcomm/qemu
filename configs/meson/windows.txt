@@ -3,8 +3,6 @@
 
 [built-in options]
 bindir = ''
-# QUIC-specific: commented-out due to QTOOL-108371
-# prefix = '/qemu'
 
 [project options]
 qemu_suffix = ''

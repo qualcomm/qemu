@@ -320,6 +320,7 @@
 
 #define TARGET_NR_openat2 437
 #define TARGET_NR_pidfd_getfd 438
+#define TARGET_NR_epoll_pwait2 441
 #define TARGET_NR_open 1024
 #define TARGET_NR_link 1025
 #define TARGET_NR_unlink 1026
