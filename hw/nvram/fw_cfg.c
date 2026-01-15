@@ -1088,6 +1088,13 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
     return s;
 }
 
+#ifdef CONFIG_LIBQEMU
+void fw_cfg_set_dma_as(FWCfgState *s, AddressSpace *dma_as)
+{
+    s->dma_as = dma_as;
+}
+#endif
+
 FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
 {
     return fw_cfg_init_mem_wide(ctl_addr, data_addr,
