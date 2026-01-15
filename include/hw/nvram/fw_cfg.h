@@ -340,6 +340,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, AddressSpace *dma_as);
  */
 FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
                                   unsigned data_width);
+<<<<<<< HEAD
 /**
  * fw_cfg_init_mem_dma:
  * @base_addr: address to map the device at
@@ -360,6 +361,9 @@ FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
  * Returns the device object.
  */
 FWCfgState *fw_cfg_init_mem_dma(hwaddr base_addr, AddressSpace *dma_as);
+#ifdef CONFIG_LIBQEMU
+void fw_cfg_set_dma_as(FWCfgState *s, AddressSpace *dma_as);
+#endif
 
 FWCfgState *fw_cfg_find(void);
 bool fw_cfg_dma_enabled(void *opaque);
