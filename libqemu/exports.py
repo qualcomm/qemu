@@ -412,3 +412,16 @@ ExportedFct('cpu_riscv_register_reset', 'void', [ 'Object *' ],
 PrivateInclude('libqemu/wrappers/target/hexagon.h', arch = 'hexagon')
 ExportedFct('cpu_hexagon_register_reset', 'void', [ 'Object *' ],
         priv = 'libqemu_cpu_hexagon_register_reset', arch = 'hexagon')
+
+# hw/nvram/fw_cfg specific exports
+PrivateInclude('hw/nvram/fw_cfg.h')
+ExportedType('FWCfgState', 'FWCfgState')
+ExportedFct('fw_cfg_add_i16', 'void', ['FWCfgState *', 'uint16_t', 'uint16_t'])
+ExportedFct(
+    'fw_cfg_add_file', 'void', ['FWCfgState *', 'const char *', 'void *', 'uint32_t']
+)
+ExportedFct(
+    'fw_cfg_modify_file', 'void *', ['FWCfgState *', 'const char *', 'void *', 'uint32_t']
+)
+ExportedFct('fw_cfg_find', 'FWCfgState *', [])
+ExportedFct('fw_cfg_set_dma_as', 'void', ['FWCfgState *', 'AddressSpace *'])

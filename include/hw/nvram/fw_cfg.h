@@ -312,6 +312,9 @@ FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
 FWCfgState *fw_cfg_init_mem_dma(hwaddr ctl_addr,
                                 hwaddr data_addr, uint32_t data_width,
                                 hwaddr dma_addr, AddressSpace *dma_as);
+#ifdef CONFIG_LIBQEMU
+void fw_cfg_set_dma_as(FWCfgState *s, AddressSpace *dma_as);
+#endif
 
 FWCfgState *fw_cfg_find(void);
 bool fw_cfg_dma_enabled(void *opaque);
