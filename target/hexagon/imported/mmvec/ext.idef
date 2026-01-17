@@ -2251,6 +2251,24 @@ MMVEC_SORT(uh,"uh", "unsigned halfword",16, uh)
 MMVEC_SORT(h,   "h",    "halfword",         16, h)
 MMVEC_SORT(w,   "w",    "word",             32, w)
 
+/* Floating-point min/max instructions */
+EXTINSN(V6_vmax_sf, "Vd32.sf=vmax(Vu32.sf,Vv32.sf)",
+    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA),
+    "Vector max of sf input",
+    { for (int i = 0; i < fVELEM(32); i++) VdV.sf[i] = fMAX_SF(VuV.sf[i], VvV.sf[i]); })
+EXTINSN(V6_vmin_sf, "Vd32.sf=vmin(Vu32.sf,Vv32.sf)",
+    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA),
+    "Vector min of sf input",
+    { for (int i = 0; i < fVELEM(32); i++) VdV.sf[i] = fMIN_SF(VuV.sf[i], VvV.sf[i]); })
+EXTINSN(V6_vmax_hf, "Vd32.hf=vmax(Vu32.hf,Vv32.hf)",
+    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA),
+    "Vector max of hf input",
+    { for (int i = 0; i < fVELEM(16); i++) VdV.hf[i] = fMAX_HF(VuV.hf[i], VvV.hf[i]); })
+EXTINSN(V6_vmin_hf, "Vd32.hf=vmin(Vu32.hf,Vv32.hf)",
+    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA),
+    "Vector min of hf input",
+    { for (int i = 0; i < fVELEM(16); i++) VdV.hf[i] = fMIN_HF(VuV.hf[i], VvV.hf[i]); })
+
 
 
 

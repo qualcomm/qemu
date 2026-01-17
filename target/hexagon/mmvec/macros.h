@@ -21,6 +21,7 @@
 #include "qemu/host-utils.h"
 #include "arch.h"
 #include "mmvec/system_ext_mmvec.h"
+#include "mmvec/mmvec_qfloat.h"
 #include "accel/tcg/getpc.h"
 #include "accel/tcg/probe.h"
 
@@ -372,3 +373,8 @@
 
 #define fCMPGT_SF(A,B) cmpgt_sf(A,B)
 #define fCMPGT_HF(A,B) cmpgt_hf(A,B)
+
+#define fMAX_SF(A,B) max_sf(A,B)
+#define fMIN_SF(A,B) min_sf(A,B)
+#define fMAX_HF(A,B) max_hf(A,B)
+#define fMIN_HF(A,B) min_hf(A,B)

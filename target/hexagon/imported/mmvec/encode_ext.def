@@ -803,6 +803,11 @@ DEF_ENC(V6_vpackhub_sat,ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 101 ddddd") //
 DEF_ENC(V6_vpackhb_sat, ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 110 ddddd") //
 DEF_ENC(V6_vpackwuh_sat,ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 111 ddddd") //
 
+DEF_ENC(V6_vmax_sf,     ICLASS_CJ" 1 111 110 vvvvv PP 1 uuuuu 001 ddddd") //
+DEF_ENC(V6_vmin_sf,     ICLASS_CJ" 1 111 110 vvvvv PP 1 uuuuu 010 ddddd") //
+DEF_ENC(V6_vmax_hf,     ICLASS_CJ" 1 111 110 vvvvv PP 1 uuuuu 011 ddddd") //
+DEF_ENC(V6_vmin_hf,     ICLASS_CJ" 1 111 110 vvvvv PP 1 uuuuu 100 ddddd") //
+
 DEF_ENC(V6_vpackwh_sat, ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 000 ddddd") //
 DEF_ENC(V6_vpackob,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 001 ddddd") //
 DEF_ENC(V6_vpackoh,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 010 ddddd") //
