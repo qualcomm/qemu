@@ -369,3 +369,6 @@
 
 #define fNEGQF16(A) negate16(A)
 #define fNEGQF32(A) negate32(A)
+
+#define fCMPGT_SF(A,B) cmpgt_sf(A,B)
+#define fCMPGT_HF(A,B) cmpgt_hf(A,B)

@@ -2115,6 +2115,44 @@ MMVEC_CMPGT(uw,"uw","","Vector Unsigned Half Compare ", fVELEM(32), 0xF, 4,uw)
 MMVEC_CMPGT(uh,"uh","","Vector Unsigned Half Compare ", fVELEM(16), 0x3, 2,uh)
 MMVEC_CMPGT(ub,"ub","","Vector Unsigned Byte Compare ", fVELEM(8),  0x1, 1,ub)
 
+/* Floating-point comparison macros */
+#define VCMP_SF(DEST, ASRC, ASRCOP, CMP, N, SRC, MASK, WIDTH)        \
+{ \
+       for(fHIDE(int) i = 0; i < fVBYTES(); i += WIDTH) { \
+		fSETQBITS(DEST,WIDTH,MASK,i,ASRC ASRCOP (fCMPGT_SF(VuV.SRC[i/WIDTH], VvV.SRC[i/WIDTH]) ? MASK : 0)); \
+    } \
+       }
+
+#define VCMP_HF(DEST, ASRC, ASRCOP, CMP, N, SRC, MASK, WIDTH)        \
+{ \
+       for(fHIDE(int) i = 0; i < fVBYTES(); i += WIDTH) { \
+		fSETQBITS(DEST,WIDTH,MASK,i,ASRC ASRCOP (fCMPGT_HF(VuV.SRC[i/WIDTH], VvV.SRC[i/WIDTH]) ? MASK : 0)); \
+    } \
+       }
+
+#define MMVEC_CMPGT_SF(TYPE,TYPE2,TYPE3,DESCR,N,MASK,WIDTH,SRC) \
+EXTINSN(V6_vgt##TYPE,       "Qd4=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")",  ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than", \
+	VCMP_SF(QdV, , , >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_and, "Qx4&=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-and", \
+	VCMP_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), &, >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_or,  "Qx4|=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-or", \
+	VCMP_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), |, >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_xor, "Qx4^=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-xor", \
+	VCMP_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, >, N, SRC, MASK, WIDTH))
+
+#define MMVEC_CMPGT_HF(TYPE,TYPE2,TYPE3,DESCR,N,MASK,WIDTH,SRC) \
+EXTINSN(V6_vgt##TYPE,       "Qd4=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")",  ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than", \
+	VCMP_HF(QdV, , , >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_and, "Qx4&=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-and", \
+	VCMP_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), &, >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_or,  "Qx4|=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-or", \
+	VCMP_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), |, >, N, SRC, MASK, WIDTH)) \
+EXTINSN(V6_vgt##TYPE##_xor, "Qx4^=vcmp.gt(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA), DESCR" greater than with predicate-xor", \
+	VCMP_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, >, N, SRC, MASK, WIDTH))
+
+MMVEC_CMPGT_SF(sf,"sf","","Vector Single-Precision Float Compare ", fVELEM(32), 0xF, 4, w)
+MMVEC_CMPGT_HF(hf,"hf","","Vector Half-Precision Float Compare ", fVELEM(16), 0x3, 2, h)
+
 /***************************************************
 * Predicate Operations
 ***************************************************/
