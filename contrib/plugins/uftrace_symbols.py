@@ -35,9 +35,9 @@ def get_symbols(elf_file):
         raise
     out = out.strip().split('\n')
     for line in out:
-        info = line.split(' ')
-        if len(info) == 3:
-            # missing size information
+        info = line.strip().split(' ')
+        if len(info) < 4:
+            # missing information
             continue
         addr, size, type, name = info
         # add only symbols from .text section

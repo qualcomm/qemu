@@ -97,6 +97,18 @@ typedef struct {
     struct qemu_plugin_register *reg_cr0;
 } X64Cpu;
 
+typedef enum {
+    HEX_MONITOR,
+    HEX_GUEST,
+    HEX_USER,
+    HEX_PRIVILEGE_LEVEL_MAX,
+} HexagonPrivilegeLevel;
+
+typedef struct {
+    struct qemu_plugin_register *reg_fp;
+    struct qemu_plugin_register *reg_ssr;
+} HexagonCPU;
+
 typedef struct {
     uint64_t timestamp;
     uint64_t data;
@@ -654,6 +666,84 @@ static CpuOps x64_ops = {
     .does_insn_modify_frame_pointer = x64_does_insn_modify_frame_pointer,
 };
 
+
+static uint8_t hexagon_num_privilege_levels(void)
+{
+    return HEX_PRIVILEGE_LEVEL_MAX;
+}
+
+static const char *hexagon_get_privilege_level_name(uint8_t pl)
+{
+    switch (pl) {
+    case HEX_MONITOR: return "monitor";
+    case HEX_GUEST: return "guest";
+    case HEX_USER: return "user";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+#define HEX_SSR_FIELD_UM 16
+#define HEX_SSR_FIELD_EX 17
+#define HEX_SSR_FIELD_GM 19
+
+static uint8_t hexagon_get_privilege_level(Cpu *cpu_)
+{
+    HexagonCPU *cpu = cpu_->arch;
+    uint32_t ssr = cpu_read_register32(cpu_, cpu->reg_ssr);
+    bool ex = (ssr >> HEX_SSR_FIELD_EX) & 1;
+    bool um = (ssr >> HEX_SSR_FIELD_UM) & 1;
+    bool gm = (ssr >> HEX_SSR_FIELD_GM) & 1;
+
+    if (ex || !um) {
+        return HEX_MONITOR;
+    } else if (!ex && um) {
+        return gm ? HEX_GUEST : HEX_USER;
+    }
+    g_assert_not_reached();
+}
+
+static uint64_t hexagon_get_frame_pointer(Cpu *cpu_)
+{
+    HexagonCPU *cpu = cpu_->arch;
+    return cpu_read_register32(cpu_, cpu->reg_fp);
+}
+
+static void hexagon_init(Cpu *cpu_)
+{
+    HexagonCPU *cpu = g_new0(HexagonCPU, 1);
+    cpu_->arch = cpu;
+    cpu->reg_fp = plugin_find_register("fp");
+    if (!cpu->reg_fp) {
+        fprintf(stderr, "uftrace plugin: frame pointer register (R30) is not "
+                        "available.\n");
+        g_abort();
+    }
+    cpu->reg_ssr = plugin_find_register("ssr");
+    g_assert(cpu->reg_ssr);
+}
+
+static void hexagon_end(Cpu *cpu)
+{
+    g_free(cpu->arch);
+}
+
+static bool hexagon_does_insn_modify_frame_pointer(const char *disas)
+{
+    return strstr(disas, "alloc") ||
+           strstr(disas, "R30") || strstr(disas, "R31:30");
+}
+
+static CpuOps hexagon_ops = {
+    .init = hexagon_init,
+    .end = hexagon_end,
+    .get_frame_pointer = hexagon_get_frame_pointer,
+    .get_privilege_level = hexagon_get_privilege_level,
+    .num_privilege_levels = hexagon_num_privilege_levels,
+    .get_privilege_level_name = hexagon_get_privilege_level_name,
+    .does_insn_modify_frame_pointer = hexagon_does_insn_modify_frame_pointer,
+};
+
 static void track_privilege_change(unsigned int cpu_index, void *udata)
 {
     Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
@@ -863,6 +953,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         arch_ops = aarch64_ops;
     } else if (!strcmp(info->target_name, "x86_64")) {
         arch_ops = x64_ops;
+    } else if (!strcmp(info->target_name, "hexagon")) {
+        arch_ops = hexagon_ops;
     } else {
         fprintf(stderr, "plugin uftrace: %s target is not supported\n",
                 info->target_name);

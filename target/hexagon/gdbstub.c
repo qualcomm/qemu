@@ -19,6 +19,7 @@
 #include "gdbstub/helpers.h"
 #include "cpu.h"
 #include "internal.h"
+#include "qemu/main-loop.h"
 
 int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
@@ -84,6 +85,7 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPUHexagonState *env = cpu_env(cs);
+    BQL_LOCK_GUARD();
 
     if (n < NUM_SREGS) {
         return gdb_get_regl(mem_buf, hexagon_sreg_read(env, n));
@@ -101,6 +103,7 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUHexagonState *env = cpu_env(cs);
+    BQL_LOCK_GUARD();
 
     if (n < NUM_SREGS) {
         hexagon_gdb_sreg_write(env, n, ldtul_p(mem_buf));
@@ -119,6 +122,7 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
 static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {
+    BQL_LOCK_GUARD();
     int total = 0;
     int i;
     for (i = 0; i < ARRAY_SIZE(env->VRegs[n].uw); i++) {
@@ -129,6 +133,7 @@ static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 
 static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {
+    BQL_LOCK_GUARD();
     int total = 0;
     int i;
     for (i = 0; i < ARRAY_SIZE(env->QRegs[n].uw); i++) {
@@ -140,6 +145,7 @@ static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 int hexagon_hvx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPUHexagonState *env = cpu_env(cs);
+    BQL_LOCK_GUARD();
 
     if (n < NUM_VREGS) {
         return gdb_get_vreg(env, mem_buf, n);
@@ -155,6 +161,7 @@ int hexagon_hvx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
 static int gdb_put_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 {
+    BQL_LOCK_GUARD();
     int i;
     for (i = 0; i < ARRAY_SIZE(env->VRegs[n].uw); i++) {
         env->VRegs[n].uw[i] = ldl_le_p(mem_buf);
@@ -165,6 +172,7 @@ static int gdb_put_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 
 static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 {
+    BQL_LOCK_GUARD();
     int i;
     for (i = 0; i < ARRAY_SIZE(env->QRegs[n].uw); i++) {
         env->QRegs[n].uw[i] = ldl_le_p(mem_buf);
@@ -175,6 +183,7 @@ static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 
 int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    BQL_LOCK_GUARD();
     CPUHexagonState *env = cpu_env(cs);
 
    if (n < NUM_VREGS) {
