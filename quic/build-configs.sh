@@ -145,7 +145,6 @@ config_hexagon_minimal()
 
 config_hexagon_minimal_cross()
 {
-    #.export PKG_CONFIG_PATH="/mingw64/k
     config_hexagon_minimal
     CONFIG_CMD="
         ${CONFIG_CMD}

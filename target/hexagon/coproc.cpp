@@ -210,7 +210,7 @@ class RemoteRPC
 
         auto coproc_port = read_coproc_port();
         client = std::make_unique<rpc::client>("localhost", coproc_port);
-        client->set_timeout(10000);
+        client->set_timeout(3000);
 
         try {
             int coproc_version =
@@ -248,7 +248,7 @@ class RemoteRPC
 #endif
     }
 
-    int call_coproc(int32_t opcode, hwaddr vtcm_base, uint32_t vtcm_size,
+    void call_coproc(int32_t opcode, hwaddr vtcm_base, uint32_t vtcm_size,
                     uint32_t reg_usr, int32_t fd, int32_t page_size,
                     int32_t arg1, int32_t arg2)
     {
@@ -257,8 +257,8 @@ class RemoteRPC
 #endif
 
         try {
-            return client->call("coproc", opcode, vtcm_base, vtcm_size, reg_usr,
-                                fd, page_size, arg1, arg2).template as<int>();
+            client->call("coproc", opcode, vtcm_base, vtcm_size, reg_usr, fd,
+                         page_size, arg1, arg2);
         } catch (const std::exception &e) {
             std::cerr << "RPC call failed: " << e.what() << std::endl;
             std::exit(EXIT_FAILURE);
