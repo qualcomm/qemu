@@ -415,3 +415,13 @@ cdsp_pll_read(uint64_t offset, uint32_t value) "offset 0x%" PRIx64 " value 0x%08
 cdsp_pll_write(uint64_t offset, uint32_t value) "offset 0x%" PRIx64 " value 0x%08" PRIx32
 cdsp_pll_locked(void) "PLL locked"
 cdsp_pll_unlocked(void) "PLL unlocked"
+
+# iommu-testdev.c
+iommu_testdev_mmio_read(uint64_t addr, uint64_t value, unsigned size) "addr=0x%" PRIx64 " value=0x%" PRIx64 " size=%u"
+iommu_testdev_mmio_write(uint64_t addr, uint64_t value, unsigned size) "addr=0x%" PRIx64 " value=0x%" PRIx64 " size=%u"
+iommu_testdev_dma_start(void) "DMA operation started"
+iommu_testdev_dma_write(uint64_t gva, uint32_t len) "gva=0x%" PRIx64 " len=%u"
+iommu_testdev_dma_read(uint64_t gva, uint32_t len) "gva=0x%" PRIx64 " len=%u"
+iommu_testdev_dma_verify(uint32_t expected, uint32_t actual) "expected=0x%x actual=0x%x"
+iommu_testdev_dma_result(uint32_t result) "DMA completed result=0x%x"
+iommu_testdev_dma_armed(bool armed) "armed=%d"
