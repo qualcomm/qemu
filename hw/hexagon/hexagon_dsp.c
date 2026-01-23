@@ -410,7 +410,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
 
     object_property_set_uint(OBJECT(qtimer), "nr_frames",
-                                     2, &error_fatal);
+                                     3, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "nr_views",
                                      1, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "cnttid",
