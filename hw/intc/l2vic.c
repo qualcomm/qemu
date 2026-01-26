@@ -288,7 +288,7 @@ static uint64_t l2vic_read(void *opaque, hwaddr offset, unsigned size)
 static const MemoryRegionOps l2vic_ops = {
     .read = l2vic_read,
     .write = l2vic_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .valid.unaligned = false,
@@ -325,7 +325,7 @@ static void fastl2vic_write(void *opaque, hwaddr offset, uint64_t val,
 
 static const MemoryRegionOps fastl2vic_ops = {
     .write = fastl2vic_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .valid.unaligned = false,

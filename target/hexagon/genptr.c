@@ -1797,8 +1797,8 @@ static void gen_vtcm_memcpy(DisasContext *ctx, TCGv dst, TCGv src, TCGv size)
     tcg_gen_muli_tl(tmp, i, 4); /* implicit pointer arithmetics */
     tcg_gen_add_tl(src_plus_i, src, tmp);
     tcg_gen_add_tl(dst_plus_i, dst, tmp);
-    tcg_gen_qemu_ld_i32(val, src_plus_i, ctx->mem_idx, MO_TEUL);
-    tcg_gen_qemu_st_i32(val, dst_plus_i, ctx->mem_idx, MO_TEUL);
+    tcg_gen_qemu_ld_i32(val, src_plus_i, ctx->mem_idx, MO_LE | MO_UL);
+    tcg_gen_qemu_st_i32(val, dst_plus_i, ctx->mem_idx, MO_LE | MO_UL);
     tcg_gen_addi_tl(i, i, 1);
     tcg_gen_br(loop);
     gen_set_label(finish);

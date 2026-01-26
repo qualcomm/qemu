@@ -127,7 +127,7 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
     case 2:
         if (QEMU_IS_ALIGNED(addr, 2)) {
             *(unsigned short *)dstbuf =
-                cpu_lduw_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+                cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
             return true;
         }
         break;
@@ -135,7 +135,7 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
     case 4:
         if (QEMU_IS_ALIGNED(addr, 4)) {
             *(uint32_t *)dstbuf =
-                cpu_ldl_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+                cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
             return true;
         }
         break;
@@ -143,7 +143,7 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
     case 8:
         if (QEMU_IS_ALIGNED(addr, 8)) {
             *(uint64_t *)dstbuf =
-                cpu_ldq_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+                cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
             return true;
         }
         break;
@@ -243,21 +243,24 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_write_memory_small(
 
     case 2:
         if (QEMU_IS_ALIGNED(addr, 2)) {
-            cpu_stw_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx, CPU_MEMOP_PC(env));
+            cpu_stw_le_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx,
+                                 CPU_MEMOP_PC(env));
             return true;
         }
         break;
 
     case 4:
         if (QEMU_IS_ALIGNED(addr, 4)) {
-            cpu_stl_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx, CPU_MEMOP_PC(env));
+            cpu_stl_le_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx,
+                                 CPU_MEMOP_PC(env));
             return true;
         }
         break;
 
     case 8:
         if (QEMU_IS_ALIGNED(addr, 8)) {
-            cpu_stq_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx, CPU_MEMOP_PC(env));
+            cpu_stq_le_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx,
+                                 CPU_MEMOP_PC(env));
             return true;
         }
         break;
