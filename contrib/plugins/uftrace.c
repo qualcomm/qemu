@@ -60,6 +60,7 @@ typedef struct Cpu {
     GByteArray *buf;
     CpuOps ops;
     void *arch;
+    int arch_size_bytes;
 } Cpu;
 
 typedef enum {
@@ -431,17 +432,22 @@ static uint32_t cpu_read_register32(Cpu *cpu, struct qemu_plugin_register *reg)
     return *((uint32_t *) buf->data);
 }
 
-static uint64_t cpu_read_memory64(Cpu *cpu, uint64_t addr)
+static uint64_t cpu_read_memory_reg_size(Cpu *cpu, uint64_t addr)
 {
     g_assert(addr);
     GByteArray *buf = cpu->buf;
     g_byte_array_set_size(buf, 0);
-    bool read = qemu_plugin_read_memory_vaddr(addr, buf, 8);
+    bool read = qemu_plugin_read_memory_vaddr(addr, buf, cpu->arch_size_bytes);
     if (!read) {
         return 0;
     }
-    g_assert(buf->len == 8);
-    return *((uint64_t *) buf->data);
+    g_assert(buf->len == cpu->arch_size_bytes);
+    if (cpu->arch_size_bytes == 4) {
+        return *((uint32_t *) buf->data);
+    } else if (cpu->arch_size_bytes == 8) {
+        return *((uint64_t *) buf->data);
+    }
+    g_assert_not_reached();
 }
 
 static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
@@ -462,9 +468,10 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
         unwind[depth] = e;
         depth++;
         if (frame_pointer) {
-            frame_pointer = cpu_read_memory64(cpu, frame_pointer);
+            frame_pointer = cpu_read_memory_reg_size(cpu, frame_pointer);
         }
-        pc = cpu_read_memory64(cpu, frame_pointer + 8); /* read previous lr */
+        /* read previous lr */
+        pc = cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
     } while (frame_pointer && pc && depth < UNWIND_STACK_MAX_DEPTH);
     #undef UNWIND_STACK_MAX_DEPTH
 
@@ -560,6 +567,7 @@ static void aarch64_init(Cpu *cpu_)
 {
     Aarch64Cpu *cpu = g_new0(Aarch64Cpu, 1);
     cpu_->arch = cpu;
+    cpu_->arch_size_bytes = 8;
     cpu->reg_fp = plugin_find_register("x29");
     if (!cpu->reg_fp) {
         fprintf(stderr, "uftrace plugin: frame pointer register (x29) is not "
@@ -638,6 +646,7 @@ static void x64_init(Cpu *cpu_)
 {
     X64Cpu *cpu = g_new0(X64Cpu, 1);
     cpu_->arch = cpu;
+    cpu_->arch_size_bytes = 8;
     cpu->reg_rbp = plugin_find_register("rbp");
     g_assert(cpu->reg_rbp);
     cpu->reg_cs = plugin_find_register("cs");
@@ -713,6 +722,7 @@ static void hexagon_init(Cpu *cpu_)
 {
     HexagonCPU *cpu = g_new0(HexagonCPU, 1);
     cpu_->arch = cpu;
+    cpu_->arch_size_bytes = 4;
     cpu->reg_fp = plugin_find_register("fp");
     if (!cpu->reg_fp) {
         fprintf(stderr, "uftrace plugin: frame pointer register (R30) is not "
@@ -799,7 +809,7 @@ static void track_callstack(unsigned int cpu_index, void *udata)
         return;
     }
 
-    uint64_t caller_fp = fp ? cpu_read_memory64(cpu, fp) : 0;
+    uint64_t caller_fp = fp ? cpu_read_memory_reg_size(cpu, fp) : 0;
     if (caller_fp == top.frame_pointer) {
         /* call */
         callstack_push(cs, (CallstackEntry){.frame_pointer = fp, .pc = pc});
