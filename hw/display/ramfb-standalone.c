@@ -43,6 +43,16 @@ static void ramfb_realizefn(DeviceState *dev, Error **errp)
     ramfb->state = ramfb_setup(ramfb->use_legacy_x86_rom, errp);
 }
 
+#ifdef CONFIG_LIBQEMU
+static void ramfb_unrealizefn(DeviceState *dev)
+{
+    RAMFBStandaloneState *ramfb = RAMFB(dev);
+    if (ramfb && ramfb->state) {
+        ramfb_reset_dim(ramfb->state);
+    }
+}
+#endif
+
 static bool migrate_needed(void *opaque)
 {
     RAMFBStandaloneState *ramfb = RAMFB(opaque);
@@ -74,6 +84,9 @@ static void ramfb_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &ramfb_dev_vmstate;
     dc->realize = ramfb_realizefn;
+#ifdef CONFIG_LIBQEMU
+    dc->unrealize = ramfb_unrealizefn;
+#endif
     dc->desc = "ram framebuffer standalone device";
     device_class_set_props(dc, ramfb_properties);
 }
