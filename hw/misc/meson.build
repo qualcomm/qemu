@@ -170,10 +170,11 @@ system_ss.add(when: 'CONFIG_LASI', if_true: files('lasi.c'))
 
 # Hexagon devices
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('cdsp-pll.c'))
-system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('rpmh-rsc.c'))
+system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-rsc.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-hwkm-prng.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-cdsp-pll.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-qdsp6-cc-regs.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-qdsp6-gdscr.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-qdsp6-cc-swi.c'))
 system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-lmh.c'))
+system_ss.add(when: 'CONFIG_HEX_DSP', if_true: files('qcom-turing-rsc.c'))
