@@ -7,6 +7,7 @@ test_hexagon_timeouts = {
   'linux': 180,
   'systests': 180,
   'sdk': 180,
+  'sa8775p_cdsp0': 180,
 }
 
 tests_hexagon_system_thorough = [
@@ -17,4 +18,5 @@ tests_hexagon_system_thorough = [
   'virtio',
   'systests',
   'sdk',
+  'sa8775p_cdsp0',
 ]

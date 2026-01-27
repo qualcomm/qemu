@@ -21,6 +21,7 @@
 #include "hw/misc/qcom-qdsp6-gdscr.h"
 #include "hw/misc/qcom-qdsp6-cc-swi.h"
 #include "hw/misc/qcom-turing-lmh.h"
+#include "hw/misc/qcom-turing-rsc.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -51,7 +52,6 @@
 #include "hw/misc/dspss-pub.h"
 #include "qobject/qlist.h"
 #include "hw/misc/wdog.h"
-#include "hw/misc/rpmh-rsc.h"
 #include "hw/misc/unimp.h"
 
 static bool syscfg_is_linux;
@@ -352,9 +352,28 @@ static void create_cdsp_ccswi(void)
     DeviceState *dev = qdev_new(TYPE_CDSP0_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    /* Map MMIO at absolute base 0x151000 */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x26008000);
 
+}
+
+static void create_cdsp_turing_rsc(void)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_RSC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x260A4000);
+
+    /* Connect IRQ outputs to L2VIC */
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        /* Connect Turing RSC error IRQ to L2VIC */
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                          qdev_get_gpio_in(l2vic, 41));
+        /* Connect Turing RSC AMC Mode IRQ to L2VIC */
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1,
+                          qdev_get_gpio_in(l2vic, 61));
+    }
 }
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev,
@@ -725,16 +744,6 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0, SA8775P_cdsp0.csr_base + 0x84000);
 
-    /* Create and map the RPMH-RSC device */
-    DeviceState *rpmh_rsc = qdev_new(TYPE_RPMH_RSC);
-    qdev_prop_set_uint32(rpmh_rsc, "num-drivers", 1);
-    qdev_prop_set_uint32(rpmh_rsc, "tcs-base", 0x00000D00);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(rpmh_rsc), &error_fatal);
-    /* Map DRV registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 0, 0x260A4000);
-    /* Map TCS registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(rpmh_rsc), 1, 0x260A4D00);
-
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;
     hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
@@ -773,6 +782,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     create_cdsp_gdscr();
     create_cdsp_ccswi();
     create_turing_lmh();
+    create_cdsp_turing_rsc();
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
     uint32_t default_value = 0x20600;

@@ -300,8 +300,8 @@ qtests_hexagon = [
   'tcsr-test',
   'dspss-pub-test',
   'wdog-test',
-  'rpmh-rsc-sa8775p-test',
   'qcom-ipcc-test',
+  'turing-rsc-test',
 ]
 
 qos_test_ss = ss.source_set()
