@@ -1,5 +1,5 @@
-# PowerShell script to install Windows x86_64 dependencies for QEMU
-# This script downloads mingw-w64 packages directly without requiring msys2 installation
+# PowerShell script to install Windows dependencies for QEMU
+# Automatically detects architecture (x86_64 or ARM64) and installs appropriate dependencies
 #
 # Usage:
 #   .\install_win_deps.ps1                    # Install to current directory
@@ -11,6 +11,23 @@ param(
 
 # Set error action preference to stop on errors
 $ErrorActionPreference = "Stop"
+
+# Detect system architecture
+$arch = $env:PROCESSOR_ARCHITECTURE
+Write-Host "Detected architecture: $arch"
+
+# Determine which config to use
+$configKey = ""
+if ($arch -eq "AMD64") {
+    Write-Host "Installing x86_64 dependencies..."
+    $configKey = "windows-x86_64"
+} elseif ($arch -eq "ARM64") {
+    Write-Host "Installing ARM64 dependencies..."
+    $configKey = "windows-aarch64"
+} else {
+    Write-Error "Unsupported architecture: $arch. This script supports AMD64 (x86_64) and ARM64 only."
+    exit 1
+}
 
 # Resolve installation directory to absolute path
 if ([System.IO.Path]::IsPathRooted($InstallDir)) {
@@ -24,7 +41,7 @@ if (-not (Test-Path $targetDir)) {
     New-Item -ItemType Directory -Path $targetDir | Out-Null
 }
 
-Write-Host "Installing Windows x86_64 dependencies to: $targetDir"
+Write-Host "Installing Windows dependencies to: $targetDir"
 
 # Load package database from JSON file
 $packageDbPath = Join-Path $PSScriptRoot "mingw_packages.json"
@@ -35,7 +52,7 @@ if (-not (Test-Path $packageDbPath)) {
 
 try {
     $packageDb = Get-Content -Path $packageDbPath -Raw | ConvertFrom-Json
-    $winConfig = $packageDb.'windows-x86_64'
+    $winConfig = $packageDb.$configKey
 }
 catch {
     Write-Error "Failed to parse package database: $_"
@@ -95,12 +112,16 @@ foreach ($package in $packages) {
     }
 }
 
-# Copy all DLL files from mingw64/bin to target directory
+# Determine the bin directory from the package database prefix
+# Extract the directory name from the prefix (e.g., "mingw/mingw64" -> "mingw64")
+$prefixDir = Split-Path -Leaf $winConfig.prefix
+$binPath = Join-Path $tempDir "$prefixDir\bin"
+
+# Copy all DLL files to target directory
 Write-Host "Copying DLL files to target directory..."
-$mingwBinPath = Join-Path $tempDir "mingw64\bin"
-if (Test-Path $mingwBinPath) {
+if (Test-Path $binPath) {
     try {
-        Copy-Item -Path "$mingwBinPath\*" -Destination $targetDir -Recurse -Force
+        Copy-Item -Path "$binPath\*" -Destination $targetDir -Recurse -Force
         Write-Host "Files copied successfully to $targetDir"
     }
     catch {
@@ -109,7 +130,7 @@ if (Test-Path $mingwBinPath) {
     }
 }
 else {
-    Write-Warning "mingw64\bin directory not found"
+    Write-Warning "Binary directory not found: $binPath"
 }
 
 # Clean up: remove temporary directory
@@ -125,5 +146,5 @@ if (Test-Path $tempDir) {
 }
 
 Write-Host ""
-Write-Host "SUCCESS: Windows x86_64 dependencies installation completed successfully!" -ForegroundColor Green
+Write-Host "SUCCESS: Windows dependencies installation completed successfully!" -ForegroundColor Green
 Write-Host "All required DLL files have been copied to: $targetDir"

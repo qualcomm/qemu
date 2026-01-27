@@ -42,98 +42,63 @@ the Hexagon simulator.
 Releases of QEMU are provided for Linux and Windows 10 or 11. Starting with
 QEMU Hexagon 10.0, the Linux binaries will work on Ubuntu 22.
 
-### Windows x86_64 dependencies
+### Windows dependencies
 
-1. First download and install msys2: [https://www.msys2.org/](https://www.msys2.org/)
-2. On a msys2 shell, install the dependencies:
+QEMU Hexagon includes a PowerShell script to automatically download and install
+the required dependencies for Windows. The script automatically detects your
+system architecture (x86_64 or ARM64) and installs the appropriate dependencies.
+
+To install dependencies, run the following command from PowerShell:
+
+```powershell
+.\quic\install_win_deps.ps1
 ```
-pacman -S mingw-w64-x86_64-libwinpthread-git mingw-w64-x86_64-glib2 \
-          mingw-w64-x86_64-pixman mingw-w64-x86_64-libpng \
-          mingw-w64-x86_64-gettext mingw-w64-x86_64-pcre2 \
-          mingw-w64-x86_64-libiconv
+
+The script will download the required DLL files to the current directory. You
+can optionally specify a different installation directory using the `-InstallDir`
+parameter:
+
+```powershell
+.\quic\install_win_deps.ps1 -InstallDir "C:\path\to\install"
 ```
-3. Set up the Windows PATH variable to include the mingw directory when looking for DLLs:
-    1. Open the Windows menu and search for "system variables", then click on
-       "Edit the system environment variables".
-    2. Click on the "Environment Variables" button at the bottom.
-    3. At the bottom section, look for the "PATH" entry. Select it and hit "edit"
-    4. Add two new entries:
-    ```
-    C:\msys64\mingw64\bin
-    C:\msys64\mingw64\lib
-    ```
-    And hit "OK" in all the windows to save.
 
-There is a script called `install_win_deps.bat` which is included with QEMU
-Hexagon and can be used to download the required dependencies.
-
-You should now be able to open CMD or PowerShell and run
+After running the script, you should be able to open CMD or PowerShell and run
 `qemu-system-hexagon --help`.
 
-When installing dependencies, if you get errors like
+**Note**: If you encounter download errors like
 `SSL certificate problem: unable to get local issuer certificate`, you may
 have a corporate networking environment where all of the secure traffic is
-diverted, defeating the trust feature of the msys2 package manager.  See
+diverted, defeating the trust feature of the package manager. See
 ["How can I make MSYS2/pacman trust my company's custom TLS CA certificate" in the MSYS2 FAQ](https://www.msys2.org/docs/faq/#how-can-i-make-msys2pacman-trust-my-companys-custom-tls-ca-certificate) for more info.
 
-Similar to the aarch64 version there is a powershell script now that doesn't
-use msys2 and comes with the same restrictions as the aarch64 script. See the
-section on aarch64 for more details.
-
-### Windows aarch64 dependencies
-
-Dependencies need to be downloaded manually for now, because there is no stable
-msys2 distribution for Windows on aarch64 yet.
-
-The required libraries (and their corresponding packages) are:
-- libglib-2.0-0.dll (mingw-w64-clang-aarch64-glib2)
-- libiconv-2.dll (mingw-w64-clang-aarch64-libiconv)
-- libintl-8.dll (mingw-w64-clang-aarch64-gettext)
-- libpcre2-8-0.dll (mingw-w64-clang-aarch64-pcre2)
-- libwinpthread-1.dll (mingw-w64-clang-aarch64-libwinpthread-git)
-- zlib1.dll (mingw-w64-clang-aarch64-zlib)
-
-The code snippet below shows an example for how to download the glibc2 package,
-but the other libraries can be downloaded in the same way. From the directory
-QEMU is located in run:
-
-```
-curl --output glib2.pkg.tar.zst "https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-glib2-2.84.0-1-any.pkg.tar.zst"
-tar --extract --file=glib2.pkg.tar.zst clangarm64/bin/libglib-2.0-0.dll
-```
-
-This downloads the `mingw-w64-clang-aarch64-glib2` package from the main msys2
-package repository server at `https://repo.msys2.org/mingw/clangarm64/` and
-renames the archive to `glib2.pkg.tar.zst`. Afterwards, only the required
-library `libglib-2.0-0.dll` is unpacked.
-
-There are two scripts included with QEMU Hexagon to download the required
-dependencies. They are called `install_win_aarch64_deps.bat` and
-`install_win_aarch64_deps.ps1`, and exist as alternatives for each other to
-accomodate different workflows.
-
-IMPORTANT: In case `install_win_aarch64_deps.bat` or
-`install_win_aarch64_deps.ps1` is used, it is possible that the versions of
-some dependencies are outdated and need to be updated by manually modifying the
-script used.
-
-A common error related to libraries is that QEMU immediately exits. Either with
-or without showing an error message box. In both cases a [dependency
-walker](https://github.com/lucasg/Dependencies) will show which dependency
-couldn't be resolved properly. If an error message box does appear, it usually
-includes the name of a missing library, so a dependency walker might not be
-necessary.
+**Note**: If you encounter errors related to missing libraries (QEMU
+immediately exits with or without an error message), you can use a [dependency
+walker](https://github.com/lucasg/Dependencies) to identify which dependency
+couldn't be resolved properly.
 
 ## Coprocessor plugin
 
 Some Hexagon DSP configurations utilize a separate coprocessor plugin.
 The coprocessor plugin provides emulation support for additional
-instructions that are not a part of the Hexagon core. QEMU will automatically
-look for the coprocessor plugin at the directory `../../QEMUCoprocPlugin/`,
-relative to the QEMU binary itself. This is the default path where the
-coprocessor is installed through QPM. Alternatively, you can use the CLI
-arguments `-cpu any,coproc=<path>` to specify where the coprocessor directory
-is located, or choose a machine that does not include a coprocessor.
+instructions that are not a part of the Hexagon core.
+
+QEMU will look for the coprocessor executable in the following order:
+
+1. **If `-cpu any,coproc=<path>` is specified**: QEMU will look for the
+   coprocessor executable (`coproc_rpc_remote` on Linux/macOS or
+   `coproc_rpc_remote.exe` on Windows) in the directory specified by `<path>`.
+
+2. **If no `-cpu coproc=<path>` option is provided**: QEMU will automatically
+   look for the coprocessor executable in the same directory as the QEMU
+   executable itself.
+
+For example:
+- With explicit path: `-cpu any,coproc=/path/to/coproc/dir` will look for
+  `/path/to/coproc/dir/coproc_rpc_remote`
+- Without explicit path: If QEMU is at `/usr/bin/qemu-system-hexagon`, it
+  will look for `/usr/bin/coproc_rpc_remote`
+
+Alternatively, you can choose a machine that does not include a coprocessor.
 
 ## Required platform libraries
 
