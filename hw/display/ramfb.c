@@ -120,6 +120,16 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
     qemu_console_update_full(con);
 }
 
+#ifdef CONFIG_LIBQEMU
+void ramfb_reset_dim(RAMFBState *s)
+{
+    if (s) {
+        s->width = 0;
+        s->height = 0;
+    }
+}
+#endif
+
 static int ramfb_post_load(void *opaque, int version_id)
 {
     ramfb_fw_cfg_write(opaque, 0, 0);
