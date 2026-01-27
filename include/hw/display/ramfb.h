@@ -7,6 +7,9 @@
 typedef struct RAMFBState RAMFBState;
 void ramfb_display_update(QemuConsole *con, RAMFBState *s);
 RAMFBState *ramfb_setup(bool romfile, Error **errp);
+#ifdef CONFIG_LIBQEMU
+void ramfb_reset_dim(RAMFBState *s);
+#endif
 
 extern const VMStateDescription ramfb_vmstate;
 
