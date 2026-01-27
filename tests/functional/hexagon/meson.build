@@ -8,6 +8,7 @@ test_hexagon_timeouts = {
 # 'qurt': 2400,
 # 'sdk': 300,
   'systests': 480,
+  'sa8775p_cdsp0': 180,
 }
 
 tests_hexagon_system_thorough = [
@@ -17,5 +18,6 @@ tests_hexagon_system_thorough = [
 # 'qurt',
 # 'sdk',
   'systests',
+  'sa8775p_cdsp0',
 ]
 
