@@ -50,6 +50,7 @@ typedef struct {
     uint8_t (*num_privilege_levels)(void);
     const char *(*get_privilege_level_name)(uint8_t pl);
     bool (*does_insn_modify_frame_pointer)(const char *disas);
+    uint64_t (*read_lr)(Cpu *cpu, uint64_t frame_pointer);
 } CpuOps;
 
 typedef struct Cpu {
@@ -108,6 +109,7 @@ typedef enum {
 typedef struct {
     struct qemu_plugin_register *reg_fp;
     struct qemu_plugin_register *reg_ssr;
+    struct qemu_plugin_register *reg_framekey;
 } HexagonCPU;
 
 typedef struct {
@@ -471,7 +473,7 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
             frame_pointer = cpu_read_memory_reg_size(cpu, frame_pointer);
         }
         /* read previous lr */
-        pc = cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
+        pc = arch_ops.read_lr(cpu, frame_pointer);
     } while (frame_pointer && pc && depth < UNWIND_STACK_MAX_DEPTH);
     #undef UNWIND_STACK_MAX_DEPTH
 
@@ -595,6 +597,11 @@ static bool aarch64_does_insn_modify_frame_pointer(const char *disas)
     return strstr(disas, " x29");
 }
 
+static uint64_t aarch64_read_lr(Cpu *cpu, uint64_t frame_pointer)
+{
+    return cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
+}
+
 static CpuOps aarch64_ops = {
     .init = aarch64_init,
     .end = aarch64_end,
@@ -603,6 +610,7 @@ static CpuOps aarch64_ops = {
     .num_privilege_levels = aarch64_num_privilege_levels,
     .get_privilege_level_name = aarch64_get_privilege_level_name,
     .does_insn_modify_frame_pointer = aarch64_does_insn_modify_frame_pointer,
+    .read_lr = aarch64_read_lr,
 };
 
 static uint8_t x64_num_privilege_levels(void)
@@ -665,6 +673,11 @@ static bool x64_does_insn_modify_frame_pointer(const char *disas)
     return strstr(disas, "rbp");
 }
 
+static uint64_t x64_read_lr(Cpu *cpu, uint64_t frame_pointer)
+{
+    return cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
+}
+
 static CpuOps x64_ops = {
     .init = x64_init,
     .end = x64_end,
@@ -673,6 +686,7 @@ static CpuOps x64_ops = {
     .num_privilege_levels = x64_num_privilege_levels,
     .get_privilege_level_name = x64_get_privilege_level_name,
     .does_insn_modify_frame_pointer = x64_does_insn_modify_frame_pointer,
+    .read_lr = x64_read_lr,
 };
 
 
@@ -731,6 +745,8 @@ static void hexagon_init(Cpu *cpu_)
     }
     cpu->reg_ssr = plugin_find_register("ssr");
     g_assert(cpu->reg_ssr);
+    cpu->reg_framekey = plugin_find_register("framekey");
+    g_assert(cpu->reg_framekey);
 }
 
 static void hexagon_end(Cpu *cpu)
@@ -744,6 +760,16 @@ static bool hexagon_does_insn_modify_frame_pointer(const char *disas)
            strstr(disas, "R30") || strstr(disas, "R31:30");
 }
 
+static uint64_t hexagon_read_lr(Cpu *cpu_, uint64_t frame_pointer)
+{
+    HexagonCPU *cpu = cpu_->arch;
+    uint64_t framekey = cpu_read_register32(cpu_, cpu->reg_framekey);
+    uint64_t scrambled_lr = cpu_read_memory_reg_size(cpu_, frame_pointer +
+                                                     cpu_->arch_size_bytes);
+    uint64_t lr = scrambled_lr ^ framekey;
+    return lr;
+}
+
 static CpuOps hexagon_ops = {
     .init = hexagon_init,
     .end = hexagon_end,
@@ -752,6 +778,7 @@ static CpuOps hexagon_ops = {
     .num_privilege_levels = hexagon_num_privilege_levels,
     .get_privilege_level_name = hexagon_get_privilege_level_name,
     .does_insn_modify_frame_pointer = hexagon_does_insn_modify_frame_pointer,
+    .read_lr = hexagon_read_lr,
 };
 
 static void track_privilege_change(unsigned int cpu_index, void *udata)
