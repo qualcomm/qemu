@@ -47,18 +47,29 @@ TAG_NAME="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null 
 readonly TAG_NAME
 
 readonly SRC_TARBALL_NAME="${TAG_NAME}-src.tar.gz"
-tar --create \
+
+# Convert absolute paths to relative for exclusions
+BUILD_DIR_REL="$(realpath --relative-to="${PWD}" "${BUILD_DIR}")"
+INSTALL_DIR_REL="$(realpath --relative-to="${PWD}" "${INSTALL_DIR}")"
+
+tar --directory="${PWD}" \
+    --create \
     --gzip \
     --file "${INSTALL_DIR}/${SRC_TARBALL_NAME}" \
     --exclude-vcs \
-    --exclude="${BUILD_DIR}" \
-    --exclude="${INSTALL_DIR}" \
+    --exclude="${BUILD_DIR_REL}" \
+    --exclude="${INSTALL_DIR_REL}" \
     --exclude="__pycache__" \
-    "$(pwd)"
+    --exclude=".github" \
+    --exclude=".gitlab" \
+    --exclude="quic" \
+    --exclude="quic-gitlab-ci.d" \
+    .
 
 readonly TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_NAME}.tar.gz"
-tar --create \
+tar --directory="${INSTALL_DIR}" \
+    --create \
     --gzip \
     --file "${BUILD_DIR}/${TARBALL_NAME}" \
     --exclude-vcs \
-    "${INSTALL_DIR}"
+    .
