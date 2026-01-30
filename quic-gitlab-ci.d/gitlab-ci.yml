@@ -295,7 +295,6 @@ hexagon-windows-x86_64-cross:
   variables:
     QUIC_BUILD_CONFIG: hexagon-minimal-cross
     QUIC_COPROC_JOB: windows-x86_64-tag
-    QUIC_INSTALL_PREFIX: windows-x86_64
 
 hexagon-windows-x86_64-cross-tag:
   extends: hexagon-windows-x86_64-cross

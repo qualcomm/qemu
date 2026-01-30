@@ -64,6 +64,7 @@ tar --directory="${PWD}" \
     --exclude=".gitlab" \
     --exclude="quic" \
     --exclude="quic-gitlab-ci.d" \
+    --exclude="coproc_rpc_remote*" \
     .
 
 readonly TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_NAME}.tar.gz"

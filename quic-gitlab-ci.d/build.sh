@@ -5,29 +5,22 @@
 
 : "${QUIC_COPROC_JOB:=}"
 : "${QUIC_COPROC_REF:=}"
-: "${QUIC_TARBALL_PREFIX:=}"
-: "${QUIC_INSTALL_PREFIX:=}"
 
 set -euxo pipefail
-
-EXE=
-if [[ "${QUIC_INSTALL_PREFIX}" == *windows* ]]
-then
-    EXE=.exe
-fi
 
 mkdir -p "${QUIC_BUILD_DIR}"
 
 {
-    ./quic/build.sh -b "${QUIC_BUILD_DIR}" configure "${QUIC_BUILD_CONFIG}"
-    ./quic/build.sh -b "${QUIC_BUILD_DIR}" build
-    ./quic/build.sh -b "${QUIC_BUILD_DIR}" install
+    ./quic/build.sh configure "${QUIC_BUILD_CONFIG}"
+    ./quic/build.sh build
+    ./quic/build.sh install
 
     if [ -n "${QUIC_COPROC_JOB}" ] && [ -n "${QUIC_COPROC_REF}" ]; then
         ./quic/download-coproc-gitlab.sh -j "${CI_JOB_TOKEN}" \
             "${QUIC_COPROC_JOB}" "${QUIC_COPROC_REF}"
-        ./quic/install-coproc.sh -e "$(pwd)/coproc_rpc_remote${EXE}"
+
+        ./quic/install-coproc.sh -d "${PWD}"
     fi
 
-    ./quic/create-tarball.sh -p "${QUIC_TARBALL_PREFIX}"
+    ./quic/create-tarball.sh
 } 2>&1 | tee "${QUIC_BUILD_LOG}"
