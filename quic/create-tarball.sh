@@ -40,7 +40,10 @@ if [ ! -d "${BUILD_DIR}" ] || [ ! -d "${INSTALL_DIR}" ]; then
     exit 1
 fi
 
-cp quic/RELEASE-NOTES.txt "${INSTALL_DIR}"
+readonly RELEASE_NOTE="quic/RELEASE-NOTES.txt"
+if [ -f "${RELEASE_NOTE}" ]; then
+    cp "${RELEASE_NOTE}" "${INSTALL_DIR}"
+fi
 
 TAG_NAME="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
            { printf "qemu-hexagon-" && git rev-parse --short HEAD; } )"
