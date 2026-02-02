@@ -5,7 +5,7 @@
 
 set -e
 
-SOURCE_DIR="$(dirname "$(dirname "$(realpath -e "${0}")")")"
+SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 readonly SOURCE_DIR
 
 HELP_MESSAGE=$(cat << EOF
