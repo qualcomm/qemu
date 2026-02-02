@@ -3,6 +3,11 @@
 # Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+SCRIPT_DIR="$(dirname "$(realpath -e "${0}")")"
+readonly SCRIPT_DIR
+
+. "${SCRIPT_DIR}/help.sh"
+
 HELP_MESSAGE=$(cat << EOF
 Usage: $(basename "${0}") [OPTIONS]
 
@@ -17,14 +22,15 @@ Options:
 EOF
 )
 
-readonly OPTIONS="hb:d:i:"
+readonly OPTIONS=":hb:d:i:"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
         "d") readonly COPROC_DIR="${OPTARG}";;
         "i") readonly INSTALL_DIR="${OPTARG}";;
-        "h") print_help; exit 0;;
-        "*") print_help; exit 1;;
+        "h") print_help;;
+        "?") print_help_error "Unknown option: -${OPTARG}";;
+        ":") print_help_error "Option -${OPTARG} requires an argument";;
     esac
 done
 
