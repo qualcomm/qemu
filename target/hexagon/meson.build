@@ -455,7 +455,8 @@ cmake = import('cmake')
 
 rpclib_cmake_opts = cmake.subproject_options()
 rpclib_cmake_opts.append_compile_args(
-  'cpp', '-Wno-unused-but-set-variable', '-Wno-unused-variable', '-Wno-unused-function'
+  'cpp', '-Wno-unused-but-set-variable', '-Wno-unused-variable',
+  '-Wno-unused-function', '-std=gnu++17'
 )
 
 if host_machine.system() == 'linux' or (host_machine.system() == 'windows' and host_machine.cpu_family() != 'aarch64')
