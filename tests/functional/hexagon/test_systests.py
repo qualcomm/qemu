@@ -73,43 +73,19 @@ class SysTestsStandaloneTests(QemuSystemTest):
                 f"Test {test_name} did not show clear success indication"
             )
 
-    def run_individual_test(self, test_name: str) -> bool:
+    def run_individual_test(self, test_name: str,
+        machine: str = "sim") -> bool:
         """
         Run a single systests_standalone test case
         """
-        self.set_machine("V66G_1024")
+        self.set_machine(machine)
 
         self.archive_extract(self.ASSET_TARBALL)
 
-        # Find the extracted directory (name may vary based on tarball
-        # structure). Look for the bin directory containing the test
-        # executables.
-        test_dir = None
-        for root, dirs, files in os.walk(self.workdir):
-            if "bin" in dirs:
-                bin_dir = os.path.join(root, "bin")
-                # Check if bin directory contains executable files (without ext)
-                if any(
-                    os.access(os.path.join(bin_dir, f), os.X_OK)
-                    for f in os.listdir(bin_dir)
-                ):
-                    test_dir = bin_dir
-                    break
-
-        if not test_dir:
-            self.fail(
-                f"Could not find bin directory with executable files "
-                f"in {self.workdir}"
-            )
-
-        # Find the specific test binary (executable files without extensions)
-        target_bin = None
-        for filename in os.listdir(test_dir):
-            full_path = os.path.join(test_dir, filename)
-            # Check if it's an executable file and matches the test name
-            if os.access(full_path, os.X_OK) and filename == test_name:
-                target_bin = full_path
-                break
+        target_bin = os.path.join(self.workdir,
+            'systests_standalone_package',
+            'StandaloneSysTests_6.3.0.0_v68',
+            'bin', test_name)
 
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)

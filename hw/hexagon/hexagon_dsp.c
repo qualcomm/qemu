@@ -30,6 +30,7 @@
 #include "include/semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
+#include "machine_cfg_v68n_1024.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 
 static hwaddr isdb_secure_flag;
@@ -280,6 +281,22 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
     mc->max_cpus = 6;
 }
 
+static void sim_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v68_rev, &v68n_1024);
+}
+
+static void sim_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon Sim-like (v68)";
+    mc->init = sim_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V68;
+    mc->default_cpus = 6;
+}
+
 static const TypeInfo hexagon_machine_types[] = {
     {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
@@ -290,6 +307,11 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("SA8775P_CDSP0"),
         .parent = TYPE_MACHINE,
         .class_init = SA8775P_cdsp0_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("sim"),
+        .parent = TYPE_MACHINE,
+        .class_init = sim_init,
     },
 };
 
