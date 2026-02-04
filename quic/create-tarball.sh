@@ -51,9 +51,14 @@ readonly TAG_NAME
 
 readonly SRC_TARBALL_NAME="${TAG_NAME}-src.tar.gz"
 
+relative_realpath() {
+    test $# -eq 2 || { echo "relative_realpath usage error"; exit 1; }
+    python3 -c "import os, sys; print(os.path.relpath(os.path.realpath('$2'), start=os.path.realpath('$1')))"
+}
+
 # Convert absolute paths to relative for exclusions
-BUILD_DIR_REL="$(realpath --relative-to="${PWD}" "${BUILD_DIR}")"
-INSTALL_DIR_REL="$(realpath --relative-to="${PWD}" "${INSTALL_DIR}")"
+BUILD_DIR_REL="$(relative_realpath "${PWD}" "${BUILD_DIR}")"
+INSTALL_DIR_REL="$(relative_realpath "${PWD}" "${INSTALL_DIR}")"
 
 tar --directory="${PWD}" \
     --create \
