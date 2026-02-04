@@ -476,29 +476,19 @@ static uint64_t load_kernel(HexagonVirtMachineState *vms)
     exit(1);
 }
 
-static uint64_t load_bios(HexagonVirtMachineState *vms)
+/*
+ * Create a bootloader stub that passes FDT address and jumps to the specified
+ * entry point. This is used when we have a BIOS/hypervisor (like loadlinux)
+ * that needs to receive the FDT address in registers r1:r0.
+ */
+static uint64_t setup_boot_stub(HexagonVirtMachineState *vms,
+                                uint64_t jump_entry)
 {
-    MachineState *ms = MACHINE(vms);
-    uint64_t bios_addr = 0x0;  /* Load BIOS at reset vector address 0x0 */
-    int bios_size;
-
-    bios_size = load_image_targphys(ms->firmware ?: "", bios_addr, 64 * 1024, NULL);
-    if (bios_size < 0) {
-        error_report("Could not load BIOS '%s'", ms->firmware ?: "");
-        exit(1);
-    }
-
-    return bios_addr;  /* Return entry point at address 0x0 */
-}
-
-static uint64_t setup_boot(HexagonVirtMachineState *vms)
-{
-    uint64_t entry_addr = load_kernel(vms);
-    uint32_t entry_addr_low = extract64(entry_addr, 0, 32);
-
     uint64_t fdt_base = base_memmap[VIRT_FDT].base;
     uint32_t fdt_base_low = extract64(fdt_base, 0, 32);
     uint32_t fdt_base_high = extract64(fdt_base, 32, 32);
+    uint32_t entry_addr_low = extract64(jump_entry, 0, 32);
+
     bootloader[FDT_LO] = cpu_to_le32(fdt_base_low);
     bootloader[FDT_HI] = cpu_to_le32(fdt_base_high);
     bootloader[ENTRY_ADDR] = cpu_to_le32(entry_addr_low);
@@ -506,9 +496,39 @@ static uint64_t setup_boot(HexagonVirtMachineState *vms)
     uint64_t bootl_base = base_memmap[VIRT_BOOT].base;
     g_assert(sizeof(bootloader) <= base_memmap[VIRT_BOOT].size);
     rom_add_blob_fixed_as("bootloader", bootloader, sizeof(bootloader),
-        bootl_base, &address_space_memory);
+                          bootl_base, &address_space_memory);
 
     return bootl_base;
+}
+
+static uint64_t setup_boot(HexagonVirtMachineState *vms)
+{
+    uint64_t entry_addr = load_kernel(vms);
+    return setup_boot_stub(vms, entry_addr);
+}
+
+static uint64_t load_bios(HexagonVirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    uint64_t bios_entry = 0;
+    uint64_t lowaddr = 0, highaddr = 0;
+    int bios_size;
+
+    /* Try to load as ELF first */
+    if (load_elf_ram_sym(ms->firmware, NULL, NULL, NULL, &bios_entry,
+                         &lowaddr, &highaddr, NULL, 0, EM_HEXAGON, 0, 0,
+                         &address_space_memory, false, NULL) > 0) {
+        return bios_entry;
+    }
+
+    /* Fall back to loading as raw binary at address 0x0 */
+    bios_size = load_image_targphys(ms->firmware, 0x0, ms->ram_size, NULL);
+    if (bios_size < 0) {
+        error_report("Could not load BIOS '%s'", ms->firmware);
+        exit(1);
+    }
+
+    return 0x0;
 }
 
 static void do_cpu_reset(void *opaque)
@@ -587,7 +607,20 @@ static void virt_init(MachineState *ms)
 
         if (i == 0) {
             cpu_0 = cpu;
-            if (ms->kernel_filename) {
+            if (ms->firmware && ms->kernel_filename) {
+                /*
+                 * Both BIOS and kernel specified: load BIOS (e.g., loadlinux
+                 * hypervisor) and kernel ELF. Create a bootloader stub that
+                 * passes FDT address and jumps to the BIOS. The kernel will
+                 * be at its ELF-specified load address for the BIOS to find.
+                 */
+                uint64_t bios_entry = load_bios(vms);
+                load_kernel(vms);
+                uint64_t stub_entry = setup_boot_stub(vms, bios_entry);
+                qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr",
+                                     stub_entry);
+                qdev_prop_set_uint32(vms->gsregs, "boot-evb", stub_entry);
+            } else if (ms->kernel_filename) {
                 uint64_t entry = setup_boot(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
                 qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
