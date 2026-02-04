@@ -57,6 +57,9 @@ HEX_TESTS += multiple-writes
 HEX_TESTS += unaligned_pc
 HEX_TESTS += utimer
 
+run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
+	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
+
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
 HEX_TESTS += test_bitsplit

@@ -516,9 +516,12 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
             }
             /*
              * Slot0 decode failed after slot1 succeeded. This is an invalid
-             * duplex encoding (both sub-instructions must be valid).
+             * duplex encoding (both sub-instructions must be valid). Reset
+             * the state so we return an empty insn that will trigger an
+             * exception.
              */
             ctx->insn = --insn;
+            memset(insn, 0, sizeof(*insn));
         }
     }
     /*
