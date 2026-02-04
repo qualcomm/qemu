@@ -30,6 +30,7 @@
 #include "semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
+#include "machine_cfg_v68n_1024.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 
 static hwaddr isdb_secure_flag;
@@ -117,9 +118,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
     /* Create TLB object */
     DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
@@ -127,14 +126,13 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);
     qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
 
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     HexagonCPU *cpu0;
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         cpus[i] = cpu;
-        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -154,7 +152,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             return;
         }
         if (!object_property_set_link(OBJECT(cpu), "tlb",
-                                      OBJECT(tlb_dev), errp)) {
+                                      OBJECT(tlb_dev), &error_fatal)) {
             error_report("Failed to link TLB to CPU %d", i);
             return;
         }
@@ -163,20 +161,13 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal)) {
-                return;
-            }
         } else {
             if (cpu0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
             }
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal)) {
-                env->dir_list = NULL;
-                return;
-            }
         }
-
     }
+
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
 
@@ -289,6 +280,22 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
     mc->max_cpus = 6;
 }
 
+static void sim_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v68_rev, &v68n_1024);
+}
+
+static void sim_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon Sim-like (v68)";
+    mc->init = sim_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V68;
+    mc->default_cpus = 6;
+}
+
 static const TypeInfo hexagon_machine_types[] = {
     {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
@@ -299,6 +306,11 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("SA8775P_CDSP0"),
         .parent = TYPE_MACHINE,
         .class_init = SA8775P_cdsp0_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("sim"),
+        .parent = TYPE_MACHINE,
+        .class_init = sim_init,
     },
 };
 
