@@ -14,6 +14,7 @@
 struct hexagon_board_boot_info {
     uint64_t ram_size;
     const char *kernel_filename;
+    const char *bios_filename;
     uint32_t kernel_elf_flags;
 };
 

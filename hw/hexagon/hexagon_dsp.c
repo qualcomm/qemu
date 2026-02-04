@@ -71,15 +71,55 @@ static void hexagon_load_kernel(HexagonCPU *cpu)
     qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", pentry);
 }
 
+static void hexagon_load_bios(HexagonCPU *cpu)
+{
+    uint64_t pentry;
+    long bios_size;
+
+    bios_size = load_elf_ram_sym(hexagon_binfo.bios_filename, NULL, NULL,
+                      NULL, &pentry, NULL, NULL,
+                      &hexagon_binfo.kernel_elf_flags, 0, EM_HEXAGON, 0, 0,
+                      &address_space_memory, false, hex_symbol_callback);
+
+    if (bios_size <= 0) {
+        error_report("no bios file '%s'",
+            hexagon_binfo.bios_filename);
+        exit(1);
+    }
+
+    qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", pentry);
+}
+
 static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
 {
-    if (machine->kernel_filename) {
+    if (machine->firmware) {
+        /*
+         * -bios: load firmware as the boot image.  When both -bios and
+         * -kernel are specified, -bios supplies the bootloader (e.g.
+         * runelf.pbn) and -kernel provides the semihosting argv[0]
+         * (e.g. the program for the bootloader to exec).
+         */
+        hexagon_load_bios(cpu);
+    } else if (machine->kernel_filename) {
         hexagon_load_kernel(cpu);
-        uint32_t mem = 1;
-        if (isdb_secure_flag) {
+    } else if (!cpu->vp_mode && !qtest_enabled()) {
+        error_report("kernel image must be given with -kernel or -bios");
+        exit(1);
+    } else {
+        return;
+    }
+
+    if (isdb_secure_flag || isdb_trusted_flag) {
+        /* By convention these flags are at offsets 0x30 and 0x34 */
+        uint32_t  mem;
+        cpu_physical_memory_read(isdb_secure_flag, &mem, sizeof(mem));
+        if (mem == 0x0) {
+            mem = cpu_to_le32(1);
             cpu_physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
         }
-        if (isdb_trusted_flag) {
+        cpu_physical_memory_read(isdb_trusted_flag, &mem, sizeof(mem));
+        if (mem == 0x0) {
+            mem = cpu_to_le32(1);
             cpu_physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
         }
     }
@@ -96,9 +136,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                 hexagon_machine_config *m_cfg)
 {
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
+    hexagon_binfo.ram_size = machine->ram_size;
     if (machine->kernel_filename) {
-        hexagon_binfo.ram_size = machine->ram_size;
         hexagon_binfo.kernel_filename = machine->kernel_filename;
+    }
+    if (machine->firmware) {
+        hexagon_binfo.bios_filename = machine->firmware;
     }
 
     machine->enable_graphics = 0;

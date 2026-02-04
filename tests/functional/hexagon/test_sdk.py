@@ -22,11 +22,23 @@ class SDKTests(QemuSystemTest):
     def test_qprintf_default(self):
         self.run_qprintf_case()
 
-    def run_qprintf_case(self, machine=None):
+    def test_qprintf_v81_bios(self):
+        """Test using -bios instead of -kernel for V81DGB_1 machine."""
+        self.run_qprintf_case('V81DGB_1', use_bios=True)
+
+    def test_qprintf_default_bios(self):
+        """Test using -bios instead of -kernel for default machine."""
+        self.run_qprintf_case(use_bios=True)
+
+    def run_qprintf_case(self, machine=None, use_bios=False):
         """
         qprintf example dumps the contents of scalar and HVX registers via
         semihosting, and this particular version of the test case is built with
         QuRT V81, expecting support for the new TLB extension.
+
+        Args:
+            machine: Optional machine type to use (e.g., 'V81DGB_1')
+            use_bios: If True, use -bios to load the bootloader ELF
         """
         self.archive_extract(self.ASSET_TARBALL)
         if machine:
@@ -36,8 +48,13 @@ class SDKTests(QemuSystemTest):
             f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/sdk/V81QA_1'
         kernel = os.path.join(sdk_test_path, 'runelf.pbn')
         vm = self.get_vm()
-        vm.add_args('-m', '4G', '-kernel', kernel, '-append',
-            './run_main_on_hexagon_sim -- ./libqprintf_example_q.so')
+        if use_bios:
+            vm.add_args('-m', '4G', '-bios', kernel,
+                '-kernel', kernel, '-append',
+                './run_main_on_hexagon_sim -- ./libqprintf_example_q.so')
+        else:
+            vm.add_args('-m', '4G', '-kernel', kernel, '-append',
+                './run_main_on_hexagon_sim -- ./libqprintf_example_q.so')
         vm.launch()
         # TODO: Check semihosting output for "PASSED" indication.
         #   the 'wait_for_console_pattern()' function expects to
