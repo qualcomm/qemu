@@ -118,9 +118,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(glob_regs_dev, "qtimer-base-addr", m_cfg->qtmr_region);
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
     /* Create TLB object */
     DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
@@ -135,7 +133,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         cpus[i] = cpu;
-        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -164,20 +161,13 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             cpu0 = cpu;
             hexagon_init_bootstrap(machine, cpu);
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-                return;
-            }
         } else {
             if (cpu0->usefs) {
                 qdev_prop_set_string(DEVICE(cpu), "usefs", cpu0->usefs);
             }
-            if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
-                env->dir_list = NULL;
-                return;
-            }
         }
-
     }
+
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
 
