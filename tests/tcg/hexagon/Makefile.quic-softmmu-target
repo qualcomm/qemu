@@ -137,7 +137,7 @@ reg-writes: EXTRA_TEST_CFLAGS=-O0 -g
 memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
 hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
-pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
+pmu pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
 vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
 swi swi2: EXTRA_TEST_CFLAGS=-mv81
 hsv39_tlb: EXTRA_TEST_CFLAGS=-mv81
