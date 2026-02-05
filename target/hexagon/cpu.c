@@ -719,9 +719,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 #endif
 }
 
-static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
+static void hexagon_cpu_disas_set_info(const CPUState *cs,
+                                       disassemble_info *info)
 {
-    HexagonCPU *hex_cpu = env_archcpu(cpu_env(s));
+    const HexagonCPU *hex_cpu = HEXAGON_CPU(cs);
     info->target_info = (void *)(uintptr_t)hex_cpu->rev_reg;
     info->print_insn = print_insn_hexagon;
     info->endian = BFD_ENDIAN_LITTLE;
