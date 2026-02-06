@@ -8715,7 +8715,17 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
                         &n->bar0, 0, msix_table_offset,
                         &n->bar0, 0, msix_pba_offset, 0, errp);
     }
-
+#ifdef CONFIG_LIBQEMU
+    /**
+     * FIXME: Disabling the reentrancy guard for n->iomem MemoryRegion will
+     * prevent this warning: libqbox: warning: Blocked re-entrant IO on
+     * MemoryRegion: nvme at addr: 0x28.
+     * The access to the I/O memory is already serialized by Qbox run_on_sysc().
+     * But a more generic fix for such reentrancy problems should be sorted out
+     * in future from Qbox side.
+     */
+    n->iomem.disable_reentrancy_guard = true;
+#endif
     if (ret == -ENOTSUP) {
         /* report that msix is not supported, but do not error out */
         warn_report_err(*errp);
