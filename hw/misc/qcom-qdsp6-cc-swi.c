@@ -69,6 +69,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_CORE_BCR:
         return s->vapss_core_bcr;
     case CDSP0_VAPSS_DMA_CMD_RCGR:
+        if (s->vapss_dma_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_dma_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_dma_cmd_rcgr;
     case CDSP0_VAPSS_DMA_CFG_RCGR:
         return s->vapss_dma_cfg_rcgr;
@@ -79,6 +83,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_DMA_SREGR:
         return s->vapss_dma_sregr;
     case CDSP0_VAPSS_VMA_CMD_RCGR:
+        if (s->vapss_vma_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_vma_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_vma_cmd_rcgr;
     case CDSP0_VAPSS_VMA_CFG_RCGR:
         return s->vapss_vma_cfg_rcgr;
@@ -89,6 +97,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_VMA_SREGR:
         return s->vapss_vma_sregr;
     case CDSP0_VAPSS_TCMS_CMD_RCGR:
+        if (s->vapss_tcms_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_tcms_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_tcms_cmd_rcgr;
     case CDSP0_VAPSS_TCMS_CFG_RCGR:
         return s->vapss_tcms_cfg_rcgr;
@@ -99,6 +111,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_TCMS_SREGR:
         return s->vapss_tcms_sregr;
     case CDSP0_VAPSS_HCP_CMD_RCGR:
+        if (s->vapss_hcp_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_hcp_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_hcp_cmd_rcgr;
     case CDSP0_VAPSS_HCP_CFG_RCGR:
         return s->vapss_hcp_cfg_rcgr;
@@ -111,6 +127,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_HCP0_CBCR:
         return s->vapss_hcp0_cbcr;
     case CDSP0_VAPSS_BUS_CMD_RCGR:
+        if (s->vapss_bus_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_bus_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_bus_cmd_rcgr;
     case CDSP0_VAPSS_BUS_CFG_RCGR:
         return s->vapss_bus_cfg_rcgr;
@@ -121,6 +141,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_BUS_SREGR:
         return s->vapss_bus_sregr;
     case CDSP0_VAPSS_FINT_CMD_RCGR:
+        if (s->vapss_fint_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_fint_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_fint_cmd_rcgr;
     case CDSP0_VAPSS_FINT_CFG_RCGR:
         return s->vapss_fint_cfg_rcgr;
@@ -149,6 +173,10 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_VAPSS_APB_CBCR:
         return s->vapss_apb_cbcr;
     case CDSP0_VAPSS_TBUF2_CMD_RCGR:
+        if (s->vapss_tbuf2_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->vapss_tbuf2_cmd_rcgr &= ~0x1;
+        }
         return s->vapss_tbuf2_cmd_rcgr;
     case CDSP0_VAPSS_TBUF2_CFG_RCGR:
         return s->vapss_tbuf2_cfg_rcgr;
@@ -201,12 +229,20 @@ static uint64_t cdsp0_clkctl_read(void *opaque, hwaddr addr, unsigned size)
     case CDSP0_Q6SS_ALT_RESET_AON_CBCR:
         return s->q6ss_alt_reset_aon_cbcr;
     case CDSP0_Q6SS_LMH_CMD_RCGR:
+        if (s->q6ss_lmh_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->q6ss_lmh_cmd_rcgr &= ~0x1;
+        }
         return s->q6ss_lmh_cmd_rcgr;
     case CDSP0_Q6SS_LMH_CFG_RCGR:
         return s->q6ss_lmh_cfg_rcgr;
     case CDSP0_Q6SS_LMH_CBCR:
         return s->q6ss_lmh_cbcr;
     case CDSP0_Q6SS_ISENSE_CMD_RCGR:
+        if (s->q6ss_isense_cmd_rcgr & 0x1) {
+            /* Simulate a clock update */
+            s->q6ss_isense_cmd_rcgr &= ~0x1;
+        }
         return s->q6ss_isense_cmd_rcgr;
     case CDSP0_Q6SS_ISENSE_CFG_RCGR:
         return s->q6ss_isense_cfg_rcgr;
