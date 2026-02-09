@@ -18,7 +18,7 @@
 # Hexagon doesn't support gdb, so skip the EXTRA_RUNS
 EXTRA_RUNS =
 
-CFLAGS = -mv69 -O2 -mhvx -mhmx -fvectorize
+CFLAGS = -mv69 -O2 -mhvx -fvectorize
 CFLAGS += -Wno-incompatible-pointer-types -Wno-undefined-internal
 CFLAGS += -fno-unroll-loops -fno-stack-protector
 
@@ -195,7 +195,7 @@ utimer: utimer.c hex_test.h
 # This test has to be compiled for the -mv67t target
 usr: usr.c hex_test.h
 	$(CC) $(CFLAGS) -mv67t -O2 $< -o $@ $(LDFLAGS) \
-		-Wno-inline-asm -Wno-expansion-to-defined -mno-hmx -Wl,--no-warn-mismatch
+		-Wno-inline-asm -Wno-expansion-to-defined -Wl,--no-warn-mismatch
 
 # Build this test with -mv71 to exercise the CABAC instruction
 misc: misc.c

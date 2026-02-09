@@ -1551,7 +1551,7 @@ probe_target_compiler() {
 
   case $target in
     hexagon-linux-user)
-      cross_cc_hexagon=hexagon-linux-clang ;;
+      cross_cc_hexagon=hexagon-unknown-linux-musl-clang ;;
     hexagon-softmmu)
       cross_cc_hexagon=hexagon-clang ;;
   esac
