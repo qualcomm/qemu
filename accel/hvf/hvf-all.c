@@ -18,6 +18,9 @@
 #include "hw/core/cpu.h"
 #include "hw/boards.h"
 #include "trace.h"
+#ifdef CONFIG_LIBQEMU
+#include "hvf_arm.h"
+#endif
 
 bool hvf_allowed;
 
@@ -253,7 +256,17 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
     int x;
     hv_return_t ret;
     HVFState *s = HVF_STATE(as);
+#ifdef CONFIG_LIBQEMU
+    /**
+     * libqemu uses the null machine which doesn't implement
+     * hvf_get_physical_address_range callback function to calculate
+     * the pa_range based on the physical address layout of the machine, hence
+     * using the max pa supported by the machine as pa_range in this case.
+     */
+    int pa_range = hvf_arm_get_max_ipa_bit_size();
+#else
     int pa_range = 36;
+#endif
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     if (mc->hvf_get_physical_address_range) {
