@@ -964,8 +964,11 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         return;
     }
 
+    HexagonCPU *hex_cpu = env_archcpu(env);
+
     ctx->pkt = &pkt;
-    words_read = decode_packet(ctx, nwords, words, &pkt, false);
+    words_read = decode_packet(ctx, nwords, words, &pkt, false,
+                               hex_cpu->rev_reg);
     if (words_read > 0) {
         pkt.pc = ctx->base.pc_next;
         if (pkt_has_write_conflict(&pkt)) {

@@ -28,6 +28,6 @@ void decode_init(void);
 void decode_send_insn_to(Packet *packet, int start, int newloc);
 
 int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
-                  Packet *pkt, bool disas_only);
+                  Packet *pkt, bool disas_only, uint32_t rev);
 
 #endif
