@@ -27,12 +27,21 @@
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
 
-static void hexagon_v66_cpu_init(Object *obj) { }
-static void hexagon_v67_cpu_init(Object *obj) { }
-static void hexagon_v68_cpu_init(Object *obj) { }
-static void hexagon_v69_cpu_init(Object *obj) { }
-static void hexagon_v71_cpu_init(Object *obj) { }
-static void hexagon_v73_cpu_init(Object *obj) { }
+#define HEXAGON_REV(MAJ, MIN) (((MAJ) << 4) | (MIN))
+
+#define DEFINE_STD_CPU_INIT_FUNC(VER, MAJ, MIN) \
+    static void hexagon_##VER##_cpu_init(Object *obj) \
+    { \
+        HexagonCPU *cpu = HEXAGON_CPU(obj); \
+        cpu->rev_reg = HEXAGON_REV(MAJ, MIN); \
+    }
+
+DEFINE_STD_CPU_INIT_FUNC(v66, 6, 6)
+DEFINE_STD_CPU_INIT_FUNC(v67, 6, 7)
+DEFINE_STD_CPU_INIT_FUNC(v68, 6, 8)
+DEFINE_STD_CPU_INIT_FUNC(v69, 6, 9)
+DEFINE_STD_CPU_INIT_FUNC(v71, 7, 1)
+DEFINE_STD_CPU_INIT_FUNC(v73, 7, 3)
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
