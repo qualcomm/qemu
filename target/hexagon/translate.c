@@ -130,8 +130,8 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
 
 static void gen_exception(int excp, uint32_t PC)
 {
-    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp),
-                               tcg_constant_i32(PC));
+    gen_helper_hexagon_raise_exception(tcg_env, tcg_constant_i32(excp),
+                                       tcg_constant_i32(PC));
 }
 
 #ifndef CONFIG_USER_ONLY
