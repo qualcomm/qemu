@@ -4624,7 +4624,7 @@ foreach target : target_dirs
 # FOR LIBQEMU
     if enable_libqemu
       libqemu_link_args = link_args
-      if host_os != 'darwin'
+      if host_os == 'linux'
         libqemu_link_args += ['-Wl,--disable-new-dtags']
       endif
       # Use ELF $ORIGIN on non-Darwin, Mach-O @loader_path on Darwin
