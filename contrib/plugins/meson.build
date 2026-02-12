@@ -11,13 +11,13 @@ if get_option('plugins')
   foreach i : contrib_plugins
     if host_os == 'windows'
       t += shared_module(i, files(i + '.c') + 'win32_linker.c',
-                        include_directories: '../../include/qemu',
+                        include_directories: ['../../include/qemu', '../../libqemu'],
                         link_depends: [win32_qemu_plugin_api_lib],
                         link_args: win32_qemu_plugin_api_link_flags,
                         dependencies: glib)
     else
       t += shared_module(i, files(i + '.c'),
-                        include_directories: '../../include/qemu',
+                        include_directories: ['../../include/qemu', '../../libqemu'],
                         dependencies: glib,
                         install: true,
                         install_dir: get_option('libdir')) # FOR LIBQEMU

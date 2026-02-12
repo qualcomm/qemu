@@ -17,8 +17,8 @@ import re
 def extract_symbols(plugin_header):
     with open(plugin_header) as file:
         content = file.read()
-    # Remove QEMU_PLUGIN_API macro definition.
-    content = content.replace('#define QEMU_PLUGIN_API', '')
+    # Remove QEMU_PLUGIN_API* macro definition.
+    content = re.sub(r'#define QEMU_PLUGIN_API.*', '', content)
     expected = content.count('QEMU_PLUGIN_API')
     # Find last word between QEMU_PLUGIN_API and (, matching on several lines.
     # We use *? non-greedy quantifier.

@@ -4,7 +4,7 @@ endif
 
 plugin_headers = [files('../include/qemu/qemu-plugin.h')]
 if enable_libqemu
-  plugin_headers += files('./libqemu.symbols')
+  plugin_headers += files('./libqemu.symbols', '../libqemu/libqemu-plugin.h')
 endif
 
 qemu_plugin_symbols = configure_file(
