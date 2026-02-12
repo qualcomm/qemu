@@ -20,6 +20,7 @@
 #include "hw/misc/qcom-qdsp6-cc-regs.h"
 #include "hw/misc/qcom-qdsp6-gdscr.h"
 #include "hw/misc/qcom-qdsp6-cc-swi.h"
+#include "hw/misc/qcom-turing-lmh.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
 #include "hw/char/pl011.h"
@@ -297,6 +298,13 @@ static void create_hwkm_prng(void)
     DeviceState *dev = qdev_new(TYPE_HWKM_PRNG);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, HWKM_PRNG_BASE);
+}
+
+static void create_turing_lmh(void)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_LMH);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + TURING_LMH_OFFSET);
 }
 
 static void create_cdsp_pll(void)
@@ -762,6 +770,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     create_cdsp_clkctl();
     create_cdsp_gdscr();
     create_cdsp_ccswi();
+    create_turing_lmh();
     /* The OS running on the DSP expects the timer to be running */
     uint32_t enable = 0x1;
     cpu_physical_memory_write(SA8775P_cdsp0.qtmr_region + QCT_QTIMER_CNTP_CTL,
