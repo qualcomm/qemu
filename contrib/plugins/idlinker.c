@@ -11,16 +11,7 @@
 #include <stdlib.h>
 
 #include <qemu-plugin.h>
-
-/**
- * global_set_cci_param() set cci parameter, it is used to set the unique plugin
- * ID for a unique plugin key.
- *
- * @key: unique plugin key
- * @val: unique plugin ID (cci parameter)
- */
-/* checkpatch-ignore: AVOID_EXTERNS */
-extern void global_set_cci_param(char *key, uint64_t val);
+#include <libqemu-plugin.h>
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 

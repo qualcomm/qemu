@@ -4645,7 +4645,7 @@ endforeach
 # Other build targets
 
 if get_option('plugins')
-  install_headers('include/plugins/qemu-plugin.h')
+  install_headers('include/plugins/qemu-plugin.h', 'libqemu/libqemu-plugin.h')
   if host_os == 'windows'
     # On windows, we want to deliver the qemu_plugin_api.lib file in the qemu installer,
     # so that plugin authors can compile against it.
