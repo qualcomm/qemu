@@ -17,14 +17,14 @@ import re
 def extract_symbols(plugin_header):
     with open(plugin_header) as file:
         content = file.read()
-    # Remove QEMU_PLUGIN_API macro definition.
-    content = content.replace('#define QEMU_PLUGIN_API', '')
+    # Remove QEMU_PLUGIN_API* macro definition.
+    content = re.sub(r'#define QEMU_PLUGIN_API.*', '', content)
     expected = content.count('QEMU_PLUGIN_API')
     # Find last word between QEMU_PLUGIN_API and ( to get the function name,
     # matching on several lines. Discard attributes, if any.
     # We use *? non-greedy quantifier.
     syms = re.findall(
-        r'QEMU_PLUGIN_API\s+(?:__attribute__\(\(\S+\)\))?.*?(\w+)\s*\(',
+        r'QEMU_PLUGIN_API(?:_EXTERNAL)?\s+(?:__attribute__\(\(\S+\)\))?.*?(\w+)\s*\(',
         content,
         re.DOTALL,
     )
