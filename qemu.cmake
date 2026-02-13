@@ -109,7 +109,7 @@ if(LIBQEMU_HOST_CC)
 endif()
 
 if (GS_ENABLE_SANITIZERS)
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-sanitizers)
+    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-asan --enable-ubsan)
 endif()
 
 if (GS_ENABLE_LLD)
