@@ -38,6 +38,7 @@ struct HexagonVirtMachineState {
     DeviceState *gsregs;
     HexagonBootInfo bootinfo;
     QCTQtimerState *qtimer;
+    uint64_t kernel_load_addr;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);

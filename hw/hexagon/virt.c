@@ -24,6 +24,7 @@
 #include "hw/timer/qct-qtimer.h"
 #include "hw/misc/cdsp-pll.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
@@ -352,6 +353,8 @@ static void virt_instance_init(Object *obj)
     /* Initialize boot info */
     memset(&vms->bootinfo, 0, sizeof(vms->bootinfo));
 
+    vms->kernel_load_addr = 0xa0000000;
+
     create_fdt(vms);
 }
 
@@ -450,14 +453,25 @@ static void hexagon_load_initrd(MachineState *machine, HexagonBootInfo *info)
     }
 }
 
+static uint64_t kernel_translate(void *opaque, uint64_t addr)
+{
+    HexagonVirtMachineState *vms = opaque;
+    return addr + vms->kernel_load_addr;
+}
+
 static uint64_t load_kernel(HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
     HexagonBootInfo *info = &vms->bootinfo;
     uint64_t entry = 0;
     uint64_t lowaddr = 0, highaddr = 0;
+    uint64_t (*xlate)(void *, uint64_t) = NULL;
 
-    if (load_elf_ram_sym(ms->kernel_filename, NULL, NULL, NULL, &entry,
+    if (vms->kernel_load_addr && ms->firmware) {
+        xlate = kernel_translate;
+    }
+
+    if (load_elf_ram_sym(ms->kernel_filename, NULL, xlate, vms, &entry,
                          &lowaddr, &highaddr, NULL, 0, EM_HEXAGON, 0, 0,
                          &address_space_memory, false, NULL) > 0) {
         info->kernel_start = entry;
@@ -611,8 +625,11 @@ static void virt_init(MachineState *ms)
                 /*
                  * Both BIOS and kernel specified: load BIOS (e.g., loadlinux
                  * hypervisor) and kernel ELF. Create a bootloader stub that
-                 * passes FDT address and jumps to the BIOS. The kernel will
-                 * be at its ELF-specified load address for the BIOS to find.
+                 * passes FDT address and jumps to the BIOS.
+                 *
+                 * If kernel-addr is set, the kernel ELF segments are
+                 * translated by that offset so the BIOS can find the
+                 * kernel at the expected physical address.
                  */
                 uint64_t bios_entry = load_bios(vms);
                 load_kernel(vms);
@@ -718,6 +735,23 @@ static void virt_init(MachineState *ms)
 }
 
 
+static void virt_get_kernel_addr(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
+    uint64_t value = vms->kernel_load_addr;
+    visit_type_uint64(v, name, &value, errp);
+}
+
+static void virt_set_kernel_addr(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(obj);
+    visit_type_uint64(v, name, &vms->kernel_load_addr, errp);
+}
+
 static void virt_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -734,6 +768,14 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     mc->no_cdrom = 1;
     mc->numa_mem_supported = false;
     mc->default_nic = "virtio-mmio-bus";
+
+    object_class_property_add(oc, "kernel-addr", "uint64",
+                              virt_get_kernel_addr,
+                              virt_set_kernel_addr,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "kernel-addr",
+        "Physical address offset for loading the kernel ELF "
+        "(used with -bios + -kernel)");
 }
 
 
