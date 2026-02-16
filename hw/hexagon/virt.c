@@ -569,8 +569,8 @@ static void virt_init(MachineState *ms)
         }
     }
 
-    /* Set kernel command line in chosen node only if using generated FDT */
-    if (ms->dtb == NULL && ms->kernel_cmdline && *ms->kernel_cmdline) {
+    /* Set kernel command line in chosen node from -append */
+    if (ms->kernel_cmdline && *ms->kernel_cmdline) {
         qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs",
                                 ms->kernel_cmdline);
     }
