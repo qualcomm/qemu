@@ -102,9 +102,6 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
         hexagon_load_bios(cpu);
     } else if (machine->kernel_filename) {
         hexagon_load_kernel(cpu);
-    } else if (!cpu->vp_mode && !qtest_enabled()) {
-        error_report("kernel image must be given with -kernel or -bios");
-        exit(1);
     } else {
         return;
     }
