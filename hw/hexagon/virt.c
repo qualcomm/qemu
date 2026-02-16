@@ -361,7 +361,7 @@ static void virt_instance_init(Object *obj)
 void hexagon_load_fdt(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
-    hwaddr fdt_addr = base_memmap[VIRT_FDT].base;
+    hwaddr fdt_addr = vms->fdt_addr;
     uint32_t fdtsize = vms->fdt_size;
 
     g_assert(fdtsize <= base_memmap[VIRT_FDT].size);
@@ -498,7 +498,7 @@ static uint64_t load_kernel(HexagonVirtMachineState *vms)
 static uint64_t setup_boot_stub(HexagonVirtMachineState *vms,
                                 uint64_t jump_entry)
 {
-    uint64_t fdt_base = base_memmap[VIRT_FDT].base;
+    uint64_t fdt_base = vms->fdt_addr;
     uint32_t fdt_base_low = extract64(fdt_base, 0, 32);
     uint32_t fdt_base_high = extract64(fdt_base, 32, 32);
     uint32_t entry_addr_low = extract64(jump_entry, 0, 32);
@@ -728,6 +728,27 @@ static void virt_init(MachineState *ms)
                           sizeof(*guest_config_table), m_cfg->cfgbase,
                           &address_space_memory);
     g_free(guest_config_table);
+
+    /*
+     * Place FDT in kernel-accessible physical memory.
+     * The kernel maps PHYS_OFFSET..PHYS_OFFSET+896MB, so the FDT must
+     * be within that range.  Place it after the kernel image (and initrd
+     * if present) with some headroom.
+     */
+    if (ms->kernel_filename) {
+        hwaddr after_images = vms->bootinfo.image_high_addr;
+        if (vms->bootinfo.initrd_size) {
+            hwaddr initrd_end = vms->bootinfo.initrd_start +
+                                vms->bootinfo.initrd_size;
+            if (initrd_end > after_images) {
+                after_images = initrd_end;
+            }
+        }
+        vms->fdt_addr = QEMU_ALIGN_UP(after_images + 16 * MiB, 4 * MiB);
+    } else {
+        /* Firmware-only: place FDT at kernel_load_addr + 256MB */
+        vms->fdt_addr = vms->kernel_load_addr + 256 * MiB;
+    }
 
     hexagon_load_fdt(vms);
 
