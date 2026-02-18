@@ -262,6 +262,8 @@ X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
 F: tests/tcg/hexagon/
+F: include/hw/char/qup_geni_uart.h
+F: rust/hw/char/qup_geni_uart/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user.mak
 F: configs/targets/hexagon-softmmu.mak
