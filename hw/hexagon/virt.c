@@ -9,6 +9,9 @@
 #include "hw/hexagon/virt.h"
 #include "elf.h"
 #include "hw/char/pl011.h"
+#ifdef CONFIG_X_QUP_GENI_UART_RUST
+#include "hw/char/qup_geni_uart.h"
+#endif
 #include "hw/core/clock.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
@@ -36,6 +39,7 @@ static const int VIRTIO_DEV_COUNT = 8;
 
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
+    [VIRT_QUP_UART0] = { 0x10004000, 0x00006000 },
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
     [VIRT_FDT] = { 0x99800000, 0x00400000 },
@@ -47,6 +51,7 @@ static const int irqmap[] = {
     [VIRT_MMIO] = 18, /* ...to 18 + VIRTIO_DEV_COUNT - 1 */
     [VIRT_GPT] = 12,
     [VIRT_UART0] = 15,
+    [VIRT_QUP_UART0] = 16,
     [VIRT_QTMR0] = 2,
     [VIRT_QTMR1] = 4,
 };
@@ -210,12 +215,42 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           irq_hvm_ic_phandle);
 
-    qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
     qemu_fdt_add_subnode(ms->fdt, "/aliases");
+    qemu_fdt_setprop_string(ms->fdt, "/aliases", "serial1", nodename);
+
+    g_free(nodename);
+}
+
+#ifdef CONFIG_X_QUP_GENI_UART_RUST
+static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
+{
+    char *nodename;
+    hwaddr base = base_memmap[VIRT_QUP_UART0].base;
+    hwaddr size = base_memmap[VIRT_QUP_UART0].size;
+    int irq = irqmap[VIRT_QUP_UART0];
+    MachineState *ms = MACHINE(vms);
+
+    qup_geni_uart_create(base,
+                         qdev_get_gpio_in(vms->l2vic, irq),
+                         serial_hd(1));
+
+    nodename = g_strdup_printf("/soc/serial@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                            "qcom,geni-debug-uart");
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
+                           clock_phandle);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
+                          irq_hvm_ic_phandle);
+
+    qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
     qemu_fdt_setprop_string(ms->fdt, "/aliases", "serial0", nodename);
 
     g_free(nodename);
 }
+#endif
 
 static void fdt_add_cpu_nodes(const HexagonVirtMachineState *vms)
 {
@@ -632,6 +667,9 @@ static void virt_init(MachineState *ms)
         fdt_add_cpu_nodes(vms);
         fdt_add_clocks(vms);
         fdt_add_uart(vms, VIRT_UART0);
+#ifdef CONFIG_X_QUP_GENI_UART_RUST
+        fdt_add_qup_uart(vms);
+#endif
         fdt_add_gpt_node(vms);
     }
     sysbus_connect_irq(SYS_BUS_DEVICE(vms->qtimer), 0,
