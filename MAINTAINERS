@@ -264,8 +264,13 @@ F: tests/tcg/hexagon/
 F: hw/misc/cdsp-pll.c
 F: include/hw/misc/cdsp-pll.h
 F: tests/qtest/cdsp-pll-test.c
+F: tests/qtest/l2vic-test.c
+F: tests/qtest/qct-qtimer-test.c
+F: include/hw/char/qup_geni_uart.h
+F: rust/hw/char/qup_geni_uart/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
+F: configs/targets/hexagon-softmmu.mak
 F: configs/devices/hexagon-softmmu/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdbstub/gdb-xml/hexagon*.xml
