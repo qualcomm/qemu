@@ -1,2 +1,5 @@
 config X_PL011_RUST
     bool
+
+config X_QUP_GENI_UART_RUST
+    bool
