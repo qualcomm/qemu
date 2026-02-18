@@ -42,6 +42,8 @@ struct Instruction {
     uint32_t new_value_producer_slot:4;
     int32_t new_read_idx;
     int32_t dest_idx;
+    bool dest_is_pair;
+    bool dest_is_gpr;
     bool has_pred_dest;
 
     bool part1;              /*
@@ -80,8 +82,10 @@ struct Packet {
     bool pkt_has_hvx_vs_3src;
     bool pkt_has_coproc;
 
+    bool pkt_has_write_conflict;
+
 	/* This MUST be the last thing in this structure */
-	Insn insn[INSTRUCTIONS_MAX];
+    Insn insn[INSTRUCTIONS_MAX];
 };
 
 typedef struct Packet Packet;

@@ -130,7 +130,7 @@ const VMStateDescription vmstate_mem_log = {
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(va, MemLog),
-        VMSTATE_UINT8(width, MemLog),
+        VMSTATE_UINT32(width, MemLog),
         VMSTATE_UINT32(data32, MemLog),
         VMSTATE_UINT64(data64, MemLog),
         VMSTATE_END_OF_LIST()

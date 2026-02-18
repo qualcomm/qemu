@@ -46,11 +46,12 @@ typedef struct {
     void (*init)(Cpu *cpu);
     void (*end)(Cpu *cpu);
     uint64_t (*get_frame_pointer)(Cpu *cpu);
+    uint64_t (*get_next_frame_pointer)(Cpu *cpu, uint64_t fp);
+    uint64_t (*get_next_return_address)(Cpu *cpu, uint64_t fp);
     uint8_t (*get_privilege_level)(Cpu *cpu);
     uint8_t (*num_privilege_levels)(void);
     const char *(*get_privilege_level_name)(uint8_t pl);
     bool (*does_insn_modify_frame_pointer)(const char *disas);
-    uint64_t (*read_lr)(Cpu *cpu, uint64_t frame_pointer);
 } CpuOps;
 
 typedef struct Cpu {
@@ -61,7 +62,6 @@ typedef struct Cpu {
     GByteArray *buf;
     CpuOps ops;
     void *arch;
-    int arch_size_bytes;
 } Cpu;
 
 typedef enum {
@@ -111,6 +111,19 @@ typedef struct {
     struct qemu_plugin_register *reg_ssr;
     struct qemu_plugin_register *reg_framekey;
 } HexagonCPU;
+
+typedef struct {
+    struct qemu_plugin_register *reg_fp;
+    struct qemu_plugin_register *reg_priv;
+} Riscv64Cpu;
+
+typedef enum {
+    RISCV64_USER,
+    RISCV64_SUPERVISOR,
+    RISCV64_RESERVED,
+    RISCV64_MACHINE,
+    RISCV64_PRIVILEGE_LEVEL_MAX,
+} Riscv64PrivilegeLevel;
 
 typedef struct {
     uint64_t timestamp;
@@ -434,22 +447,34 @@ static uint32_t cpu_read_register32(Cpu *cpu, struct qemu_plugin_register *reg)
     return *((uint32_t *) buf->data);
 }
 
-static uint64_t cpu_read_memory_reg_size(Cpu *cpu, uint64_t addr)
+static uint64_t cpu_read_memory64(Cpu *cpu, uint64_t addr)
 {
-    g_assert(addr);
+    if (!addr) {
+        return 0;
+    }
     GByteArray *buf = cpu->buf;
     g_byte_array_set_size(buf, 0);
-    bool read = qemu_plugin_read_memory_vaddr(addr, buf, cpu->arch_size_bytes);
+    bool read = qemu_plugin_read_memory_vaddr(addr, buf, 8);
     if (!read) {
         return 0;
     }
-    g_assert(buf->len == cpu->arch_size_bytes);
-    if (cpu->arch_size_bytes == 4) {
-        return *((uint32_t *) buf->data);
-    } else if (cpu->arch_size_bytes == 8) {
-        return *((uint64_t *) buf->data);
+    g_assert(buf->len == 8);
+    return *((uint64_t *) buf->data);
+}
+
+static uint32_t cpu_read_memory32(Cpu *cpu, uint64_t addr)
+{
+    if (!addr) {
+        return 0;
     }
-    g_assert_not_reached();
+    GByteArray *buf = cpu->buf;
+    g_byte_array_set_size(buf, 0);
+    bool read = qemu_plugin_read_memory_vaddr(addr, buf, 4);
+    if (!read) {
+        return 0;
+    }
+    g_assert(buf->len == 4);
+    return *((uint32_t *) buf->data);
 }
 
 static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
@@ -463,20 +488,18 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
         /* check we don't have an infinite stack */
         for (size_t i = 0; i < depth; ++i) {
             if (frame_pointer == unwind[i].frame_pointer) {
-                break;
+                goto after_unwind;
             }
         }
         CallstackEntry e = {.frame_pointer = frame_pointer, .pc = pc};
         unwind[depth] = e;
         depth++;
-        if (frame_pointer) {
-            frame_pointer = cpu_read_memory_reg_size(cpu, frame_pointer);
-        }
-        /* read previous lr */
-        pc = arch_ops.read_lr(cpu, frame_pointer);
+        frame_pointer = cpu->ops.get_next_frame_pointer(cpu, frame_pointer);
+        pc = cpu->ops.get_next_return_address(cpu, frame_pointer);
     } while (frame_pointer && pc && depth < UNWIND_STACK_MAX_DEPTH);
     #undef UNWIND_STACK_MAX_DEPTH
 
+after_unwind:
     /* push it from bottom to top */
     while (depth) {
         callstack_push(cpu->cs, unwind[depth - 1]);
@@ -565,11 +588,20 @@ static uint64_t aarch64_get_frame_pointer(Cpu *cpu_)
     return cpu_read_register64(cpu_, cpu->reg_fp);
 }
 
+static uint64_t aarch64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp);
+}
+
+static uint64_t aarch64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp + 8);
+}
+
 static void aarch64_init(Cpu *cpu_)
 {
     Aarch64Cpu *cpu = g_new0(Aarch64Cpu, 1);
     cpu_->arch = cpu;
-    cpu_->arch_size_bytes = 8;
     cpu->reg_fp = plugin_find_register("x29");
     if (!cpu->reg_fp) {
         fprintf(stderr, "uftrace plugin: frame pointer register (x29) is not "
@@ -597,20 +629,16 @@ static bool aarch64_does_insn_modify_frame_pointer(const char *disas)
     return strstr(disas, " x29");
 }
 
-static uint64_t aarch64_read_lr(Cpu *cpu, uint64_t frame_pointer)
-{
-    return cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
-}
-
 static CpuOps aarch64_ops = {
     .init = aarch64_init,
     .end = aarch64_end,
     .get_frame_pointer = aarch64_get_frame_pointer,
+    .get_next_frame_pointer = aarch64_get_next_frame_pointer,
+    .get_next_return_address = aarch64_get_next_return_address,
     .get_privilege_level = aarch64_get_privilege_level,
     .num_privilege_levels = aarch64_num_privilege_levels,
     .get_privilege_level_name = aarch64_get_privilege_level_name,
     .does_insn_modify_frame_pointer = aarch64_does_insn_modify_frame_pointer,
-    .read_lr = aarch64_read_lr,
 };
 
 static uint8_t x64_num_privilege_levels(void)
@@ -650,11 +678,20 @@ static uint64_t x64_get_frame_pointer(Cpu *cpu_)
     return cpu_read_register64(cpu_, cpu->reg_rbp);
 }
 
+static uint64_t x64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp);
+}
+
+static uint64_t x64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp + 8);
+}
+
 static void x64_init(Cpu *cpu_)
 {
     X64Cpu *cpu = g_new0(X64Cpu, 1);
     cpu_->arch = cpu;
-    cpu_->arch_size_bytes = 8;
     cpu->reg_rbp = plugin_find_register("rbp");
     g_assert(cpu->reg_rbp);
     cpu->reg_cs = plugin_find_register("cs");
@@ -673,20 +710,16 @@ static bool x64_does_insn_modify_frame_pointer(const char *disas)
     return strstr(disas, "rbp");
 }
 
-static uint64_t x64_read_lr(Cpu *cpu, uint64_t frame_pointer)
-{
-    return cpu_read_memory_reg_size(cpu, frame_pointer + cpu->arch_size_bytes);
-}
-
 static CpuOps x64_ops = {
     .init = x64_init,
     .end = x64_end,
     .get_frame_pointer = x64_get_frame_pointer,
+    .get_next_frame_pointer = x64_get_next_frame_pointer,
+    .get_next_return_address = x64_get_next_return_address,
     .get_privilege_level = x64_get_privilege_level,
     .num_privilege_levels = x64_num_privilege_levels,
     .get_privilege_level_name = x64_get_privilege_level_name,
     .does_insn_modify_frame_pointer = x64_does_insn_modify_frame_pointer,
-    .read_lr = x64_read_lr,
 };
 
 
@@ -732,11 +765,25 @@ static uint64_t hexagon_get_frame_pointer(Cpu *cpu_)
     return cpu_read_register32(cpu_, cpu->reg_fp);
 }
 
+static uint64_t hexagon_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory32(cpu_, fp);
+}
+
+static uint64_t hexagon_get_next_return_address(Cpu *cpu_,
+                                                uint64_t frame_pointer)
+{
+    HexagonCPU *cpu = cpu_->arch;
+    uint64_t framekey = cpu_read_register32(cpu_, cpu->reg_framekey);
+    uint64_t scrambled_lr = cpu_read_memory32(cpu_, frame_pointer + 4);
+    uint64_t lr = scrambled_lr ^ framekey;
+    return lr;
+}
+
 static void hexagon_init(Cpu *cpu_)
 {
     HexagonCPU *cpu = g_new0(HexagonCPU, 1);
     cpu_->arch = cpu;
-    cpu_->arch_size_bytes = 4;
     cpu->reg_fp = plugin_find_register("fp");
     if (!cpu->reg_fp) {
         fprintf(stderr, "uftrace plugin: frame pointer register (R30) is not "
@@ -760,25 +807,88 @@ static bool hexagon_does_insn_modify_frame_pointer(const char *disas)
            strstr(disas, "R30") || strstr(disas, "R31:30");
 }
 
-static uint64_t hexagon_read_lr(Cpu *cpu_, uint64_t frame_pointer)
-{
-    HexagonCPU *cpu = cpu_->arch;
-    uint64_t framekey = cpu_read_register32(cpu_, cpu->reg_framekey);
-    uint64_t scrambled_lr = cpu_read_memory_reg_size(cpu_, frame_pointer +
-                                                     cpu_->arch_size_bytes);
-    uint64_t lr = scrambled_lr ^ framekey;
-    return lr;
-}
-
 static CpuOps hexagon_ops = {
     .init = hexagon_init,
     .end = hexagon_end,
     .get_frame_pointer = hexagon_get_frame_pointer,
+    .get_next_frame_pointer = hexagon_get_next_frame_pointer,
+    .get_next_return_address = hexagon_get_next_return_address,
     .get_privilege_level = hexagon_get_privilege_level,
     .num_privilege_levels = hexagon_num_privilege_levels,
     .get_privilege_level_name = hexagon_get_privilege_level_name,
     .does_insn_modify_frame_pointer = hexagon_does_insn_modify_frame_pointer,
-    .read_lr = hexagon_read_lr,
+};
+
+static uint8_t riscv64_num_privilege_levels(void)
+{
+    return RISCV64_PRIVILEGE_LEVEL_MAX;
+}
+
+static const char *riscv64_get_privilege_level_name(uint8_t pl)
+{
+    switch (pl) {
+    case RISCV64_USER: return "User";
+    case RISCV64_SUPERVISOR: return "Supervisor";
+    case RISCV64_RESERVED: return "Unknown";
+    case RISCV64_MACHINE: return "Machine";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint8_t riscv64_get_privilege_level(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = cpu_->arch;
+    return cpu_read_register64(cpu_, cpu->reg_priv);
+}
+
+static uint64_t riscv64_get_frame_pointer(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = cpu_->arch;
+    return cpu_read_register64(cpu_, cpu->reg_fp);
+}
+
+static uint64_t riscv64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp - 16);
+}
+
+static uint64_t riscv64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp - 8);
+}
+
+static void riscv64_init(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = g_new0(Riscv64Cpu, 1);
+    cpu_->arch = cpu;
+    cpu->reg_fp = plugin_find_register("fp");
+    g_assert(cpu->reg_fp);
+    cpu->reg_priv = plugin_find_register("priv");
+    g_assert(cpu->reg_priv);
+}
+
+static void riscv64_end(Cpu *cpu)
+{
+    g_free(cpu->arch);
+}
+
+static bool riscv64_does_insn_modify_frame_pointer(const char *disas)
+{
+    /* fp is s0 in disassembly */
+    return strstr(disas, "s0");
+}
+
+static CpuOps riscv64_ops = {
+    .init = riscv64_init,
+    .end = riscv64_end,
+    .get_frame_pointer = riscv64_get_frame_pointer,
+    .get_next_frame_pointer = riscv64_get_next_frame_pointer,
+    .get_next_return_address = riscv64_get_next_return_address,
+    .get_privilege_level = riscv64_get_privilege_level,
+    .num_privilege_levels = riscv64_num_privilege_levels,
+    .get_privilege_level_name = riscv64_get_privilege_level_name,
+    .does_insn_modify_frame_pointer = riscv64_does_insn_modify_frame_pointer,
 };
 
 static void track_privilege_change(unsigned int cpu_index, void *udata)
@@ -836,7 +946,7 @@ static void track_callstack(unsigned int cpu_index, void *udata)
         return;
     }
 
-    uint64_t caller_fp = fp ? cpu_read_memory_reg_size(cpu, fp) : 0;
+    uint64_t caller_fp = cpu->ops.get_next_frame_pointer(cpu, fp);
     if (caller_fp == top.frame_pointer) {
         /* call */
         callstack_push(cs, (CallstackEntry){.frame_pointer = fp, .pc = pc});
@@ -990,6 +1100,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         arch_ops = aarch64_ops;
     } else if (!strcmp(info->target_name, "x86_64")) {
         arch_ops = x64_ops;
+    } else if (!strcmp(info->target_name, "riscv64")) {
+        arch_ops = riscv64_ops;
     } else if (!strcmp(info->target_name, "hexagon")) {
         arch_ops = hexagon_ops;
     } else {

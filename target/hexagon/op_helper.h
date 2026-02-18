@@ -27,7 +27,8 @@
 void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
                   uint32_t slot, target_ulong vaddr, int size, uintptr_t ra);
 void log_store64(CPUHexagonState *env, target_ulong addr,
-                 int64_t val, int width, int slot);
+                 int64_t val, uint32_t width, int slot);
 void log_store32(CPUHexagonState *env, target_ulong addr,
-                 target_ulong val, int width, int slot);
+                 target_ulong val, uint32_t width, int slot);
+
 #endif

@@ -60,7 +60,7 @@ TCGv hex_slot_cancelled;
 TCGv hex_next_PC;
 TCGv hex_new_value_usr;
 TCGv hex_store_addr[STORES_MAX];
-TCGv hex_store_width[STORES_MAX];
+TCGv_i32 hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
 TCGv_i64 hex_store_val64[STORES_MAX];
 TCGv hex_llsc_addr;
@@ -301,6 +301,20 @@ void gen_exception_end_tb(DisasContext *ctx, int excp)
     gen_precise_exception(excp, ctx->pkt->pc);
 #endif
     ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+/*
+ * Generate exception for decode failures. Unlike gen_exception_end_tb,
+ * this is used when decode fails before ctx->next_PC is initialized.
+ */
+static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int excp)
+{
+    target_ulong fail_pc = ctx->base.pc_next + nwords * sizeof(uint32_t);
+
+    gen_exec_counters(ctx);
+    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], fail_pc);
+    gen_exception_end_tb(ctx, excp);
+    ctx->base.pc_next = fail_pc;
 }
 
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
@@ -1543,16 +1557,26 @@ static void gen_commit_packet(DisasContext *ctx)
 static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 {
     uint32_t words[PACKET_WORDS_MAX];
-    int nwords;
+    int nwords, words_read;
     Packet pkt = {0};
     int i;
     HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
 
     nwords = read_packet_words(env, ctx, words);
-    ctx->pkt = &pkt;
-    if (nwords && (decode_packet(ctx, nwords, words, &pkt, false,
-                      hex_cpu->rev_reg, ctx->base.pc_next) > 0)) {
+    if (!nwords) {
+        gen_exception_decode_fail(ctx, 0, HEX_CAUSE_INVALID_PACKET);
+        return;
+    }
 
+    ctx->pkt = &pkt;
+    words_read = decode_packet(ctx, nwords, words, &pkt, false,
+                               hex_cpu->rev_reg, ctx->base.pc_next);
+    if (words_read > 0) {
+        if (pkt.pkt_has_write_conflict) {
+            gen_exception_decode_fail(ctx, words_read,
+                                      HEX_CAUSE_REG_WRITE_CONFLICT);
+            return;
+        }
 #ifndef CONFIG_USER_ONLY
         if (check_for_attrib(&pkt, A_PRIV)) {
             if (ctx->mem_idx != MMU_KERNEL_IDX) {
@@ -1581,7 +1605,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         pkt.pc = ctx->base.pc_next;
         ctx->pkt = &pkt;
         ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
-        gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_PACKET);
+        gen_exception_decode_fail(ctx, nwords, HEX_CAUSE_INVALID_PACKET);
     }
 }
 
@@ -1859,7 +1883,7 @@ void hexagon_translate_init(void)
             store_addr_names[i]);
 
         snprintf(store_width_names[i], NAME_LEN, "store_width_%d", i);
-        hex_store_width[i] = tcg_global_mem_new(tcg_env,
+        hex_store_width[i] = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].width),
             store_width_names[i]);
 

@@ -126,22 +126,10 @@ run-guestcheck:
 		"GREP", "exception 0x1a");
 
 HEX_TESTS += invalid-slots
+HEX_TESTS += invalid-encoding
 HEX_TESTS += unaligned_pc
 HEX_TESTS += multiple-writes
-HEX_TESTS += invalid_immext
-
-run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
-	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
-
-run-invalid-slots: invalid-slots
-	$(call run-and-check-exception, 0x15, $@, $(QEMU) $(QEMU_OPTS) $<)
-
-run-multiple-writes: multiple-writes
-	$(call run-and-check-exception, 0x1d, $@, $(QEMU) $(QEMU_OPTS) $<)
-
-run-invalid_immext: invalid_immext
-	$(call run-and-check-exception, 0x15, $@, $(QEMU) $(QEMU_OPTS) $<)
-
+HEX_TESTS += invalid-immext
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
 HEX_TESTS += test_bitsplit
