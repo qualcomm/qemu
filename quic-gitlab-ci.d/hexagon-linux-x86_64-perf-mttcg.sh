@@ -23,4 +23,7 @@ readonly SYS_ARGS="-accel tcg,thread=multi"
 "${PWD}"/quic/emit-metrics.sh \
     --input perf-results.json \
     --output metrics.txt || \
-    echo "emit-metrics.sh: warning: failed to emit metrics.txt"
+    printf '%s\n' "emit-metrics.sh: warning: failed to emit metrics.txt"
+
+"${PWD}"/quic-gitlab-ci.d/compare-perf-baseline.sh \
+    qemu-hexagon-linux-x86_64-perf-mttcg

@@ -142,7 +142,7 @@ qemu-hexagon-linux-x86_64-perf:
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf.sh
   artifacts:
     when: always
-    paths: [ "perf-results.json" ]
+    paths: [ "perf-results.json", "perf-comparison.pdf", "baseline-perf-results.json", "perf-summary.md" ]
     reports:
       metrics: metrics.txt
     expire_in: 4 days
@@ -156,7 +156,7 @@ qemu-hexagon-linux-x86_64-perf-mttcg:
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-mttcg.sh
   artifacts:
     when: always
-    paths: [ "perf-results.json" ]
+    paths: [ "perf-results.json", "perf-comparison.pdf", "baseline-perf-results.json", "perf-summary.md" ]
     reports:
       metrics: metrics.txt
     expire_in: 4 days
@@ -170,7 +170,7 @@ qemu-hexagon-linux-x86_64-perf-ml:
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-ml.sh
   artifacts:
     when: always
-    paths: [ "perf-results.json" ]
+    paths: [ "perf-results.json", "perf-comparison.pdf", "baseline-perf-results.json", "perf-summary.md" ]
     reports:
       metrics: metrics.txt
     expire_in: 7 days
