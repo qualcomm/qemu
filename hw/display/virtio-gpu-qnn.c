@@ -132,7 +132,7 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
     virtio_gpu_device_realize(qdev, errp);
 }
 
-static Property virtio_gpu_gl_properties[] = {
+static const Property virtio_gpu_gl_properties[] = {
     DEFINE_PROP_BIT("stats", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
 };
