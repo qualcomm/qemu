@@ -399,7 +399,6 @@ static void virgl_cmd_get_capset_info(VirtIOGPU *g,
 {
     struct virtio_gpu_get_capset_info info;
     struct virtio_gpu_resp_capset_info resp;
-    VirtIOGPUQNN *gl = VIRTIO_GPU_QNN(g);
 
     VIRTIO_GPU_FILL_CMD(info);
 
@@ -407,7 +406,7 @@ static void virgl_cmd_get_capset_info(VirtIOGPU *g,
     if (info.capset_index < g->capset_ids->len) {
         resp.capset_id = g_array_index(g->capset_ids, uint32_t,
                                        info.capset_index);
-        virgl_renderer_get_cap_set(resp.capset_id,
+        virqnn_renderer_get_cap_set(resp.capset_id,
                                    &resp.capset_max_version,
                                    &resp.capset_max_size);
     }
@@ -770,6 +769,7 @@ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
 static void virtio_gpu_print_stats(void *opaque)
 {
     VirtIOGPU *g = opaque;
+    VirtIOGPUQNN *gl = VIRTIO_GPU_QNN(g);
 
     if (g->stats.requests) {
         fprintf(stderr, "stats: vq req %4d, %3d -- 3D %4d (%5d)\n",
@@ -784,17 +784,18 @@ static void virtio_gpu_print_stats(void *opaque)
     } else {
         fprintf(stderr, "stats: idle\r");
     }
-    timer_mod(g->print_stats, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
+    timer_mod(gl->print_stats, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
 }
 
 static void virtio_gpu_fence_poll(void *opaque)
 {
     VirtIOGPU *g = opaque;
+    VirtIOGPUQNN *gl = VIRTIO_GPU_QNN(g);
 
     virqnn_renderer_poll();
     virtio_gpu_process_cmdq(g);
     if (!QTAILQ_EMPTY(&g->cmdq) || !QTAILQ_EMPTY(&g->fenceq)) {
-        timer_mod(g->fence_poll, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
+        timer_mod(gl->fence_poll, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
     }
 }
 
@@ -822,7 +823,7 @@ int virtio_gpu_virqnn_init(VirtIOGPU *g)
 {
     int ret;
     uint32_t flags = 0;
-
+    VirtIOGPUQNN *gl = VIRTIO_GPU_QNN(g);
 #if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
     VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     if (qemu_egl_display) {
@@ -842,49 +843,38 @@ int virtio_gpu_virqnn_init(VirtIOGPU *g)
         return ret;
     }
 
-    g->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+    gl->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                  virtio_gpu_fence_poll, g);
 
     if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
-        g->print_stats = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+        gl->print_stats = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                       virtio_gpu_print_stats, g);
-        timer_mod(g->print_stats, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
+        timer_mod(gl->print_stats, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
     }
+
     return 0;
+}
+
+static void capset_add(VirtIOGPU *g, uint32_t capset, bool check_ver)
+{
+    uint32_t capset_max_ver, capset_max_size;
+    if (check_ver) {
+        virqnn_renderer_get_cap_set(capset, &capset_max_ver, &capset_max_size);
+    }
+    if (!check_ver || capset_max_ver) {
+        g_array_append_val(g->capset_ids, capset);
+    }
 }
 
 int virtio_gpu_virqnn_get_num_capsets(VirtIOGPU *g)
 {
-    uint32_t capset_max_ver, capset_max_size;
-    uint32_t capset_count = 0;
-    VirtIOGPUQNN *gl = VIRTIO_GPU_QNN(g);
-
-    gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VIRGL;
-    capset_count++;
-
-    virqnn_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
-                               &capset_max_ver,
-                               &capset_max_size);
-    if (capset_max_ver) {
-        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VIRGL2;
-        capset_count++;
+    if (!g->capset_ids) {
+        g->capset_ids = g_array_new(false, false, sizeof(uint32_t));
     }
 
-    virqnn_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VENUS,
-                               &capset_max_ver,
-                               &capset_max_size);
-    if (capset_max_size) {
-        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VENUS;
-        capset_count++;
-    }
-
-    virqnn_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VQNN,
-                               &capset_max_ver,
-                               &capset_max_size);
-    if (capset_max_size) {
-        gl->capset_ids[capset_count] = VIRTIO_GPU_CAPSET_VQNN;
-        capset_count++;
-    }
-
-    return capset_count;
+    capset_add(g, VIRTIO_GPU_CAPSET_VIRGL, false);
+    capset_add(g, VIRTIO_GPU_CAPSET_VIRGL2, false);
+    capset_add(g, VIRTIO_GPU_CAPSET_VENUS, false);
+    capset_add(g, VIRTIO_GPU_CAPSET_VQNN, false);
+    return g->capset_ids->len;
 }
