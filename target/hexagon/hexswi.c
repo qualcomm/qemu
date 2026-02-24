@@ -31,6 +31,7 @@
 #include "system/runstate.h"
 #include <dirent.h>
 #include "semihosting/common-semi.h"
+#include "semihosting/console.h"
 #include "semihosting/guestfd.h"
 #include "gdbstub/syscalls.h"
 #include "semihosting/syscalls.h"
@@ -263,10 +264,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_WRITECREG:
     {
         char c = swi_info;
-        FILE *fp = stdout;
-
-        fprintf(fp, "%c", c);
-        fflush(stdout);
+        qemu_semihosting_console_write(&c, 1);
     }
     break;
 
