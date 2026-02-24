@@ -23,6 +23,7 @@
 #endif
 
 #include "semihosting/common-semi.h"
+#include "semihosting/console.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/guestfd.h"
 
@@ -455,10 +456,11 @@ static void sim_handle_trap0(CPUHexagonState *env)
         break;
 
     case HEX_SYS_WRITECREG:
-        fprintf(stdout, "%c", swi_info);
-        fflush(stdout);
-        semi_cb(cs, 0, 0);
-        break;
+    {
+        char c = swi_info;
+        qemu_semihosting_console_write(&c, 1);
+    }
+    break;
 
     /*
      * Hexagon's SYS_ISTTY is a bit different than arm's: we do not return -1
