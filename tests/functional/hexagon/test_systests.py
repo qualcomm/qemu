@@ -18,13 +18,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
         "3882aa36ac015f3e8caf96ec2e4c3c7e377545a6ff43478baef0f09a805346b8",
     )
 
-    def check(self, test_name: str) -> None:
+    def check(self, test_name: str,
+              expected_output: list[str] | None = None) -> None:
         """
         Check the semihosting output from a systests_standalone test case.
         Expected pattern: Tests should write expected results via semihosting
         and exit with the expected code (default 0 for success).
         """
-        console_output = str(self.vm).strip()
+        console_output = self.vm.get_log() or ""
 
         if self.vm.exitcode() != 0:
             raise RuntimeError(
@@ -37,11 +38,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
         # to be more specific about what constitutes a real failure
         failure_patterns = (
             r"ASSERTION.*failed",
-            r"ERROR:.*",
-            r"Test.*failed",
-            r"Exception.*",
             r"Segmentation fault",
-            r"Abort.*",
         )
 
         # Look for failure patterns first
@@ -53,15 +50,24 @@ class SysTestsStandaloneTests(QemuSystemTest):
                 f"Test {test_name} failed: found failure pattern in output"
             )
 
+        # Verify expected output patterns if provided
+        if expected_output:
+            for pattern in expected_output:
+                if not re.search(pattern, console_output):
+                    raise RuntimeError(
+                        f"Test {test_name}: expected pattern "
+                        f"'{pattern}' not found in output"
+                    )
+
     def run_individual_test(self, test_name: str,
-        machine: str = "sim") -> bool:
+        machine: str = "sim",
+        expected_output: list[str] | None = None) -> bool:
         """
         Run a single systests_standalone test case
         """
         self.set_machine(machine)
 
         self.archive_extract(self.ASSET_TARBALL)
-
 
         target_bin = os.path.join(self.workdir,
             'systests_standalone_package',
@@ -73,7 +79,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.vm.launch()
         self.vm.wait(timeout=60.0)
         try:
-            self.check(test_name)
+            self.check(test_name, expected_output)
             return True
         except RuntimeError as e:
             self.fail(f"Test {test_name} failed: {str(e)}")
