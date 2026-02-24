@@ -95,5 +95,5 @@ run-semihost: semihost
 	mkdir -p _semihost_dir
 	touch _semihost_dir/fileA _semihost_dir/fileB
 	$(call run-test, $<, $(QEMU) --append "arg1 arg2" $(QEMU_OPTS) $< \
-		             > $<.stdout)
+		             > $<.stdout 2>&1)
 	$(call quiet-command, grep -q "PASS" $<.stdout, "GREP", "PASS")
