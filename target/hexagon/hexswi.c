@@ -40,8 +40,6 @@
 /* non-arm-compatible semihosting calls */
 #define HEXAGON_SPECIFIC_SWI_FLAGS \
     DEF_SWI_FLAG(OPEN,             0x01) \
-    DEF_SWI_FLAG(WRITEC,           0x03) \
-    DEF_SWI_FLAG(WRITE0,           0x04) \
     DEF_SWI_FLAG(ISTTY,            0x09) \
     DEF_SWI_FLAG(HEAPINFO,         0x16) \
     DEF_SWI_FLAG(ENTERSVC,         0x17) /* from newlib */ \
@@ -262,19 +260,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
     }
     break;
 
-    /* We override arm-compatible version to print at stdout, not console. */
-    case HEX_SYS_WRITEC:
-    {
-        FILE *fp = stdout;
-        char c;
-        rcu_read_lock();
-        DEBUG_MEMORY_READ(swi_info, 1, &c);
-        fprintf(fp, "%c", c);
-        fflush(fp);
-        rcu_read_unlock();
-    }
-    break;
-
     case HEX_SYS_WRITECREG:
     {
         char c = swi_info;
@@ -284,23 +269,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
         fflush(stdout);
     }
     break;
-
-    /* We override arm-compatible version to print at stdout, not console. */
-    case HEX_SYS_WRITE0:
-    {
-        FILE *fp = stdout;
-        char c;
-        int i = 0;
-        rcu_read_lock();
-        do {
-            DEBUG_MEMORY_READ(swi_info + i, 1, &c);
-            fprintf(fp, "%c", c);
-            i++;
-        } while (c);
-        fflush(fp);
-        rcu_read_unlock();
-        break;
-    }
 
     /*
      * Hexagon's SYS_ISTTY is a bit different than arm's: we do not return -1
