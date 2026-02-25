@@ -229,6 +229,55 @@ static void test_qtimer_on_machine(gconstpointer data)
     qtest_end();
 }
 
+/*
+ * SA8775P has start-ticking=true so the timer should be running at boot.
+ * After stepping the clock, the counter should advance.
+ */
+#define SA8775P_QTIMER_VIEW_BASE (0x26300000 + 0xA1000)
+
+static void test_sa8775p_start_ticking(void)
+{
+    uint64_t count1, count2;
+
+    qtest_start("-machine SA8775P_CDSP0");
+
+    /* Step the clock to let the ptimer tick */
+    qtest_clock_step(global_qtest, 1000);
+
+    count1 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
+
+    /* Step again */
+    qtest_clock_step(global_qtest, 1000);
+
+    count2 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
+
+    /* Counter should have advanced since timer is ticking */
+    g_assert_cmpuint(count2, >, count1);
+
+    qtest_end();
+}
+
+static void test_sa8775p_start_ticking_disabled(void)
+{
+    uint64_t count1, count2;
+
+    qtest_start("-machine SA8775P_CDSP0 "
+                "-global qct-qtimer.start-ticking=off");
+
+    qtest_clock_step(global_qtest, 1000);
+
+    count1 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
+
+    qtest_clock_step(global_qtest, 1000);
+
+    count2 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
+
+    /* Counter should NOT advance when start-ticking is disabled */
+    g_assert_cmpuint(count2, ==, count1);
+
+    qtest_end();
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -240,6 +289,12 @@ int main(int argc, char **argv)
     /* Test on V66G_1024 machine */
     qtest_add_data_func("/qct-qtimer/V66G_1024/all-tests", "V66G_1024",
                         test_qtimer_on_machine);
+
+    /* Test start-ticking property on SA8775P */
+    qtest_add_func("/qct-qtimer/SA8775P_CDSP0/start-ticking",
+                   test_sa8775p_start_ticking);
+    qtest_add_func("/qct-qtimer/SA8775P_CDSP0/start-ticking-disabled",
+                   test_sa8775p_start_ticking_disabled);
 
     return g_test_run();
 }

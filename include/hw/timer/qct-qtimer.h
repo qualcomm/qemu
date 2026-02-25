@@ -21,6 +21,7 @@
 
 #include "hw/core/sysbus.h"
 #include "hw/core/ptimer.h"
+#include "qapi/qapi-types-common.h"
 
 #define TYPE_QCT_QTIMER "qct-qtimer"
 #define TYPE_QCT_HEXTIMER "qct-hextimer"
@@ -55,6 +56,7 @@ struct QCTQtimerState {
     uint32_t nr_frames;
     uint32_t nr_views;
     uint32_t cnttid;
+    OnOffAuto start_ticking;
 };
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)

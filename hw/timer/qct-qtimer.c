@@ -519,6 +519,17 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
         (s->timer[i]).timer = ptimer_init(hex_timer_tick, &s->timer[i], PTIMER_POLICY_LEGACY);
         vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_hex_timer, &s->timer[i]);
     }
+
+    if (s->start_ticking == ON_OFF_AUTO_ON) {
+        for (i = 0; i < s->nr_frames; i++) {
+            ptimer_transaction_begin(s->timer[i].timer);
+            ptimer_set_limit(s->timer[i].timer, s->timer[i].limit, 1);
+            ptimer_set_freq(s->timer[i].timer, s->timer[i].freq);
+            ptimer_set_period(s->timer[i].timer, 1);
+            ptimer_run(s->timer[i].timer, 0);
+            ptimer_transaction_commit(s->timer[i].timer);
+        }
+    }
 }
 
 static const Property qct_qtimer_properties[] = {
@@ -526,6 +537,8 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
+    DEFINE_PROP_ON_OFF_AUTO("start-ticking", QCTQtimerState, start_ticking,
+                            ON_OFF_AUTO_AUTO),
 };
 
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
