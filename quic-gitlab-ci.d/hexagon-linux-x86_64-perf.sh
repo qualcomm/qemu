@@ -17,3 +17,8 @@ readonly TEST_CFG
 readonly ITERS
 
 "${PWD}"/quic/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat
+
+"${PWD}"/quic/emit-metrics.sh \
+    --input perf-results.json \
+    --output metrics.txt || \
+    echo "emit-metrics.sh: warning: failed to emit metrics.txt"

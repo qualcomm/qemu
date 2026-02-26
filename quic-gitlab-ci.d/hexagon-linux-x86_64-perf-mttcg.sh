@@ -19,3 +19,8 @@ readonly ITERS
 readonly SYS_ARGS="-accel tcg,thread=multi"
 
 "${PWD}"/quic/run-perf.sh "${TEST_CFG}" "${ITERS}" perf-stat "${SYS_ARGS}"
+
+"${PWD}"/quic/emit-metrics.sh \
+    --input perf-results.json \
+    --output metrics.txt || \
+    echo "emit-metrics.sh: warning: failed to emit metrics.txt"
