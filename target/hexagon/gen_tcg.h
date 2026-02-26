@@ -935,6 +935,13 @@
         COND; \
         gen_cond_jump(ctx, TCG_COND_TSTEQ, LSB, riV); \
     } while (0)
+#define fGEN_TCG_cond_jumpf(COND) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        COND; \
+        gen_cond_jump(ctx, TCG_COND_TSTNE, LSB, riV); \
+    } while (0)
+
 #define fGEN_TCG_J2_jumpt(SHORTCODE) \
     gen_cond_jump(ctx, TCG_COND_TSTEQ, PuV, riV)
 #define fGEN_TCG_J2_jumptpt(SHORTCODE) \
@@ -967,6 +974,19 @@
     fGEN_TCG_cond_jumpt(tcg_gen_setcondi_tl(TCG_COND_LE, LSB, RsV, 0))
 #define fGEN_TCG_J2_jumprltezpt(SHORTCODE) \
     fGEN_TCG_cond_jumpt(tcg_gen_setcondi_tl(TCG_COND_LE, LSB, RsV, 0))
+
+#define fGEN_TCG_cond_jumprt(COND) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        COND; \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTEQ, LSB); \
+    } while (0)
+#define fGEN_TCG_cond_jumprf(COND) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        COND; \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTNE, LSB); \
+    } while (0)
 
 #define fGEN_TCG_J2_jumprt(SHORTCODE) \
     gen_cond_jumpr(ctx, RsV, TCG_COND_TSTEQ, PuV)
