@@ -30,14 +30,14 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         for (int i = 0; i < NUM_PREGS; i++) {
             p3_0 = deposit32(p3_0, i * 8, 8, env->pred[i]);
         }
-        return gdb_get_regl(mem_buf, p3_0);
+        return gdb_get_reg32(mem_buf, p3_0);
     }
 
     if (n < TOTAL_PER_THREAD_REGS) {
         if (n < HEX_REG_CREGS_START) {
-            return gdb_get_regl(mem_buf, env->gpr[n]);
+            return gdb_get_reg32(mem_buf, env->gpr[n]);
         } else {
-            return gdb_get_regl(mem_buf, hexagon_creg_read_debug(env, n));
+            return gdb_get_reg32(mem_buf, hexagon_creg_read_debug(env, n));
         }
     }
 
@@ -62,12 +62,12 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         for (int i = 0; i < NUM_PREGS; i++) {
             env->pred[i] = extract32(p3_0, i * 8, 8);
         }
-        return sizeof(target_ulong);
+        return 4;
     }
 
     if (n < TOTAL_PER_THREAD_REGS) {
         env->gpr[n] = ldl_le_p(mem_buf);
-        return sizeof(target_ulong);
+        return 4;
     }
     n -= TOTAL_PER_THREAD_REGS;
 
@@ -106,13 +106,13 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     BQL_LOCK_GUARD();
 
     if (n < NUM_SREGS) {
-        hexagon_gdb_sreg_write(env, n, ldtul_p(mem_buf));
+        hexagon_gdb_sreg_write(env, n, ldl_p(mem_buf));
         return sizeof(target_ulong);
     }
     n -= NUM_SREGS;
 
     if (n < NUM_GREGS) {
-        return env->greg[n] = ldtul_p(mem_buf);
+        return env->greg[n] = ldl_p(mem_buf);
     }
     n -= NUM_GREGS;
 
@@ -126,7 +126,7 @@ static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
     int total = 0;
     int i;
     for (i = 0; i < ARRAY_SIZE(env->VRegs[n].uw); i++) {
-        total += gdb_get_regl(mem_buf, env->VRegs[n].uw[i]);
+        total += gdb_get_reg32(mem_buf, env->VRegs[n].uw[i]);
     }
     return total;
 }
@@ -137,7 +137,7 @@ static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
     int total = 0;
     int i;
     for (i = 0; i < ARRAY_SIZE(env->QRegs[n].uw); i++) {
-        total += gdb_get_regl(mem_buf, env->QRegs[n].uw[i]);
+        total += gdb_get_reg32(mem_buf, env->QRegs[n].uw[i]);
     }
     return total;
 }

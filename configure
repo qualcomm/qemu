@@ -984,7 +984,9 @@ fi
 python="$python -B"
 mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
-# Finish preparing the virtual environment using vendored .whl files
+# Finish preparing the virtual environment using vendored .whl files.
+# Even if PyPI is allowed, we disallow it here to force installation
+# from our preferred vendored versions.
 
 $mkvenv ensuregroup --dir "${source_path}/python/wheels" \
      ${source_path}/pythondeps.toml meson || exit 1
@@ -1014,12 +1016,18 @@ if test "$host_os" = "haiku" && test ! -e "$meson" ; then
     meson="$(cd pyvenv/non-packaged/bin; get_pwd)/meson"
 fi
 
-# Conditionally ensure Sphinx is installed.
-
 mkvenv_online_flag=""
 if test "$download" = "enabled" ; then
     mkvenv_online_flag=" --online"
 fi
+
+# Unconditionally install our tooling group. PyPI is allowed if enabled here.
+
+$mkvenv ensuregroup $mkvenv_online_flag \
+        --dir "${source_path}/python/wheels" \
+        ${source_path}/pythondeps.toml tooling || exit 1
+
+# Conditionally ensure Sphinx is installed.
 
 if test "$docs" != "disabled" ; then
     if ! $mkvenv ensuregroup \
