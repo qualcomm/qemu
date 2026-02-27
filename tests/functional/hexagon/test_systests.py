@@ -363,6 +363,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("vid_reg")
         self.assertTrue(result, "Test vid_reg failed")
 
+    def test_dtg_interrupt(self) -> None:
+        """Tests direct-to-guest interrupt delivery by configuring VIC1
+        virtualization (CCR.VV1), entering guest mode, and verifying that a
+        pending interrupt is delivered via the Guest Event Vector Table
+        with correct GSR fields (CAUSE, UM, GIE)."""
+        result = self.run_individual_test("dtg_interrupt")
+        self.assertTrue(result, "Test dtg_interrupt failed")
+
     def test_invalid_insn_for_rev_v66(self) -> None:
         """Tests that instructions invalid for V66 architecture revision
         properly trigger invalid instruction exceptions."""
