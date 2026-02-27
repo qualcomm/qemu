@@ -6,7 +6,7 @@
 
 import os
 import re
-from unittest import skipUnless, skip
+
 from qemu_test import QemuSystemTest, Asset
 
 
@@ -14,8 +14,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     SYSTEST_TIMEOUT_SEC = 30
 
     ASSET_TARBALL = Asset(
-        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.1.7/systests_standalone.tar.gz",
-        "3882aa36ac015f3e8caf96ec2e4c3c7e377545a6ff43478baef0f09a805346b8",
+        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.1.12/systests_standalone.tar.gz",
+        "0482b4aa27663d29002e699b0d7567de2d7c19c5efabf2a9fe0af092118606d2",
     )
 
     def check(self, test_name: str,
@@ -71,7 +71,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
         target_bin = os.path.join(self.workdir,
             'systests_standalone_package',
-            'StandaloneSysTests_6.3.0.0_v68',
+            'StandaloneSysTests_6.4.0.2_v68',
             'bin', test_name)
 
         self.set_vm_arg("-display", "none")
