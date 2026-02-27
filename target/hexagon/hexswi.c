@@ -340,6 +340,19 @@ static void sim_handle_trap0(CPUHexagonState *env)
             do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
         }
         /*
+         * ARM-compat semihosting SWI numbers are all <= 0x31.
+         * If R0 holds a value outside that range (e.g. guest code
+         * executing trap0(#0) with an arbitrary R0), treat it as an
+         * unrecognized request rather than forwarding to
+         * do_common_semihosting() which would abort.
+         */
+        if (what_swi > 0x31) {
+            qemu_log_mask(LOG_UNIMP,
+                          "trap0(#0): unrecognized request in r0: "
+                          "0x%x\n", what_swi);
+            return;
+        }
+        /*
          * QuRT uses POSIX-style fd numbers (0=stdin, 1=stdout, 2=stderr)
          * but ARM-compatible semihosting doesn't pre-populate these in the
          * guestfd table.  Reserve them on first semihosting call so that
