@@ -838,49 +838,40 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     case HEX_EVENT_PRECISE:
         switch (env->cause_code) {
+        /* Addressing exceptions: BADVA set when the exception is raised */
         case HEX_CAUSE_FETCH_NO_XPAGE:
         case HEX_CAUSE_FETCH_NO_UPAGE:
-        case HEX_CAUSE_PRIV_NO_READ:
-        case HEX_CAUSE_PRIV_NO_UREAD:
-        case HEX_CAUSE_PRIV_NO_WRITE:
-        case HEX_CAUSE_PRIV_NO_UWRITE:
+        case HEX_CAUSE_PC_NOT_ALIGNED:
         case HEX_CAUSE_MISALIGNED_LOAD:
         case HEX_CAUSE_MISALIGNED_STORE:
-        case HEX_CAUSE_PC_NOT_ALIGNED:
+        case HEX_CAUSE_PRIV_NO_READ:
+        case HEX_CAUSE_PRIV_NO_WRITE:
+        case HEX_CAUSE_PRIV_NO_UREAD:
+        case HEX_CAUSE_PRIV_NO_UWRITE:
+        case HEX_CAUSE_COPROC_LDST:
+        case HEX_CAUSE_STACK_LIMIT:
+        case HEX_CAUSE_VWCTRL_WINDOW_MISS:
             qemu_log_mask(CPU_LOG_MMU,
-                "MMU permission exception (0x%x) caught: "
+                "Precise exception (0x%x) caught: "
                 "Cause code (0x%x) "
                 "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
                 ", BADVA = 0x%" PRIx32 "\n",
                 cs->exception_index, env->cause_code,
                 env->threadId, env->gpr[HEX_REG_PC],
                 arch_get_system_reg(env, HEX_SREG_BADVA));
-
-
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
-            /* env->sreg[HEX_SREG_BADVA] is set when the exception is raised */
             break;
 
+        /* Non-addressing exceptions: no BADVA */
         case HEX_CAUSE_DOUBLE_EXCEPT:
-        case HEX_CAUSE_PRIV_USER_NO_SINSN:
-        case HEX_CAUSE_PRIV_USER_NO_GINSN:
         case HEX_CAUSE_INVALID_OPCODE:
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
         case HEX_CAUSE_UNSUPORTED_HVX_64B:
+        case HEX_CAUSE_PRIV_USER_NO_GINSN:
+        case HEX_CAUSE_PRIV_USER_NO_SINSN:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
-        case HEX_CAUSE_VWCTRL_WINDOW_MISS:
-            hexagon_ssr_set_cause(env, env->cause_code);
-            set_addresses(env, 0, cs->exception_index);
-            break;
-
-        case HEX_CAUSE_COPROC_LDST:
-            hexagon_ssr_set_cause(env, env->cause_code);
-            set_addresses(env, 0, cs->exception_index);
-            break;
-
-        case HEX_CAUSE_STACK_LIMIT:
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
             break;
