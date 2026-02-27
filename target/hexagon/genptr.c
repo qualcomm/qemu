@@ -229,9 +229,6 @@ static void gen_sreg_write(DisasContext *ctx, int rnum, TCGv val)
 
     if (reg_mask != IMMUTABLE) {
         if (rnum < HEX_SREG_GLB_START) {
-            if (rnum == HEX_SREG_CCR) {
-                gen_helper_check_ccr_write(tcg_env, val, hex_t_sreg[rnum]);
-            }
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
         } else {

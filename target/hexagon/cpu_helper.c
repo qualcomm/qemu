@@ -426,7 +426,6 @@ static void hexagon_resume_thread(CPUHexagonState *env)
      * next executable instruction.
      */
     env->gpr[HEX_REG_PC] = env->wait_next_pc;
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
     cs->halted = false;
     cs->exception_index = HEX_EVENT_NONE;
     qemu_cpu_kick(cs);

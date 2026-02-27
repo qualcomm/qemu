@@ -150,5 +150,4 @@ DEF_HELPER_3(sreg_write, void, env, i32, i32)
 DEF_HELPER_3(sreg_write_pair, void, env, i32, i64)
 DEF_HELPER_3(sreg_write_masked, void, env, i32, i32)
 DEF_HELPER_3(sreg_write_pair_masked, void, env, i32, i64)
-DEF_HELPER_3(check_ccr_write, void, env, i32, i32)
 #endif

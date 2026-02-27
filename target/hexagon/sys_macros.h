@@ -38,28 +38,6 @@
 #define CCR_FIELD_SET(ENV, FIELD) \
     (!!GET_FIELD(FIELD, arch_get_system_reg(ENV, HEX_SREG_CCR)))
 
-/*
- * Direct-to-guest is not implemented yet, continuing would cause unexpected
- * behavior, so we abort.
- */
-#define ASSERT_DIRECT_TO_GUEST_UNSET(ENV, EXCP) \
-    do { \
-        switch (EXCP) { \
-        case HEX_EVENT_TRAP0: \
-            g_assert(!CCR_FIELD_SET(ENV, CCR_GTE)); \
-            break; \
-        case HEX_EVENT_IMPRECISE: \
-        case HEX_EVENT_PRECISE: \
-        case HEX_EVENT_FPTRAP: \
-            g_assert(!CCR_FIELD_SET(ENV, CCR_GEE)); \
-            break; \
-        default: \
-            if ((EXCP) >= HEX_EVENT_INT0) { \
-                g_assert(!CCR_FIELD_SET(ENV, CCR_GIE)); \
-            } \
-            break; \
-        } \
-    } while (0)
 #endif
 
 #define fLOAD_PHYS(NUM, SIZE, SIGN, SRC1, SRC2, DST) { \
@@ -86,26 +64,55 @@
     register_trap_exception(env, TRAPTYPE, IMM, PC)
 
 /*
- * FIXME - Fix the implementation of trap1
- *
- * The fVIRTINSN_* macros should do the right thing
- *
- * The fTRAP1_VIRTINSN macro should be
- *     ((fIN_GUEST_MODE())
- *        && (fGRE_ENABLED())
- *        && (   ((IMM) == 1)
- *            || ((IMM) == 3)
- *            || ((IMM) == 4)
- *            || ((IMM) == 6)))
- * The fIN_GUEST_MODE() check is missing
+ * Virtual instruction macros for trap1-based guest operations.
+ * These implement the Hexagon virtualization ISA extensions.
  */
-#define fVIRTINSN_SPSWAP(IMM, REG)
-#define fVIRTINSN_GETIE(IMM, REG) { REG = 0xdeafbeef; }
-#define fVIRTINSN_SETIE(IMM, REG)
-#define fVIRTINSN_RTE(IMM)
-#define fGRE_ENABLED() GET_FIELD(CCR_GRE, arch_get_system_reg(env, HEX_SREG_CCR))
+
+/* VMRTE (trap1 #1): return from guest event handler */
+#define fVIRTINSN_RTE(IMM) \
+    hexagon_vmrte(env)
+
+/*
+ * VMSETIE (trap1 #3): set/get CCR.GIE atomically.
+ * VMGETIE (trap1 #4): read CCR.GIE.
+ * VMSPSWAP (trap1 #6): swap SP with GOSP if GSR.UM=1.
+ *
+ * These virtual instructions return normally (unlike VMRTE which
+ * calls cpu_loop_exit).  We must advance PC to next_PC so the
+ * generated TB exit doesn't loop back to the same trap1 insn.
+ * next_PC is a parameter in the generated helper for J2_trap1.
+ */
+#define fVIRTINSN_SETIE(IMM, REG) \
+    do { \
+        uint32_t _old_gie = CCR_FIELD_SET(env, CCR_GIE); \
+        SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, (REG) & 1); \
+        (REG) = _old_gie; \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
+/* VMGETIE (trap1 #4): read CCR.GIE */
+#define fVIRTINSN_GETIE(IMM, REG) \
+    do { \
+        (REG) = CCR_FIELD_SET(env, CCR_GIE); \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
+/* VMSPSWAP (trap1 #6): swap SP with GOSP if GSR.UM=1 */
+#define fVIRTINSN_SPSWAP(IMM, REG) \
+    do { \
+        uint32_t _gsr = env->greg[HEX_GREG_GSR]; \
+        if (extract32(_gsr, 31, 1)) { \
+            uint32_t _t = (REG); \
+            (REG) = env->greg[HEX_GREG_GOSP]; \
+            env->greg[HEX_GREG_GOSP] = _t; \
+        } \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
+#define fGRE_ENABLED() \
+    GET_FIELD(CCR_GRE, arch_get_system_reg(env, HEX_SREG_CCR))
 #define fTRAP1_VIRTINSN(IMM) \
-    (fGRE_ENABLED() && \
+    (sys_in_guest_mode(env) && fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))
 
 #define fICINVIDX(REG)

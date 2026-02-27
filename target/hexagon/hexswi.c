@@ -684,12 +684,141 @@ static void sim_handle_trap0(CPUHexagonState *env)
     }
 }
 
+/*
+ * Enter a guest-mode event handler (direct-to-guest delivery).
+ * This saves state to GSR/GELR/GBADVA and vectors through GEVB
+ * instead of EVB.
+ */
+void guest_event_entry(CPUHexagonState *env, uint32_t cause,
+                       target_ulong event_pc, int guest_event_num,
+                       bool set_gbadva)
+{
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ccr = arch_get_system_reg(env, HEX_SREG_CCR);
+    uint32_t gevb = arch_get_system_reg(env, HEX_SREG_GEVB);
+    uint32_t old_ssr = ssr;
+    uint32_t gsr = 0;
+
+    /* Build GSR from current state */
+    gsr = deposit32(gsr, reg_field_info[GSR_CAUSE].offset,
+                    reg_field_info[GSR_CAUSE].width, cause);
+    gsr = deposit32(gsr, reg_field_info[GSR_SS].offset,
+                    reg_field_info[GSR_SS].width,
+                    GET_SSR_FIELD(SSR_SS, ssr));
+    gsr = deposit32(gsr, reg_field_info[GSR_UM].offset,
+                    reg_field_info[GSR_UM].width,
+                    !GET_SSR_FIELD(SSR_GM, ssr));
+    gsr = deposit32(gsr, reg_field_info[GSR_IE].offset,
+                    reg_field_info[GSR_IE].width,
+                    GET_FIELD(CCR_GIE, ccr));
+    env->greg[HEX_GREG_GSR] = gsr;
+
+    /* SSR.SS = 0, SSR.GM = 1 */
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
+    hexagon_modify_ssr(env,
+                       arch_get_system_reg(env, HEX_SREG_SSR),
+                       old_ssr);
+
+    /* CCR.GIE = 0 */
+    SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, 0);
+
+    /* GELR = event PC */
+    env->greg[HEX_GREG_GELR] = event_pc;
+
+    /* GBADVA = BADVA for addressing exceptions */
+    if (set_gbadva) {
+        env->greg[HEX_GREG_GBADVA] =
+            arch_get_system_reg(env, HEX_SREG_BADVA);
+    }
+
+    /* PC = GEVB + (event_number << 2) */
+    env->gpr[HEX_REG_PC] = gevb | (guest_event_num << 2);
+}
+
+/*
+ * Check whether an exception should be delivered directly to guest mode.
+ * Returns true if the CPU is in guest mode and the relevant CCR enable
+ * bit is set for the given exception type.
+ */
+static bool should_dtg(CPUHexagonState *env, int exception_index)
+{
+    uint32_t ccr;
+
+    if (!sys_in_guest_mode(env)) {
+        return false;
+    }
+
+    ccr = arch_get_system_reg(env, HEX_SREG_CCR);
+
+    switch (exception_index) {
+    case HEX_EVENT_TRAP0:
+        return !!GET_FIELD(CCR_GTE, ccr);
+
+    case HEX_EVENT_IMPRECISE:
+    case HEX_EVENT_PRECISE:
+    case HEX_EVENT_FPTRAP:
+    case HEX_EVENT_TLB_MISS_X:
+    case HEX_EVENT_TLB_MISS_RW:
+        return !!GET_FIELD(CCR_GEE, ccr);
+
+    default:
+        if (exception_index >= HEX_EVENT_INT0) {
+            return !!GET_FIELD(CCR_GIE, ccr);
+        }
+        return false;
+    }
+}
+
+/*
+ * VMRTE (trap1 #1): Return from a guest event handler.
+ * Restores SSR.SS, SSR.GM, CCR.GIE from GSR and branches to GELR.
+ */
+void hexagon_vmrte(CPUHexagonState *env)
+{
+    uint32_t gsr = env->greg[HEX_GREG_GSR];
+    uint32_t old_ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    target_ulong gelr = env->greg[HEX_GREG_GELR];
+    CPUState *cs = env_cpu(env);
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "hexagon_vmrte: GSR=0x%x SSR=0x%x GELR=0x%x\n",
+                  gsr, old_ssr, (uint32_t)gelr);
+
+    /* SSR.SS = GSR.SS */
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
+                     extract32(gsr, reg_field_info[GSR_SS].offset, 1));
+    /* SSR.GM = !GSR.UM */
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
+                     !extract32(gsr, reg_field_info[GSR_UM].offset, 1));
+
+    /*
+     * hexagon_modify_ssr requires BQL.  Lock/unlock manually rather
+     * than using BQL_LOCK_GUARD() because cpu_loop_exit() below does
+     * a longjmp that would skip the RAII cleanup, leaving BQL held.
+     */
+    bql_lock();
+    hexagon_modify_ssr(env,
+                       arch_get_system_reg(env, HEX_SREG_SSR),
+                       old_ssr);
+    bql_unlock();
+
+    /* CCR.GIE = GSR.IE */
+    SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE,
+                     extract32(gsr, reg_field_info[GSR_IE].offset, 1));
+
+    /* PC = GELR & ~3 */
+    env->gpr[HEX_REG_PC] = gelr & ~3;
+
+    cpu_loop_exit(cs);
+}
+
 static void set_addresses(CPUHexagonState *env,
     target_ulong pc_offset, target_ulong exception_index)
 
 {
-    arch_set_system_reg(env, HEX_SREG_ELR,
-        arch_get_thread_reg(env, HEX_REG_PC) + pc_offset);
+    target_ulong elr = arch_get_thread_reg(env, HEX_REG_PC) + pc_offset;
+    arch_set_system_reg(env, HEX_SREG_ELR, elr);
     HexagonCPU *cpu = env_archcpu(env);
     uint32_t evb = cpu->globalregs ? arch_get_system_reg(env, HEX_SREG_EVB) : 0;
     arch_set_thread_reg(env, HEX_REG_PC, evb | (exception_index << 2));
@@ -752,6 +881,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
+        if (should_dtg(env, cs->exception_index)) {
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC) + 4,
+                              HEX_EVENT_TRAP0, false);
+            break;
+        }
         if (env->cause_code == 0) {
             sim_handle_trap0(env);
         }
@@ -766,6 +901,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_TLB_MISS_X:
+        if (should_dtg(env, cs->exception_index)) {
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC),
+                              HEX_EVENT_TLB_MISS_X, true);
+            break;
+        }
         switch (env->cause_code) {
         case HEX_CAUSE_TLBMISSX_CAUSE_NORMAL:
         case HEX_CAUSE_TLBMISSX_CAUSE_NEXTPAGE:
@@ -793,6 +934,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_TLB_MISS_RW:
+        if (should_dtg(env, cs->exception_index)) {
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC),
+                              HEX_EVENT_TLB_MISS_RW, true);
+            break;
+        }
         switch (env->cause_code) {
         case HEX_CAUSE_TLBMISSRW_CAUSE_READ:
         case HEX_CAUSE_TLBMISSRW_CAUSE_WRITE:
@@ -820,6 +967,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_FPTRAP:
+        if (should_dtg(env, cs->exception_index)) {
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC),
+                              HEX_EVENT_FPTRAP, false);
+            break;
+        }
         hexagon_ssr_set_cause(env, env->cause_code);
         /*
          * FIXME - QTOOL-89796 Properly handle FP exception traps
@@ -837,6 +990,15 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_PRECISE:
+        if (should_dtg(env, cs->exception_index)) {
+            bool set_gbadva =
+                (env->cause_code >= HEX_CAUSE_MISALIGNED_LOAD &&
+                 env->cause_code <= HEX_CAUSE_VWCTRL_WINDOW_MISS);
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC),
+                              HEX_EVENT_PRECISE, set_gbadva);
+            break;
+        }
         switch (env->cause_code) {
         /* Addressing exceptions: BADVA set when the exception is raised */
         case HEX_CAUSE_FETCH_NO_XPAGE:
@@ -886,6 +1048,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_IMPRECISE:
+        if (should_dtg(env, cs->exception_index)) {
+            guest_event_entry(env, env->cause_code,
+                              arch_get_thread_reg(env, HEX_REG_PC) + 4,
+                              HEX_EVENT_IMPRECISE, false);
+            break;
+        }
         switch (env->cause_code) {
         case HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH:
             /*
@@ -937,8 +1105,6 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
     /* assert(cs->exception_index == HEX_EVENT_NONE); */
 
     cs->exception_index = (traptype == 0) ? HEX_EVENT_TRAP0 : HEX_EVENT_TRAP1;
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
-
     env->cause_code = imm;
     env->gpr[HEX_REG_PC] = PC;
     cpu_loop_exit(cs);

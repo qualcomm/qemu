@@ -108,7 +108,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
                   __func__, exception, PC,
                   env->exec_ctr_tb);
 
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
 #endif
 
     env->gpr[HEX_REG_PC] = PC;
@@ -1478,7 +1477,6 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     CPUState *cs = env_cpu(env);
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     if (slot == 0) {
         arch_set_system_reg(env, HEX_SREG_BADVA0, badva);
@@ -2137,18 +2135,6 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
 }
 
 
-void HELPER(check_ccr_write)(CPUHexagonState *env, uint32_t new, uint32_t old)
-{
-    if (qemu_loglevel_mask(LOG_UNIMP)) {
-        const uint32_t unimp_bits = 0xef000000; /* GRE, GEE, GTE, GIE, VV[1-3] */
-        uint32_t changed_bits = (old ^ new) & new;
-        if (changed_bits & unimp_bits) {
-            qemu_log("WARN: direct-to-guest interrupts/exceptions and virtual"
-                     " VIC not supported in QEMU\n");
-        }
-    }
-}
-
 void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
     BQL_LOCK_GUARD();
@@ -2363,7 +2349,6 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
             found = true;
             cs->exception_index = HEX_EVENT_IMPRECISE;
             thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
-            ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
         }
     }
     if (found) {
