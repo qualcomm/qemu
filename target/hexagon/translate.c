@@ -76,6 +76,9 @@ TCGv hex_slot;
 TCGv hex_imprecise_exception;
 TCGv hex_cause_code;
 TCGv hex_ss_pending;
+TCGv hex_exec_ctr_tb;
+TCGv hex_last_cpu;
+TCGv hex_thread_id;
 #endif
 
 static const char * const hexagon_prednames[] = {
@@ -188,6 +191,29 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
     }
 }
 
+#ifdef CONFIG_USER_ONLY
+static void gen_cpu_limit(DisasContext *ctx, TCGv dest)
+{
+}
+#else
+static void gen_cpu_limit_init(void)
+{
+    TCGLabel *skip_reinit = gen_new_label();
+
+    tcg_gen_brcond_tl(TCG_COND_EQ, hex_last_cpu, hex_thread_id, skip_reinit);
+    tcg_gen_movi_tl(hex_exec_ctr_tb, 0);
+    gen_set_label(skip_reinit);
+}
+
+static void gen_cpu_limit(DisasContext *ctx, TCGv dest)
+{
+    if (ctx->need_cpu_limit) {
+        TCGv PC = tcg_constant_tl(ctx->pkt.pc);
+        gen_helper_cpu_limit(tcg_env, PC, dest);
+    }
+}
+#endif
+
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
@@ -199,10 +225,13 @@ static void gen_end_tb(DisasContext *ctx)
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
             tcg_gen_brcondi_tl(ctx->branch_cond, ctx->branch_taken, 1, skip);
+            gen_cpu_limit(ctx, tcg_constant_tl(ctx->branch_dest));
             gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);
+            gen_cpu_limit(ctx, tcg_constant_tl(ctx->next_PC));
             gen_goto_tb(ctx, 1, ctx->next_PC, false);
         } else {
+            gen_cpu_limit(ctx, tcg_constant_tl(ctx->branch_dest));
             gen_goto_tb(ctx, 0, ctx->branch_dest, true);
         }
     } else if (ctx->is_tight_loop &&
@@ -214,10 +243,13 @@ static void gen_end_tb(DisasContext *ctx)
         TCGLabel *skip = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
         tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
+        gen_cpu_limit(ctx, tcg_constant_tl(ctx->base.tb->pc));
         gen_goto_tb(ctx, 0, ctx->base.tb->pc, true);
         gen_set_label(skip);
+        gen_cpu_limit(ctx, tcg_constant_tl(ctx->next_PC));
         gen_goto_tb(ctx, 1, ctx->next_PC, false);
     } else {
+        gen_cpu_limit(ctx, hex_gpr[HEX_REG_PC]);
         tcg_gen_lookup_and_goto_ptr();
     }
 
@@ -1255,6 +1287,13 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->need_next_pc = false;
+#ifndef CONFIG_USER_ONLY
+    ctx->need_cpu_limit = hex_cpu->sched_limit &&
+                          (!(tb_cflags(ctx->base.tb) & CF_PARALLEL));
+    if (ctx->need_cpu_limit) {
+        gen_cpu_limit_init();
+    }
+#endif
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1410,6 +1449,12 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, cause_code), "cause_code");
     hex_ss_pending = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, ss_pending), "ss_pending");
+    hex_exec_ctr_tb = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, exec_ctr_tb), "exec_ctr_tb");
+    hex_last_cpu = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, last_cpu), "last_cpu");
+    hex_thread_id = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, threadId), "thread_id");
 #endif
     hex_next_PC = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, next_PC), "next_PC");
