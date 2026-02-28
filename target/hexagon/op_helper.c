@@ -2122,20 +2122,31 @@ void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
     BQL_LOCK_GUARD();
     ready_count = get_ready_count(env);
 
-    env->exec_ctr_tb++;
-
-    if (ready_count > 1 &&
-        env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
-        env->exec_ctr_tb = 0;
-        env->gpr[HEX_REG_PC] = next_PC;
-        hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
+    if (ready_count > 1) {
+        env->exec_ctr_tb++;
+        if (env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
+            env->exec_ctr_tb = 0;
+            env->gpr[HEX_REG_PC] = next_PC;
+            hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
+        }
     }
     env->last_cpu = env->threadId;
 }
 
 void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
 {
-    g_assert_not_reached();
+    CPUState *cs = NULL;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if ((thread_mask & thread_id_mask) != 0) {
+            cs->exception_index = HEX_EVENT_IMPRECISE;
+            thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+            hex_interrupt_update(thread_env);
+        }
+    }
 }
 
 void HELPER(pending_interrupt)(CPUHexagonState *env)
