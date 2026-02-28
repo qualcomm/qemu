@@ -958,7 +958,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_DEBUG:
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
-        qemu_log_mask(LOG_UNIMP, "single-step exception is not handled\n");
+        env->ss_pending = false;
         break;
 
     case HEX_EVENT_PRECISE:
@@ -1021,8 +1021,32 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_IMPRECISE:
-        qemu_log_mask(LOG_UNIMP,
-                "Imprecise exception: this case is not yet handled");
+        switch (env->cause_code) {
+        case HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH:
+            hexagon_ssr_set_cause(env, env->cause_code);
+            set_addresses(env, 4, cs->exception_index);
+            arch_set_system_reg(env, HEX_SREG_DIAG,
+                (0x4 << 4) |
+                    (arch_get_system_reg(env, HEX_SREG_HTID) & 0xF));
+            break;
+
+        case HEX_CAUSE_IMPRECISE_NMI:
+            hexagon_ssr_set_cause(env, env->cause_code);
+            set_addresses(env, 4, cs->exception_index);
+            arch_set_system_reg(env, HEX_SREG_DIAG,
+                (0x3 << 4) |
+                    (arch_get_system_reg(env, HEX_SREG_DIAG)));
+            break;
+
+        default:
+            cpu_abort(cs,
+                      "4:Hexagon exception %d/0x%x: "
+                      "Unknown cause code %" PRId32 "/0x%" PRIx32 "\n",
+                      cs->exception_index, cs->exception_index,
+                      (uint32_t)env->cause_code,
+                      (uint32_t)env->cause_code);
+            break;
+        }
         break;
 
     default:
