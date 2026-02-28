@@ -1541,28 +1541,22 @@ static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
  */
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad & ~(mask));
     hexagon_clear_last_irq(env, L2VIC_VID_0);
     hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad | mask);
     hex_interrupt_update(env);
 }
 
@@ -1972,6 +1966,9 @@ uint32_t sreg_read(CPUHexagonState *env, uint32_t reg)
     if ((reg == HEX_SREG_VID) || (reg == HEX_SREG_VID1)) {
         const uint32_t vid = hexagon_find_last_irq(env, reg);
         arch_set_system_reg(env, reg, vid);
+    } else if (reg == HEX_SREG_IPENDAD) {
+        return (arch_get_system_reg(env, HEX_SREG_IPEND) & 0xffff) |
+            ((arch_get_system_reg(env, HEX_SREG_IAD) & 0xffff) << 16);
     } else if (reg == HEX_SREG_BADVA) {
         target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
