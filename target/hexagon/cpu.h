@@ -47,7 +47,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
 #define MAX_TLB_ENTRIES 1024
-#define THREADS_MAX 8
+#define THREADS_MAX 16
 #define VECTOR_UNIT_MAX 8
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
@@ -70,6 +70,12 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #ifndef CONFIG_USER_ONLY
 #define MMU_GUEST_IDX        1
 #define MMU_KERNEL_IDX       2
+
+/*
+ * Maximum number of consecutive translation blocks to execute on a CPU
+ * before yielding to another CPU.
+ */
+#define HEXAGON_TB_EXEC_PER_CPU_MAX 2000
 
 typedef enum {
     HEX_LOCK_UNLOCKED       = 0,
@@ -146,6 +152,8 @@ typedef struct CPUArchState {
     int32_t slot;                    /* Needed for exception generation */
     target_ulong imprecise_exception;
     bool ss_pending;
+    uint32_t exec_ctr_tb;
+    uint32_t last_cpu;
 #endif
     target_ulong next_PC;
     target_ulong new_value_usr;
@@ -202,6 +210,7 @@ struct ArchCPU {
     struct HexagonGlobalRegState *globalregs;
     gchar *usefs;
     struct HexagonTLBState *tlb;
+    bool sched_limit;
 #endif
 };
 

@@ -88,6 +88,9 @@ typedef struct DisasContext {
     bool pkt_ends_tb;
     bool need_next_pc;
     uint32_t num_cycles;
+#ifndef CONFIG_USER_ONLY
+    bool need_cpu_limit;
+#endif
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
@@ -329,6 +332,9 @@ extern TCGv hex_slot;
 extern TCGv hex_imprecise_exception;
 extern TCGv hex_cause_code;
 extern TCGv ss_pending;
+extern TCGv hex_exec_ctr_tb;
+extern TCGv hex_last_cpu;
+extern TCGv hex_thread_id;
 #endif
 
 

@@ -137,4 +137,5 @@ DEF_HELPER_3(modify_ssr, void, env, i32, i32)
 DEF_HELPER_1(pending_interrupt, void, env)
 DEF_HELPER_3(sreg_write_masked, void, env, i32, i32)
 DEF_HELPER_3(sreg_write_pair_masked, void, env, i32, i64)
+DEF_HELPER_3(cpu_limit, void, env, i32, i32)
 #endif

@@ -92,6 +92,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb,
                      TYPE_HEXAGON_TLB, HexagonTLBState *),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
+    DEFINE_PROP_BOOL("sched-limit", HexagonCPU, sched_limit, false),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
