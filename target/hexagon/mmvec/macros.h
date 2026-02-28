@@ -104,8 +104,13 @@
 #define fVALIGN(ADDR, LOG2_ALIGNMENT) (ADDR = ADDR & ~(LOG2_ALIGNMENT - 1))
 #define fVLASTBYTE(ADDR, LOG2_ALIGNMENT) (ADDR = ADDR | (LOG2_ALIGNMENT - 1))
 #define fVELEM(WIDTH) ((fVECSIZE() * 8) / WIDTH)
-#define fVECLOGSIZE() (7)
-#define fVECSIZE() (1 << fVECLOGSIZE())
+#ifdef QEMU_GENERATE
+#define fVECLOGSIZE() (ctz32(ctx->hvx_vec_len))
+#define fVECSIZE() (ctx->hvx_vec_len)
+#else
+#define fVECLOGSIZE() (ctz32(env->hvx_vec_len))
+#define fVECSIZE() (env->hvx_vec_len)
+#endif
 #define fSWAPB(A, B) do { uint8_t tmp = A; A = B; B = tmp; } while (0)
 #define fV_AL_CHECK(EA, MASK) \
     if ((EA) & (MASK)) { \
@@ -204,7 +209,7 @@
 #define SCATTER_OP_WRITE_TO_MEM(TYPE) \
     do { \
         ra = GETPC(); \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < env->hvx_vec_len; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 TYPE dst = 0; \
                 TYPE inc = 0; \
@@ -226,7 +231,7 @@
     } while (0)
 #define SCATTER_OP_PROBE_MEM(TYPE, MMU_IDX, RETADDR) \
     do { \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < env->hvx_vec_len; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 for (int j = 0; j < sizeof(TYPE); j++) { \
                     probe_read(env, env->vtcm_log.va[i + j], 1, \
