@@ -224,7 +224,23 @@ void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
     }
 
     s->regs[reg] = value;
-    trace_hexagon_globalreg_write(get_sreg_name(reg), value);
+
+    /*
+     * Keep IPENDAD (S20) in sync with separate IPEND (S101) and IAD (S102)
+     * registers.  Guest code may read IPENDAD to check interrupt state,
+     * so the combined register must reflect changes to the split registers.
+     */
+    if (reg == HEX_SREG_IPEND) {
+        uint32_t ipendad = s->regs[HEX_SREG_IPENDAD];
+        ipendad = deposit32(ipendad, 0, 16, value & 0xFFFF);
+        s->regs[HEX_SREG_IPENDAD] = ipendad;
+    } else if (reg == HEX_SREG_IAD) {
+        uint32_t ipendad = s->regs[HEX_SREG_IPENDAD];
+        ipendad = deposit32(ipendad, 16, 16, value & 0xFFFF);
+        s->regs[HEX_SREG_IPENDAD] = ipendad;
+    }
+
+    trace_hexagon_globalreg_write(get_sreg_name(reg), s->regs[reg]);
 }
 
 uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
@@ -319,6 +335,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     s->regs[HEX_SREG_PMUCNT5] = INVALID_REG_VAL;
     s->regs[HEX_SREG_PMUCNT6] = INVALID_REG_VAL;
     s->regs[HEX_SREG_PMUCNT7] = INVALID_REG_VAL;
+    s->regs[HEX_SREG_IPENDAD] = INVALID_REG_VAL;
 }
 
 static void hexagon_globalreg_realize(DeviceState *dev, Error **errp)

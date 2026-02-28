@@ -1570,14 +1570,11 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad & ~(mask));
     if (cpu->l2vic) {
         l2vic_clear_interrupt(cpu->l2vic);
     }
@@ -1586,14 +1583,11 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad | mask);
     hex_interrupt_update(env);
 }
 
@@ -1976,7 +1970,10 @@ uint32_t sreg_read(CPUHexagonState *env, uint32_t reg)
         qemu_log_mask(LOG_UNIMP, "PMU registers not yet implemented");
         return 0;
     }
-    if (reg == HEX_SREG_BADVA) {
+    if (reg == HEX_SREG_IPENDAD) {
+        return (arch_get_system_reg(env, HEX_SREG_IPEND) & 0xffff) |
+            ((arch_get_system_reg(env, HEX_SREG_IAD) & 0xffff) << 16);
+    } else if (reg == HEX_SREG_BADVA) {
         target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
             return arch_get_system_reg(env, HEX_SREG_BADVA1);
