@@ -99,6 +99,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
     DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true),
+    DEFINE_PROP_UNSIGNED("hvx-length", HexagonCPU, env.hvx_vec_len, 128,
+                         qdev_prop_uint32, uint32_t),
 };
 
 const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
@@ -222,9 +224,11 @@ static void print_sreg(FILE *f, CPUHexagonState *env, int regnum)
 static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
                        bool skip_if_zero)
 {
+    uint32_t vec_len = env->hvx_vec_len;
+
     if (skip_if_zero) {
         bool nonzero_found = false;
-        for (int i = 0; i < MAX_VEC_SIZE_BYTES; i++) {
+        for (int i = 0; i < vec_len; i++) {
             if (env->VRegs[regnum].ub[i] != 0) {
                 nonzero_found = true;
                 break;
@@ -236,8 +240,8 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
     }
 
     qemu_fprintf(f, "  v%d = ( ", regnum);
-    qemu_fprintf(f, "0x%02x", env->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
-    for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
+    qemu_fprintf(f, "0x%02x", env->VRegs[regnum].ub[vec_len - 1]);
+    for (int i = vec_len - 2; i >= 0; i--) {
         qemu_fprintf(f, ", 0x%02x", env->VRegs[regnum].ub[i]);
     }
     qemu_fprintf(f, " )\n");
@@ -251,9 +255,11 @@ void hexagon_debug_vreg(CPUHexagonState *env, int regnum)
 static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
                        bool skip_if_zero)
 {
+    uint32_t qreg_len = env->hvx_vec_len / 8;
+
     if (skip_if_zero) {
         bool nonzero_found = false;
-        for (int i = 0; i < MAX_VEC_SIZE_BYTES / 8; i++) {
+        for (int i = 0; i < qreg_len; i++) {
             if (env->QRegs[regnum].ub[i] != 0) {
                 nonzero_found = true;
                 break;
@@ -266,8 +272,8 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
 
     qemu_fprintf(f, "  q%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
-                 env->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
-    for (int i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
+                 env->QRegs[regnum].ub[qreg_len - 1]);
+    for (int i = qreg_len - 2; i >= 0; i--) {
         qemu_fprintf(f, ", 0x%02x", env->QRegs[regnum].ub[i]);
     }
     qemu_fprintf(f, " )\n");
@@ -507,7 +513,14 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(dev);
+    CPUHexagonState *env = cpu_env(cs);
     Error *local_err = NULL;
+
+    if (env->hvx_vec_len != 64 && env->hvx_vec_len != 128) {
+        error_setg(errp, "Invalid hvx-length %u, must be 64 or 128",
+                   env->hvx_vec_len);
+        return;
+    }
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {

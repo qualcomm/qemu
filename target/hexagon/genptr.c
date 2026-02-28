@@ -1370,9 +1370,9 @@ static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     if (aligned) {
-        tcg_gen_andi_tl(src, src, ~((int32_t)sizeof(MMVector) - 1));
+        tcg_gen_andi_tl(src, src, ~((int32_t)ctx->hvx_vec_len - 1));
     }
-    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+    for (int i = 0; i < ctx->hvx_vec_len / 8; i++) {
         tcg_gen_qemu_ld_i64(tmp, src, ctx->mem_idx, MO_LE | MO_UQ);
         tcg_gen_addi_tl(src, src, 8);
         tcg_gen_st_i64(tmp, tcg_env, dstoff + i * 8);
@@ -1384,6 +1384,8 @@ static void gen_vreg_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
 {
     intptr_t dstoff = offsetof(CPUHexagonState, vstore[slot].data);
     intptr_t maskoff = offsetof(CPUHexagonState, vstore[slot].mask);
+    uint32_t vec_len = ctx->hvx_vec_len;
+    uint32_t qreg_len = vec_len / 8;
 
     if (is_gather_store_insn(ctx)) {
         TCGv sl = tcg_constant_tl(slot);
@@ -1394,16 +1396,16 @@ static void gen_vreg_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
     tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
     if (aligned) {
         tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
-                        ~((int32_t)sizeof(MMVector) - 1));
+                        ~((int32_t)vec_len - 1));
     } else {
         tcg_gen_mov_tl(hex_vstore_addr[slot], EA);
     }
-    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+    tcg_gen_movi_tl(hex_vstore_size[slot], vec_len);
 
     /* Copy the data to the vstore buffer */
-    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMVector), sizeof(MMVector));
+    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, vec_len, vec_len);
     /* Set the mask to all 1's */
-    tcg_gen_gvec_dup_imm(MO_64, maskoff, sizeof(MMQReg), sizeof(MMQReg), ~0LL);
+    tcg_gen_gvec_dup_imm(MO_64, maskoff, qreg_len, qreg_len, ~0LL);
 }
 
 static void gen_vreg_masked_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
@@ -1411,23 +1413,25 @@ static void gen_vreg_masked_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
 {
     intptr_t dstoff = offsetof(CPUHexagonState, vstore[slot].data);
     intptr_t maskoff = offsetof(CPUHexagonState, vstore[slot].mask);
+    uint32_t vec_len = ctx->hvx_vec_len;
+    uint32_t qreg_len = vec_len / 8;
 
     tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
     tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
-                    ~((int32_t)sizeof(MMVector) - 1));
-    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+                    ~((int32_t)vec_len - 1));
+    tcg_gen_movi_tl(hex_vstore_size[slot], vec_len);
 
     /* Copy the data to the vstore buffer */
-    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMVector), sizeof(MMVector));
+    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, vec_len, vec_len);
     /* Copy the mask */
-    tcg_gen_gvec_mov(MO_64, maskoff, bitsoff, sizeof(MMQReg), sizeof(MMQReg));
+    tcg_gen_gvec_mov(MO_64, maskoff, bitsoff, qreg_len, qreg_len);
     if (invert) {
-        tcg_gen_gvec_not(MO_64, maskoff, maskoff,
-                         sizeof(MMQReg), sizeof(MMQReg));
+        tcg_gen_gvec_not(MO_64, maskoff, maskoff, qreg_len, qreg_len);
     }
 }
 
-static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
+static void vec_to_qvec(DisasContext *ctx, size_t size,
+                        intptr_t dstoff, intptr_t srcoff)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     TCGv_i64 word = tcg_temp_new_i64();
@@ -1436,7 +1440,7 @@ static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
     TCGv_i64 zero = tcg_constant_i64(0);
     TCGv_i64 ones = tcg_constant_i64(~0);
 
-    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+    for (int i = 0; i < ctx->hvx_vec_len / 8; i++) {
         tcg_gen_ld_i64(tmp, tcg_env, srcoff + i * 8);
         tcg_gen_movi_i64(mask, 0);
 

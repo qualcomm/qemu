@@ -255,6 +255,7 @@ def need_env(tag):
             "A_DMA" in attribdict[tag] or
             "A_CVI_GATHER" in attribdict[tag] or
             "A_CVI_SCATTER" in attribdict[tag] or
+            "A_CVI" in attribdict[tag] or
             "A_IMPLICIT_WRITES_USR" in attribdict[tag] or
             "A_PRIV" in attribdict[tag] or
             "J2_trap" in tag)

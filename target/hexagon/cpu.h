@@ -184,6 +184,8 @@ typedef struct CPUArchState {
     target_ulong vstore_pending[VSTORES_MAX];
     bool vtcm_pending;
     VTCMStoreLog vtcm_log;
+
+    uint32_t hvx_vec_len;    /* HVX vector length in bytes (64 or 128) */
 } CPUHexagonState;
 
 typedef struct HexagonCPUClass {
