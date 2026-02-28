@@ -197,9 +197,9 @@ uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
         uint32_t vid_group = (reg == HEX_SREG_VID) ? 0 : 1;
         value = l2vic_read_vid(s->l2vic, vid_group);
     } else if (reg == HEX_SREG_TIMERLO) {
-        value = qtimer_get_timer_lo(s->qtimer);
+        value = s->qtimer ? qtimer_get_timer_lo(s->qtimer) : 0;
     } else if (reg == HEX_SREG_TIMERHI) {
-        value = qtimer_get_timer_hi(s->qtimer);
+        value = s->qtimer ? qtimer_get_timer_hi(s->qtimer) : 0;
     } else {
         value = s->regs[reg];
     }
