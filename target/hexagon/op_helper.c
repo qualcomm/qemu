@@ -2088,6 +2088,42 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     g_assert_not_reached();
 }
 
+static uint32_t get_ready_count(CPUHexagonState *env)
+{
+    uint32_t ready_count = 0;
+    CPUState *cs;
+
+    g_assert(bql_locked());
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        const bool running =
+            (get_exe_mode(thread_env) == HEX_EXE_MODE_RUN) &&
+            (env->k0_lock_state != HEX_LOCK_WAITING) &&
+            (env->tlb_lock_state != HEX_LOCK_WAITING);
+        if (running) {
+            ready_count += 1;
+        }
+    }
+    return ready_count;
+}
+
+void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
+                       target_ulong next_PC)
+{
+    BQL_LOCK_GUARD();
+    uint32_t ready_count = get_ready_count(env);
+
+    env->exec_ctr_tb++;
+
+    if (ready_count > 1 &&
+        env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
+        env->gpr[HEX_REG_PC] = next_PC;
+        hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
+        env->exec_ctr_tb = 0;
+    }
+    env->last_cpu = env->threadId;
+}
+
 void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
 {
     g_assert_not_reached();
