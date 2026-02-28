@@ -45,11 +45,16 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #endif
 
+static void hexagon_common_cpu_init(Object *obj)
+{
+}
+
 #define DEFINE_STD_CPU_INIT_FUNC(REV) \
     static void hexagon_##REV##_cpu_init(Object *obj) \
     { \
         HexagonCPU *cpu = HEXAGON_CPU(obj); \
         cpu->rev_reg = REV##_rev; \
+        hexagon_common_cpu_init(obj); \
     }
 
 DEFINE_STD_CPU_INIT_FUNC(v66)
@@ -58,6 +63,7 @@ DEFINE_STD_CPU_INIT_FUNC(v68)
 DEFINE_STD_CPU_INIT_FUNC(v69)
 DEFINE_STD_CPU_INIT_FUNC(v71)
 DEFINE_STD_CPU_INIT_FUNC(v73)
+DEFINE_STD_CPU_INIT_FUNC(v81)
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
@@ -874,6 +880,8 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              hexagon_v69_cpu_init),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              hexagon_v71_cpu_init),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              hexagon_v73_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V81,              hexagon_v81_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_ANY,              hexagon_common_cpu_init),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)
