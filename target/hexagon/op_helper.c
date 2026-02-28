@@ -2129,7 +2129,23 @@ void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
 
 void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
 {
-    g_assert_not_reached();
+    bool found = false;
+    CPUState *cs = NULL;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if ((thread_mask & thread_id_mask) != 0) {
+            found = true;
+            cs->exception_index = HEX_EVENT_IMPRECISE;
+            thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+            ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+        }
+    }
+    if (found) {
+        hex_interrupt_update(env);
+    }
 }
 
 void HELPER(pending_interrupt)(CPUHexagonState *env)
