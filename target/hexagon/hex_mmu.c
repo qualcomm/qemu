@@ -236,6 +236,13 @@ static inline void print_thread_states(const char *str)
 
 void hex_tlb_lock(CPUHexagonState *env)
 {
+    HexagonCPU *cpu = env_archcpu(env);
+    if (!cpu->tlb) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "TLB lock attempted but TLB not initialized\n");
+        return;
+    }
+
     qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lock: " TARGET_FMT_ld "\n",
                   env->threadId);
     BQL_LOCK_GUARD();
@@ -278,6 +285,13 @@ void hex_tlb_lock(CPUHexagonState *env)
 
 void hex_tlb_unlock(CPUHexagonState *env)
 {
+    HexagonCPU *cpu = env_archcpu(env);
+    if (!cpu->tlb) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "TLB unlock attempted but TLB not initialized\n");
+        return;
+    }
+
     BQL_LOCK_GUARD();
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
@@ -348,6 +362,16 @@ void hex_tlb_unlock(CPUHexagonState *env)
         qemu_log_mask(CPU_LOG_MMU, "Threads after hex_tlb_unlock:\n");
         print_thread_states("\tThread");
     }
+}
 
+uint64_t hex_tlb_read(CPUHexagonState *env, uint32_t index)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->tlb) {
+        uint32_t myidx = TLB_WRAP_INDEX(index);
+        return hexagon_tlb_read(cpu->tlb, myidx);
+    }
+    /* No TLB - return 0 */
+    return 0;
 }
 
