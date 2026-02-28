@@ -94,6 +94,8 @@ HEX_TESTS += v68_scalar
 HEX_TESTS += v68_hvx
 HEX_TESTS += v69_hvx
 HEX_TESTS += v73_scalar
+HEX_TESTS += hvx_128b
+HEX_TESTS += hvx_64b
 
 TESTS += $(HEX_TESTS)
 
@@ -133,6 +135,13 @@ v68_hvx: CFLAGS += -mhvx -Wno-unused-function
 v69_hvx: v69_hvx.c hvx_misc.h
 v69_hvx: CFLAGS += -mhvx -Wno-unused-function
 v73_scalar: CFLAGS += -Wno-unused-function
+
+hvx_128b: $(HEX_SRC)/hvx_veclen.c
+	$(CC) $(CFLAGS) -mhvx -mhvx-length=128b $< -o $@ $(LDFLAGS)
+
+hvx_64b: $(HEX_SRC)/hvx_veclen.c
+	$(CC) $(CFLAGS) -mhvx -mhvx-length=64b $< -o $@ $(LDFLAGS)
+run-hvx_64b: QEMU_OPTS += -cpu v73,hvx-length=64
 
 hvx_histogram: hvx_histogram.c hvx_histogram_row.S
 	$(CC) $(CFLAGS) $(CROSS_CC_GUEST_CFLAGS) $^ -o $@ $(LDFLAGS)
