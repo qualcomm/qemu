@@ -325,6 +325,10 @@ extern TCGv hex_vstore_pending[VSTORES_MAX];
 #ifndef CONFIG_USER_ONLY
 extern TCGv hex_greg[NUM_GREGS];
 extern TCGv hex_t_sreg[NUM_SREGS];
+extern TCGv hex_slot;
+extern TCGv hex_imprecise_exception;
+extern TCGv hex_cause_code;
+extern TCGv ss_pending;
 #endif
 
 
