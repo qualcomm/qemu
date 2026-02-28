@@ -324,6 +324,11 @@ static void sim_handle_trap0(CPUHexagonState *env)
     uintptr_t retaddr = 0;
     CPUState *cs = env_cpu(env);
 
+    qemu_log_mask(CPU_LOG_INT,
+                  "sim_handle_trap0: swi=0x%x info=0x%x PC=0x%x thread=%d\n",
+                  (uint32_t)what_swi, (uint32_t)swi_info,
+                  arch_get_thread_reg(env, HEX_REG_PC), env->threadId);
+
     if (!is_hexagon_specific_swi_flag(what_swi)) {
         if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
             what_swi == HEX_SYS_WRITE) {
@@ -334,6 +339,22 @@ static void sim_handle_trap0(CPUHexagonState *env)
              * directed to the SWI interface.
              */
             do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
+        }
+        /*
+         * QuRT uses POSIX-style fd numbers (0=stdin, 1=stdout, 2=stderr)
+         * but ARM-compatible semihosting doesn't pre-populate these in the
+         * guestfd table.  Reserve them on first semihosting call so that
+         * SYS_OPEN allocates from fd 3+ and SYS_WRITE/READ to fd 1/2
+         * reach the host stdio streams via do_common_semihosting.
+         */
+        static bool stdio_guestfds_inited;
+        if (!stdio_guestfds_inited) {
+            stdio_guestfds_inited = true;
+            int fd1 = alloc_guestfd();
+            associate_guestfd(0, STDIN_FILENO);
+            associate_guestfd(fd1, STDOUT_FILENO);
+            int fd2 = alloc_guestfd();
+            associate_guestfd(fd2, STDERR_FILENO);
         }
         do_common_semihosting(cs);
         return;
@@ -395,6 +416,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
         }
 
         ret = open(filename, real_openmode | O_BINARY, 0644);
+
+        qemu_log_mask(CPU_LOG_INT,
+                      "OPEN: '%s' mode=%d ret=%d errno=%d\n",
+                      filename, filemode, ret, ret == -1 ? errno : 0);
 
         if (ret == -1) {
             err = errno;
@@ -812,10 +837,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     qemu_log_mask(CPU_LOG_INT,
                   "\t%s: event 0x%" PRIx32 ":%s, cause 0x" TARGET_FMT_lx
-                  "(%" PRId32 ")\n",
+                  "(%" PRId32 ") PC=0x%x thread=%d\n",
                   __func__, cs->exception_index,
                   event_name[cs->exception_index], env->cause_code,
-                  (int32_t)env->cause_code);
+                  (int32_t)env->cause_code,
+                  arch_get_thread_reg(env, HEX_REG_PC),
+                  env->threadId);
 
     env->llsc_addr = ~0;
 
