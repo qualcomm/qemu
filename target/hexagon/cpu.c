@@ -54,6 +54,7 @@ static uint32_t hexagon_version_to_rev(HexagonVersion ver)
     case HEX_VER_V69: return v69_rev;
     case HEX_VER_V71: return v71_rev;
     case HEX_VER_V73: return v73_rev;
+    case HEX_VER_V81: return v81_rev;
     default: return unknown_rev;
     }
 }
@@ -875,7 +876,7 @@ static void hexagon_cpu_class_base_init(ObjectClass *c, const void *data)
         .parent = TYPE_HEXAGON_CPU,            \
         .class_data = &(const HexagonCPUDef) { \
             .hex_version = version,            \
-        }
+        },                                     \
     }
 
 static const TypeInfo hexagon_cpu_type_infos[] = {
@@ -902,6 +903,8 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              HEX_VER_V69),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              HEX_VER_V71),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              HEX_VER_V73),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V81,              HEX_VER_V81),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_ANY,              HEX_VER_ANY),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)
