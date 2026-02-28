@@ -36,6 +36,7 @@ static const char *hex_sreg_names[] = {
     [HEX_SREG_BADVA] = "badva",
     [HEX_SREG_IMASK] = "imask",
     [HEX_SREG_GEVB] = "gevb",
+    [HEX_SREG_VWCTRL] = "vwctrl",
     [HEX_SREG_EVB] = "evb",
     [HEX_SREG_MODECTL] = "modectl",
     [HEX_SREG_SYSCFG] = "syscfg",
@@ -83,6 +84,48 @@ static const char *hex_sreg_names[] = {
     [HEX_SREG_S61] = "s61",
     [HEX_SREG_S62] = "s62",
     [HEX_SREG_S63] = "s63",
+    [HEX_SREG_COMMIT1T] = "commit1t",
+    [HEX_SREG_COMMIT2T] = "commit2t",
+    [HEX_SREG_COMMIT3T] = "commit3t",
+    [HEX_SREG_COMMIT4T] = "commit4t",
+    [HEX_SREG_COMMIT5T] = "commit5t",
+    [HEX_SREG_COMMIT6T] = "commit6t",
+    [HEX_SREG_PCYCLE1T] = "pcycle1t",
+    [HEX_SREG_PCYCLE2T] = "pcycle2t",
+    [HEX_SREG_PCYCLE3T] = "pcycle3t",
+    [HEX_SREG_PCYCLE4T] = "pcycle4t",
+    [HEX_SREG_PCYCLE5T] = "pcycle5t",
+    [HEX_SREG_PCYCLE6T] = "pcycle6t",
+    [HEX_SREG_STFINST] = "stfinst",
+    [HEX_SREG_ISDBCMD] = "isdbcmd",
+    [HEX_SREG_ISDBVER] = "isdbver",
+    [HEX_SREG_BRKPTINFO] = "brkptinfo",
+    [HEX_SREG_RGDR3] = "rgdr3",
+    [HEX_SREG_COMMIT7T] = "commit7t",
+    [HEX_SREG_COMMIT8T] = "commit8t",
+    [HEX_SREG_PCYCLE7T] = "pcycle7t",
+    [HEX_SREG_PCYCLE8T] = "pcycle8t",
+    [HEX_SREG_COMMIT9T] = "commit9t",
+    [HEX_SREG_COMMIT10T] = "commit10t",
+    [HEX_SREG_COMMIT11T] = "commit11t",
+    [HEX_SREG_COMMIT12T] = "commit12t",
+    [HEX_SREG_COMMIT13T] = "commit13t",
+    [HEX_SREG_COMMIT14T] = "commit14t",
+    [HEX_SREG_COMMIT15T] = "commit15t",
+    [HEX_SREG_COMMIT16T] = "commit16t",
+    [HEX_SREG_PCYCLE9T] = "pcycle9t",
+    [HEX_SREG_PCYCLE10T] = "pcycle10t",
+    [HEX_SREG_PCYCLE11T] = "pcycle11t",
+    [HEX_SREG_PCYCLE12T] = "pcycle12t",
+    [HEX_SREG_PCYCLE13T] = "pcycle13t",
+    [HEX_SREG_PCYCLE14T] = "pcycle14t",
+    [HEX_SREG_PCYCLE15T] = "pcycle15t",
+    [HEX_SREG_PCYCLE16T] = "pcycle16t",
+    [HEX_SREG_IPEND] = "ipend",
+    [HEX_SREG_IAD] = "iad",
+    [HEX_SREG_ISDBST1] = "isdbst1",
+    [HEX_SREG_ISDBST2] = "isdbst2",
+    [HEX_SREG_BRKPTINFO1] = "brkptinfo1",
 };
 
 static const char *get_sreg_name(uint32_t reg)
@@ -118,6 +161,13 @@ static const uint32_t global_sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_ISDBEN] = 0xfffffffe,
     [HEX_SREG_TIMERLO] = IMMUTABLE,
     [HEX_SREG_TIMERHI] = IMMUTABLE,
+    [HEX_SREG_ISDBVER] = IMMUTABLE,
+    [HEX_SREG_BRKPTINFO] = IMMUTABLE,
+    [HEX_SREG_IPEND] = IMMUTABLE,
+    [HEX_SREG_IAD] = IMMUTABLE,
+    [HEX_SREG_ISDBST1] = IMMUTABLE,
+    [HEX_SREG_ISDBST2] = IMMUTABLE,
+    [HEX_SREG_BRKPTINFO1] = IMMUTABLE,
 };
 
 static void hexagon_globalreg_init(Object *obj)
@@ -210,6 +260,11 @@ uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s)
 {
     g_assert(s);
     return s->g_pcycle_base;
+}
+
+uint32_t hexagon_globalreg_get_boot_evb(HexagonGlobalRegState *s)
+{
+    return s ? s->boot_evb : 0xffffffff;
 }
 
 void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s,
