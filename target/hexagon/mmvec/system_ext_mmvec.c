@@ -21,7 +21,7 @@
 
 void mem_gather_store(CPUHexagonState *env, target_ulong vaddr, int slot)
 {
-    size_t size = sizeof(MMVector);
+    uint32_t size = env->hvx_vec_len;
 
     env->vstore_pending[slot] = 1;
     env->vstore[slot].va   = vaddr;
