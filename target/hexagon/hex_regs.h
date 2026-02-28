@@ -54,6 +54,7 @@ enum {
     HEX_REG_R30              = 30,
     HEX_REG_LR               = 31,
     HEX_REG_R31              = 31,
+    HEX_REG_CREGS_START      = 32,
     HEX_REG_SA0              = 32,
     HEX_REG_LC0              = 33,
     HEX_REG_SA1              = 34,
@@ -73,10 +74,17 @@ enum {
     HEX_REG_FRAMEKEY         = 49,
     HEX_REG_PKTCNTLO         = 50,
     HEX_REG_PKTCNTHI         = 51,
-    /* Use reserved control registers for qemu execution counts */
-    HEX_REG_QEMU_PKT_CNT      = 52,
-    HEX_REG_QEMU_INSN_CNT     = 53,
-    HEX_REG_QEMU_HVX_CNT      = 54,
+    HEX_REG_UPMUCNT0         = 52,
+    HEX_REG_QEMU_PKT_CNT     = 52,  /* Alias for backwards compat */
+    HEX_REG_UPMUCNT1         = 53,
+    HEX_REG_QEMU_INSN_CNT    = 53,  /* Alias for backwards compat */
+    HEX_REG_UPMUCNT2         = 54,
+    HEX_REG_QEMU_HVX_CNT     = 54,  /* Alias for backwards compat */
+    HEX_REG_UPMUCNT3         = 55,
+    HEX_REG_UPMUCNT4         = 56,
+    HEX_REG_UPMUCNT5         = 57,
+    HEX_REG_UPMUCNT6         = 58,
+    HEX_REG_UPMUCNT7         = 59,
     HEX_REG_UTIMERLO          = 62,
     HEX_REG_UTIMERHI          = 63,
 };
@@ -133,6 +141,8 @@ static inline bool greg_implemented(enum hex_greg greg)
 
 #endif /* CONFIG_USER_ONLY */
 
+#define DEFAULT_VWCTRL_VAL 0x8fff0000
+
 enum {
     HEX_SREG_SGP0 = 0,
     HEX_SREG_SGP1 = 1,
@@ -146,6 +156,7 @@ enum {
     HEX_SREG_BADVA = 9,
     HEX_SREG_IMASK = 10,
     HEX_SREG_GEVB  = 11,
+    HEX_SREG_VWCTRL = 12,
     HEX_SREG_GLB_START = 16,
     HEX_SREG_EVB = 16,
     HEX_SREG_MODECTL = 17,
@@ -194,6 +205,48 @@ enum {
     HEX_SREG_S61 = 61,
     HEX_SREG_S62 = 62,
     HEX_SREG_S63 = 63,
+    HEX_SREG_COMMIT1T = 64,
+    HEX_SREG_COMMIT2T = 65,
+    HEX_SREG_COMMIT3T = 66,
+    HEX_SREG_COMMIT4T = 67,
+    HEX_SREG_COMMIT5T = 68,
+    HEX_SREG_COMMIT6T = 69,
+    HEX_SREG_PCYCLE1T = 70,
+    HEX_SREG_PCYCLE2T = 71,
+    HEX_SREG_PCYCLE3T = 72,
+    HEX_SREG_PCYCLE4T = 73,
+    HEX_SREG_PCYCLE5T = 74,
+    HEX_SREG_PCYCLE6T = 75,
+    HEX_SREG_STFINST = 76,
+    HEX_SREG_ISDBCMD = 77,
+    HEX_SREG_ISDBVER = 78,
+    HEX_SREG_BRKPTINFO = 79,
+    HEX_SREG_RGDR3 = 80,
+    HEX_SREG_COMMIT7T = 81,
+    HEX_SREG_COMMIT8T = 82,
+    HEX_SREG_PCYCLE7T = 83,
+    HEX_SREG_PCYCLE8T = 84,
+    HEX_SREG_COMMIT9T = 85,
+    HEX_SREG_COMMIT10T = 86,
+    HEX_SREG_COMMIT11T = 87,
+    HEX_SREG_COMMIT12T = 88,
+    HEX_SREG_COMMIT13T = 89,
+    HEX_SREG_COMMIT14T = 90,
+    HEX_SREG_COMMIT15T = 91,
+    HEX_SREG_COMMIT16T = 92,
+    HEX_SREG_PCYCLE9T = 93,
+    HEX_SREG_PCYCLE10T = 94,
+    HEX_SREG_PCYCLE11T = 95,
+    HEX_SREG_PCYCLE12T = 96,
+    HEX_SREG_PCYCLE13T = 97,
+    HEX_SREG_PCYCLE14T = 98,
+    HEX_SREG_PCYCLE15T = 99,
+    HEX_SREG_PCYCLE16T = 100,
+    HEX_SREG_IPEND = 101,
+    HEX_SREG_IAD = 102,
+    HEX_SREG_ISDBST1 = 103,
+    HEX_SREG_ISDBST2 = 104,
+    HEX_SREG_BRKPTINFO1 = 105,
 };
 
 #endif

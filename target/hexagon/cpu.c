@@ -121,6 +121,24 @@ const char * const hexagon_sregnames[] = {
     "pmucnt2",    "pmucnt3",    "pmuevtcfg",  "pmustid0",   "pmuevtcfg1",
     "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "rgdr2",
     "rgdr",       "turkey",     "duck",       "chicken",
+    /* 64-69: per-thread commit counters */
+    "commit1t",   "commit2t",   "commit3t",   "commit4t",   "commit5t",
+    "commit6t",
+    /* 70-75: per-thread pcycle counters */
+    "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
+    "pcycle6t",
+    /* 76-80: ISDB and debug */
+    "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",  "rgdr3",
+    /* 81-84: more per-thread counters */
+    "commit7t",   "commit8t",   "pcycle7t",   "pcycle8t",
+    /* 85-92: extended commit counters */
+    "commit9t",   "commit10t",  "commit11t",  "commit12t",  "commit13t",
+    "commit14t",  "commit15t",  "commit16t",
+    /* 93-100: extended pcycle counters */
+    "pcycle9t",   "pcycle10t",  "pcycle11t",  "pcycle12t",  "pcycle13t",
+    "pcycle14t",  "pcycle15t",  "pcycle16t",
+    /* 101-105: ipend, iad, isdb extensions */
+    "ipend",      "iad",        "isdbst1",    "isdbst2",    "brkptinfo1",
 };
 
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
