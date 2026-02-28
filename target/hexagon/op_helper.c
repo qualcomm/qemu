@@ -1541,28 +1541,22 @@ static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
  */
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad & ~(mask));
     hexagon_clear_last_irq(env, L2VIC_VID_0);
     hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
 
     BQL_LOCK_GUARD();
-    ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad | mask);
     hex_interrupt_update(env);
 }
 

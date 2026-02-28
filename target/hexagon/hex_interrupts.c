@@ -47,58 +47,47 @@ static void set_ssr_ex_cause(CPUHexagonState *env, int ex, uint32_t cause)
 
 static bool get_iad_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong iad = GET_FIELD(IPENDAD_IAD, ipendad);
+    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
     return extract32(iad, int_num, 1);
 }
 
 static void set_iad_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong iad = GET_FIELD(IPENDAD_IAD, ipendad);
+    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
     iad = deposit32(iad, int_num, 1, val);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    arch_set_system_reg(env, HEX_SREG_IAD, iad);
 }
 
 static uint32_t get_ipend(CPUHexagonState *env)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    return GET_FIELD(IPENDAD_IPEND, ipendad);
+    return arch_get_system_reg(env, HEX_SREG_IPEND);
 }
 
 static inline bool get_ipend_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     return extract32(ipend, int_num, 1);
 }
 
 static void clear_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend &= ~mask;
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend |= mask;
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong ipendad = arch_get_system_reg(env, HEX_SREG_IPENDAD);
-    target_ulong ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
     ipend = deposit32(ipend, int_num, 1, val);
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    arch_set_system_reg(env, HEX_SREG_IPENDAD, ipendad);
+    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
 static bool get_imask_bit(CPUHexagonState *env, int int_num)
