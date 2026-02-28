@@ -17,6 +17,7 @@
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
+#include "hw/char/pl011.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -32,6 +33,7 @@
 #include "machine_cfg_v66g_1024.h.inc"
 #include "machine_cfg_v68n_1024.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
+#include "machine_cfg_v81dgb_1.h.inc"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -113,20 +115,30 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, sram);
 
+    uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
+    if (vtcm_size_bytes > 0) {
+        MemoryRegion *vtcm = g_new(MemoryRegion, 1);
+        memory_region_init_ram(vtcm, NULL, "vtcm.ram",
+                               vtcm_size_bytes, &error_fatal);
+        memory_region_add_subregion(address_space,
+                                    m_cfg->cfgtable.vtcm_base << 16,
+                                    vtcm);
+    }
+
     Error **errp = NULL;
 
     DeviceState *glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
 
     /* Create TLB object */
     DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
     object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);
-    qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
+    qdev_prop_set_uint32(tlb_dev, "dma-entries",
+                         m_cfg->cfgtable.dma_jtlb_entries);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
 
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
@@ -147,6 +159,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
+        qdev_prop_set_bit(DEVICE(cpu), "sched-limit", true);
         if (!object_property_set_link(OBJECT(cpu), "global-regs",
                                       OBJECT(glob_regs_dev), errp)) {
             error_report("Failed to link global system registers to CPU %d", i);
@@ -169,8 +182,25 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         }
     }
 
+    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
+    object_property_set_uint(OBJECT(qtimer), "nr_frames",
+                             3, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "nr_views",
+                             1, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid",
+                             0x111, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+
+    /* Link qtimer to globalreg for TIMERLO/TIMERHI reads */
+    if (!object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
+                                  OBJECT(qtimer), errp)) {
+        error_report("Failed to link qtimer to global registers");
+        goto out;
+    }
+
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
 
     /* Link the L2VIC interface to globalreg */
     if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
@@ -179,6 +209,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         goto out;
     }
 
+    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
     /*
@@ -198,19 +229,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                            qdev_get_gpio_in(DEVICE(cpu), i));
     }
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                      m_cfg->cfgtable.fastl2vic_base << 16);
 
-    QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
-
-    object_property_set_uint(OBJECT(qtimer), "nr_frames",
-                                     2, &error_fatal);
-    object_property_set_uint(OBJECT(qtimer), "nr_views",
-                                     1, &error_fatal);
-    object_property_set_uint(OBJECT(qtimer), "cnttid",
-                                     0x111, &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+    pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15),
+                 serial_hd(0));
 
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
@@ -218,15 +241,11 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(l2vic_dev, 4));
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
-            m_cfg->cfgtable.fastl2vic_base << 16);
-
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
-    out:
-    ; /* empty statement required before closing brace in pre-C23 */
+out:
+    g_free(cpus);
 }
 
 static void init_mc(MachineClass *mc)
@@ -297,6 +316,25 @@ static void sim_init(ObjectClass *oc, const void *data)
     mc->default_cpus = 6;
 }
 
+static void v81dgb_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1);
+}
+
+static void v81dgb_1_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V81DGB_1";
+    mc->init = v81dgb_1_config_init;
+    mc->is_default = false;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+    qemu_semihosting_enable();
+}
+
 static const TypeInfo hexagon_machine_types[] = {
     {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
@@ -312,6 +350,11 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("sim"),
         .parent = TYPE_MACHINE,
         .class_init = sim_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V81DGB_1"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81dgb_1_init,
     },
 };
 
