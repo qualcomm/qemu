@@ -23,5 +23,6 @@ extern int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry,
                                  uint64_t index);
 extern void hex_tlb_lock(CPUHexagonState *env);
 extern void hex_tlb_unlock(CPUHexagonState *env);
+extern uint64_t hex_tlb_read(CPUHexagonState *env, uint32_t index);
 void dump_mmu(CPUHexagonState *env);
 #endif
