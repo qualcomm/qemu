@@ -341,6 +341,8 @@ static bool sreg_write_to_global(int reg_num)
            reg_num == HEX_SREG_STID ||
            reg_num == HEX_SREG_IMASK ||
            reg_num == HEX_SREG_IPENDAD ||
+           reg_num == HEX_SREG_IPEND ||
+           reg_num == HEX_SREG_IAD ||
            reg_num == HEX_SREG_BESTWAIT ||
            reg_num == HEX_SREG_SCHEDCFG;
 }
@@ -859,7 +861,9 @@ static void gen_sreg_writes(DisasContext *ctx)
             ctx->base.is_jmp = DISAS_NORETURN;
         } else if ((reg_num == HEX_SREG_STID) ||
                    (reg_num == HEX_SREG_IMASK) ||
-                   (reg_num == HEX_SREG_IPENDAD)) {
+                   (reg_num == HEX_SREG_IPENDAD) ||
+                   (reg_num == HEX_SREG_IPEND) ||
+                   (reg_num == HEX_SREG_IAD)) {
             if (reg_num < HEX_SREG_GLB_START) {
                 tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
                 tcg_gen_mov_tl(hex_t_sreg[reg_num],
