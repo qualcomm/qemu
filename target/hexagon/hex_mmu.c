@@ -124,7 +124,9 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
         int32_t cause_code = 0;
         result = hexagon_tlb_lookup(cpu->tlb, asid, VA, &imprecise_exception,
                                    &cause_code);
-        /* TODO: handle imprecise_exception when field is added to CPUHexagonState */
+        if (imprecise_exception) {
+            env->imprecise_exception = imprecise_exception;
+        }
         if (cause_code) {
             env->cause_code = cause_code;
         }
@@ -163,7 +165,9 @@ uint32_t hex_tlb_lookup_extended(CPUHexagonState *env, uint32_t ssr,
         int32_t cause_code = 0;
         result = hexagon_tlb_lookup_extended(cpu->tlb, asid, VA,
                                             &imprecise_exception, &cause_code);
-        /* TODO: handle imprecise_exception when field is added to CPUHexagonState */
+        if (imprecise_exception) {
+            env->imprecise_exception = imprecise_exception;
+        }
         if (cause_code) {
             env->cause_code = cause_code;
         }

@@ -143,6 +143,9 @@ typedef struct CPUArchState {
     target_ulong tlb_lock_count;
     target_ulong k0_lock_count;
     GList *dir_list;
+    int32_t slot;                    /* Needed for exception generation */
+    target_ulong imprecise_exception;
+    bool ss_pending;
 #endif
     target_ulong next_PC;
     target_ulong new_value_usr;

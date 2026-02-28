@@ -698,7 +698,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
                              uintptr_t retaddr)
 {
     CPUHexagonState *env = cpu_env(cs);
-    static int slot = 0 /* This is always zero for now */;
+    int slot = env->slot;
     hwaddr phys;
     int prot = 0;
     uint64_t page_size = 0;

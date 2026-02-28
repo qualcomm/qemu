@@ -72,7 +72,10 @@ static bool need_next_PC(DisasContext *ctx);
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
+TCGv hex_slot;
+TCGv hex_imprecise_exception;
 TCGv hex_cause_code;
+TCGv ss_pending;
 #endif
 
 static const char * const hexagon_prednames[] = {
@@ -1064,6 +1067,25 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_hvx_insns += num_hvx_insns;
 }
 
+#ifndef CONFIG_USER_ONLY
+static void check_imprecise_exception(Packet *pkt)
+{
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn *insn = &pkt->insn[i];
+        if (insn->opcode == Y2_tlbp) {
+            TCGv PC = tcg_constant_tl(pkt->pc);
+            TCGLabel *label = gen_new_label();
+            tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception,
+                               0, label);
+            gen_helper_raise_exception(tcg_env,
+                                       hex_imprecise_exception, PC);
+            gen_set_label(label);
+            return;
+        }
+    }
+}
+#endif
+
 static void gen_commit_packet(DisasContext *ctx)
 {
     /*
@@ -1164,6 +1186,10 @@ static void gen_commit_packet(DisasContext *ctx)
         ctx->insn = pkt->vhist_insn;
         pkt->vhist_insn->generate(ctx);
     }
+
+#ifndef CONFIG_USER_ONLY
+    check_imprecise_exception(pkt);
+#endif
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
         gen_end_tb(ctx);
@@ -1365,8 +1391,15 @@ void hexagon_translate_init(void)
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
 #ifndef CONFIG_USER_ONLY
+    hex_slot = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, slot), "slot");
+    hex_imprecise_exception = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, imprecise_exception),
+        "imprecise_exception");
     hex_cause_code = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, cause_code), "cause_code");
+    ss_pending = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, ss_pending), "ss_pending");
 #endif
     hex_next_PC = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, next_PC), "next_PC");
@@ -1408,8 +1441,4 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, vstore_pending[i]),
             vstore_pending_names[i]);
     }
-#ifndef CONFIG_USER_ONLY
-    hex_cause_code = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, cause_code), "cause_code");
-#endif
 }
