@@ -12,7 +12,7 @@
 HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
 
 # Set search path for all sources
-VPATH 		+= $(HEXAGON_SYSTEM_SRC)
+VPATH += $(HEXAGON_SYSTEM_SRC)
 
 ########### Compiler
 #
