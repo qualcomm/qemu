@@ -451,11 +451,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->t_cycle_count = 0;
     env->vtcm_pending = false;
 
-    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     hexagon_cpu_soft_reset(env);
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->threadId = cs->cpu_index;
+    arch_set_system_reg(env, HEX_SREG_HTID, cs->cpu_index);
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
