@@ -426,7 +426,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
         tcg_gen_gvec_cmp(COND, TYPE, tmpoff, VuV_off, VvV_off, \
                          sizeof(MMVector), sizeof(MMVector)); \
-        vec_to_qvec(SIZE, QdV_off, tmpoff); \
+        vec_to_qvec(ctx, SIZE, QdV_off, tmpoff); \
     } while (0)
 
 #define fGEN_TCG_V6_vgtw(SHORTCODE) \
@@ -456,7 +456,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         intptr_t qoff = offsetof(CPUHexagonState, qtmp); \
         tcg_gen_gvec_cmp(COND, TYPE, tmpoff, VuV_off, VvV_off, \
                          sizeof(MMVector), sizeof(MMVector)); \
-        vec_to_qvec(SIZE, qoff, tmpoff); \
+        vec_to_qvec(ctx, SIZE, qoff, tmpoff); \
         OP(MO_64, QxV_off, QxV_off, qoff, sizeof(MMQReg), sizeof(MMQReg)); \
     } while (0)
 

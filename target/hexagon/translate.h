@@ -33,6 +33,7 @@ typedef struct DisasContext {
     const HexagonCPUDef *hex_def;
     uint32_t next_PC;
     uint32_t mem_idx;
+    uint32_t hvx_vec_len;
     uint32_t num_packets;
     uint32_t num_insns;
     uint32_t num_hvx_insns;
