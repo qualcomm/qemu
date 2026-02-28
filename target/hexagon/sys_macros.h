@@ -92,8 +92,11 @@
      ((VAL) >> 16))
 #define fPOW2_ROUNDUP(VAL) (fPOW2_HELP_ROUNDUP((VAL) - 1) + 1)
 
-/* FIXME: To be implemented: */
-#define fFRAMECHECK(ADDR, EA)  g_assert_not_reached();
+#ifdef QEMU_GENERATE
+#define fFRAMECHECK(ADDR, EA) gen_framecheck(ctx, ADDR, EA)
+#else
+#define fFRAMECHECK(ADDR, EA) do { } while (0)
+#endif
 
 #define fTRAP(TRAPTYPE, IMM) \
     register_trap_exception(env, TRAPTYPE, IMM, PC)
