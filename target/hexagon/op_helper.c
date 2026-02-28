@@ -84,6 +84,41 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
     hexagon_raise_exception_err(env, excp, PC);
 }
 
+#ifndef CONFIG_USER_ONLY
+void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
+                                  target_ulong badva)
+{
+    /*
+     * Per section 7.3.1 of the V67 Programmer's Reference,
+     * stack limit exception isn't raised in monitor mode.
+     * Monitor mode is: SSR.EX=1, or SSR.EX=0 && SSR.UM=0.
+     */
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    if (GET_SSR_FIELD(SSR_EX, ssr) || !GET_SSR_FIELD(SSR_UM, ssr)) {
+        return;
+    }
+
+    CPUState *cs = env_cpu(env);
+    cs->exception_index = HEX_EVENT_PRECISE;
+    env->cause_code = HEX_CAUSE_STACK_LIMIT;
+
+    if (slot == 0) {
+        arch_set_system_reg(env, HEX_SREG_BADVA0, badva);
+        SET_SSR_FIELD(env, SSR_V0, 1);
+        SET_SSR_FIELD(env, SSR_V1, 0);
+        SET_SSR_FIELD(env, SSR_BVS, 0);
+    } else if (slot == 1) {
+        arch_set_system_reg(env, HEX_SREG_BADVA1, badva);
+        SET_SSR_FIELD(env, SSR_V0, 0);
+        SET_SSR_FIELD(env, SSR_V1, 1);
+        SET_SSR_FIELD(env, SSR_BVS, 1);
+    } else {
+        g_assert_not_reached();
+    }
+    cpu_loop_exit_restore(cs, 0);
+}
+#endif
+
 void log_store32(CPUHexagonState *env, target_ulong addr,
                  target_ulong val, int width, int slot)
 {

@@ -61,4 +61,6 @@ void probe_noshuf_load(TCGv va, int s, int mi);
 
 extern const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS];
 
+void gen_framecheck(DisasContext *ctx, TCGv addr, TCGv ea);
+
 #endif

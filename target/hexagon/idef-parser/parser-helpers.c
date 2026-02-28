@@ -2146,3 +2146,9 @@ void assert_signedness(Context *c,
              signedness != UNKNOWN_SIGNEDNESS,
              "Unspecified signedness");
 }
+
+void gen_framecheck(Context *c, YYLTYPE *locp,
+                    HexValue *addr, HexValue *ea)
+{
+    OUT(c, locp, "gen_framecheck(ctx, ", addr, ", ", ea, ");\n");
+}

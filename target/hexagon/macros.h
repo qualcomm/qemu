@@ -536,12 +536,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fFRAME_SCRAMBLE(VAL) ((VAL) ^ (fCAST8u(fGET_FRAMEKEY()) << 32))
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 
-#ifdef CONFIG_USER_ONLY
-#define fFRAMECHECK(ADDR, EA) do { } while (0) /* Not modelled in linux-user */
-#else
-/* System mode not implemented yet */
-#define fFRAMECHECK(ADDR, EA)  g_assert_not_reached();
-#endif
+#define fFRAMECHECK(ADDR, EA) do { } while (0) /* Not modelled in qemu */
 
 #ifdef QEMU_GENERATE
 #define fLOAD_LOCKED(NUM, SIZE, SIGN, EA, DST) \
