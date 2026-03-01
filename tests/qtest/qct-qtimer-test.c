@@ -177,15 +177,25 @@ static void test_qtimer_timer_behavior(void)
     /* Enable timer */
     qtimer_write32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL, 1);
 
+    /*
+     * qtest_clock_step advances by nanoseconds.  Convert ticks to ns:
+     *   ns = ticks * 1e9 / freq
+     * For TIMER_TEST_OFFSET=1000 ticks at 19.2 MHz ~ 52083 ns.
+     */
+    uint64_t half_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
+                       / QTIMER_DEFAULT_FREQ_HZ / 2;
+    uint64_t full_ns = (uint64_t)TIMER_TEST_OFFSET * 1000000000ULL
+                       / QTIMER_DEFAULT_FREQ_HZ;
+
     /* Step virtual clock forward but not past target */
-    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET / 2);
+    qtest_clock_step(global_qtest, half_ns);
 
     /* Timer should still be running */
     new_count = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
     g_assert_cmpuint(new_count, >=, current_count);
 
     /* Step past the target time */
-    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET);
+    qtest_clock_step(global_qtest, full_ns);
 
     /* Verify counter has advanced past target */
     new_count = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
