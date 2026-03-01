@@ -547,6 +547,8 @@ static void virt_init(MachineState *ms)
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
                              m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr",
+                             m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
 
         if (i == 0) {
