@@ -256,7 +256,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("pend_wake_wait")
         self.assertTrue(result, "Test pend_wake_wait failed")
 
-    @skip("Needs qfloat/HVX extension instruction support")
     def test_qfloat_test(self) -> None:
         """Tests HVX qfloat operations including arithmetic, comparisons,
         min/max, and conversions between different qfloat formats."""
@@ -328,7 +327,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("swi_wait")
         self.assertTrue(result, "Test swi_wait failed")
 
-    @skip("Needs LL/SC multi-thread synchronization fixes")
     def test_sys_atomics(self) -> None:
         """Tests atomic memory operations (load-linked/store-conditional) with
         multiple threads to verify proper atomic increment behavior and
