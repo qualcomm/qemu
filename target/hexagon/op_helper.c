@@ -2195,4 +2195,59 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
     printf("ERROR: bogus helper: " #tag "\n")
 
 #include "mmvec/kvx_ieee.h"
+
+/*
+ * IEEE FP helper macros needed by generated helper functions.
+ * The vector union uses int32_t for .sf and int16_t for .hf (bit patterns).
+ * Compare: convert bit pattern to float, then use IEEE comparison.
+ * Min/Max: delegate to fp_max_sf/fp_min_sf from kvx_ieee.h (uint32_t API).
+ */
+#ifndef fCMPGT_SF
+static inline int cmpgt_sf_wrap(int32_t a, int32_t b)
+{
+    union { int32_t i; float f; } ua = {a}, ub = {b};
+    return ua.f > ub.f;
+}
+#define fCMPGT_SF(A, B)  cmpgt_sf_wrap((A), (B))
+#endif
+#ifndef fCMPGT_HF
+static inline int cmpgt_hf_wrap(int16_t a, int16_t b)
+{
+    /* Convert half-float bit patterns to float for comparison */
+    union { uint32_t u; float f; } ua, ub;
+    uint16_t ha = (uint16_t)a, hb = (uint16_t)b;
+    /* Half-to-single expansion: sign(1) + exp(5) + mant(10) -> (1+8+23) */
+    uint32_t sa = (ha >> 15) & 1, ea = (ha >> 10) & 0x1f, ma = ha & 0x3ff;
+    uint32_t sb = (hb >> 15) & 1, eb = (hb >> 10) & 0x1f, mb = hb & 0x3ff;
+    if (ea == 0x1f) {
+        ua.u = (sa << 31) | 0x7f800000 | (ma << 13);
+    } else if (ea == 0) {
+        ua.u = (sa << 31); /* flush denorm to zero */
+    } else {
+        ua.u = (sa << 31) | ((ea + 112) << 23) | (ma << 13);
+    }
+    if (eb == 0x1f) {
+        ub.u = (sb << 31) | 0x7f800000 | (mb << 13);
+    } else if (eb == 0) {
+        ub.u = (sb << 31);
+    } else {
+        ub.u = (sb << 31) | ((eb + 112) << 23) | (mb << 13);
+    }
+    return ua.f > ub.f;
+}
+#define fCMPGT_HF(A, B)  cmpgt_hf_wrap((A), (B))
+#endif
+#ifndef fMAX_SF
+#define fMAX_SF(X, Y)  ((int32_t)fp_max_sf((uint32_t)(X), (uint32_t)(Y)))
+#endif
+#ifndef fMIN_SF
+#define fMIN_SF(X, Y)  ((int32_t)fp_min_sf((uint32_t)(X), (uint32_t)(Y)))
+#endif
+#ifndef fMAX_HF
+#define fMAX_HF(X, Y)  ((int16_t)fp_max_hf((uint16_t)(X), (uint16_t)(Y)))
+#endif
+#ifndef fMIN_HF
+#define fMIN_HF(X, Y)  ((int16_t)fp_min_hf((uint16_t)(X), (uint16_t)(Y)))
+#endif
+
 #include "helper_funcs_generated.c.inc"
