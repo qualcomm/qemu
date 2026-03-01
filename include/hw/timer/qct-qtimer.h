@@ -7,8 +7,8 @@
 #ifndef TIMER_QCT_QTIMER_H
 #define TIMER_QCT_QTIMER_H
 
-#include "hw/core/ptimer.h"
 #include "hw/core/sysbus.h"
+#include "qemu/timer.h"
 
 #define TYPE_QCT_QTIMER "qct-qtimer"
 #define TYPE_QCT_HEXTIMER "qct-hextimer"
@@ -17,16 +17,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(QCTHextimerState, QCT_HEXTIMER)
 
 struct QCTHextimerState {
     QCTQtimerState *qtimer;
-    ptimer_state *timer;
+    QEMUTimer alarm;
     uint64_t cntval; /*
-                      * Physical timer compare value interrupt when cntpct >
-                      * cntval
+                      * Physical timer compare value; interrupt fires when
+                      * cntpct >= cntval.
                       */
-    uint64_t cntpct; /* Physical counter */
     uint32_t control;
     uint32_t cnt_ctrl;
     uint32_t cntpl0acr;
-    uint64_t limit;
     uint32_t freq;
     uint32_t int_level;
     qemu_irq irq;
