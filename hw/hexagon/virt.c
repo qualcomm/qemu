@@ -559,6 +559,8 @@ static void virt_init(MachineState *ms)
                 qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
+                qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr",
+                                     entry);
                 qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
             }
         }
