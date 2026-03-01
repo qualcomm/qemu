@@ -19,7 +19,9 @@
 #include "helper_protos_generated.h.inc"
 
 DEF_HELPER_FLAGS_3(raise_exception, TCG_CALL_NO_RETURN, noreturn, env, i32, i32)
+#if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_3(raise_stack_overflow, void, env, i32, i32)
+#endif
 DEF_HELPER_2(commit_store, void, env, int)
 DEF_HELPER_3(gather_store, void, env, i32, int)
 DEF_HELPER_1(commit_hvx_stores, void, env)
