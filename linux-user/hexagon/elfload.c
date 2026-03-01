@@ -83,6 +83,11 @@ abi_ulong get_elf_hwcap(CPUState *cs)
     }
 
     hwcaps |= HWCAP_HEXAGON_HVX;
+    hwcaps |= HWCAP_HEXAGON_HVX_LENGTH_128B;
+
+    if (isa_version >= 0x68) {
+        hwcaps |= HWCAP_HEXAGON_HVX_IEEE_FP;
+    }
 
     return hwcaps;
 }
