@@ -205,5 +205,7 @@
 #define fMAX_HF(X, Y) max_hf(X, Y)
 #define fMIN_HF(X, Y) min_hf(X, Y)
 
+#define fCHECK_IEEE_RESOURCE(CODE) (CODE)
+
 #define fSTOREDOUBLEMMV(EA, SRC) fSTOREMMV_AL(EA, fVECSIZE(), 2 * fVECSIZE(), SRC)
 #endif
