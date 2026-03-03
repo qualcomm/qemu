@@ -8,6 +8,7 @@ import os
 import re
 
 from qemu_test import QemuSystemTest, Asset
+from qemu_test.cmd import wait_for_console_pattern
 
 
 class SysTestsStandaloneTests(QemuSystemTest):
@@ -84,12 +85,29 @@ class SysTestsStandaloneTests(QemuSystemTest):
         except RuntimeError as e:
             self.fail(f"Test {test_name} failed: {str(e)}")
 
+    def run_console_test(self, test_name: str, pattern: str,
+                         machine: str = "sim") -> None:
+        """
+        Run a systests_standalone test and verify expected output via the
+        semihosting console chardev (wait_for_console_pattern).
+        """
+        self.set_machine(machine)
+        self.archive_extract(self.ASSET_TARBALL)
+        target_bin = os.path.join(self.workdir,
+            'systests_standalone_package',
+            'StandaloneSysTests_6.4.0.2_v68',
+            'bin', test_name)
+        self.vm.set_console(semihosting=True)
+        self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-kernel", target_bin)
+        self.vm.launch()
+        wait_for_console_pattern(self, pattern)
+
     # Explicitly defined test methods for all currently passing tests
     def test_badva(self) -> None:
         """Tests bad virtual address register handling during dual memory
         operations and TLB exceptions."""
-        result = self.run_individual_test("badva")
-        self.assertTrue(result, "Test badva failed")
+        self.run_console_test("badva", "PASS")
 
     def test_bestwait(self) -> None:
         """Tests the bestwait instruction for thread synchronization by having
@@ -147,8 +165,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_gregs(self) -> None:
         """Tests general register (g0-g31) read/write behavior, verifying that
         some registers retain written values while others are read-only."""
-        result = self.run_individual_test("gregs")
-        self.assertTrue(result, "Test gregs failed")
+        self.run_console_test("gregs", "PASS")
 
     def test_hvx_multi(self) -> None:
         """Tests HVX multi-context functionality by verifying that different
@@ -278,8 +295,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_rev(self) -> None:
         """Tests reading the processor revision register to verify the
         architecture version is properly reported."""
-        result = self.run_individual_test("rev")
-        self.assertTrue(result, "Test rev failed")
+        self.run_console_test("rev", "0x81")
 
     def test_single_step(self) -> None:
         """Tests single-step debugging functionality by enabling single-step
@@ -299,8 +315,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """Tests the start instruction by verifying it properly resets specified
         threads while preserving the current thread's state and SSR cause
         field."""
-        result = self.run_individual_test("start")
-        self.assertTrue(result, "Test start failed")
+        self.run_console_test("start", "PASS")
 
     def test_swi2(self) -> None:
         """Tests software interrupt handling under high load with multiple
