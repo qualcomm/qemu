@@ -416,21 +416,32 @@ void do_common_semihosting(CPUState *cs)
         }
 
         if (strcmp(s, ":tt") == 0) {
-            /*
-             * We implement SH_EXT_STDOUT_STDERR, so:
-             *  open for read == stdin
-             *  open for write == stdout
-             *  open for append == stderr
-             */
-            if (arg1 < 4) {
-                hostfd = STDIN_FILENO;
-            } else if (arg1 < 8) {
-                hostfd = STDOUT_FILENO;
-            } else {
-                hostfd = STDERR_FILENO;
-            }
             ret = alloc_guestfd();
-            associate_guestfd(ret, hostfd);
+#ifndef CONFIG_USER_ONLY
+            if (qemu_semihosting_console_has_chardev()) {
+                /*
+                 * When a semihosting chardev is configured, route
+                 * all console I/O through it rather than host stdio.
+                 */
+                console_guestfd(ret);
+            } else
+#endif
+            {
+                /*
+                 * We implement SH_EXT_STDOUT_STDERR, so:
+                 *  open for read == stdin
+                 *  open for write == stdout
+                 *  open for append == stderr
+                 */
+                if (arg1 < 4) {
+                    hostfd = STDIN_FILENO;
+                } else if (arg1 < 8) {
+                    hostfd = STDOUT_FILENO;
+                } else {
+                    hostfd = STDERR_FILENO;
+                }
+                associate_guestfd(ret, hostfd);
+            }
         } else if (strcmp(s, ":semihosting-features") == 0) {
             /* We must fail opens for modes other than 0 ('r') or 1 ('rb') */
             if (arg1 != 0 && arg1 != 1) {
