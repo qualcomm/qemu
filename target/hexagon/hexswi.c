@@ -83,6 +83,30 @@ static inline bool is_hexagon_specific_swi_flag(enum hex_swi_flag what_swi)
 }
 #undef DEF_SWI_FLAG
 
+static void init_semihosting_guestfds(void)
+{
+    static gsize initialized;
+
+    if (g_once_init_enter(&initialized)) {
+        if (qemu_semihosting_console_has_chardev()) {
+            alloc_guestfd();
+            console_guestfd(0);
+            alloc_guestfd();
+            console_guestfd(1);
+            alloc_guestfd();
+            console_guestfd(2);
+        } else {
+            alloc_guestfd();
+            associate_guestfd(0, 0);
+            alloc_guestfd();
+            associate_guestfd(1, 1);
+            alloc_guestfd();
+            associate_guestfd(2, 2);
+        }
+        g_once_init_leave(&initialized, 1);
+    }
+}
+
 static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
 {
     uint32_t addr, count;
@@ -193,129 +217,140 @@ static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
 static void coredump(CPUHexagonState *env)
 {
     uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
-    printf("CRASH!\n");
-    printf("I think the exception was: ");
+    FILE *f = qemu_log_trylock();
+
+    if (!f) {
+        return;
+    }
+
+    fprintf(f, "CRASH!\n");
+    fprintf(f, "I think the exception was: ");
     switch (GET_SSR_FIELD(SSR_CAUSE, ssr)) {
     case 0x43:
-        printf("0x43, NMI");
+        fprintf(f, "0x43, NMI");
         break;
     case 0x42:
-        printf("0x42, Data abort");
+        fprintf(f, "0x42, Data abort");
         break;
     case 0x44:
-        printf("0x44, Multi TLB match");
+        fprintf(f, "0x44, Multi TLB match");
         break;
     case HEX_CAUSE_BIU_PRECISE:
-        printf("0x%x, Bus Error (Precise BIU error)",
-               HEX_CAUSE_BIU_PRECISE);
+        fprintf(f, "0x%x, Bus Error (Precise BIU error)",
+                HEX_CAUSE_BIU_PRECISE);
         break;
     case HEX_CAUSE_DOUBLE_EXCEPT:
-        printf("0x%x, Exception observed when EX = 1 (double exception)",
-               HEX_CAUSE_DOUBLE_EXCEPT);
+        fprintf(f, "0x%x, Exception observed when EX = 1"
+                " (double exception)",
+                HEX_CAUSE_DOUBLE_EXCEPT);
         break;
     case HEX_CAUSE_FETCH_NO_XPAGE:
-        printf("0x%x, Privilege violation: User/Guest mode execute"
-               " to page with no execute permissions",
-               HEX_CAUSE_FETCH_NO_XPAGE);
+        fprintf(f, "0x%x, Privilege violation: User/Guest mode execute"
+                " to page with no execute permissions",
+                HEX_CAUSE_FETCH_NO_XPAGE);
         break;
     case HEX_CAUSE_FETCH_NO_UPAGE:
-        printf("0x%x, Privilege violation: "
-               "User mode exececute to page with no user permissions",
-               HEX_CAUSE_FETCH_NO_UPAGE);
+        fprintf(f, "0x%x, Privilege violation: "
+                "User mode execute to page with no user permissions",
+                HEX_CAUSE_FETCH_NO_UPAGE);
         break;
     case HEX_CAUSE_INVALID_PACKET:
-        printf("0x%x, Invalid packet",
-               HEX_CAUSE_INVALID_PACKET);
+        fprintf(f, "0x%x, Invalid packet",
+                HEX_CAUSE_INVALID_PACKET);
         break;
     case HEX_CAUSE_PRIV_USER_NO_GINSN:
-        printf("0x%x, Privilege violation: guest mode insn in user mode",
-               HEX_CAUSE_PRIV_USER_NO_GINSN);
+        fprintf(f, "0x%x, Privilege violation:"
+                " guest mode insn in user mode",
+                HEX_CAUSE_PRIV_USER_NO_GINSN);
         break;
     case HEX_CAUSE_PRIV_USER_NO_SINSN:
-        printf("0x%x, Privilege violation: "
-               "monitor mode insn ins user/guest mode",
-               HEX_CAUSE_PRIV_USER_NO_SINSN);
+        fprintf(f, "0x%x, Privilege violation: "
+                "monitor mode insn in user/guest mode",
+                HEX_CAUSE_PRIV_USER_NO_SINSN);
         break;
     case HEX_CAUSE_REG_WRITE_CONFLICT:
-        printf("0x%x, Multiple writes to same register",
-               HEX_CAUSE_REG_WRITE_CONFLICT);
+        fprintf(f, "0x%x, Multiple writes to same register",
+                HEX_CAUSE_REG_WRITE_CONFLICT);
         break;
     case HEX_CAUSE_PC_NOT_ALIGNED:
-        printf("0x%x, PC not aligned",
-               HEX_CAUSE_PC_NOT_ALIGNED);
+        fprintf(f, "0x%x, PC not aligned",
+                HEX_CAUSE_PC_NOT_ALIGNED);
         break;
     case HEX_CAUSE_MISALIGNED_LOAD:
-        printf("0x%x, Misaligned Load @ 0x%" PRIx32,
-               HEX_CAUSE_MISALIGNED_LOAD,
-               arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Misaligned Load @ 0x%" PRIx32,
+                HEX_CAUSE_MISALIGNED_LOAD,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_MISALIGNED_STORE:
-        printf("0x%x, Misaligned Store @ 0x%" PRIx32,
-               HEX_CAUSE_MISALIGNED_STORE,
-               arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Misaligned Store @ 0x%" PRIx32,
+                HEX_CAUSE_MISALIGNED_STORE,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_PRIV_NO_READ:
-        printf("0x%x, Privilege violation: "
-            "user/guest read permission @ 0x%" PRIx32,
-            HEX_CAUSE_PRIV_NO_READ,
-            arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Privilege violation: "
+                "user/guest read permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_READ,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_PRIV_NO_WRITE:
-        printf("0x%x, Privilege violation: "
-            "user/guest write permission @ 0x%" PRIx32,
-            HEX_CAUSE_PRIV_NO_WRITE,
-            arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Privilege violation: "
+                "user/guest write permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_WRITE,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_PRIV_NO_UREAD:
-        printf("0x%x, Privilege violation: user read permission @ 0x%" PRIx32,
-               HEX_CAUSE_PRIV_NO_UREAD,
-               arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Privilege violation:"
+                " user read permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_UREAD,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_PRIV_NO_UWRITE:
-        printf("0x%x, Privilege violation: user write permission @ 0x%" PRIx32,
-               HEX_CAUSE_PRIV_NO_UWRITE,
-               arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Privilege violation:"
+                " user write permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_UWRITE,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_COPROC_LDST:
-        printf("0x%x, Coprocessor VMEM address error. @ 0x%" PRIx32,
-               HEX_CAUSE_COPROC_LDST,
-               arch_get_system_reg(env, HEX_SREG_BADVA));
+        fprintf(f, "0x%x, Coprocessor VMEM address error @ 0x%" PRIx32,
+                HEX_CAUSE_COPROC_LDST,
+                arch_get_system_reg(env, HEX_SREG_BADVA));
         break;
     case HEX_CAUSE_STACK_LIMIT:
-        printf("0x%x, Stack limit check error", HEX_CAUSE_STACK_LIMIT);
+        fprintf(f, "0x%x, Stack limit check error",
+                HEX_CAUSE_STACK_LIMIT);
         break;
     case HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT:
-        printf("0x%X, Floating-Point: Execution of Floating-Point "
-               "instruction resulted in exception",
-               HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT);
+        fprintf(f, "0x%x, Floating-Point: Execution of Floating-Point "
+                "instruction resulted in exception",
+                HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT);
         break;
     case HEX_CAUSE_NO_COPROC_ENABLE:
-        printf("0x%x, Illegal Execution of Coprocessor Instruction",
-               HEX_CAUSE_NO_COPROC_ENABLE);
+        fprintf(f, "0x%x, Illegal Execution of Coprocessor Instruction",
+                HEX_CAUSE_NO_COPROC_ENABLE);
         break;
     case HEX_CAUSE_NO_COPROC2_ENABLE:
-        printf("0x%x, "
-               "Illegal Execution of Secondary Coprocessor Instruction",
-               HEX_CAUSE_NO_COPROC2_ENABLE);
+        fprintf(f, "0x%x, Illegal Execution of Secondary"
+                " Coprocessor Instruction",
+                HEX_CAUSE_NO_COPROC2_ENABLE);
         break;
     case HEX_CAUSE_UNSUPPORTED_HVX_64B:
-        printf("0x%x, "
-               "Unsupported Execution of Coprocessor Instruction with "
-               "64bits Mode On",
-               HEX_CAUSE_UNSUPPORTED_HVX_64B);
+        fprintf(f, "0x%x, Unsupported Execution of"
+                " Coprocessor Instruction with 64bits Mode On",
+                HEX_CAUSE_UNSUPPORTED_HVX_64B);
         break;
     case HEX_CAUSE_VWCTRL_WINDOW_MISS:
-        printf("0x%x, "
-               "Thread accessing a region outside VWCTRL window",
-               HEX_CAUSE_VWCTRL_WINDOW_MISS);
+        fprintf(f, "0x%x, Thread accessing a region"
+                " outside VWCTRL window",
+                HEX_CAUSE_VWCTRL_WINDOW_MISS);
         break;
     default:
-        printf("unknown cause 0x%" PRIx32,
-               GET_SSR_FIELD(SSR_CAUSE, ssr));
+        fprintf(f, "unknown cause 0x%" PRIx32,
+                GET_SSR_FIELD(SSR_CAUSE, ssr));
         break;
     }
-    printf("\nRegister Dump:\n");
-    hexagon_dump(env, stdout, 0);
+    fprintf(f, "\nRegister Dump:\n");
+    hexagon_dump(env, f, 0);
+    qemu_log_unlock(f);
 }
 
 static void sim_handle_trap0(CPUHexagonState *env)
@@ -325,6 +360,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
 
     g_assert(bql_locked());
+    init_semihosting_guestfds();
 
     what_swi = arch_get_thread_reg(env, HEX_REG_R00);
     swi_info = arch_get_thread_reg(env, HEX_REG_R01);
@@ -360,22 +396,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
                           "trap0(#0): unrecognized request in r0: "
                           "0x" TARGET_FMT_lx "\n", what_swi);
             return;
-        }
-        /*
-         * QuRT uses POSIX-style fd numbers (0=stdin, 1=stdout, 2=stderr)
-         * but ARM-compatible semihosting doesn't pre-populate these in the
-         * guestfd table.  Reserve them on first semihosting call so that
-         * SYS_OPEN allocates from fd 3+ and SYS_WRITE/READ to fd 1/2
-         * reach the host stdio streams via do_common_semihosting.
-         */
-        static bool stdio_guestfds_inited;
-        if (!stdio_guestfds_inited) {
-            stdio_guestfds_inited = true;
-            int fd1 = alloc_guestfd();
-            associate_guestfd(0, STDIN_FILENO);
-            associate_guestfd(fd1, STDOUT_FILENO);
-            int fd2 = alloc_guestfd();
-            associate_guestfd(fd2, STDERR_FILENO);
         }
         do_common_semihosting(cs);
         return;
@@ -440,33 +460,41 @@ static void sim_handle_trap0(CPUHexagonState *env)
             break;
         }
 
-        ret = open(filename, real_openmode | O_BINARY, 0644);
+        if (strcmp(filename, ":tt") == 0 &&
+            qemu_semihosting_console_has_chardev()) {
+            ret = alloc_guestfd();
+            console_guestfd(ret);
+        } else {
+            ret = open(filename, real_openmode | O_BINARY, 0644);
 
-        if (ret == -1) {
-            err = errno;
-            HexagonCPU *cpu = env_archcpu(env);
-            if (cpu->usefs && g_strrstr(filename, ".so") != NULL
-                && errno == ENOENT) {
-                /*
-                 * Didn't find it, so now we also try to open in the
-                 * 'search dir':
-                 */
-                GString *lib_filename_str = g_string_new(cpu->usefs);
+            if (ret == -1) {
+                HexagonCPU *cpu = env_archcpu(env);
+                err = errno;
+                if (cpu->usefs && g_strrstr(filename, ".so") != NULL
+                    && errno == ENOENT) {
+                    /*
+                     * Didn't find it, so now we also try to open in
+                     * the 'search dir':
+                     */
+                    GString *lib_filename_str = g_string_new(cpu->usefs);
 
-                g_string_append_printf(lib_filename_str, "/%s", filename);
-                gchar *lib_filename = g_string_free(lib_filename_str, false);
-                ret = open(lib_filename, real_openmode, 0644);
-                if (ret == -1) {
-                    err = errno;
+                    g_string_append_printf(lib_filename_str, "/%s",
+                                           filename);
+                    gchar *lib_filename =
+                        g_string_free(lib_filename_str, false);
+                    ret = open(lib_filename, real_openmode, 0644);
+                    if (ret == -1) {
+                        err = errno;
+                    }
+                    g_free(lib_filename);
                 }
-                g_free(lib_filename);
             }
-        }
 
-        if (ret != -1) {
-            int guestfd = alloc_guestfd();
-            associate_guestfd(guestfd, ret);
-            ret = guestfd;
+            if (ret != -1) {
+                int guestfd = alloc_guestfd();
+                associate_guestfd(guestfd, ret);
+                ret = guestfd;
+            }
         }
         semi_cb(cs, ret, err);
     }
@@ -548,8 +576,9 @@ static void sim_handle_trap0(CPUHexagonState *env)
             int fd = physicalFilenameAddr;
             GuestFD *gf = get_guestfd(fd);
             if (!gf || gf->type != GuestFDHost) {
-                fprintf(stderr,
-                        "fstat semihosting only implemented for native mode.\n");
+                qemu_log_mask(LOG_UNIMP,
+                              "fstat semihosting only implemented"
+                              " for native mode\n");
                 g_assert_not_reached();
             }
             rc = fstat(gf->hostfd, &st_buf);
