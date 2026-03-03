@@ -179,7 +179,6 @@ readonly QEMU_DEPENDENCIES_OPTS="
 
 readonly DEFAULT_CONFIG_OPTS="
     --without-default-features
-    --assert-target-compiler
     ${QEMU_CONFIGURABLE_FEATURES_OPTS}
     ${QEMU_COMPILATION_OPTS}
     ${QEMU_TARGETS_AND_ACCELERATORS_OPTS}
