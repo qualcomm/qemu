@@ -36,6 +36,7 @@
 #include "printinsn.h"
 #include "pmu.h"
 #include "semihosting/guestfd.h"
+#include "semihosting/console.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -1614,12 +1615,21 @@ static void init_semihosting_guestfds(void)
 #ifndef CONFIG_USER_ONLY
     static gsize initialized;
     if (g_once_init_enter(&initialized)) {
-        alloc_guestfd();
-        associate_guestfd(0, 0);
-        alloc_guestfd();
-        associate_guestfd(1, 1);
-        alloc_guestfd();
-        associate_guestfd(2, 2);
+        if (qemu_semihosting_console_has_chardev()) {
+            alloc_guestfd();
+            console_guestfd(0);
+            alloc_guestfd();
+            console_guestfd(1);
+            alloc_guestfd();
+            console_guestfd(2);
+        } else {
+            alloc_guestfd();
+            associate_guestfd(0, 0);
+            alloc_guestfd();
+            associate_guestfd(1, 1);
+            alloc_guestfd();
+            associate_guestfd(2, 2);
+        }
         g_once_init_leave(&initialized, 1);
     }
 #endif
