@@ -95,6 +95,7 @@ HEX_TESTS += v69_hvx
 HEX_TESTS += v73_scalar
 HEX_TESTS += hvx_128b
 HEX_TESTS += hvx_64b
+HEX_TESTS += hvx_ieee_fp
 
 TESTS += $(HEX_TESTS)
 
@@ -141,6 +142,7 @@ v68_hvx: CFLAGS += -mhvx -Wno-unused-function
 v69_hvx: v69_hvx.c hvx_misc.h
 v69_hvx: CFLAGS += -mhvx -Wno-unused-function
 v73_scalar: CFLAGS += -Wno-unused-function
+hvx_ieee_fp: CFLAGS += -mhvx -mhvx-ieee-fp -D__HVX_IEEE_FP__
 
 hvx_128b: $(HEX_SRC)/hvx_veclen.c
 	$(CC) $(CFLAGS) -mhvx -mhvx-length=128b $< -o $@ $(LDFLAGS)
