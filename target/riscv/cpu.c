@@ -1400,7 +1400,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_vendor_exts[] = {
     MULTI_EXT_CFG_BOOL("xqcicm", ext_xqcicm, false),
     MULTI_EXT_CFG_BOOL("xqcics", ext_xqcics, false),
     MULTI_EXT_CFG_BOOL("xqcicsr", ext_xqcicsr, false),
-    MULTI_EXT_CFG_BOOL("xqciint0p10", ext_xqciint, false),
+    MULTI_EXT_CFG_BOOL("xqciint", ext_xqciint, false),
     MULTI_EXT_CFG_BOOL("xqciio", ext_xqciio, false),
     MULTI_EXT_CFG_BOOL("xqcilb", ext_xqcilb, false),
     MULTI_EXT_CFG_BOOL("xqcili", ext_xqcili, false),
