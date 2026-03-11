@@ -1656,7 +1656,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "vmx-apicv-register", "vmx-apicv-vid", "vmx-ple", "vmx-rdrand-exit",
             "vmx-invpcid-exit", "vmx-vmfunc", "vmx-shadow-vmcs", "vmx-encls-exit",
             "vmx-rdseed-exit", "vmx-pml", NULL, NULL,
-            "vmx-xsaves", NULL, NULL, NULL,
+            "vmx-xsaves", NULL, "vmx-mbec", NULL,
             NULL, "vmx-tsc-scaling", "vmx-enable-user-wait-pause", NULL,
             NULL, NULL, NULL, NULL,
         },
@@ -1970,6 +1970,10 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_EPT },
         .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_UNRESTRICTED_GUEST },
+    },
+    {
+        .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_EPT },
+        .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_MODE_BASED_EPT_EXEC },
     },
     {
         .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_VPID },
@@ -5257,6 +5261,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 6,
+                .note = "with cet-ss, cet-ibt, its-no",
+                .cache_info = &xeon_spr_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -5427,6 +5440,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { "cet-ibt", "on" },
                     { "vmx-exit-save-cet", "on" },
                     { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 5,
+                .note = "with cet-ss, cet-ibt, its-no",
+                .cache_info = &xeon_gnr_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
                     { /* end of list */ },
                 }
             },
@@ -5787,6 +5809,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 5,
+                .note = "with ITS_NO",
+                .cache_info = &xeon_srf_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
     },
@@ -5930,6 +5961,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { "cet-ibt", "on" },
                     { "vmx-exit-save-cet", "on" },
                     { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 3,
+                .note = "with cet-ss, cet-ibt, ITS_NO",
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
                     { /* end of list */ },
                 }
             },
@@ -9526,13 +9565,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     /* Intel Processor Trace requires CPUID[0x14] */
     if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT)) {
-        if (cpu->intel_pt_auto_level) {
-            x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
-        } else if (cpu->env.cpuid_min_level < 0x14) {
-            mark_unavailable_features(cpu, FEAT_7_0_EBX,
-                CPUID_7_0_EBX_INTEL_PT,
-                "Intel PT need CPUID leaf 0x14, please set by \"-cpu ...,intel-pt=on,min-level=0x14\"");
-        }
+        x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
     }
 
     /*
@@ -10550,10 +10583,6 @@ static const Property x86_cpu_properties[] = {
      * to the specific Windows version being used."
      */
     DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
-    DEFINE_PROP_BOOL("x-hv-synic-kvm-only", X86CPU, hyperv_synic_kvm_only,
-                     false),
-    DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
-                     true),
     DEFINE_PROP_BOOL("x-l1-cache-per-thread", X86CPU, l1_cache_per_core, true),
     DEFINE_PROP_BOOL("x-force-cpuid-0x1f", X86CPU, force_cpuid_0x1f, false),
 

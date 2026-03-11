@@ -159,8 +159,6 @@ qtests_m68k = ['boot-serial-test'] + \
 qtests_microblaze = ['boot-serial-test'] + \
   qtests_filter
 
-qtests_microblazeel = qtests_microblaze
-
 qtests_mips = \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
@@ -386,6 +384,11 @@ if gnutls.found()
   endif
 endif
 
+migration_colo_files = []
+if get_option('replication').allowed()
+  migration_colo_files = [files('migration/colo-tests.c')]
+endif
+
 qtests = {
   'aspeed_hace-test': files('aspeed-hace-utils.c', 'aspeed_hace-test.c'),
   'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
@@ -397,7 +400,7 @@ qtests = {
                              'migration/migration-util.c') + dbus_vmstate1,
   'erst-test': files('erst-test.c'),
   'ivshmem-test': [rt, '../../contrib/ivshmem-server/ivshmem-server.c'],
-  'migration-test': test_migration_files + migration_tls_files,
+  'migration-test': test_migration_files + migration_tls_files + migration_colo_files,
   'pxe-test': files('boot-sector.c'),
   'pnv-xive2-test': files('pnv-xive2-common.c', 'pnv-xive2-flush-sync.c',
                           'pnv-xive2-nvpg_bar.c'),

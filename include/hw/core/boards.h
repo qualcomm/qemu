@@ -314,7 +314,6 @@ struct MachineClass {
     bool auto_enable_numa_with_memhp;
     bool auto_enable_numa_with_memdev;
     bool ignore_boot_device_suffixes;
-    bool smbus_no_migration_support;
     bool nvdimm_supported;
     bool numa_mem_supported;
     bool auto_enable_numa;
@@ -448,6 +447,12 @@ struct MachineState {
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
     bool acpi_spcr_enabled;
+    /*
+     * Whether to change virtual machine accelerator handle upon
+     * reset or not. Used only for debugging and testing purpose.
+     * Set to false by default for all regular use.
+     */
+    bool new_accel_vmfd_on_reset;
 };
 
 /*
@@ -858,29 +863,5 @@ extern const size_t hw_compat_4_2_len;
 
 extern GlobalProperty hw_compat_4_1[];
 extern const size_t hw_compat_4_1_len;
-
-extern GlobalProperty hw_compat_4_0[];
-extern const size_t hw_compat_4_0_len;
-
-extern GlobalProperty hw_compat_3_1[];
-extern const size_t hw_compat_3_1_len;
-
-extern GlobalProperty hw_compat_3_0[];
-extern const size_t hw_compat_3_0_len;
-
-extern GlobalProperty hw_compat_2_12[];
-extern const size_t hw_compat_2_12_len;
-
-extern GlobalProperty hw_compat_2_11[];
-extern const size_t hw_compat_2_11_len;
-
-extern GlobalProperty hw_compat_2_10[];
-extern const size_t hw_compat_2_10_len;
-
-extern GlobalProperty hw_compat_2_9[];
-extern const size_t hw_compat_2_9_len;
-
-extern GlobalProperty hw_compat_2_8[];
-extern const size_t hw_compat_2_8_len;
 
 #endif

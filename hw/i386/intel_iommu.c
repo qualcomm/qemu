@@ -1072,17 +1072,12 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
 {
     switch (vtd_ce_get_type(ce)) {
     case VTD_CONTEXT_TT_MULTI_LEVEL:
+    case VTD_CONTEXT_TT_PASS_THROUGH:
         /* Always supported */
         break;
     case VTD_CONTEXT_TT_DEV_IOTLB:
         if (!x86_iommu->dt_supported) {
             error_report_once("%s: DT specified but not supported", __func__);
-            return false;
-        }
-        break;
-    case VTD_CONTEXT_TT_PASS_THROUGH:
-        if (!x86_iommu->pt_supported) {
-            error_report_once("%s: PT specified but not supported", __func__);
             return false;
         }
         break;
@@ -4210,7 +4205,6 @@ static const Property vtd_properties[] = {
     DEFINE_PROP_BOOL("snoop-control", IntelIOMMUState, snoop_control, false),
     DEFINE_PROP_BOOL("x-pasid-mode", IntelIOMMUState, pasid, false),
     DEFINE_PROP_BOOL("svm", IntelIOMMUState, svm, false),
-    DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("stale-tm", IntelIOMMUState, stale_tm, false),
     DEFINE_PROP_BOOL("fs1gp", IntelIOMMUState, fs1gp, true),
 };
@@ -5004,12 +4998,9 @@ static void vtd_cap_init(IntelIOMMUState *s)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
-             VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SSLPS |
+    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_ECAP_PT |
+             VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SSLPS | VTD_CAP_DRAIN |
              VTD_CAP_ESRTPS | VTD_CAP_MGAW(s->aw_bits);
-    if (s->dma_drain) {
-        s->cap |= VTD_CAP_DRAIN;
-    }
     if (x86_iommu->dma_translation) {
             if (s->aw_bits >= VTD_HOST_AW_39BIT) {
                     s->cap |= VTD_CAP_SAGAW_39bit;
@@ -5030,10 +5021,6 @@ static void vtd_cap_init(IntelIOMMUState *s)
 
     if (x86_iommu->dt_supported) {
         s->ecap |= VTD_ECAP_DT;
-    }
-
-    if (x86_iommu->pt_supported) {
-        s->ecap |= VTD_ECAP_PT;
     }
 
     if (s->caching_mode) {
@@ -5588,11 +5575,6 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     if (s->fsts && s->aw_bits != VTD_HOST_AW_48BIT) {
         error_setg(errp, "Scalable mode(x-flts=on): supported value for "
                    "aw-bits is: %d", VTD_HOST_AW_48BIT);
-        return false;
-    }
-
-    if (s->scalable_mode && !s->dma_drain) {
-        error_setg(errp, "Need to set dma_drain for scalable mode");
         return false;
     }
 

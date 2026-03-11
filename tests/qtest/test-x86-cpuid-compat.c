@@ -65,6 +65,8 @@ static void test_cpuid_prop(const void *data)
 
     qobject_unref(value);
     g_free(path);
+    g_free((void *)args->cmdline);
+    g_free((void *)data);
 }
 
 static void add_cpuid_test(const char *name, const char *cpu,
@@ -161,6 +163,8 @@ static void test_feature_flag(const void *data)
     qobject_unref(present);
     qobject_unref(filtered);
     g_free(path);
+    g_free((void *)args->cmdline);
+    g_free((void *)data);
 }
 
 /*
@@ -342,17 +346,6 @@ int main(int argc, char **argv)
     add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
                    "486", "xlevel2=0xC0000002,xstore=on",
                    NULL, "xlevel2", 0xC0000002);
-
-    /* Check compatibility of old machine-types that didn't
-     * auto-increase level/xlevel/xlevel2: */
-    if (qtest_has_machine("pc-i440fx-2.9")) {
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
-                       "Conroe", NULL, "pc-i440fx-2.9",
-                       "level", 10);
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
-                       "Conroe", "erms=on", "pc-i440fx-2.9",
-                       "level", 10);
-    }
 
     /* Test feature parsing */
     add_feature_test("x86/cpuid/features/plus",

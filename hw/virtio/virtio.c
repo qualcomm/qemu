@@ -222,7 +222,7 @@ static inline uint16_t virtio_lduw_phys_cached(VirtIODevice *vdev,
                                                MemoryRegionCache *cache,
                                                hwaddr pa)
 {
-    if (virtio_access_is_big_endian(vdev)) {
+    if (virtio_vdev_is_big_endian(vdev)) {
         return lduw_be_phys_cached(cache, pa);
     }
     return lduw_le_phys_cached(cache, pa);
@@ -232,7 +232,7 @@ static inline void virtio_stw_phys_cached(VirtIODevice *vdev,
                                           MemoryRegionCache *cache,
                                           hwaddr pa, uint16_t value)
 {
-    if (virtio_access_is_big_endian(vdev)) {
+    if (virtio_vdev_is_big_endian(vdev)) {
         stw_be_phys_cached(cache, pa, value);
     } else {
         stw_le_phys_cached(cache, pa, value);
@@ -281,10 +281,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->desc, vdev->dma_as,
                                    addr, size, packed);
     if (len < size) {
+        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+
         virtio_error(vdev,
                 "Failed to map descriptor ring for device %s: "
                 "invalid guest physical address or corrupted queue setup",
-                qdev_get_printable_name(DEVICE(vdev)));
+                devname);
         goto err_desc;
     }
 
@@ -292,10 +294,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->used, vdev->dma_as,
                                    vq->vring.used, size, true);
     if (len < size) {
+        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+
         virtio_error(vdev,
                 "Failed to map used ring for device %s: "
                 "possible guest misconfiguration or insufficient memory",
-                qdev_get_printable_name(DEVICE(vdev)));
+                devname);
         goto err_used;
     }
 
@@ -303,10 +307,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->avail, vdev->dma_as,
                                    vq->vring.avail, size, false);
     if (len < size) {
+        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+
         virtio_error(vdev,
                 "Failed to map avalaible ring for device %s: "
                 "possible queue misconfiguration or overlapping memory region",
-                qdev_get_printable_name(DEVICE(vdev)));
+                devname);
         goto err_avail;
     }
 
@@ -2753,7 +2759,7 @@ static bool virtio_device_endian_needed(void *opaque)
     VirtIODevice *vdev = opaque;
 
     assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_legacy(vdev)) {
         return vdev->device_endian != virtio_default_endian();
     }
     /* Devices conforming to VIRTIO 1.0 or later are always LE. */
@@ -3460,10 +3466,10 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
              * to calculate used and avail ring addresses based on the desc
              * address.
              */
-            if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-                virtio_init_region_cache(vdev, i);
-            } else {
+            if (virtio_vdev_is_legacy(vdev)) {
                 virtio_queue_update_rings(vdev, i);
+            } else {
+                virtio_init_region_cache(vdev, i);
             }
 
             if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
@@ -4496,4 +4502,14 @@ QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
 
     return qemu_bh_new_full(cb, opaque, name,
                             &transport->mem_reentrancy_guard);
+}
+
+QEMUBH *virtio_bh_io_new_guarded_full(DeviceState *dev,
+                                      QEMUBHFunc *cb, void *opaque,
+                                      const char *name)
+{
+    DeviceState *transport = qdev_get_parent_bus(dev)->parent;
+
+    return aio_bh_new_full(iohandler_get_aio_context(), cb, opaque, name,
+                           &transport->mem_reentrancy_guard);
 }

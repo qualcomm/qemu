@@ -54,6 +54,13 @@ as short-form boolean values, and passed to plugins as ``arg_name=on``.
 However, short-form booleans are deprecated and full explicit ``arg_name=on``
 form is preferred.
 
+``debug-threads`` option for ``-name`` (since 11.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``debug-threads`` option of the ``-name`` argument is now
+ignored. Thread naming is unconditionally enabled for all platforms
+where it is supported.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
@@ -292,26 +299,6 @@ Removing the default machine option forces users to always set the machine
 they want to use and avoids confusion.  Existing users of the ``spike``
 machine must ensure that they're setting the ``spike`` machine in the
 command line (``-M spike``).
-
-Arm ``highbank`` and ``midway`` machines (since 10.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-There are no known users left for these machines (if you still use it,
-please write a mail to the qemu-devel mailing list). If you just want to
-boot a Cortex-A15 or Cortex-A9 Linux, use the ``virt`` machine instead.
-
-
-System emulator binaries
-------------------------
-
-``qemu-system-microblazeel`` (since 10.1)
-'''''''''''''''''''''''''''''''''''''''''
-
-The ``qemu-system-microblaze`` binary can emulate little-endian machines
-now, too, so the separate binary ``qemu-system-microblazeel`` (with the
-``el`` suffix) for little-endian targets is not required anymore. The
-``petalogix-s3adsp1800`` machine can now be switched to little endian by
-setting its ``endianness`` property to ``little``.
 
 
 Backend options

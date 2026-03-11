@@ -250,8 +250,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
     return NULL;
 }
 
-static S390PCIBusDevice *s390_pci_find_dev_by_pci(S390pciState *s,
-                                                  PCIDevice *pci_dev)
+S390PCIBusDevice *s390_pci_find_dev_by_pci(S390pciState *s, PCIDevice *pci_dev)
 {
     S390PCIBusDevice *pbdev;
 
@@ -1248,7 +1247,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->fid = 0;
         QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
         g_hash_table_remove(s->zpci_table, &pbdev->idx);
-        if (pbdev->iommu->dma_limit) {
+        if (pbdev->iommu && pbdev->iommu->dma_limit) {
             s390_pci_end_dma_count(s, pbdev->iommu->dma_limit);
         }
         qdev_unrealize(dev);

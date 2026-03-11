@@ -539,8 +539,8 @@ first_python=
 if test -z "${PYTHON}"; then
     # A bare 'python' is traditionally python 2.x, but some distros
     # have it as python 3.x, so check in both places.
-    for binary in python3 python python3.13 python3.12 python3.11 \
-                          python3.10 python3.9 ; do
+    for binary in python3 python python3.14 python3.13 python3.12 \
+                          python3.11 python3.10 python3.9 ; do
         if has "$binary"; then
             python=$(command -v "$binary")
             if check_py_version "$python"; then
@@ -1340,17 +1340,11 @@ fi
 ##########################################
 # functions to probe cross compilers
 
-container="no"
-runc=""
+runc="no"
 if test $use_containers = "yes" && (has "docker" || has "podman"); then
-    case $($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe) in
-        *docker) container=docker ;;
-        podman) container=podman ;;
-        no) container=no ;;
-    esac
-    if test "$container" != "no"; then
-        docker_py="$python $source_path/tests/docker/docker.py --engine $container"
-        runc=$container
+    runc=$($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe)
+    if test "$runc" != "no"; then
+        docker_py="$python $source_path/tests/docker/docker.py --engine $container_engine"
     fi
 fi
 
@@ -1471,7 +1465,7 @@ probe_target_compiler() {
   esac
 
   for host in $container_hosts; do
-    test "$container" != no || continue
+    test "$runc" != no || continue
     test "$host" = "$cpu" || continue
     case $target_arch in
       # debian-all-test-cross architectures
@@ -1480,7 +1474,7 @@ probe_target_compiler() {
         container_image=debian-all-test-cross
         container_cross_prefix=aarch64-linux-gnu-
         ;;
-      hppa|m68k|mips|riscv64|sparc64)
+      alpha|hppa|m68k|mips|riscv64|sh4|sparc64)
         container_image=debian-all-test-cross
         ;;
       mips64)
@@ -1490,14 +1484,6 @@ probe_target_compiler() {
       ppc|ppc64|ppc64le)
         container_image=debian-all-test-cross
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
-        ;;
-
-      # debian-legacy-test-cross architectures (need Debian 11)
-      # - libc6.1-dev-alpha-cross: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1054412
-      # - sh4-linux-user: binaries don't run with bookworm compiler
-
-      alpha|sh4)
-        container_image=debian-legacy-test-cross
         ;;
 
       # architectures with individual containers
@@ -1808,8 +1794,9 @@ echo all: >> $config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 echo "GDB=$gdb_bin" >> $config_host_mak
-if test "$container" != no; then
+if test "$runc" != no; then
     echo "RUNC=$runc" >> $config_host_mak
+    echo "CONTAINER_ENGINE=$container_engine" >> $config_host_mak
 fi
 echo "SUBDIRS=$subdirs" >> $config_host_mak
 if test "$rust" != disabled; then
