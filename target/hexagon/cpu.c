@@ -781,12 +781,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #endif
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
-                             gdb_find_static_feature("hexagon-hvx.xml"), 0);
+                             gdb_find_static_feature("hexagon-hvx.xml"));
 
 #ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
                              hexagon_sys_gdb_write_register,
-                             gdb_find_static_feature("hexagon-sys.xml"), 0);
+                             gdb_find_static_feature("hexagon-sys.xml"));
 #endif
 
     qemu_init_vcpu(cs);
