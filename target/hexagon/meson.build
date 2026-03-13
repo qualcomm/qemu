@@ -24,6 +24,11 @@ gen_tcg_sys_h = meson.current_source_dir() / 'gen_tcg_sys.h'
 idef_parser_dir = meson.current_source_dir() / 'idef-parser'
 imported_dir = meson.current_source_dir() / 'imported'
 
+# On Windows/MSYS2, bash cannot find scripts when passed Windows-style paths.
+# Use find_program and files() for proper path conversion.
+bash = find_program('bash')
+prepare_script = files('idef-parser/prepare')
+
 #
 # Step 0
 # Create combined ext.idef for mmvec
@@ -33,7 +38,7 @@ preprocessed_mmvec_ext = custom_target(
     'mmvec_ext.preprocessed.idef',
     output: 'mmvec_ext.preprocessed.idef',
     input: imported_dir / 'mmvec_ext.idef',
-    command: [compiler, '-x', 'c', '-E', '-o', '@OUTPUT@', '@INPUT@']
+    command: [bash, prepare_script, '@INPUT@', '-o', '@OUTPUT@'],
 )
 generated_mmvec_ext = custom_target(
     'generated_mmvec_ext.idef',
@@ -339,7 +344,7 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
         output: 'idef_parser_input.preprocessed.h.inc',
         input: idef_parser_input_generated,
         depend_files: [idef_parser_dir / 'macros.h.inc'],
-        command: [compiler, '-x', 'c', '-E', '-I', idef_parser_dir, '-o', '@OUTPUT@', '@INPUT@'],
+        command: [bash, prepare_script, '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
     )
 
     flex = generator(
