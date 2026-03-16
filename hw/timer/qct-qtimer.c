@@ -74,8 +74,10 @@ static uint64_t qct_qtimer_read(void *opaque, hwaddr offset,
        return s->freq;
     case QCT_QTIMER_AC_CNTSR:
        return s->secure;
-    case QCT_QTIMER_AC_CNTTID:
-       return s->cnttid;
+    case QCT_QTIMER_AC_CNTTID_0:
+       return s->cnttid_0;
+    case QCT_QTIMER_AC_CNTTID_1:
+       return s->cnttid_1;
     case QCT_QTIMER_AC_CNTACR_START ... QCT_QTIMER_AC_CNTACR_END:
         frame = (offset - 0x40) / 0x4;
         if (frame >= s->nr_frames) {
@@ -190,9 +192,13 @@ static MemTxResult hex_timer_read(void *opaque,
     trace_qtimer_read(offset);
 
     // This is the case where we have 2 views, but the second one is not implemented
-    if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
-        *data = 0;
-        return MEMTX_OK;
+    {
+        uint32_t cnttid = (frame < 8) ? qct_s->cnttid_0 : qct_s->cnttid_1;
+        uint32_t frame_idx = (frame < 8) ? frame : frame - 8;
+        if (view && !(cnttid & (0x4 << (frame_idx * 4)))) {
+            *data = 0;
+            return MEMTX_OK;
+        }
     }
 
     switch (reg_offset) {
@@ -333,8 +339,12 @@ static MemTxResult hex_timer_write(void *opaque,
     trace_qtimer_write(offset, value);
 
     // This is the case where we have 2 views, but the second one is not implemented
-    if (view && !(qct_s->cnttid & (0x4 << (frame*4)))) {
-        return MEMTX_OK;
+    {
+        uint32_t cnttid = (frame < 8) ? qct_s->cnttid_0 : qct_s->cnttid_1;
+        uint32_t frame_idx = (frame < 8) ? frame : frame - 8;
+        if (view && !(cnttid & (0x4 << (frame_idx * 4)))) {
+            return MEMTX_OK;
+        }
     }
 
     switch (reg_offset) {
@@ -540,9 +550,10 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
-    DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
     DEFINE_PROP_ON_OFF_AUTO("start-ticking", QCTQtimerState, start_ticking,
                             ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_UINT32("cnttid_0", QCTQtimerState, cnttid_0, 0x11),
+    DEFINE_PROP_UINT32("cnttid_1", QCTQtimerState, cnttid_1, 0x0),
 };
 
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)

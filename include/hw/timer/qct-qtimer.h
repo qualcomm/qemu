@@ -55,8 +55,9 @@ struct QCTQtimerState {
     uint32_t freq;
     uint32_t nr_frames;
     uint32_t nr_views;
-    uint32_t cnttid;
     OnOffAuto start_ticking;
+    uint32_t cnttid_0;
+    uint32_t cnttid_1;
 };
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)
@@ -64,10 +65,11 @@ struct QCTQtimerState {
 #define QCT_QTIMER_AC_CNTSR_NSN_1 (1 << 0)
 #define QCT_QTIMER_AC_CNTSR_NSN_2 (1 << 1)
 #define QCT_QTIMER_AC_CNTSR_NSN_3 (1 << 2)
-#define QCT_QTIMER_AC_CNTTID (0x08)
+#define QCT_QTIMER_AC_CNTTID_0 (0x08)
 #define QCT_QTIMER_AC_CNTACR_0 (0x40)
 #define QCT_QTIMER_AC_CNTACR_1 (0x44)
 #define QCT_QTIMER_AC_CNTACR_2 (0x48)
+#define QCT_QTIMER_AC_CNTTID_1 (0x108)
 #define QCT_QTIMER_AC_CNTACR_RWPT (1 << 5) /* R/W of CNTP_* regs */
 #define QCT_QTIMER_AC_CNTACR_RWVT (1 << 4) /* R/W of CNTV_* regs */
 #define QCT_QTIMER_AC_CNTACR_RVOFF (1 << 3) /* R/W of CNTVOFF register */

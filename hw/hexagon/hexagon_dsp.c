@@ -501,7 +501,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     object_property_set_uint(OBJECT(qtimer), "nr_frames", 3, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "nr_views", 1, &error_fatal);
-    object_property_set_uint(OBJECT(qtimer), "cnttid", 0x111, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "cnttid_0", 0x111, &error_fatal);
     if (qtimer->start_ticking == ON_OFF_AUTO_AUTO) {
         object_property_set_str(OBJECT(qtimer), "start-ticking",
                                 start_ticking ? "on" : "off", &error_fatal);

@@ -273,7 +273,7 @@ static void create_qtimer(HexagonVirtMachineState *vms,
     vms->qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
     object_property_set_uint(OBJECT(vms->qtimer), "nr_frames", 2, errp);
     object_property_set_uint(OBJECT(vms->qtimer), "nr_views", 1, errp);
-    object_property_set_uint(OBJECT(vms->qtimer), "cnttid", 0x111, errp);
+    object_property_set_uint(OBJECT(vms->qtimer), "cnttid_0", 0x111, errp);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->qtimer), errp);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->qtimer), 1, m_cfg->qtmr_region);
