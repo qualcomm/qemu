@@ -42,7 +42,7 @@ struct QCTHextimerState {
     qemu_irq irq;
 };
 
-#define QCT_QTIMER_TIMER_FRAME_ELTS (8)
+#define QCT_QTIMER_TIMER_FRAME_ELTS (16)
 #define QCT_QTIMER_TIMER_VIEW_ELTS (2)
 struct QCTQtimerState {
     SysBusDevice parent_obj;
