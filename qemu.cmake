@@ -70,10 +70,6 @@ if (GS_ENABLE_VIRQNNRENDERER)
 endif()
 
 if (GS_ENABLE_VIRGLRENDERER)
-    if (WIN32)
-        message(FATAL_ERROR "libqemu: virglrender is not supported on Windows")
-    endif()
-
     message(STATUS "libqemu: enabling virglrender")
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-virglrenderer)
 endif()
