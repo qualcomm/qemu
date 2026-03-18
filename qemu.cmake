@@ -204,6 +204,12 @@ set(QEMU_INSTALL_DIR ${INSTALL_DIR})
 install(DIRECTORY ${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(DIRECTORY ${QEMU_INSTALL_DIR}/share/ DESTINATION ${CMAKE_INSTALL_DATAROOTDIR})
 
+# Populate qemu share directory in build tree.
+# This ensures libqemu can load keymaps during the development phase
+add_custom_command(TARGET qemu POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${QEMU_INSTALL_DIR}/share
+    ${CMAKE_BINARY_DIR}/share)
 
 foreach(target ${LIBQEMU_TARGETS})
     add_library(libqemu-${target} INTERFACE)
