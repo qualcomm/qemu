@@ -898,6 +898,11 @@ void migration_start_incoming(void)
 
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
     qemu_coroutine_enter(co);
+    /*
+     * This doesn't return right away. The coroutine will run
+     * unimpeded until its first yield, which may happen as late as
+     * the force yield at ram_load_precopy().
+     */
 }
 
 int migrate_send_rp_switchover_ack(MigrationIncomingState *mis)
@@ -1694,6 +1699,8 @@ static int add_blockers(Error **reasonp, unsigned modes, Error **errp)
 {
     for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
         if (modes & BIT(mode)) {
+            assert(g_slist_index(migration_blockers[mode],
+                                 *reasonp) == -1);
             migration_blockers[mode] = g_slist_prepend(migration_blockers[mode],
                                                        *reasonp);
         }
@@ -3134,7 +3141,7 @@ static void migration_update_counters(MigrationState *s,
          * If the user specified a switchover bandwidth, let's trust the
          * user so that can be more accurate than what we estimated.
          */
-        expected_bw_per_ms = switchover_bw / 1000;
+        expected_bw_per_ms = (double)switchover_bw / 1000;
     } else {
         /* If the user doesn't specify bandwidth, we use the estimated */
         expected_bw_per_ms = bandwidth;
