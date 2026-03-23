@@ -177,6 +177,10 @@ static void test_qtimer_timer_behavior(void)
     /* Enable timer */
     qtimer_write32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL, 1);
 
+    uint64_t ctl_val = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL);
+    /* Check that EN is set and ISTAT is disable (Not IRQ pending)*/
+    g_assert_cmpuint(ctl_val, ==, 0x1);
+
     /* Step virtual clock forward but not past target */
     qtest_clock_step(global_qtest, TIMER_TEST_OFFSET / 2);
 
@@ -193,6 +197,21 @@ static void test_qtimer_timer_behavior(void)
 
     /* Disable timer */
     qtimer_write32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL, 0);
+
+    ctl_val = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL);
+    /*
+     * Let's check that EN is disabled and ISTAT is set because
+     * new_count >= target_count, so we should have IRQ pending.
+     */
+    g_assert_cmpuint(ctl_val, ==, 0x4);
+
+    /* Step clock — timer is stopped, counter must NOT advance */
+    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET / 2);
+
+    /* Capture count after disable */
+    uint64_t frozen_count = qtimer_read64(QTIMER_VIEW_BASE,
+                                             QCT_QTIMER_CNTPCT_LO);
+    g_assert_cmpuint(new_count, ==, frozen_count);
 
     /* Test TVAL direct setting and read-back */
     qtimer_write32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_TVAL, 2000);
