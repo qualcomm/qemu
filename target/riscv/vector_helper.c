@@ -151,16 +151,15 @@ static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
         addr += curlen;
         curlen = len - curlen;
         if (flags != NULL) {
-            *flags = probe_access_flags(env, adjust_addr(env, addr), curlen,
-                                        access_type, mmu_index, nonfault,
-                                        host, ra);
+            *flags |= probe_access_flags(env, adjust_addr(env, addr), curlen,
+                                         access_type, mmu_index, nonfault,
+                                         host, ra);
         } else {
             probe_access(env, adjust_addr(env, addr), curlen, access_type,
                          mmu_index, ra);
         }
     }
 }
-
 
 static inline void vext_set_elem_mask(void *v0, int index,
                                       uint8_t value)
@@ -659,9 +658,9 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
     uint32_t esz = 1 << log2_esz;
     uint32_t msize = nf * esz;
     uint32_t vma = vext_vma(desc);
-    target_ulong addr, addr_probe, addr_i, offset, remain, page_split, elems;
+    target_ulong addr, addr_i, offset, remain, page_split, elems;
     int mmu_index = riscv_env_mmu_index(env, false);
-    int flags, probe_flags;
+    int flags;
     void *host;
 
     VSTART_CHECK_EARLY_EXIT(env, env->vl);
@@ -675,16 +674,8 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
     }
 
     /* Check page permission/pmp/watchpoint/etc. */
-    probe_pages(env, addr, elems * msize, ra, MMU_DATA_LOAD, mmu_index, &host,
-                &flags, true);
-
-    /* If we are crossing a page check also the second page. */
-    if (env->vl > elems) {
-        addr_probe = addr + (elems << log2_esz);
-        probe_pages(env, addr_probe, elems * msize, ra, MMU_DATA_LOAD,
-                    mmu_index, &host, &probe_flags, true);
-        flags |= probe_flags;
-    }
+    probe_pages(env, addr, (env->vl - env->vstart) * msize, ra, MMU_DATA_LOAD,
+                mmu_index, &host, &flags, true);
 
     if (flags & ~TLB_WATCHPOINT) {
         /* probe every access */

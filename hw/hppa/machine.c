@@ -306,6 +306,8 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
 
     for (unsigned int i = 0; i < smp_cpus; i++) {
         g_autofree char *name = g_strdup_printf("cpu%u-io-eir", i);
+        g_autofree char *cflush_name = NULL;
+        MemoryRegion *cflush;
 
         cpu_region = g_new(MemoryRegion, 1);
         memory_region_init_io(cpu_region, OBJECT(cpu[i]), &hppa_io_eir_ops,
@@ -313,6 +315,24 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
         memory_region_add_subregion(addr_space,
                                     translate(NULL, CPU_HPA + i * 0x1000),
                                     cpu_region);
+
+        if (!hppa_is_pa20(&cpu[0]->env)) {
+            continue;
+        }
+
+        /*
+         * HP-UX 11 64-bit reads a word from address CPU_HPA + 0x500
+         * while flushing the cache of a T600, which was the first
+         * server with a 64-bit PA-RISC 2.0 CPU.
+         * We return 0, since the value isn't used anyway.
+         */
+        cflush_name = g_strdup_printf("cpu%u-T600-cacheflush", i);
+        cflush = g_new(MemoryRegion, 1);
+        memory_region_init_io(cflush, NULL, &hppa_pci_ignore_ops,
+                              NULL, cflush_name, 4);
+        memory_region_add_subregion(addr_space,
+                              translate(NULL, CPU_HPA + i * 0x1000 + 0x500),
+                              cflush);
     }
 
     /* RTC and DebugOutputPort on CPU #0 */
@@ -840,7 +860,7 @@ static void HP_A400_machine_init_class_init(ObjectClass *oc, const void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "HP A400-44 workstation";
+    mc->desc = "HP A400-44 server";
     mc->default_cpu_type = TYPE_HPPA_CPU_PA_8500;
     mc->valid_cpu_types = valid_cpu_types;
     mc->init = machine_HP_A400_init;
