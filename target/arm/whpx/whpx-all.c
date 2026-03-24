@@ -439,6 +439,7 @@ int whpx_vcpu_run(CPUState *cpu)
         switch (vcpu->exit_ctx.ExitReason) {
         case WHvRunVpExitReasonGpaIntercept:
         case WHvRunVpExitReasonUnmappedGpa:
+            assert(syn_get_ec(vcpu->exit_ctx.MemoryAccess.Syndrome) == EC_DATAABORT);
             advance_pc = true;
 
             if (vcpu->exit_ctx.MemoryAccess.Syndrome & BIT(8)) {
@@ -683,7 +684,7 @@ static bool whpx_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         { WHvArm64RegisterIdAa64Mmfr0El1, &ahcf->isar.idregs[ID_AA64MMFR0_EL1_IDX] },
         { WHvArm64RegisterIdAa64Mmfr1El1, &ahcf->isar.idregs[ID_AA64MMFR1_EL1_IDX] },
         { WHvArm64RegisterIdAa64Mmfr2El1, &ahcf->isar.idregs[ID_AA64MMFR2_EL1_IDX] },
-        { WHvArm64RegisterIdAa64Mmfr3El1, &ahcf->isar.idregs[ID_AA64MMFR2_EL1_IDX] }
+        { WHvArm64RegisterIdAa64Mmfr3El1, &ahcf->isar.idregs[ID_AA64MMFR3_EL1_IDX] }
     };
 
     int i;
@@ -716,7 +717,7 @@ static bool whpx_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * Work needed for SVE support:
      * - SVE state save/restore
      * - any potentially needed VL management
-     * Also disable SME at the same time. (not currently supported by Hyper-V)
+     * Also disable SME at the same time.
      */
     SET_IDREG(&ahcf->isar, ID_AA64PFR0,
               GET_IDREG(&ahcf->isar, ID_AA64PFR0) & ~R_ID_AA64PFR0_SVE_MASK);
@@ -831,6 +832,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
     WHV_CAPABILITY_FEATURES features;
+    WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS synthetic_features;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     int pa_range = 0;
 
@@ -941,7 +943,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     }
 
     /* Enable synthetic processor features */
-    WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS synthetic_features;
     memset(&synthetic_features, 0, sizeof(WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS));
     synthetic_features.BanksCount = 1;
 
@@ -952,13 +953,15 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     synthetic_features.Bank0.AccessPartitionReferenceTsc = 1;
     synthetic_features.Bank0.AccessHypercallRegs = 1;
     synthetic_features.Bank0.AccessVpIndex = 1;
-    synthetic_features.Bank0.AccessHypercallRegs = 1;
     synthetic_features.Bank0.TbFlushHypercalls = 1;
     synthetic_features.Bank0.AccessSynicRegs = 1;
     synthetic_features.Bank0.AccessSyntheticTimerRegs = 1;
     synthetic_features.Bank0.AccessIntrCtrlRegs = 1;
     synthetic_features.Bank0.SyntheticClusterIpi = 1;
     synthetic_features.Bank0.DirectSyntheticTimers = 1;
+    synthetic_features.Bank0.FastHypercallOutput = 1;
+    synthetic_features.Bank0.AccessVpRegs = 1;
+    synthetic_features.Bank0.SyncContext = 1;
 
     /*
      * On ARM64, have enlightenments off by default

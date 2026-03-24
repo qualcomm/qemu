@@ -262,7 +262,7 @@ static void gen_end_tb(DisasContext *ctx)
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
-            tcg_gen_brcondi_tl(ctx->branch_cond, ctx->branch_taken, 0, skip);
+            tcg_gen_brcondi_tl(ctx->branch_cond, ctx->branch_taken, 1, skip);
             gen_cpu_limit(ctx, tcg_constant_tl(ctx->branch_dest));
             gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);

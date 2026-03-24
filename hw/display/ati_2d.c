@@ -50,6 +50,7 @@ typedef struct {
     bool host_data_active;
     bool left_to_right;
     bool top_to_bottom;
+    bool need_swap;
     uint32_t frgd_clr;
     const uint8_t *palette;
     const uint8_t *vram_end;
@@ -69,6 +70,7 @@ static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
 {
     DisplaySurface *ds = qemu_console_surface(vga->con);
 
+    (void)ds;
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", vga->vram_ptr, vga->vbe_start_addr,
             surface_data(ds), surface_stride(ds), surface_bits_per_pixel(ds),
             ctx->rop3 >> 16);
@@ -77,8 +79,8 @@ static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
         vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
         memory_region_set_dirty(&vga->vram,
                                 vga->vbe_start_addr + ctx->dst_offset +
-                                ctx->dst.y * surface_stride(ds),
-                                ctx->dst.height * surface_stride(ds));
+                                ctx->dst.y * ctx->dst_stride,
+                                ctx->dst.height * ctx->dst_stride);
     }
 }
 
@@ -89,6 +91,7 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
     ctx->host_data_active = s->host_data.active;
     ctx->left_to_right = s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT;
     ctx->top_to_bottom = s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM;
+    ctx->need_swap = HOST_BIG_ENDIAN != s->vga.big_endian_fb ? true : false;
     ctx->frgd_clr = s->regs.dp_brush_frgd_clr;
     ctx->palette = s->vga.palette;
     ctx->dst_offset = s->regs.dst_offset;
@@ -108,7 +111,6 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
     ctx->dst_stride = s->regs.dst_pitch;
     ctx->dst_bits = s->vga.vram_ptr + s->regs.dst_offset;
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        ctx->dst_bits += s->regs.crtc_offset & 0x07ffffff;
         ctx->dst_stride *= ctx->bpp;
     }
 
@@ -119,7 +121,6 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
     ctx->src_stride = s->regs.src_pitch;
     ctx->src_bits = s->vga.vram_ptr + s->regs.src_offset;
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        ctx->src_bits += s->regs.crtc_offset & 0x07ffffff;
         ctx->src_stride *= ctx->bpp;
     }
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
@@ -129,6 +130,17 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
             ctx->dst.width, ctx->dst.height,
             (ctx->left_to_right ? '>' : '<'),
             (ctx->top_to_bottom ? 'v' : '^'));
+}
+
+static uint32_t make_filler(int bpp, uint32_t color)
+{
+    if (bpp < 24) {
+        color |= color << 16;
+        if (bpp < 15) {
+            color |= color << 8;
+        }
+    }
+    return color;
 }
 
 static bool ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
@@ -255,7 +267,7 @@ static bool ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
 
         switch (ctx->rop3) {
         case ROP3_PATCOPY:
-            filler = ctx->frgd_clr;
+            filler = make_filler(ctx->bpp, ctx->frgd_clr);
             break;
         case ROP3_BLACKNESS:
             filler = 0xffUL << 24 | rgb_to_pixel32(ctx->palette[0],
@@ -268,10 +280,12 @@ static bool ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
                                                    ctx->palette[5]);
             break;
         }
-
         DPRINTF("pixman_fill(%p, %ld, %d, %d, %d, %d, %d, %x)\n",
                 ctx->dst_bits, ctx->dst_stride / sizeof(uint32_t), ctx->bpp,
                 vis_dst.x, vis_dst.y, vis_dst.width, vis_dst.height, filler);
+        if (ctx->need_swap) {
+            bswap32s(&filler);
+        }
 #ifdef CONFIG_PIXMAN
         if (!(use_pixman & BIT(0)) ||
             !pixman_fill((uint32_t *)ctx->dst_bits,
@@ -325,11 +339,8 @@ void ati_2d_blt(ATIVGAState *s)
 bool ati_host_data_flush(ATIVGAState *s)
 {
     ATI2DCtx ctx, chunk;
-    uint32_t fg = s->regs.dp_src_frgd_clr;
-    uint32_t bg = s->regs.dp_src_bkgd_clr;
     unsigned bypp, pix_count, row, col, idx;
     uint8_t pix_buf[ATI_HOST_DATA_ACC_BITS * sizeof(uint32_t)];
-    uint32_t byte_pix_order = s->regs.dp_datatype & DP_BYTE_PIX_ORDER;
     uint32_t src_source = s->regs.dp_mix & DP_SRC_SOURCE;
     uint32_t src_datatype = s->regs.dp_datatype & DP_SRC_DATATYPE;
 
@@ -360,21 +371,27 @@ bool ati_host_data_flush(ATIVGAState *s)
     }
 
     bypp = ctx.bpp / 8;
-
+    pix_count = ATI_HOST_DATA_ACC_BITS;
     if (src_datatype == SRC_COLOR) {
-        pix_count = ATI_HOST_DATA_ACC_BITS / ctx.bpp;
-        memcpy(pix_buf, &s->host_data.acc[0], sizeof(s->host_data.acc));
+        pix_count /= ctx.bpp;
+        memcpy(pix_buf, s->host_data.acc, sizeof(s->host_data.acc));
     } else {
-        pix_count = ATI_HOST_DATA_ACC_BITS;
         /* Expand monochrome bits to color pixels */
+        uint32_t byte_pix_order = s->regs.dp_datatype & DP_BYTE_PIX_ORDER;
+        uint32_t fg = make_filler(ctx.bpp, s->regs.dp_src_frgd_clr);
+        uint32_t bg = make_filler(ctx.bpp, s->regs.dp_src_bkgd_clr);
+
+        if (ctx.need_swap) {
+            bswap32s(&fg);
+            bswap32s(&bg);
+        }
         idx = 0;
         for (int word = 0; word < 4; word++) {
             for (int byte = 0; byte < 4; byte++) {
                 uint8_t byte_val = s->host_data.acc[word] >> (byte * 8);
                 for (int i = 0; i < 8; i++) {
                     bool is_fg = byte_val & BIT(byte_pix_order ? i : 7 - i);
-                    uint32_t color = is_fg ? fg : bg;
-                    stn_he_p(&pix_buf[idx], bypp, color);
+                    stn_he_p(&pix_buf[idx], bypp, is_fg ? fg : bg);
                     idx += bypp;
                 }
             }

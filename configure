@@ -256,7 +256,6 @@ done
 cross_prefix_aarch64="/pkg/qct/software/llvm/build_tools/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin/aarch64-linux-gnu-"
 # QUIC-end
 
-default_cflags='-O2 -g'
 git_submodules_action="update"
 docs="auto"
 EXESUF=""
@@ -719,7 +718,6 @@ for opt do
       meson_option_parse --enable-debug-graph-lock ""
       meson_option_parse --enable-debug-mutex ""
       meson_option_add -Doptimization=0
-      default_cflags='-O0 -g'
   ;;
   --disable-tcg) tcg="disabled"
   ;;
@@ -950,7 +948,6 @@ if ! check_py_version "$python"; then
   error_exit "Cannot use '$python', Python >= 3.9 is required." \
              "Use --python=/path/to/python to specify a supported Python." \
              "Maybe try:" \
-             "  openSUSE Leap 15.3+: zypper install python39" \
              "  CentOS: dnf install python3.12"
 fi
 

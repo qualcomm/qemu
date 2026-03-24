@@ -2784,7 +2784,7 @@ static void virt_set_msi(Object *obj, const char *value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     if (!strcmp(value, "auto")) {
-        vms->msi_controller = VIRT_MSI_CTRL_AUTO; /* Will be overriden later */
+        vms->msi_controller = VIRT_MSI_CTRL_AUTO; /* Will be overridden later */
     } else if (!strcmp(value, "its")) {
         vms->msi_controller = VIRT_MSI_CTRL_ITS;
     } else if (!strcmp(value, "gicv2m")) {
@@ -3450,7 +3450,7 @@ static GPtrArray *virt_get_valid_cpu_types(const MachineState *ms)
     if (target_aarch64()) {
         g_ptr_array_add(vct, g_strdup(ARM_CPU_TYPE_NAME("cortex-a53")));
         g_ptr_array_add(vct, g_strdup(ARM_CPU_TYPE_NAME("cortex-a57")));
-        if (kvm_enabled() || hvf_enabled()) {
+        if (kvm_enabled() || hvf_enabled() || whpx_enabled()) {
             g_ptr_array_add(vct, g_strdup(ARM_CPU_TYPE_NAME("host")));
         }
     }
