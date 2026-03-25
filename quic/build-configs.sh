@@ -120,8 +120,10 @@ load_config()
 
 # To add a new configuration, simply define a function named "config_<name>" It
 # will be automatically discovered by the build system. The function should set
-# the CONFIG_CMD variable.
+# the CONFIG_CMD variable. Add a "# desc: ..." comment right above the function
+# to provide a description that will be shown in the list command.
 
+# desc: Hexagon system and linux-user w/ standard features
 config_hexagon()
 {
     CONFIG_CMD="
@@ -134,6 +136,7 @@ config_hexagon()
     "
 }
 
+# desc: Hexagon system only, no optional features
 config_hexagon_minimal()
 {
     CONFIG_CMD="
@@ -143,6 +146,7 @@ config_hexagon_minimal()
     "
 }
 
+# desc: Same as "hexagon_minimal" but for Windows cross-compilation
 config_hexagon_minimal_cross()
 {
     config_hexagon_minimal
@@ -152,6 +156,7 @@ config_hexagon_minimal_cross()
     "
 }
 
+# desc: Same as "hexagon" + adress and UB sanitizers
 config_hexagon_san()
 {
     config_hexagon
@@ -162,6 +167,7 @@ config_hexagon_san()
     "
 }
 
+# desc: Same as "hexagon" but w/o idef-parser
 config_hexagon_no_idef_parser()
 {
     config_hexagon
@@ -171,6 +177,7 @@ config_hexagon_no_idef_parser()
     "
 }
 
+# desc: Hexagon system for macOS
 config_hexagon_mac()
 {
     CONFIG_CMD="
@@ -183,6 +190,7 @@ config_hexagon_mac()
     "
 }
 
+# desc: AArch64 system and linux-user w/GUI support
 config_aarch64()
 {
     CONFIG_CMD="

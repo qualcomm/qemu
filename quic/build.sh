@@ -106,11 +106,26 @@ elif [ "${COMMAND}" = "build" ]; then
 elif [ "${COMMAND}" = "install" ]; then
     make --directory "${BUILD_DIR}" --jobs "$(getconf _NPROCESSORS_ONLN)" install
 elif [ "${COMMAND}" = "list" ]; then
-    # List all functions that start with "config_"
-    grep -E "^config_[a-zA-Z0-9_]+\(\)" "${SOURCE_DIR}/quic/build-configs.sh" \
-        | sed 's/config_//' \
-        | sed 's/().*//' \
-        | tr '_' '-'
+    # List all functions that start with "config_" with their descriptions
+    # Descriptions are in "# desc: ..." comments right above the function
+    awk '
+        /^# desc:/ {
+            desc = substr($0, 9)  # Skip "# desc: "
+            next
+        }
+        /^config_[a-zA-Z0-9_]+\(\)/ {
+            name = $0
+            gsub(/^config_/, "", name)
+            gsub(/\(\).*/, "", name)
+            gsub(/_/, "-", name)
+            if (desc != "") {
+                printf "%-25s %s\n", name, desc
+                desc = ""
+            } else {
+                print name
+            }
+        }
+    ' "${SOURCE_DIR}/quic/build-configs.sh"
 else
     print_help_error "Unknown command"
 fi
