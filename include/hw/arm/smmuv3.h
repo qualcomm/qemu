@@ -21,6 +21,7 @@
 
 #include "hw/arm/smmu-common.h"
 #include "qom/object.h"
+#include "qapi/qapi-types-misc-arm.h"
 
 #define TYPE_SMMUV3_IOMMU_MEMORY_REGION "smmuv3-iommu-memory-region"
 
@@ -69,10 +70,10 @@ struct SMMUv3State {
     struct SMMUv3AccelState *s_accel;
     uint64_t msi_gpa;
     Error *migration_blocker;
-    bool ril;
-    bool ats;
-    uint8_t oas;
-    uint8_t ssidsize;
+    OnOffAuto ril;
+    OnOffAuto ats;
+    OasMode oas;
+    SsidSizeMode ssidsize;
 };
 
 typedef enum {
@@ -90,6 +91,8 @@ struct SMMUv3Class {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
+
+bool smmuv3_ats_enabled(struct SMMUv3State *s);
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
 OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)
