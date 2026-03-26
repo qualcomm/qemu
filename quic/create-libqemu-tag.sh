@@ -44,9 +44,9 @@ EOF
 
 run()
 {
-    PREVIEW="${1}"
+    DRY_RUN="${1}"
     shift
-    if "${PREVIEW}"; then
+    if "${DRY_RUN}"; then
         echo "[preview] $*"
     else
         "$@"
@@ -133,7 +133,7 @@ if git rev-parse --verify "refs/tags/${TAG_NAME}" > /dev/null 2>&1; then
     print_help_error "tag '${TAG_NAME}' already exists locally"
 fi
 
-run "${PREVIEW}" git tag --annotate "${TAG_NAME}" --message "${TAG_NAME}"
+run "${PREVIEW}" git tag --annotate "${TAG_NAME}"
 
 for REMOTE in ${REMOTES}; do
     run "${PREVIEW}" git push "${REMOTE}" "${BRANCH}"
