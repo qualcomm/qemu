@@ -28,10 +28,14 @@ struct x86_emul_ops {
     MMUTranslateResult (*mmu_gva_to_gpa) (CPUState *cpu, target_ulong gva, uint64_t *gpa, MMUTranslateFlags flags);
     void (*read_segment_descriptor)(CPUState *cpu, struct x86_segment_descriptor *desc,
                                     enum X86Seg seg);
+    target_ulong (*read_cr) (CPUState *cpu, int cr);
     void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
                       int size, int count);
     void (*simulate_rdmsr)(CPUState *cs);
     void (*simulate_wrmsr)(CPUState *cs);
+    bool (*is_protected_mode)(CPUState *cpu);
+    bool (*is_long_mode)(CPUState *cpu);
+    bool (*is_user_mode)(CPUState *cpu);
 };
 
 extern const struct x86_emul_ops *emul_ops;
@@ -42,6 +46,8 @@ void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_c
 
 target_ulong read_reg(CPUX86State *env, int reg, int size);
 void write_reg(CPUX86State *env, int reg, target_ulong val, int size);
+target_ulong x86_read_cr(CPUState *cpu, int cr);
+
 target_ulong read_val_from_reg(void *reg_ptr, int size);
 void write_val_to_reg(void *reg_ptr, target_ulong val, int size);
 bool write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);

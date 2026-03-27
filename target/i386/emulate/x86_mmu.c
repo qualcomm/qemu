@@ -49,6 +49,9 @@
 
 static bool is_user(CPUState *cpu)
 {
+    if (emul_ops->is_user_mode) {
+        return emul_ops->is_user_mode(cpu);
+    }
     return false;
 }
 
@@ -111,8 +114,6 @@ static bool get_pt_entry(CPUState *cpu, struct gpt_translation *pt,
 static MMUTranslateResult test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
                           int level, int *largeness, bool pae, MMUTranslateFlags flags)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
     uint64_t pte = pt->pte[level];
 
     if (!pte_present(pte)) {
@@ -127,7 +128,7 @@ static MMUTranslateResult test_pt_entry(CPUState *cpu, struct gpt_translation *p
         *largeness = level;
     }
 
-    uint32_t cr0 = env->cr[0];
+    uint32_t cr0 = x86_read_cr(cpu, 0);
     /* check protection */
     if (cr0 & CR0_WP_MASK) {
         if (mmu_validate_write(flags) && !pte_write_access(pte)) {
@@ -181,11 +182,9 @@ static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae,
 static MMUTranslateResult walk_gpt(CPUState *cpu, target_ulong addr, MMUTranslateFlags flags,
                      struct gpt_translation *pt, bool pae)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
     int top_level, level;
     int largeness = 0;
-    target_ulong cr3 = env->cr[3];
+    target_ulong cr3 = x86_read_cr(cpu, 3);
     uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
     MMUTranslateResult res;
     
@@ -249,7 +248,7 @@ static int translate_res_to_error_code(MMUTranslateResult res, bool is_write, bo
     if (!(res & MMU_TRANSLATE_PAGE_NOT_MAPPED)) {
         error_code |= PG_ERROR_P_MASK;
     }
-    if (is_write && (res & MMU_TRANSLATE_PRIV_VIOLATION)) {
+    if (is_write) {
         error_code |= PG_ERROR_W_MASK;
     }
     if (res & MMU_TRANSLATE_INVALID_PT_FLAGS) {
@@ -264,14 +263,19 @@ static MMUTranslateResult x86_write_mem_ex(CPUState *cpu, void *data, target_ulo
     CPUX86State *env = &x86_cpu->env;
 
     MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
+    MMUTranslateFlags translate_flags = MMU_TRANSLATE_VALIDATE_WRITE;
     MemTxResult mem_tx_res;
     uint64_t gpa;
+
+    if (priv_check_exempt) {
+        translate_flags |= MMU_TRANSLATE_PRIV_CHECKS_EXEMPT;
+    }
 
     while (bytes > 0) {
         /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
-        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, MMU_TRANSLATE_VALIDATE_WRITE);
+        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, translate_flags);
         if (translate_res) {
             int error_code = translate_res_to_error_code(translate_res, true, is_user(cpu));
             env->cr[2] = gva;
@@ -312,14 +316,19 @@ static MMUTranslateResult x86_read_mem_ex(CPUState *cpu, void *data, target_ulon
     CPUX86State *env = &x86_cpu->env;
 
     MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
+    MMUTranslateFlags translate_flags = 0;
     MemTxResult mem_tx_res;
     uint64_t gpa;
+
+    if (priv_check_exempt) {
+        translate_flags |= MMU_TRANSLATE_PRIV_CHECKS_EXEMPT;
+    }
 
     while (bytes > 0) {
         /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
-        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, 0);
+        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, translate_flags);
         if (translate_res) {
             int error_code = translate_res_to_error_code(translate_res, false, is_user(cpu));
             env->cr[2] = gva;
