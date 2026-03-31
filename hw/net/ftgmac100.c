@@ -498,7 +498,7 @@ static int ftgmac100_write_bd(FTGMAC100Desc *bd, dma_addr_t addr)
 }
 
 static int ftgmac100_insert_vlan(FTGMAC100State *s, int frame_size,
-                                  uint8_t vlan_tci)
+                                 uint16_t vlan_tci)
 {
     uint8_t *vlan_hdr = s->frame + (ETH_ALEN * 2);
     uint8_t *payload = vlan_hdr + sizeof(struct vlan_header);
