@@ -6661,5 +6661,12 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SCOUNTOVF]      = { "scountovf", sscofpmf,  read_scountovf,
                              .min_priv_ver = PRIV_VERSION_1_12_0 },
 
+    /* Vendor-specific CSRs (Qualcomm/SiFive) */
+    /* CSR 0x7c1: Core disable register used by Qualcomm SOCCP firmware
+     * to disable speculative i-cache fill and turn off core clocks.
+     * Treated as no-op in QEMU since these are power optimizations
+     * with no functional effect on simulation. */
+    [0x7c1] = { "vendor_core_disable", any, read_zero, write_ignore },
+
 #endif /* !CONFIG_USER_ONLY */
 };
