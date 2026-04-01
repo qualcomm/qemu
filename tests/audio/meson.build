@@ -6,12 +6,14 @@ endif
 
 modinfo_dep = not_found
 if enable_modules
-    modinfo_src = custom_target('modinfo.c',
-                                output: 'modinfo.c',
-                                input: audio_modinfo_files,
-                                command: [modinfo_generate, '--skip-missing-deps', '@INPUT@'],
-                                capture: true)
-
+    modinfo_src = 'modinfo-stub.c'
+    if audio_modinfo_files.length() != 0
+        modinfo_src = custom_target('modinfo.c',
+                                    output: 'modinfo.c',
+                                    input: audio_modinfo_files,
+                                    command: [modinfo_generate, '--skip-missing-deps', '@INPUT@'],
+                                    capture: true)
+    endif
     modinfo_lib = static_library('modinfo.c', modinfo_src)
     modinfo_dep = declare_dependency(link_with: modinfo_lib)
 endif

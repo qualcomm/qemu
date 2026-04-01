@@ -187,7 +187,7 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             error_setg(
                 errp,
                 "Processing of IGVM file failed: Could not prepare memory "
-                "at address 0x%lX due to existing non-RAM region",
+                "at address 0x%" PRIx64 " due to existing non-RAM region",
                 addr);
             return NULL;
         }
@@ -198,7 +198,7 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             error_setg(
                 errp,
                 "Processing of IGVM file failed: Could not prepare memory "
-                "at address 0x%lX: region size exceeded",
+                "at address 0x%" PRIx64 ": region size exceeded",
                 addr);
             return NULL;
         }
