@@ -22,15 +22,15 @@ others, which can cause some differences in how those clocks appear to
 elapse during guest code emulation.
 
 The software on the emulated DSP (the guest) can access the host
-system via a set of semi- hosted *angel calls*, which are system calls
+system via a set of semi-hosted *angel calls*, which are system calls
 that the emulator handles to access the file system or console. The
 QEMU interface matches the Hexagon simulator interface.
 
-# Emulated Hardware
+## Emulated Hardware
 
 Like the Hexagon simulator, some hardware components of the DSP subsystem
 are modeled.  Instead of being provided externally as co-simulation libraries,
-they are included in QEMU hexagon.  The specific components and their layout
+they are included in QEMU Hexagon.  The specific components and their layout
 in memory are designed to match the real device on which they're based.  These
 emulated DSP subsystem models are called "machines" in the QEMU vocabulary.
 The machines without real Qualcomm part numbers are not based on real devices
@@ -41,6 +41,28 @@ the Hexagon simulator.
 
 Releases of QEMU are provided for Linux and Windows 10 or 11. Starting with
 QEMU Hexagon 10.0, the Linux binaries will work on Ubuntu 22.
+
+### Linux dependencies
+
+QEMU binaries distributed with the Hexagon Tools require the following
+system libraries to be installed:
+
+-   libasound
+-   libc
+-   libepoxy
+-   libfdt
+-   libgcc_s
+-   libgio
+-   libglib
+-   libgmodule
+-   libgobject
+-   libm
+-   libpixman
+-   libpthread
+-   libpulse
+-   libutil
+-   libvirglrenderer
+-   libz
 
 ### Windows dependencies
 
@@ -100,24 +122,11 @@ For example:
 
 Alternatively, you can choose a machine that does not include a coprocessor.
 
-## Required platform libraries
+### Coprocessor support platforms
 
-QEMU binaries distributed with the Hexagon Tools require the following
-system libraries to be installed:
+The coprocessor plugin is supported on the following platforms:
 
--   libasound
--   libc
--   libepoxy
--   libgcc_s
--   libgio
--   libglib
--   libgmodule
--   libgobject
--   libm
--   libpixman
--   libpthread
--   libpulse
--   libutil
--   libz
--   libfdt
--   libvirglrenderer
+- Linux x86_64
+- macOS aarch64
+- Windows x86_64
+- Windows aarch64
