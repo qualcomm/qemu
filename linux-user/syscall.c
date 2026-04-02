@@ -1384,14 +1384,15 @@ static abi_long do_select(int n,
             return -TARGET_EFAULT;
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
             return -TARGET_EFAULT;
-
-        if (target_tv_addr) {
-            tv.tv_sec = ts.tv_sec;
-            tv.tv_usec = ts.tv_nsec / 1000;
-            if (copy_to_user_timeval(target_tv_addr, &tv)) {
-                return -TARGET_EFAULT;
-            }
-        }
+    }
+    if (target_tv_addr) {
+        tv.tv_sec = ts.tv_sec;
+        tv.tv_usec = ts.tv_nsec / 1000;
+        /*
+         * Like the kernel, we deliberately ignore possible
+         * failures writing back to the timeout struct.
+         */
+        copy_to_user_timeval(target_tv_addr, &tv);
     }
 
     return ret;
@@ -1519,14 +1520,16 @@ static abi_long do_pselect6(abi_long arg1, abi_long arg2, abi_long arg3,
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n)) {
             return -TARGET_EFAULT;
         }
+    }
+    if (ts_addr) {
+        /*
+         * Like the kernel, we deliberately ignore possible
+         * failures writing back to the timeout struct.
+         */
         if (time64) {
-            if (ts_addr && host_to_target_timespec64(ts_addr, &ts)) {
-                return -TARGET_EFAULT;
-            }
+            host_to_target_timespec64(ts_addr, &ts);
         } else {
-            if (ts_addr && host_to_target_timespec(ts_addr, &ts)) {
-                return -TARGET_EFAULT;
-            }
+            host_to_target_timespec(ts_addr, &ts);
         }
     }
     return ret;
@@ -1596,15 +1599,15 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
         if (set) {
             finish_sigsuspend_mask(ret);
         }
-        if (!is_error(ret) && arg3) {
+        if (arg3) {
+            /*
+             * Like the kernel, we deliberately ignore possible
+             * failures writing back to the timeout struct.
+             */
             if (time64) {
-                if (host_to_target_timespec64(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
+                host_to_target_timespec64(arg3, timeout_ts);
             } else {
-                if (host_to_target_timespec(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
+                host_to_target_timespec(arg3, timeout_ts);
             }
         }
     } else {
@@ -8166,6 +8169,9 @@ static int do_futex(CPUState *cpu, bool time64, target_ulong uaddr,
 #endif
 
 #if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+#ifndef AT_HANDLE_MNT_ID_UNIQUE
+#define AT_HANDLE_MNT_ID_UNIQUE 0x001
+#endif
 static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
                                      abi_long handle, abi_long mount_id,
                                      abi_long flags)
@@ -8173,6 +8179,7 @@ static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
     struct file_handle *target_fh;
     struct file_handle *fh;
     int mid = 0;
+    uint64_t mid64 = 0;
     abi_long ret;
     char *name;
     unsigned int size, total_size;
@@ -8196,7 +8203,12 @@ static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
     fh = g_malloc0(total_size);
     fh->handle_bytes = size;
 
-    ret = get_errno(name_to_handle_at(dirfd, path(name), fh, &mid, flags));
+    if (flags & AT_HANDLE_MNT_ID_UNIQUE) {
+        ret = get_errno(name_to_handle_at(dirfd, path(name), fh,
+                                          (int *)&mid64, flags));
+    } else {
+        ret = get_errno(name_to_handle_at(dirfd, path(name), fh, &mid, flags));
+    }
     unlock_user(name, pathname, 0);
 
     /* man name_to_handle_at(2):
@@ -8210,8 +8222,14 @@ static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
     g_free(fh);
     unlock_user(target_fh, handle, total_size);
 
-    if (put_user_s32(mid, mount_id)) {
-        return -TARGET_EFAULT;
+    if (flags & AT_HANDLE_MNT_ID_UNIQUE) {
+        if (put_user_u64(mid64, mount_id)) {
+            return -TARGET_EFAULT;
+        }
+    } else {
+        if (put_user_s32(mid, mount_id)) {
+            return -TARGET_EFAULT;
+        }
     }
 
     return ret;
@@ -8838,7 +8856,16 @@ static int do_openat2(CPUArchState *cpu_env, abi_long dirfd,
     if (fd > -2) {
         ret = get_errno(fd);
     } else {
-        ret = get_errno(safe_openat2(dirfd, pathname, &how,
+        const char *host_pathname = pathname;
+        if (pathname[0] == '/' &&
+            !(how.resolve & (RESOLVE_IN_ROOT | RESOLVE_BENEATH))) {
+            /*
+             * RESOLVE_BENEATH rejects absolute paths; RESOLVE_IN_ROOT
+             * resolves them relative to dirfd.
+             */
+            host_pathname = path(pathname);
+        }
+        ret = get_errno(safe_openat2(dirfd, host_pathname, &how,
                                      sizeof(struct open_how_ver0)));
     }
 
