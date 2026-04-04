@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 test_hexagon_timeouts = {
-  'linux': 1200,
+  'linux': 180,
   'minivm': 180,
   'sdk': 300,
   'systests': 180,
