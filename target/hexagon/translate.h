@@ -87,6 +87,10 @@ typedef struct DisasContext {
     TCGv branch_taken;
     TCGv dczero_addr;
     bool pcycle_enabled;
+    bool hvx_coproc_enabled;
+    bool hvx_64b_mode;
+    bool ss_active;
+    bool ss_pending;
     bool pkt_ends_tb;
     bool need_next_pc;
     uint32_t num_cycles;

@@ -370,6 +370,17 @@ static vaddr hexagon_cpu_get_pc(CPUState *cs)
     return cpu_env(cs)->gpr[HEX_REG_PC];
 }
 
+bool rev_requires_v2x_for_128b_hvx(CPUHexagonState *env)
+{
+    /*
+     * Returns true for revisions at or below v66, which only support 64-byte
+     * HVX natively. On these revisions, enabling 128-byte mode requires the
+     * V2X extension bit (VWCTRL.V2X=1).
+     */
+    HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
+    return (hex_cpu->rev_reg & 255) <= (v66_rev & 255);
+}
+
 static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
@@ -384,11 +395,17 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     }
 
 #ifndef CONFIG_USER_ONLY
-    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    target_ulong syscfg;
+    target_ulong ssr;
+    bool pcycle_enabled;
+    bool hvx_enabled;
+    bool ss_active;
 
-    bool pcycle_enabled = extract32(syscfg,
-                                    reg_field_info[SYSCFG_PCYCLEEN].offset,
-                                    reg_field_info[SYSCFG_PCYCLEEN].width);
+    syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+
+    pcycle_enabled = extract32(syscfg,
+                               reg_field_info[SYSCFG_PCYCLEEN].offset,
+                               reg_field_info[SYSCFG_PCYCLEEN].width);
 
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
@@ -396,9 +413,31 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     if (pcycle_enabled) {
         hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
     }
+
+    ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+
+    hvx_enabled = extract32(ssr, reg_field_info[SSR_XE].offset,
+                            reg_field_info[SSR_XE].width);
+    hex_flags =
+        FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, hvx_enabled);
+
+    if (rev_requires_v2x_for_128b_hvx(env)) {
+        int v2x = extract32(syscfg, reg_field_info[SYSCFG_V2X].offset,
+                            reg_field_info[SYSCFG_V2X].width);
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_64B_MODE, !v2x);
+    }
+
+    ss_active = extract32(ssr, reg_field_info[SSR_SS].offset,
+                          reg_field_info[SSR_SS].width);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE, ss_active);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_PENDING, env->ss_pending);
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, true);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, true);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_64B_MODE,
+                           rev_requires_v2x_for_128b_hvx(env) &&
+                               env->hvx_vec_len == 64);
 #endif
 
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
