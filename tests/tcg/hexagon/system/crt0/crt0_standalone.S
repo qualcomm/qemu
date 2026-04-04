@@ -75,6 +75,13 @@ hexagon_start_init:
 	r0 = insert (r1, #1, #13)
 	syscfg = r0
 1:
+	/* Enable 128b HVX mode (V2X = 1, SYSCFG bit 7) */
+.InitV2X:
+	r1 = #1
+	r0 = syscfg
+	r0 = insert (r1, #1, #7)
+	syscfg = r0
+
 .InitXE:
 	r1 = #1
 	r0 = ssr

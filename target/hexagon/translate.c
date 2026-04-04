@@ -707,6 +707,17 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
 
+#ifndef CONFIG_USER_ONLY
+    if (!ctx->ss_pending) {
+        if (ctx->ss_active) {
+            tcg_gen_movi_tl(hex_cause_code, HEX_CAUSE_DEBUG_SINGLESTEP);
+            tcg_gen_movi_tl(ss_pending, 1);
+        }
+    } else {
+        gen_exception(HEX_EVENT_DEBUG, pkt->pc);
+    }
+#endif
+
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
     if (ctx->need_commit &&
         !bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
@@ -762,6 +773,19 @@ static void gen_start_packet(DisasContext *ctx)
                              sizeof(MMVector));
             i = find_next_bit(ctx->predicated_tmp_vregs, NUM_VREGS, i + 1);
         }
+    }
+
+#ifndef CONFIG_USER_ONLY
+    if (pkt->pkt_has_hvx && !ctx->hvx_coproc_enabled) {
+        gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, pkt->pc);
+    }
+#endif
+    if (pkt->pkt_has_hvx && ctx->hvx_coproc_enabled && ctx->hvx_64b_mode) {
+#ifndef CONFIG_USER_ONLY
+        gen_precise_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, pkt->pc);
+#else
+        gen_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, pkt->pc);
+#endif
     }
 }
 
@@ -1300,6 +1324,17 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
+    ctx->hvx_coproc_enabled =
+        FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
+    ctx->hvx_64b_mode = FIELD_EX32(hex_flags, TB_FLAGS, HVX_64B_MODE);
+    ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
+#ifndef CONFIG_USER_ONLY
+    ctx->ss_active = ctx->ss_active && (ctx->mem_idx != MMU_KERNEL_IDX);
+#endif
+    ctx->ss_pending = FIELD_EX32(hex_flags, TB_FLAGS, SS_PENDING);
+    if (ctx->ss_active) {
+        ctx->base.max_insns = 1;
+    }
     ctx->need_next_pc = false;
 #ifndef CONFIG_USER_ONLY
     ctx->need_cpu_limit = hex_cpu->sched_limit &&

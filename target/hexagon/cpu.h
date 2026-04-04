@@ -221,6 +221,12 @@ struct ArchCPU {
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)
+FIELD(TB_FLAGS, HVX_COPROC_ENABLED, 5, 1)
+FIELD(TB_FLAGS, HVX_64B_MODE, 6, 1)
+FIELD(TB_FLAGS, SS_ACTIVE, 7, 1)
+FIELD(TB_FLAGS, SS_PENDING, 8, 1)
+
+bool rev_implements_64b_hvx(CPUHexagonState *env);
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
