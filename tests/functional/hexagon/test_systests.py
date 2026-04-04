@@ -6,7 +6,7 @@
 
 import os
 import re
-from unittest import skipUnless, skip
+from unittest import skip
 from qemu_test import QemuSystemTest, Asset
 from qemu_test.cmd import wait_for_console_pattern
 
@@ -15,8 +15,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     SYSTEST_TIMEOUT_SEC = 30
 
     ASSET_TARBALL = Asset(
-        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.1.7/systests_standalone.tar.gz",
-        "3882aa36ac015f3e8caf96ec2e4c3c7e377545a6ff43478baef0f09a805346b8",
+        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.1.12/systests_standalone.tar.gz",
+        "0482b4aa27663d29002e699b0d7567de2d7c19c5efabf2a9fe0af092118606d2",
     )
 
     def check(self, test_name: str,
@@ -72,7 +72,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
         target_bin = os.path.join(self.workdir,
             'systests_standalone_package',
-            'StandaloneSysTests_6.3.0.0_v68',
+            'StandaloneSysTests_6.4.0.2_v68',
             'bin', test_name)
 
         self.set_vm_arg("-display", "none")
@@ -385,6 +385,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
         values."""
         result = self.run_individual_test("vid_reg")
         self.assertTrue(result, "Test vid_reg failed")
+
+    def test_dtg_interrupt(self) -> None:
+        """Tests direct-to-guest interrupt delivery by configuring VIC1
+        virtualization (CCR.VV1), entering guest mode, and verifying that a
+        pending interrupt is delivered via the Guest Event Vector Table
+        with correct GSR fields (CAUSE, UM, GIE)."""
+        result = self.run_individual_test("dtg_interrupt")
+        self.assertTrue(result, "Test dtg_interrupt failed")
 
     @skip("V66G_1024 machine type not available")
     def test_invalid_insn_for_rev_v66(self) -> None:
