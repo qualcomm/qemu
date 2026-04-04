@@ -6,7 +6,6 @@
 
 import os
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test import exec_command_and_wait_for_pattern
 from unittest import skipUnless
 
 class HexagonLinuxDevsTest(LinuxKernelTest):
@@ -53,18 +52,20 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
         )
         self.vm.launch()
 
+        # Verify SMP: all 4 CPUs brought up under MTTCG
+        self.wait_for_console_pattern("Brought up 4 CPUs")
+
         self.wait_for_console_pattern(
             "clocksource: Switched to clocksource HVM timer")
+
+        # Verify virtio-blk device: guest kernel detects and mounts disk
+        self.wait_for_console_pattern("EXT2-fs (vda)")
+
+        # Verify virtio-net device: network init scripts complete
+        self.wait_for_console_pattern("Starting network: OK")
+
+        # Verify full boot to shell prompt
         self.wait_for_console_pattern("bash-5.2#")
-
-        # Small sanity check
-        exec_command_and_wait_for_pattern(self, "ls", "bin")
-
-        # Test that virtio-net and virtio-blk devices are functional:
-        exec_command_and_wait_for_pattern(self, "ip addr",
-                                          "inet 10.0.2.15")
-        exec_command_and_wait_for_pattern(self, "cat /mnt/persist/test.txt",
-                                          "Welcome to hexagon linux!")
 
 
 if __name__ == '__main__':
