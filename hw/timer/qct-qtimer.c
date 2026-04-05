@@ -121,7 +121,7 @@ static void qct_qtimer_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps qct_qtimer_ops = {
     .read = qct_qtimer_read,
     .write = qct_qtimer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_qct_qtimer = {
@@ -438,7 +438,7 @@ static MemTxResult hex_timer_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps hex_timer_ops = {
     .read_with_attrs = hex_timer_read,
     .write_with_attrs = hex_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_hex_timer = {
