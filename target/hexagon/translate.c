@@ -548,6 +548,40 @@ static bool pkt_raises_exception(Packet *pkt)
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
+static bool pkt_may_do_io(Packet *pkt)
+{
+    if (check_for_opcode(pkt, Y2_ciad) ||
+        check_for_opcode(pkt, Y4_siad) ||
+        check_for_opcode(pkt, Y2_wait) ||
+        check_for_opcode(pkt, Y2_resume) ||
+        check_for_opcode(pkt, J2_pause) ||
+        check_for_opcode(pkt, Y2_k0lock) ||
+        check_for_opcode(pkt, Y2_k0unlock) ||
+        check_for_opcode(pkt, Y2_tlblock) ||
+        check_for_opcode(pkt, Y2_tlbunlock) ||
+        check_for_opcode(pkt, Y2_stop) ||
+        check_for_opcode(pkt, Y2_swi) ||
+        check_for_opcode(pkt, Y2_cswi) ||
+        check_for_opcode(pkt, Y2_start) ||
+        check_for_opcode(pkt, Y4_nmi) ||
+        check_for_opcode(pkt, Y2_iassignw) ||
+        check_for_opcode(pkt, Y2_setimask) ||
+        check_for_opcode(pkt, Y2_setprio) ||
+        check_for_opcode(pkt, Y2_tfrscrr) ||
+        check_for_opcode(pkt, Y2_tfrsrcr) ||
+        check_for_opcode(pkt, Y4_tfrscpp) ||
+        check_for_opcode(pkt, Y4_tfrspcp) ||
+        check_for_opcode(pkt, A2_tfrcrr) ||
+        check_for_opcode(pkt, A2_tfrrcr) ||
+        check_for_opcode(pkt, A4_tfrcpp) ||
+        check_for_opcode(pkt, A4_tfrpcp)) {
+        return true;
+    }
+    return false;
+}
+#endif
+
 static bool need_commit(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -708,6 +742,10 @@ static void gen_start_packet(DisasContext *ctx)
     }
 
 #ifndef CONFIG_USER_ONLY
+    if (pkt_may_do_io(pkt)) {
+        translator_io_start(&ctx->base);
+    }
+
     if (!ctx->ss_pending) {
         if (ctx->ss_active) {
             tcg_gen_movi_tl(hex_cause_code, HEX_CAUSE_DEBUG_SINGLESTEP);
