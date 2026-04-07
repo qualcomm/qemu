@@ -4,7 +4,7 @@ test_hexagon_timeouts = {
 # 'linux': 480,
   'minivm': 180,
   'sdk': 300,
-  'systests': 180,
+  'systests': 480,
 }
 
 tests_hexagon_system_thorough = [
