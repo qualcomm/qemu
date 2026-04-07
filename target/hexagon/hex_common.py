@@ -289,7 +289,8 @@ def need_PC(tag):
 
 
 def need_next_PC(tag):
-    return "A_CALL" in attribdict[tag]
+    return ("A_CALL" in attribdict[tag] or
+            tag == "J2_trap0" or tag == "J2_trap1")
 
 
 def need_pkt_has_multi_cof(tag):

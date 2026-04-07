@@ -335,8 +335,6 @@ static void hexagon_resume_thread(CPUHexagonState *env)
      * next executable instruction.
      */
     env->gpr[HEX_REG_PC] = env->wait_next_pc;
-    cs = env_cpu(env);
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
     cs->halted = false;
     cs->exception_index = HEX_EVENT_NONE;
     qemu_cpu_kick(cs);
@@ -610,6 +608,12 @@ static int sys_in_guest_mode_ssr(uint32_t ssr)
         (GET_SSR_FIELD(SSR_GM, ssr) != 0))
         return 1;
     return 0;
+}
+
+int sys_in_guest_mode(CPUHexagonState *env)
+{
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    return sys_in_guest_mode_ssr(ssr);
 }
 
 static int sys_in_user_mode_ssr(uint32_t ssr)

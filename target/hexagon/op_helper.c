@@ -62,8 +62,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
 #else
     qemu_log_mask(CPU_LOG_INT, "%s: 0x%08x, @ %08" PRIx32 "\n",
                   __func__, exception, PC);
-
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
 #endif
 
     env->gpr[HEX_REG_PC] = PC;

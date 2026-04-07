@@ -186,34 +186,31 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
     /* Link qtimer to globalreg for TIMERLO/TIMERHI reads */
-    if (!object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
-                                  OBJECT(qtimer), &error_fatal)) {
-        error_report("Failed to link qtimer to global registers");
-        goto out;
-    }
+    object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
+                             OBJECT(qtimer), &error_fatal);
 
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
 
     /* Link the L2VIC interface to globalreg */
-    if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
-                                  OBJECT(l2vic_dev), &error_fatal)) {
-        error_report("Failed to link L2VIC interface to global registers");
-        goto out;
-    }
+    object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
+                             OBJECT(l2vic_dev), &error_fatal);
 
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
+
+    /* Link the L2VIC interface to each CPU */
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        object_property_set_link(OBJECT(cpus[i]), "l2vic",
+                                 OBJECT(l2vic_dev), &error_fatal);
+    }
 
     /*
      * Finally, realize the CPUs
      */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, &error_fatal)) {
-            error_report("Failed to realize CPU %d", i);
-            goto out;
-        }
+        qdev_realize_and_unref(DEVICE(cpus[i]), NULL, &error_fatal);
     }
 
     /* Connect L2VIC IRQ outputs to CPU inputs after CPU realization */
@@ -249,7 +246,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                           sizeof(*guest_config_table), m_cfg->cfgbase,
                           &address_space_memory);
     g_free(guest_config_table);
-out:
+
     g_free(cpus);
 }
 
