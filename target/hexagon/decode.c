@@ -215,6 +215,10 @@ static void decode_set_insn_attr_fields(Packet *pkt)
     pkt->pkt_has_multi_cof = false;
     pkt->pkt_has_endloop = false;
     pkt->pkt_has_dczeroa = false;
+    pkt->pkt_has_scalar_store_s0 = false;
+    pkt->pkt_has_scalar_store_s1 = false;
+    pkt->pkt_has_load_s0 = false;
+    pkt->pkt_has_load_s1 = false;
 
     for (i = 0; i < numinsns; i++) {
         opcode = pkt->insn[i].opcode;
@@ -234,6 +238,14 @@ static void decode_set_insn_attr_fields(Packet *pkt)
                 } else {
                     pkt->pkt_has_scalar_store_s1 = true;
                 }
+            }
+        }
+
+        if (GET_ATTRIB(opcode, A_LOAD)) {
+            if (pkt->insn[i].slot == 0) {
+                pkt->pkt_has_load_s0 = true;
+            } else {
+                pkt->pkt_has_load_s1 = true;
             }
         }
 
