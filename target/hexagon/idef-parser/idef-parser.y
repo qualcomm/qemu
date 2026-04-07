@@ -418,6 +418,9 @@ cancel_statement : LOAD_CANCEL
                        gen_cancel(c, &@1);
                    }
                  | CANCEL
+                   {
+                       gen_cancel(c, &@1);
+                   }
                  ;
 
 if_statement : if_stmt

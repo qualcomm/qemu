@@ -1729,6 +1729,7 @@ void gen_load_cancel(Context *c, YYLTYPE *locp)
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
+    gen_cancel(c, locp);
 }
 
 void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
