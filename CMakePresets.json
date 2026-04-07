@@ -1,0 +1,74 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install",
+                "LIBQEMU_TARGETS": "aarch64;hexagon;xtensa;riscv64;riscv32"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "description": "Debug build with default settings",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "description": "Optimized release build",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "san",
+            "displayName": "Sanitizers",
+            "description": "Debug build with address and undefined behavior sanitizers",
+            "inherits": "debug",
+            "cacheVariables": {
+                "GS_ENABLE_SANITIZERS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "jobs": 0
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "jobs": 0
+        },
+        {
+            "name": "san",
+            "configurePreset": "san",
+            "jobs": 0
+        },
+        {
+            "name": "debug-install",
+            "configurePreset": "debug",
+            "targets": ["install"]
+        },
+        {
+            "name": "release-install",
+            "configurePreset": "release",
+            "targets": ["install"]
+        },
+        {
+            "name": "san-install",
+            "configurePreset": "san",
+            "targets": ["install"]
+        }
+    ]
+}
