@@ -156,7 +156,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("float_excp")
         self.assertTrue(result, "Test float_excp failed")
 
-    @skip("Frame limit check hangs, needs investigation")
     def test_framelimit(self) -> None:
         """Tests stack frame limit functionality by setting framelimit register
         and attempting stack allocations that exceed the limit."""
@@ -186,7 +185,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("hvx_64b")
         self.assertTrue(result, "Test hvx_64b failed")
 
-    @skip("Needs HVX extension instruction decoding support")
     def test_hvx_ext(self) -> None:
         """Tests HVX extension bits and qfloat operations across different
         architecture revisions."""
@@ -258,7 +256,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("mmu_page_size")
         self.assertTrue(result, "Test mmu_page_size failed")
 
-    @skip("Register write conflict test fails, needs investigation")
     def test_multiple_writes(self) -> None:
         """Tests detection of register write conflicts by executing packets that
         attempt to write the same register multiple times."""
@@ -352,7 +349,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("sys_atomics")
         self.assertTrue(result, "Test sys_atomics failed")
 
-    @skip("System register mutation test fails, needs investigation")
     def test_sys_reg_mut(self) -> None:
         """Tests system register mutation behavior by writing to various system
         control registers and verifying which bits are writable versus
@@ -389,7 +385,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("vid_reg")
         self.assertTrue(result, "Test vid_reg failed")
 
-    @skip("DTG interrupt delivery hangs, needs investigation")
     def test_dtg_interrupt(self) -> None:
         """Tests direct-to-guest interrupt delivery by configuring VIC1
         virtualization (CCR.VV1), entering guest mode, and verifying that a
