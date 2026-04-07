@@ -34,6 +34,7 @@
 #include "machine_cfg_v68n_1024.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 #include "machine_cfg_v81dgb_1.h.inc"
+#include "machine_cfg_v81qa_1.h.inc"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -339,6 +340,25 @@ static void v81dgb_1_init(ObjectClass *oc, const void *data)
     qemu_semihosting_enable();
 }
 
+static void v81qa_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v81_rev, &v81qa_1);
+}
+
+static void v81qa_1_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V81QA_1";
+    mc->init = v81qa_1_config_init;
+    mc->is_default = false;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+    qemu_semihosting_enable();
+}
+
 static const TypeInfo hexagon_machine_types[] = {
     {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
@@ -359,6 +379,11 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V81DGB_1"),
         .parent = TYPE_MACHINE,
         .class_init = v81dgb_1_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V81QA_1"),
+        .parent = TYPE_MACHINE,
+        .class_init = v81qa_1_init,
     },
 };
 
