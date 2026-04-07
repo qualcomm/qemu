@@ -758,6 +758,7 @@ def _do_ensure(
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
             or not _is_system_package(dist)
+            or dist.version is None
             or not matcher.match(dist.version)
         ):
             absent.append(name + _make_version_constraint(info, True))
@@ -799,8 +800,7 @@ def _do_ensure(
         env = dict(os.environ)
         env['PIP_CONFIG_SETTINGS'] = "editable_mode=compat"
         pip_install(
-            args=["--no-build-isolation",
-                  "-e"] + local_packages,
+            args=["-e"] + local_packages,
             online=online,
             wheels_dir=wheels_dir,
             env=env,
