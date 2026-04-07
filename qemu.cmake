@@ -227,6 +227,4 @@ foreach(target ${LIBQEMU_TARGETS})
     else()
         install(FILES ${lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif()
-
-    install(TARGETS libqemu-${target} DESTINATION ${LIBQEMU_LIB_DIR} EXPORT libqemu-targets)
 endforeach()
