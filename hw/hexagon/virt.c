@@ -652,6 +652,11 @@ static void virt_init(MachineState *ms)
             error_report("Failed to link TLB to CPU %d", i);
             goto out;
         }
+        if (!object_property_set_link(OBJECT(cpus[i]), "l2vic",
+                                      OBJECT(vms->l2vic), &error_fatal)) {
+            error_report("Failed to link L2VIC interface to CPU %d", i);
+            goto out;
+        }
         qdev_prop_set_uint32(DEVICE(cpus[i]), "l2vic-base-addr",
                              m_cfg->l2vic_base);
         qdev_prop_set_uint32(DEVICE(cpus[i]), "jtlb-entries",

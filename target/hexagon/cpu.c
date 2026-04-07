@@ -87,6 +87,8 @@ static const Property hexagon_cpu_properties[] = {
         0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
+    DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
+                     TYPE_L2VIC_INTERFACE, L2VicInterface *),
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
                      TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb,

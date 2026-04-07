@@ -32,6 +32,9 @@
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
 #include "hw/core/registerfields.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/intc/l2vic.h"
+#endif
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
@@ -210,6 +213,7 @@ struct ArchCPU {
     uint32_t hvx_contexts;
     uint32_t boot_addr;
     struct HexagonGlobalRegState *globalregs;
+    L2VicInterface *l2vic;
     gchar *usefs;
     struct HexagonTLBState *tlb;
     bool sched_limit;
