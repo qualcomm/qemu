@@ -272,6 +272,23 @@ void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
+static void gen_check_mult_reg_write(DisasContext *ctx)
+{
+    if (ctx->pkt_has_uncond_mult_reg_write) {
+        hex_gen_exception_end_tb(ctx, HEX_CAUSE_REG_WRITE_CONFLICT);
+    } else if (!bitmap_empty(ctx->wreg_mult_gprs, NUM_GPREGS)) {
+        TCGLabel *skip_exception = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_EQ, ctx->mult_reg_written, 0,
+                           skip_exception);
+#ifdef CONFIG_USER_ONLY
+        gen_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
+#else
+        gen_precise_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
+#endif
+        gen_set_label(skip_exception);
+    }
+}
+
 /*
  * Generate exception for decode failures. Unlike gen_exception_end_tb,
  * this is used when decode fails before ctx->next_PC is initialized.
@@ -635,6 +652,9 @@ static void mark_implicit_writes(DisasContext *ctx)
 
 static void analyze_packet(DisasContext *ctx)
 {
+    ctx->pkt_has_uncond_mult_reg_write = false;
+    bitmap_zero(ctx->wreg_mult_gprs, NUM_GPREGS);
+    bitmap_zero(ctx->uncond_wreg_gprs, NUM_GPREGS);
     ctx->read_after_write = false;
     ctx->has_hvx_overlap = false;
     for (int i = 0; i < ctx->pkt.num_insns; i++) {
@@ -716,6 +736,20 @@ static void gen_start_packet(DisasContext *ctx)
         ctx->greg_new_value[reg_num] = tcg_temp_new();
     }
 #endif
+
+    /*
+     * Initialize runtime multi-write conflict detection.
+     * Start gpreg_written at 0 so that only predicated writes tracked by
+     * gen_check_reg_write() participate in conflict detection.  Conflicts
+     * involving unconditional writes are already caught at decode time by
+     * pkt_has_write_conflict() in decode.c.
+     */
+    if (!bitmap_empty(ctx->wreg_mult_gprs, NUM_GPREGS)) {
+        ctx->gpreg_written = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->gpreg_written, 0);
+        ctx->mult_reg_written = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->mult_reg_written, 0);
+    }
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(&ctx->pkt)) {
@@ -1191,6 +1225,8 @@ static void check_imprecise_exception(Packet *pkt)
 
 static void gen_commit_packet(DisasContext *ctx)
 {
+    gen_check_mult_reg_write(ctx);
+
     /*
      * If there is more than one store in a packet, make sure they are all OK
      * before proceeding with the rest of the packet commit.
@@ -1313,8 +1349,11 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     if (words_read > 0) {
         ctx->pkt.pc = ctx->base.pc_next;
         if (ctx->pkt.pkt_has_write_conflict) {
-            gen_exception_decode_fail(ctx, words_read,
-                                      HEX_CAUSE_REG_WRITE_CONFLICT);
+            qemu_log_mask(CPU_LOG_INT,
+                "DECODE write-conflict at PC=0x%x\n",
+                (uint32_t)ctx->base.pc_next);
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_REG_WRITE_CONFLICT);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
             return;
         }
         gen_start_packet(ctx);
