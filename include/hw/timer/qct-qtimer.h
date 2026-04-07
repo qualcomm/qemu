@@ -44,6 +44,8 @@ struct QCTQtimerState {
     uint32_t nr_frames;
     uint32_t nr_views;
     uint32_t cnttid;
+    bool start_ticking;
+    int64_t counter_base_ns;
 };
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)

@@ -188,6 +188,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                              1, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "cnttid",
                              0x111, &error_fatal);
+    object_property_set_bool(OBJECT(qtimer), "start-ticking",
+                             false, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
     /* Link qtimer to globalreg for TIMERLO/TIMERHI reads */

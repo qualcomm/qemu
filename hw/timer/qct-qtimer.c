@@ -147,7 +147,12 @@ static void qct_qtimer_init(Object *obj)
  */
 static uint64_t get_cntpct(QCTHextimerState *s)
 {
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+    int64_t base = s->qtimer->counter_base_ns;
+
+    if (base < 0) {
+        return 0;
+    }
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - base,
                     s->freq, NANOSECONDS_PER_SECOND);
 }
 
@@ -360,6 +365,11 @@ static MemTxResult hex_timer_write(void *opaque, hwaddr offset, uint64_t value,
     }
     QCTHextimerState *s = &qct_s->timer[frame];
 
+    /* Activate the physical counter on first guest MMIO write */
+    if (qct_s->counter_base_ns < 0) {
+        qct_s->counter_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
+
     /*
      * This is the case where we have 2 views, but the second one is not
      * implemented.
@@ -478,6 +488,8 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
                           QTIMER_MEM_SIZE_BYTES * s->nr_frames * s->nr_views);
     sysbus_init_mmio(sbd, &s->view_iomem);
 
+    s->counter_base_ns = s->start_ticking ? 0 : -1;
+
     for (i = 0; i < s->nr_frames; i++) {
         s->timer[i].control = QCT_QTIMER_CNTP_CTL_ENABLE;
         s->timer[i].cntval = UINT64_MAX;
@@ -504,6 +516,7 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("cnttid", QCTQtimerState, cnttid, 0x11),
+    DEFINE_PROP_BOOL("start-ticking", QCTQtimerState, start_ticking, true),
 };
 
 /* Forward declarations */
