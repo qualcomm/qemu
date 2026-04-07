@@ -118,10 +118,6 @@ if (GS_ENABLE_LTO)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-lto)
 endif()
 
-if(GS_ENABLE_TSAN)
-    set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS} --enable-tsan)
-endif()
-
 if(QEMU_ENABLE_USB_REDIRECT)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
         --enable-usb-redir
