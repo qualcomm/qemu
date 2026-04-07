@@ -609,50 +609,34 @@ static void virt_init(MachineState *ms)
                          m_cfg->cfgtable.jtlb_size_entries);
     qdev_prop_set_uint32(tlb_dev, "dma-entries", 0);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(tlb_dev), &error_fatal)) {
-        error_report("Failed to realize TLB object");
-        goto out;
-    }
+    sysbus_realize(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
 
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(vms->gsregs));
     qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
 
     /* Link the qtimer interface to globalreg */
-    if (!object_property_set_link(OBJECT(vms->gsregs), "qtimer",
-                                  OBJECT(vms->qtimer), &error_fatal)) {
-        error_report("Failed to link qtimer interface to global registers");
-        goto out;
-    }
+    object_property_set_link(OBJECT(vms->gsregs), "qtimer",
+                             OBJECT(vms->qtimer), &error_fatal);
 
     /* Link the L2VIC interface to globalreg */
-    if (!object_property_set_link(OBJECT(vms->gsregs), "l2vic",
-                                  OBJECT(vms->l2vic), &error_fatal)) {
-        error_report("Failed to link L2VIC interface to global registers");
-        goto out;
-    }
+    object_property_set_link(OBJECT(vms->gsregs), "l2vic",
+                             OBJECT(vms->l2vic), &error_fatal);
 
     /* Realize the device on sysbus */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->gsregs), &error_fatal);
 
     /* Link the global system registers object to all CPUs */
     for (int i = 0; i < ms->smp.cpus; i++) {
-        if (!object_property_set_link(OBJECT(cpus[i]), "global-regs",
-                                      OBJECT(vms->gsregs), &error_fatal)) {
-            error_report("Failed to link global system registers to CPU %d", i);
-            goto out;
-        }
-        if (!object_property_set_link(OBJECT(cpus[i]), "tlb",
-                                      OBJECT(tlb_dev), &error_fatal)) {
-            error_report("Failed to link TLB to CPU %d", i);
-            goto out;
-        }
+        object_property_set_link(OBJECT(cpus[i]), "global-regs",
+                                 OBJECT(vms->gsregs), &error_fatal);
+        object_property_set_link(OBJECT(cpus[i]), "tlb",
+                                 OBJECT(tlb_dev), &error_fatal);
+        object_property_set_link(OBJECT(cpus[i]), "l2vic",
+                                 OBJECT(vms->l2vic), &error_fatal);
         qdev_prop_set_uint32(DEVICE(cpus[i]), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
-        if (!qdev_realize_and_unref(DEVICE(cpus[i]), NULL, &error_fatal)) {
-            error_report("Failed to realize CPU %d", i);
-            goto out;
-        }
+        qdev_realize_and_unref(DEVICE(cpus[i]), NULL, &error_fatal);
     }
 
     for (int i = 0; i < 8; i++) {
@@ -697,7 +681,6 @@ static void virt_init(MachineState *ms)
 
     hexagon_load_fdt(vms);
 
-out:
     g_free(cpus);
 }
 
