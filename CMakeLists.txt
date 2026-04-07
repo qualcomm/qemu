@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.16.3)
-project(libqemu)
+project(libqemu VERSION 1.0.0)
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 # Enabled QEMU targets
 if(NOT DEFINED LIBQEMU_TARGETS)
@@ -24,37 +25,45 @@ if(LIST_LIBQEMU_TARGETS)
 endif()
 
 set(LIBQEMU_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/libqemu)
-set(LIBQEMU_LIB_DIR ${CMAKE_INSTALL_LIBDIR}/libqemu)
 
 include(qemu.cmake)
 
-add_library(libqemu INTERFACE)
-add_dependencies(libqemu qemu)
+# --- Target ---
 
+add_library(libqemu INTERFACE)
+add_library(libqemu::libqemu ALIAS libqemu)
+add_dependencies(libqemu qemu)
 target_include_directories(libqemu INTERFACE
     $<BUILD_INTERFACE:${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${LIBQEMU_INCLUDE_DIR}>)
 
-install(TARGETS libqemu DESTINATION ${LIBQEMU_LIB_DIR} EXPORT libqemu-targets)
-install(EXPORT libqemu-targets DESTINATION ${LIBQEMU_LIB_DIR}/cmake)
+# --- Package config ---
 
-export(EXPORT libqemu-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/libqemu-targets.cmake)
+set(LIBQEMU_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/libqemu)
+set(LIBQEMU_CONFIG_FILE libqemuConfig.cmake)
+set(LIBQEMU_VERSION_FILE libqemuConfigVersion.cmake)
 
-export(PACKAGE libqemu)
-
-include(CMakePackageConfigHelpers)
-
-configure_package_config_file(libqemuConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/libqemuConfig.cmake
-    INSTALL_DESTINATION ${LIBQEMU_LIB_DIR}/cmake
-    PATH_VARS LIBQEMU_LIB_DIR)
+configure_package_config_file(
+    ${LIBQEMU_CONFIG_FILE}.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${LIBQEMU_CONFIG_FILE}
+    INSTALL_DESTINATION ${LIBQEMU_CMAKE_DIR})
 
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/libqemuConfigVersion.cmake
-    VERSION 1.0.0
+    ${CMAKE_CURRENT_BINARY_DIR}/${LIBQEMU_VERSION_FILE}
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion)
 
-install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/libqemuConfig.cmake
-          ${CMAKE_CURRENT_BINARY_DIR}/libqemuConfigVersion.cmake
-    DESTINATION ${LIBQEMU_LIB_DIR}/cmake)
+export(EXPORT libqemu-targets NAMESPACE libqemu::
+    FILE ${CMAKE_CURRENT_BINARY_DIR}/libqemu-targets.cmake)
+
+# --- Install ---
+
+install(TARGETS libqemu EXPORT libqemu-targets)
+
+install(EXPORT libqemu-targets
+    NAMESPACE libqemu::
+    DESTINATION ${LIBQEMU_CMAKE_DIR})
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${LIBQEMU_CONFIG_FILE}
+              ${CMAKE_CURRENT_BINARY_DIR}/${LIBQEMU_VERSION_FILE}
+    DESTINATION ${LIBQEMU_CMAKE_DIR})
