@@ -156,6 +156,16 @@ config_hexagon_minimal_cross()
     "
 }
 
+# desc: Same as "hexagon" but for linux-aarch64 cross-compilation
+config_hexagon_linux_aarch64_cross()
+{
+    config_hexagon
+    CONFIG_CMD="
+        ${CONFIG_CMD}
+        --cross-prefix=aarch64-linux-gnu-
+    "
+}
+
 # desc: Same as "hexagon" + adress and UB sanitizers
 config_hexagon_san()
 {

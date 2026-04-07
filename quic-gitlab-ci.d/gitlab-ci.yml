@@ -334,6 +334,20 @@ hexagon-windows-x86_64-perf-ml:
       allow_failure: true
 
 # QEMU Hexagon for Linux on aarch64
+hexagon-linux-aarch64-cross:
+  extends: .build-job
+  image: docker-registry.qualcomm.com/qqvp/qemu:linux-aarch64-cross
+  variables:
+    QUIC_BUILD_CONFIG: hexagon-linux-aarch64-cross
+
+hexagon-linux-aarch64-cross-tag:
+  extends: hexagon-linux-aarch64-cross
+  rules:
+    - if: $CI_COMMIT_TAG
+  artifacts:
+    expire_in: never
+
+# QEMU AArch64 for Linux on aarch64
 aarch64-linux:
   extends: .build-job
   variables:
