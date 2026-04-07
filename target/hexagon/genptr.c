@@ -49,6 +49,31 @@ TCGv gen_read_preg(TCGv pred, uint8_t num)
     return pred;
 }
 
+static void gen_check_reg_write(DisasContext *ctx, int rnum)
+{
+    if (rnum < NUM_GPREGS && test_bit(rnum, ctx->wreg_mult_gprs)) {
+        TCGv cancelled = tcg_temp_new();
+        TCGv mult_reg = tcg_temp_new();
+        TCGLabel *skip = gen_new_label();
+
+        tcg_gen_andi_tl(cancelled, hex_slot_cancelled,
+                        1 << ctx->insn->slot);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, skip);
+        tcg_gen_andi_tl(mult_reg, ctx->gpreg_written, 1 << rnum);
+        tcg_gen_or_tl(ctx->mult_reg_written, ctx->mult_reg_written,
+                      mult_reg);
+        tcg_gen_ori_tl(ctx->gpreg_written, ctx->gpreg_written,
+                       1 << rnum);
+        gen_set_label(skip);
+    }
+}
+
+static void gen_check_reg_write_pair(DisasContext *ctx, int rnum)
+{
+    gen_check_reg_write(ctx, rnum);
+    gen_check_reg_write(ctx, rnum + 1);
+}
+
 #define IMMUTABLE (~0)
 
 const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {

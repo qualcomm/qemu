@@ -40,6 +40,9 @@ typedef struct DisasContext {
     int reg_log_idx;
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
+    bool pkt_has_uncond_mult_reg_write;
+    DECLARE_BITMAP(wreg_mult_gprs, NUM_GPREGS);
+    DECLARE_BITMAP(uncond_wreg_gprs, NUM_GPREGS);
     bool implicit_usr_write;
 #ifndef CONFIG_USER_ONLY
     int greg_log[GREG_WRITES_MAX];
@@ -85,6 +88,8 @@ typedef struct DisasContext {
     TCGv new_pred_value[NUM_PREGS];
     TCGv branch_taken;
     TCGv dczero_addr;
+    TCGv gpreg_written;
+    TCGv mult_reg_written;
     bool pcycle_enabled;
     bool hvx_coproc_enabled;
     bool hvx_64b_mode;
@@ -161,9 +166,15 @@ static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
             ctx->reg_log[ctx->reg_log_idx] = rnum;
             ctx->reg_log_idx++;
             set_bit(rnum, ctx->regs_written);
+        } else if (rnum < NUM_GPREGS) {
+            set_bit(rnum, ctx->wreg_mult_gprs);
         }
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_regs);
+        } else if (rnum < NUM_GPREGS) {
+            bool uncond_set =
+                test_and_set_bit(rnum, ctx->uncond_wreg_gprs);
+            ctx->pkt_has_uncond_mult_reg_write |= uncond_set;
         }
     }
 }
