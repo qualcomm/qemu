@@ -11,6 +11,8 @@
 #include "cpu_helper.h"
 #include "exec/cpu-interrupt.h"
 #include "hex_interrupts.h"
+#include "hexswi.h"
+#include "hw/intc/l2vic.h"
 #include "macros.h"
 #include "sys_macros.h"
 #include "system/cpus.h"
@@ -170,32 +172,76 @@ static void restore_state(CPUHexagonState *env, bool int_accepted)
     }
 }
 
+static bool int_should_dtg(CPUHexagonState *env, int int_num)
+{
+    uint32_t ccr;
+
+    ccr = arch_get_system_reg(env, HEX_SREG_CCR);
+
+    switch (int_num) {
+    case 3:
+        if (!GET_FIELD(CCR_VV1, ccr)) {
+            return false;
+        }
+        break;
+    case 4:
+        if (!GET_FIELD(CCR_VV2, ccr)) {
+            return false;
+        }
+        break;
+    case 5:
+        if (!GET_FIELD(CCR_VV3, ccr)) {
+            return false;
+        }
+        break;
+    default:
+        return false;
+    }
+
+    return !!GET_FIELD(CCR_GIE, ccr);
+}
+
 static void hex_accept_int(CPUHexagonState *env, int int_num)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
     const int exe_mode = get_exe_mode(env);
     const bool in_wait_mode = exe_mode == HEX_EXE_MODE_WAIT;
+    target_ulong elr;
 
     set_ipend_bit(env, int_num, 0);
     set_iad_bit(env, int_num, 1);
-    set_ssr_ex_cause(env, 1, HEX_CAUSE_INT0 | int_num);
+
     cs->exception_index = HEX_EVENT_INT0 + int_num;
     env->cause_code = HEX_EVENT_INT0 + int_num;
     clear_pending_locks(env);
+
     if (in_wait_mode) {
         qemu_log_mask(CPU_LOG_INT,
             "%s: thread " TARGET_FMT_ld " resuming, exiting WAIT mode\n",
             __func__, env->threadId);
-        set_elr(env, env->wait_next_pc);
+        elr = env->wait_next_pc;
         clear_wait_mode(env);
         cs->halted = false;
     } else if (env->k0_lock_state == HEX_LOCK_WAITING) {
         g_assert_not_reached();
     } else {
-        set_elr(env, env->gpr[HEX_REG_PC]);
+        elr = env->gpr[HEX_REG_PC];
     }
-    env->gpr[HEX_REG_PC] = evb | (cs->exception_index << 2);
+
+    if (int_should_dtg(env, int_num)) {
+        HexagonCPU *cpu = env_archcpu(env);
+        int vic_group = int_num - 2;
+        uint32_t vid_packed = l2vic_read_vid(cpu->l2vic, vic_group / 2);
+        uint32_t vid = extract32(vid_packed,
+                                 (vic_group & 1) ? 16 : 0, 16);
+        guest_event_entry(env, vid, elr, HEX_EVENT_INT0, false);
+    } else {
+        target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+        set_ssr_ex_cause(env, 1, HEX_CAUSE_INT0 | int_num);
+        set_elr(env, elr);
+        env->gpr[HEX_REG_PC] = evb | (cs->exception_index << 2);
+    }
+
     if (get_ipend(env) == 0) {
         restore_state(env, true);
     }

@@ -50,28 +50,6 @@
 #define CCR_FIELD_SET(ENV, FIELD) \
     (!!GET_FIELD(FIELD, arch_get_system_reg(ENV, HEX_SREG_CCR)))
 
-/*
- * Direct-to-guest is not implemented yet, continuing would cause unexpected
- * behavior, so we abort.
- */
-#define ASSERT_DIRECT_TO_GUEST_UNSET(ENV, EXCP) \
-    do { \
-        switch (EXCP) { \
-        case HEX_EVENT_TRAP0: \
-            g_assert(!CCR_FIELD_SET(ENV, CCR_GTE)); \
-            break; \
-        case HEX_EVENT_IMPRECISE: \
-        case HEX_EVENT_PRECISE: \
-        case HEX_EVENT_FPTRAP: \
-            g_assert(!CCR_FIELD_SET(ENV, CCR_GEE)); \
-            break; \
-        default: \
-            if ((EXCP) >= HEX_EVENT_INT0) { \
-                g_assert(!CCR_FIELD_SET(ENV, CCR_GIE)); \
-            } \
-            break; \
-        } \
-    } while (0)
 #endif
 
 #define fREAD_ELR() (arch_get_system_reg(env, HEX_SREG_ELR))
@@ -101,13 +79,37 @@
 #define fTRAP(TRAPTYPE, IMM) \
     register_trap_exception(env, TRAPTYPE, IMM, PC)
 
-#define fVIRTINSN_SPSWAP(IMM, REG)
-#define fVIRTINSN_GETIE(IMM, REG) { REG = 0xdeafbeef; }
-#define fVIRTINSN_SETIE(IMM, REG)
-#define fVIRTINSN_RTE(IMM, REG)
+#define fVIRTINSN_RTE(IMM, REG) \
+    hexagon_vmrte(env)
+
+#define fVIRTINSN_SETIE(IMM, REG) \
+    do { \
+        uint32_t _old_gie = CCR_FIELD_SET(env, CCR_GIE); \
+        SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, (REG) & 1); \
+        (REG) = _old_gie; \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
+#define fVIRTINSN_GETIE(IMM, REG) \
+    do { \
+        (REG) = CCR_FIELD_SET(env, CCR_GIE); \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
+#define fVIRTINSN_SPSWAP(IMM, REG) \
+    do { \
+        uint32_t _gsr = env->greg[HEX_GREG_GSR]; \
+        if (extract32(_gsr, 31, 1)) { \
+            uint32_t _t = (REG); \
+            (REG) = env->greg[HEX_GREG_GOSP]; \
+            env->greg[HEX_GREG_GOSP] = _t; \
+        } \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+
 #define fGRE_ENABLED() GET_FIELD(CCR_GRE, arch_get_system_reg(env, HEX_SREG_CCR))
 #define fTRAP1_VIRTINSN(IMM) \
-    (fGRE_ENABLED() && \
+    (sys_in_guest_mode(env) && fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))
 
 /* Not modeled in qemu */
@@ -134,13 +136,7 @@
 /* Always succeed: */
 #define fL2LOCKA(EA, PDV, PDN) ((void) EA, PDV = 0xFF)
 #define fCLEAR_RTE_EX() \
-    do { \
-        uint32_t tmp = 0; \
-        tmp = arch_get_system_reg(env, HEX_SREG_SSR); \
-        fINSERT_BITS(tmp, reg_field_info[SSR_EX].width, \
-                     reg_field_info[SSR_EX].offset, 0); \
-        log_sreg_write(env, HEX_SREG_SSR, tmp, slot); \
-    } while (0)
+        g_assert_not_reached()
 
 #define fDCINVIDX(REG)
 #define fDCINVA(REG) do { REG = REG; } while (0) /* Nothing to do in qemu */
