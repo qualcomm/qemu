@@ -21,6 +21,7 @@
 #include "fpu/softfloat-types.h"
 
 #define NUM_GREGS 32
+#define NUM_GPREGS 32
 #define GREG_WRITES_MAX 2
 #define NUM_SREGS 106
 #define SREG_WRITES_MAX 2
