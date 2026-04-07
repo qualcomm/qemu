@@ -497,11 +497,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("semihost")
         self.assertTrue(result, "Test semihost failed")
 
-    @skip("Hangs on all simulators including hexagon-sim, needs V81QA_1 machine")
     def test_swi(self) -> None:
         """Tests software interrupt handling for basic SWI delivery
-        and handler execution."""
-        result = self.run_individual_test("swi")
+        and handler execution.  Requires V81QA_1 (12 threads) because
+        the test uses 12-bit MODECTL masks."""
+        result = self.run_individual_test("swi", "V81QA_1")
         self.assertTrue(result, "Test swi failed")
 
     def test_test_thread(self) -> None:
@@ -597,7 +597,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
         with a non-zero exit code."""
         self.run_negative_test("inf-loop")
 
-    @skip("V81QA_1 machine type not available")
+    @skip("HSV39 TLB test hangs during page size test on V81QA_1")
     def test_hsv39_tlb(self) -> None:
         """Tests HSV39 TLB operations requiring V81QA_1 machine."""
         result = self.run_individual_test("hsv39_tlb", "V81QA_1")
