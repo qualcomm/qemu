@@ -31,35 +31,20 @@ endif
 t = []
 if get_option('plugins')
   foreach i : contrib_plugins
-    if host_os == 'windows'
-      t += shared_module(fs.stem(i), files(i) + 'win32_linker.c',
-                        include_directories: ['../../include/qemu', '../../libqemu'],
-                        link_depends: [win32_qemu_plugin_api_lib],
-                        link_args: win32_qemu_plugin_api_link_flags,
-                        dependencies: glib)
-    else
-      t += shared_module(fs.stem(i), files(i),
-                        dependencies: plugins_deps,
-                        install: true,
-                        install_dir: get_option('libdir'))
-    endif
+    t += shared_module(fs.stem(i), files(i),
+                       include_directories: ['../../libqemu'],
+                       dependencies: plugins_deps,
+                       install: host_os != 'windows',
+                       install_dir: get_option('libdir'))
   endforeach
 
   # Build libqemu-specific plugins with libqemu include directory
   foreach i : libqemu_plugins
-    if host_os == 'windows'
-      t += shared_module(fs.stem(i), files(i) + 'win32_linker.c',
-                        include_directories: ['../../include/qemu', '../../libqemu'],
-                        link_depends: [win32_qemu_plugin_api_lib],
-                        link_args: win32_qemu_plugin_api_link_flags,
-                        dependencies: glib)
-    else
-      t += shared_module(fs.stem(i), files(i),
-                        include_directories: ['../../libqemu'],
-                        dependencies: plugins_deps,
-                        install: true,
-                        install_dir: get_option('libdir'))
-    endif
+    t += shared_module(fs.stem(i), files(i),
+                       include_directories: ['../../libqemu'],
+                       dependencies: plugins_deps,
+                       install: host_os != 'windows',
+                       install_dir: get_option('libdir'))
   endforeach
 endif
 if t.length() > 0
