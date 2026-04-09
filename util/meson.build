@@ -79,6 +79,7 @@ endif
 
 if have_block or have_ga
   util_ss.add(files('aiocb.c', 'async.c'))
+  util_ss.add(files('aio-wait.c'))
   util_ss.add(files('base64.c'))
   util_ss.add(files('main-loop.c'))
   util_ss.add(files('qemu-coroutine.c', 'qemu-coroutine-lock.c', 'qemu-coroutine-io.c'))
@@ -87,7 +88,6 @@ if have_block or have_ga
   util_ss.add(files('qemu-sockets.c'))
 endif
 if have_block
-  util_ss.add(files('aio-wait.c'))
   util_ss.add(files('buffer.c'))
   util_ss.add(files('bufferiszero.c'))
   util_ss.add(files('hbitmap.c'))
@@ -116,13 +116,13 @@ endif
 
 if cpu == 'aarch64'
   util_ss.add(files('cpuinfo-aarch64.c'))
-elif cpu in ['x86', 'x86_64']
+elif cpu == 'x86_64'
   util_ss.add(files('cpuinfo-i386.c'))
 elif cpu == 'loongarch64'
   util_ss.add(files('cpuinfo-loongarch.c'))
-elif cpu in ['ppc', 'ppc64']
+elif cpu == 'ppc64'
   util_ss.add(files('cpuinfo-ppc.c'))
-elif cpu in ['riscv32', 'riscv64']
+elif cpu == 'riscv64'
   util_ss.add(files('cpuinfo-riscv.c'))
 elif cpu == 's390x'
   util_ss.add(files('s390x_pci_mmio.c'))
