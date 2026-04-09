@@ -1177,6 +1177,16 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_IMPRECISE:
+        /*
+         * Imprecise events (NMI) can be delivered to a thread in WAIT
+         * mode.  Clear WAIT and adjust PC so set_addresses computes
+         * the correct ELR (the instruction after the wait).
+         */
+        if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+            arch_set_thread_reg(env, HEX_REG_PC,
+                                env->wait_next_pc - 4);
+            clear_wait_mode(env);
+        }
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
                               arch_get_thread_reg(env, HEX_REG_PC) + 4,

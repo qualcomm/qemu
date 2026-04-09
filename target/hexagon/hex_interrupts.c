@@ -92,6 +92,7 @@ static void set_ipend_bit(CPUHexagonState *env, int int_num, int val)
     arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
 }
 
+
 static bool get_imask_bit(CPUHexagonState *env, int int_num)
 {
     target_ulong imask = arch_get_system_reg(env, HEX_SREG_IMASK);
@@ -247,7 +248,6 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
     }
 }
 
-
 bool hex_check_interrupts(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -268,47 +268,87 @@ bool hex_check_interrupts(CPUHexagonState *env)
     for (int i = 0; i < max_ints; i++) {
         if (!get_iad_bit(env, i) && get_ipend_bit(env, i)) {
             qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[" TARGET_FMT_ld "] pc = 0x" TARGET_FMT_lx " found int %d\n", __func__,
+                          "%s: thread[" TARGET_FMT_ld "] pc = 0x"
+                          TARGET_FMT_lx " found int %d\n", __func__,
                           env->threadId, env->gpr[HEX_REG_PC], i);
             if (hex_is_qualified_for_int(env, i) &&
                 (!schedcfgen || is_lowest_prio(env, i))) {
                 qemu_log_mask(CPU_LOG_INT,
-                              "%s: thread[" TARGET_FMT_ld "] int %d handled_\n",
+                              "%s: thread[" TARGET_FMT_ld
+                              "] int %d handled\n",
                               __func__, env->threadId, i);
                 hex_accept_int(env, i);
                 int_handled = true;
                 break;
             }
-            bool syscfg_gie = get_syscfg_gie(env);
-            bool iad = get_iad_bit(env, i);
-            bool ssr_ie = get_ssr_ie(env);
-            bool imask = get_imask_bit(env, i);
+
+            /*
+             * A thread in WAIT mode exits when an interrupt is pending
+             * that satisfies per-thread conditions (IE, IMASK, IAD),
+             * regardless of the global interrupt enable (GIE).  The
+             * interrupt is delivered normally (vectors to handler).
+             */
+            if (get_exe_mode(env) == HEX_EXE_MODE_WAIT &&
+                !get_syscfg_gie(env) &&
+                get_ssr_ie(env) && !get_imask_bit(env, i) && !ssr_ex) {
+                qemu_log_mask(CPU_LOG_INT,
+                              "%s: thread[" TARGET_FMT_ld
+                              "] delivering int %d from WAIT (GIE=0)\n",
+                              __func__, env->threadId, i);
+                hex_accept_int(env, i);
+                int_handled = true;
+                break;
+            }
 
             qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[" TARGET_FMT_ld "] int %d not handled, qualified: %d, "
-                          "schedcfg_en: %d, low prio %d\n",
+                          "%s: thread[" TARGET_FMT_ld
+                          "] int %d not qualified "
+                          "GIE=%d iad=%d IE=%d EX=%d imask=%d "
+                          "schedcfg_en=%d lowest=%d\n",
                           __func__, env->threadId, i,
-                          hex_is_qualified_for_int(env, i), schedcfgen,
-                          is_lowest_prio(env, i));
-
-            qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[" TARGET_FMT_ld "] int %d not handled, GIE %d, iad %d, "
-                          "SSR:IE %d, SSR:EX: %d, imask bit %d\n",
-                          __func__, env->threadId, i, syscfg_gie, iad, ssr_ie,
-                          ssr_ex, imask);
+                          (int)get_syscfg_gie(env),
+                          (int)get_iad_bit(env, i),
+                          (int)get_ssr_ie(env),
+                          (int)ssr_ex,
+                          (int)get_imask_bit(env, i),
+                          schedcfgen,
+                          (int)is_lowest_prio(env, i));
         }
     }
 
-    /*
-     * If we didn't handle the interrupt and it wasn't
-     * because we were in EX state, then we won't be able
-     * to execute the interrupt on this CPU unless something
-     * changes in the CPU state.  Clear the interrupt_request bits
-     * while preserving the IPEND bits, and we can re-assert the
-     * interrupt_request bit(s) when we execute one of those instructions.
-     */
     if (!int_handled && !ssr_ex) {
-        restore_state(env, int_handled);
+        /*
+         * A pending interrupt wakes a thread from WAIT mode even when
+         * the interrupt cannot be dispatched (e.g. GIE=0).  The thread
+         * resumes execution at the instruction after WAIT without
+         * taking the exception.
+         */
+        if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+            env->gpr[HEX_REG_PC] = env->wait_next_pc;
+            clear_wait_mode(env);
+            cs->halted = false;
+        }
+
+        /*
+         * Keep CPU_INTERRUPT_SWI armed while IPEND has bits set.
+         * In MTTCG, a temporary condition (GIE=0 during a scheduler
+         * critical section) can block delivery.  By retaining the
+         * interrupt request, the thread re-checks on each TB boundary
+         * and delivers as soon as the condition clears (GIE=1).
+         * Without this, all threads drop their interrupt_request while
+         * GIE=0, causing permanent deadlock.
+         */
+        if (get_ipend(env) == 0) {
+            restore_state(env, false);
+        }
+    } else if (!int_handled && ssr_ex) {
+        /*
+         * Thread is in exception mode (EX=1) and cannot accept new
+         * interrupts until IRET clears EX.  Clear the interrupt
+         * request to avoid spinning; hex_interrupt_update will
+         * re-arm it after IRET.
+         */
+        restore_state(env, false);
     } else if (int_handled) {
         assert(!cs->halted);
     }
@@ -359,4 +399,56 @@ void hex_interrupt_update(CPUHexagonState *env)
             }
         }
     }
+}
+
+/*
+ * Synchronously deliver pending interrupts to qualified threads.
+ * Called before GIE transitions 1->0 to emulate hardware pipeline
+ * behavior where in-flight interrupt delivery completes before
+ * the GIE disable takes effect.
+ *
+ * Delivers one interrupt per qualified thread to match hardware
+ * where each thread in the shared pipeline can have one in-flight
+ * interrupt at the moment GIE is cleared.
+ */
+bool hex_deliver_pending(CPUHexagonState *env)
+{
+    CPUState *cs;
+    bool schedcfgen;
+
+    g_assert(bql_locked());
+
+    if (get_ipend(env) == 0) {
+        return true;
+    }
+
+    schedcfgen = get_schedcfgen(env);
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *hex_env = cpu_env(cs);
+        const int exe_mode = get_exe_mode(hex_env);
+
+        if (exe_mode == HEX_EXE_MODE_OFF) {
+            continue;
+        }
+
+        for (int i = 0; i < 32; i++) {
+            if (!get_ipend_bit(hex_env, i)) {
+                continue;
+            }
+            if (get_iad_bit(hex_env, i)) {
+                continue;
+            }
+            if (!hex_is_qualified_for_int(hex_env, i)) {
+                continue;
+            }
+            if (schedcfgen && !is_lowest_prio(hex_env, i)) {
+                continue;
+            }
+            hex_accept_int(hex_env, i);
+            return true;
+        }
+    }
+
+    return false;
 }

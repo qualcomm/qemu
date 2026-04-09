@@ -320,6 +320,18 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
     set_wait_mode(env);
     env->wait_next_pc = PC + 4;
 
+    /*
+     * Before halting, check if any pending interrupts can wake us
+     * immediately via the WAIT mode delivery path (GIE-bypass).
+     * This handles the case where an interrupt arrived while the
+     * thread was running with GIE=0 and couldn't be delivered,
+     * but now in WAIT mode it can be.
+     */
+    if (arch_get_system_reg(env, HEX_SREG_IPEND) != 0) {
+        cpu_interrupt(cs, CPU_INTERRUPT_SWI);
+        return;
+    }
+
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
 }
 
