@@ -442,13 +442,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("lock_timer_test")
         self.assertTrue(result, "Test lock_timer_test failed")
 
-    @skip("Completes but fails: ISR delivered while thread pended on lock")
     def test_lock_verify(self) -> None:
         """Tests lock acquisition and release verification."""
         result = self.run_individual_test("lock_verify")
         self.assertTrue(result, "Test lock_verify failed")
 
-    @skip("Cache-op exceptions not raised, needs investigation")
     def test_mmu_cacheops(self) -> None:
         """Tests MMU cache operations including cache line invalidation
         and synchronization."""
