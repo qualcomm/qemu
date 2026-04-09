@@ -221,6 +221,7 @@ struct ArchCPU {
     gchar *usefs;
     HexagonTLBState *tlb;
     bool sched_limit;
+    bool cacheop_exceptions;
 #endif
 };
 

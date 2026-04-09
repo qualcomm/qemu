@@ -99,6 +99,8 @@ static const Property hexagon_cpu_properties[] = {
                      TYPE_HEXAGON_TLB, HexagonTLBState *),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
     DEFINE_PROP_BOOL("sched-limit", HexagonCPU, sched_limit, false),
+    DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
+                     false),
 #endif
     DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -731,8 +733,8 @@ static void set_badva_regs(CPUHexagonState *env, target_ulong VA, int slot,
     }
 }
 
-static void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
-                                    MMUAccessType access_type)
+void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
+                             MMUAccessType access_type)
 {
     CPUHexagonState *env = cpu_env(cs);
 
@@ -758,8 +760,8 @@ static void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
     }
 }
 
-static void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
-                                 MMUAccessType access_type, int32_t excp)
+void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
+                          MMUAccessType access_type, int32_t excp)
 {
     CPUHexagonState *env = cpu_env(cs);
 

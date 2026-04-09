@@ -489,6 +489,7 @@
 /* dczeroa clears the 32 byte cache line at the address given */
 #define fGEN_TCG_Y2_dczeroa(SHORTCODE) SHORTCODE
 
+#ifdef CONFIG_USER_ONLY
 /* In linux-user mode, these are not modelled, suppress compiler warning */
 #define fGEN_TCG_Y2_dcinva(SHORTCODE) \
     do { RsV = RsV; } while (0)
@@ -498,6 +499,26 @@
     do { RsV = RsV; } while (0)
 #define fGEN_TCG_Y2_icinva(SHORTCODE) \
     do { RsV = RsV; } while (0)
+#else
+/* data/insn cache ops can raise exceptions */
+#define fGEN_TCG_CACHEOP(HELPER) \
+    do { \
+        if (ctx->gen_cacheop_exceptions) { \
+            HELPER(tcg_env, RsV, \
+                   tcg_constant_tl(insn->slot), \
+                   tcg_constant_tl(ctx->mem_idx), \
+                   tcg_constant_tl(ctx->pkt.pc)); \
+        } \
+    } while (0)
+#define fGEN_TCG_Y2_dcinva(SHORTCODE) \
+    fGEN_TCG_CACHEOP(gen_helper_data_cache_op)
+#define fGEN_TCG_Y2_dccleaninva(SHORTCODE) \
+    fGEN_TCG_CACHEOP(gen_helper_data_cache_op)
+#define fGEN_TCG_Y2_dccleana(SHORTCODE) \
+    fGEN_TCG_CACHEOP(gen_helper_data_cache_op)
+#define fGEN_TCG_Y2_icinva(SHORTCODE) \
+    fGEN_TCG_CACHEOP(gen_helper_insn_cache_op)
+#endif
 
 /*
  * allocframe(#uiV)

@@ -1593,6 +1593,61 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
+void HELPER(data_cache_op)(CPUHexagonState *env, target_ulong RsV,
+                           int slot, int mmu_idx, target_ulong PC)
+{
+    if (hexagon_cpu_mmu_enabled(env)) {
+        hwaddr phys;
+        int prot;
+        uint64_t size;
+        int32_t excp;
+
+        if (hex_tlb_find_match(env, RsV, MMU_DATA_LOAD, &phys, &prot, &size,
+                               &excp, mmu_idx)) {
+            if (excp == HEX_EVENT_PRECISE) {
+                bool read_perm = (prot & (PAGE_VALID | PAGE_READ)) ==
+                                 (PAGE_VALID | PAGE_READ);
+                bool write_perm = (prot & (PAGE_VALID | PAGE_WRITE)) ==
+                                  (PAGE_VALID | PAGE_WRITE);
+                if (!read_perm && !write_perm) {
+                    CPUState *cs = env_cpu(env);
+                    uintptr_t retaddr = GETPC();
+                    raise_perm_exception(cs, RsV, slot, MMU_DATA_LOAD, excp);
+                    do_raise_exception(env, cs->exception_index, PC, retaddr);
+                }
+            }
+        } else {
+            CPUState *cs = env_cpu(env);
+            uintptr_t retaddr = GETPC();
+            raise_tlbmiss_exception(cs, RsV, slot, MMU_DATA_LOAD);
+            do_raise_exception(env, cs->exception_index, PC, retaddr);
+        }
+    }
+}
+
+void HELPER(insn_cache_op)(CPUHexagonState *env, target_ulong RsV,
+                           int slot, int mmu_idx, target_ulong PC)
+{
+    if (hexagon_cpu_mmu_enabled(env)) {
+        hwaddr phys;
+        int prot;
+        uint64_t size;
+        int32_t excp;
+
+        /*
+         * Insn cache ops do NOT raise privilege exceptions,
+         * only TLB miss exceptions.
+         */
+        if (!hex_tlb_find_match(env, RsV, MMU_INST_FETCH, &phys, &prot, &size,
+                                &excp, mmu_idx)) {
+            CPUState *cs = env_cpu(env);
+            uintptr_t retaddr = GETPC();
+            raise_tlbmiss_exception(cs, RsV, slot, MMU_INST_FETCH);
+            do_raise_exception(env, cs->exception_index, PC, retaddr);
+        }
+    }
+}
+
 /*
  * ciad - clear interrupt auto disable
  *  - When taking an interrupt the hardware will set ipend.iad to
