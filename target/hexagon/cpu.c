@@ -814,6 +814,37 @@ static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+static void G_NORETURN
+hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                MMUAccessType access_type,
+                                int mmu_idx, uintptr_t retaddr)
+{
+    CPUHexagonState *env = cpu_env(cs);
+
+    cs->exception_index = HEX_EVENT_PRECISE;
+    switch (access_type) {
+    case MMU_DATA_LOAD:
+        env->cause_code = HEX_CAUSE_MISALIGNED_LOAD;
+        break;
+    case MMU_DATA_STORE:
+        env->cause_code = HEX_CAUSE_MISALIGNED_STORE;
+        break;
+    case MMU_INST_FETCH:
+        env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    qemu_log_mask(CPU_LOG_MMU,
+                  "unaligned access %08" VADDR_PRIx " from %08" PRIxPTR "\n",
+                  addr, retaddr);
+
+    set_badva_regs(env, addr, 0, access_type);
+    do_raise_exception(env, cs->exception_index,
+                       env->gpr[HEX_REG_PC], retaddr);
+}
+
 static vaddr hexagon_pointer_wrap(CPUState *cs, int mmu_idx,
                                   vaddr result, vaddr base)
 {
@@ -839,6 +870,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .tlb_fill = hexagon_tlb_fill,
     .cpu_exec_halt = hexagon_cpu_has_work,
     .do_interrupt = hexagon_cpu_do_interrupt,
+    .do_unaligned_access = hexagon_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 
