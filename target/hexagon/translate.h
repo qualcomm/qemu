@@ -101,6 +101,7 @@ typedef struct DisasContext {
     uint32_t num_cycles;
 #ifndef CONFIG_USER_ONLY
     bool need_cpu_limit;
+    bool gen_cacheop_exceptions;
 #endif
 } DisasContext;
 
