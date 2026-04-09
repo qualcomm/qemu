@@ -140,8 +140,8 @@ static bool l2vic_update(L2VICState *s, int irq)
         set_bit32(irq, s->int_status);
         clear_bit32(irq, s->int_pending);
         /* ensure the irq line goes low after going high */
-        s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
+        s->vid0 = irq;
 
         /* already low: now call pulse */
         /*     pulse: calls qemu_upper() and then qemu_lower()) */
@@ -184,7 +184,6 @@ static void l2vic_write(void *opaque, hwaddr offset, uint64_t val,
         if ((int)val != L2VIC_CIAD_INSTRUCTION) {
             s->vid0 = val;
         } else {
-            /* ciad issued: clear int_status */
             clear_bit32(s->vid0, s->int_status);
         }
     } else if (offset >= L2VIC_INT_ENABLEn &&
@@ -389,12 +388,7 @@ static void l2vic_interface_clear_interrupt_impl(L2VicInterface *iface)
     L2VICState *s = L2VIC(iface);
 
     qemu_mutex_lock(&s->active);
-    /* Find the first active interrupt and clear it */
-    const int size = L2VIC_INTERRUPT_MAX;
-    const int active_irq = find_first_bit((unsigned long *)s->int_status, size);
-    if (active_irq != size) {
-        clear_bit32(active_irq, s->int_status);
-    }
+    clear_bit32(s->vid0, s->int_status);
     l2vic_update_all(s);
     qemu_mutex_unlock(&s->active);
 }
@@ -456,7 +450,6 @@ static const VMStateDescription vmstate_l2vic = {
         (VMStateField[]){
             VMSTATE_UINT32(level, L2VICState),
             VMSTATE_UINT32_ARRAY(vid_group, L2VICState, 4),
-            VMSTATE_UINT32(vid0, L2VICState),
             VMSTATE_UINT32_ARRAY(int_enable, L2VICState, SLICE_MAX),
             VMSTATE_UINT32(int_enable_clear, L2VICState),
             VMSTATE_UINT32(int_enable_set, L2VICState),
