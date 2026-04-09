@@ -1377,6 +1377,9 @@ static void hex_k0_unlock(CPUHexagonState *env)
         unlock_thread->k0_lock_state = HEX_LOCK_QUEUED;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
         cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
+        if (arch_get_system_reg(unlock_thread, HEX_SREG_IPEND)) {
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
     }
 
 }
