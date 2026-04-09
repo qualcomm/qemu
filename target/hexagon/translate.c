@@ -1424,6 +1424,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     if (ctx->need_cpu_limit) {
         gen_cpu_limit_init();
     }
+    ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
 #endif
 }
 

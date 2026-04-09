@@ -50,6 +50,10 @@ static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
 }
 
 #ifndef CONFIG_USER_ONLY
+void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
+                             MMUAccessType access_type);
+void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
+                          MMUAccessType access_type, int32_t excp);
 void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
                         uint32_t val);
 void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
