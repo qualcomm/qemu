@@ -864,9 +864,19 @@ static bool should_dtg(CPUHexagonState *env, int exception_index)
     case HEX_EVENT_IMPRECISE:
     case HEX_EVENT_PRECISE:
     case HEX_EVENT_FPTRAP:
+        return !!GET_FIELD(CCR_GEE, ccr);
+
     case HEX_EVENT_TLB_MISS_X:
     case HEX_EVENT_TLB_MISS_RW:
-        return !!GET_FIELD(CCR_GEE, ccr);
+        /*
+         * TLB misses must always go to the kernel's TLB miss handler,
+         * not directly to guest.  The kernel handler walks the page
+         * table to fill the TLB.  If the walk fails, the resulting
+         * access to unmapped physical memory will trigger a precise
+         * exception via do_transaction_failed, which can then be
+         * delivered to the guest.
+         */
+        return false;
 
     default:
         if (exception_index >= HEX_EVENT_INT0) {
