@@ -212,11 +212,11 @@ add_custom_command(TARGET qemu POST_BUILD
     ${CMAKE_BINARY_DIR}/share)
 
 foreach(target ${LIBQEMU_TARGETS})
-    add_library(libqemu-${target} INTERFACE)
     set(lib_name libqemu-system-${target}${CMAKE_SHARED_LIBRARY_SUFFIX})
     set(lib_path ${QEMU_INSTALL_DIR}/lib/${lib_name})
 
-    target_link_libraries(libqemu-${target} INTERFACE ${lib_name})
+    target_compile_definitions(libqemu INTERFACE
+        LIBQEMU_TARGET_${target}_LIBRARY="${lib_name}")
 
     if (WIN32)
         install(FILES ${lib_path} DESTINATION ${CMAKE_INSTALL_BINDIR})
