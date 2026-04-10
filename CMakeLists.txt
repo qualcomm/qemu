@@ -36,6 +36,13 @@ add_dependencies(libqemu qemu)
 target_include_directories(libqemu INTERFACE
     $<BUILD_INTERFACE:${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${LIBQEMU_INCLUDE_DIR}>)
+if(WIN32)
+    set(LIBQEMU_LIBRARY_DIR ${CMAKE_INSTALL_BINDIR})
+else()
+    set(LIBQEMU_LIBRARY_DIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+target_compile_definitions(libqemu INTERFACE
+    LIBQEMU_LIBRARY_DIR="$<BUILD_INTERFACE:${QEMU_INSTALL_DIR}/lib>$<INSTALL_INTERFACE:${LIBQEMU_LIBRARY_DIR}>")
 
 # --- Package config ---
 
