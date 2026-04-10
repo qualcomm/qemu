@@ -823,9 +823,10 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
                     GET_FIELD(CCR_GIE, ccr));
     env->greg[HEX_GREG_GSR] = gsr;
 
-    /* SSR.SS = 0, SSR.GM = 1 */
+    /* SSR.SS = 0, SSR.GM = 1, SSR.UM = 0 (enter guest-kernel mode) */
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_UM, 0);
     hexagon_modify_ssr(env,
                        arch_get_system_reg(env, HEX_SREG_SSR),
                        old_ssr);
