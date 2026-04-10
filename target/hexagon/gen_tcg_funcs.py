@@ -60,6 +60,9 @@ def gen_tcg_func(f, tag, regs, imms):
 #ifdef CONFIG_USER_ONLY
     hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
 #else
+    if (ctx->mem_idx == MMU_USER_IDX) {
+        hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
+    } else {
 """))
     if hex_common.need_ea(tag):
         f.write("    TCGv EA G_GNUC_UNUSED = tcg_temp_new();\n")
@@ -112,6 +115,8 @@ def gen_tcg_func(f, tag, regs, imms):
         if reg.is_written():
             reg.gen_write(f, tag)
 
+    if "A_GUEST" in hex_common.attribdict[tag]:
+        f.write("    }\n")
     if (
         "A_PRIV" in hex_common.attribdict[tag]
         or "A_GUEST" in hex_common.attribdict[tag]
