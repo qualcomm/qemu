@@ -117,19 +117,32 @@ static bool get_schedcfgen(CPUHexagonState *env)
                      reg_field_info[SCHEDCFG_EN].width);
 }
 
-static bool is_lowest_prio(CPUHexagonState *env, int int_num)
+static bool is_highest_prio(CPUHexagonState *env, int int_num)
 {
     uint32_t my_prio = get_prio(env);
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         CPUHexagonState *hex_env = cpu_env(cs);
-        if (!hex_is_qualified_for_int(hex_env, int_num)) {
+
+        /* Skip threads that are not running */
+        if (get_exe_mode(hex_env) == HEX_EXE_MODE_OFF) {
             continue;
         }
 
-        /* Note that lower values indicate *higher* priority */
-        if (my_prio < get_prio(hex_env)) {
+        /*
+         * Skip threads excluded from this interrupt by IMASK,
+         * that have interrupts disabled (IE=0), or that are
+         * currently in exception mode (EX=1).
+         */
+        if (get_imask_bit(hex_env, int_num) ||
+            !get_ssr_ie(hex_env) ||
+            get_ssr_ex(hex_env)) {
+            continue;
+        }
+
+        /* Lower numerical value = higher priority */
+        if (get_prio(hex_env) < my_prio) {
             return false;
         }
     }
@@ -273,7 +286,7 @@ bool hex_check_interrupts(CPUHexagonState *env)
                           "%s: thread[" TARGET_FMT_ld "] pc = 0x" TARGET_FMT_lx " found int %d\n", __func__,
                           env->threadId, env->gpr[HEX_REG_PC], i);
             if (hex_is_qualified_for_int(env, i) &&
-                (!schedcfgen || is_lowest_prio(env, i))) {
+                (!schedcfgen || is_highest_prio(env, i))) {
                 qemu_log_mask(CPU_LOG_INT,
                               "%s: thread[" TARGET_FMT_ld "] int %d handled_\n",
                               __func__, env->threadId, i);
@@ -288,10 +301,10 @@ bool hex_check_interrupts(CPUHexagonState *env)
 
             qemu_log_mask(CPU_LOG_INT,
                           "%s: thread[" TARGET_FMT_ld "] int %d not handled, qualified: %d, "
-                          "schedcfg_en: %d, low prio %d\n",
+                          "schedcfg_en: %d, high prio %d\n",
                           __func__, env->threadId, i,
                           hex_is_qualified_for_int(env, i), schedcfgen,
-                          is_lowest_prio(env, i));
+                          is_highest_prio(env, i));
 
             qemu_log_mask(CPU_LOG_INT,
                           "%s: thread[" TARGET_FMT_ld "] int %d not handled, GIE %d, iad %d, "
