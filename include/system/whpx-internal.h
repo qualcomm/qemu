@@ -51,6 +51,8 @@ struct whpx_state {
 
     bool ignore_unknown_msr;
     bool intercept_msr_gp;
+    uint64_t gicd_base_address;
+    uint64_t gicr_base_address;
 };
 
 extern struct whpx_state whpx_global;

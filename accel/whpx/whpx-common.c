@@ -462,6 +462,34 @@ static void whpx_set_kernel_irqchip(Object *obj, int value,
     }
 }
 
+static void whpx_set_gicd_base_address(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    whpx->gicd_base_address = value;
+}
+
+static void whpx_set_gicr_base_address(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    whpx->gicr_base_address = value;
+}
+
 static void whpx_set_hyperv(Object *obj, int value, Error **errp)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -526,8 +554,17 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
                                    whpx_set_hyperv);
     object_class_property_set_description(oc, "hyperv",
         "Configure Hyper-V enlightenments");
-
     whpx_arch_accel_class_init(oc);
+    object_class_property_add(oc, "gicd-base-address", "uint64",
+                              &uint64_type_info, NULL,
+                              whpx_set_gicd_base_address, NULL, NULL);
+    object_class_property_set_description(oc, "gicd-base-address",
+        "Set the GICv3 distributor base address for WHPX");
+    object_class_property_add(oc, "gicr-base-address", "uint64",
+                              &uint64_type_info, NULL,
+                              whpx_set_gicr_base_address, NULL, NULL);
+    object_class_property_set_description(oc, "gicr-base-address",
+        "Set the GICv3 redistributor base address for WHPX");
 }
 
 static void whpx_accel_instance_init(Object *obj)
@@ -545,6 +582,10 @@ static void whpx_accel_instance_init(Object *obj)
     whpx->ignore_unknown_msr = true;
     whpx->intercept_msr_gp = false;
     whpx->separate_security_domain = true;
+
+    /* Default GIC base addresses (QEMU virt machine default) */
+    whpx->gicd_base_address = 0x08000000;
+    whpx->gicr_base_address = 0x080A0000;
 }
 
 static const TypeInfo whpx_accel_type = {
