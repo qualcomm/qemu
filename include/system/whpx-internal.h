@@ -46,6 +46,8 @@ struct whpx_state {
     bool hyperv_enlightenments_allowed;
     bool hyperv_enlightenments_required;
 
+    uint64_t gicd_base_address;
+    uint64_t gicr_base_address;
 };
 
 extern struct whpx_state whpx_global;
