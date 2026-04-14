@@ -765,6 +765,11 @@ coverity:
       when: on_success
     - if: '$CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM'
       when: never
+    # Forks don't get any pipeline unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2"'
+      when: never
+    # Always manual on forks even if $QEMU_CI == "2"
+    - when: manual
 
 build-wasm64-64bit:
   extends: .wasm_build_job_template
