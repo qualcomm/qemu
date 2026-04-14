@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "midas-rr",
+            "request": "attach",
+            "name": "Launch replay debug session",
+            "cwd": "${workspaceFolder}",
+            "trace": "Off",
+            "setupCommands": [
+                "set sysroot /",
+                "set debuginfod enabled off",
+                "set auto-load safe-path /"
+            ],
+            "ignoreStandardLibrary": true
+        },
+        {
+            "type": "midas-gdb",
+            "request": "attach",
+            "name": "Connect and run remote target",
+            "trace": "Off",
+            "attachOnFork": false,
+            "ignoreStandardLibrary": true,
+            "target": {
+                "type": "remote",
+                "parameter": "127.0.0.1:12345"
+            },
+            "setupCommands": [
+                "set sysroot /",
+                "set debuginfod enabled off",
+                "set auto-load safe-path /"
+            ]
+        }
+    ]
+}
