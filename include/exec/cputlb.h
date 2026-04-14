@@ -25,6 +25,9 @@
 #include "exec/memattrs.h"
 #include "exec/vaddr.h"
 
+extern bool tlb_force_mmu_slow_path;
+extern bool tlb_check_address_translation;
+
 #ifndef CONFIG_USER_ONLY
 #include "system/ram_addr.h"
 
