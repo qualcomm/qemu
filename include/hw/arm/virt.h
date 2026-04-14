@@ -36,6 +36,7 @@
 #include "hw/acpi/ghes.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
+#include "hw/arm/smmu-common.h"
 #include "hw/block/flash.h"
 #include "hw/cxl/cxl.h"
 #include "system/kvm.h"
@@ -156,6 +157,7 @@ struct VirtMachineState {
     bool mte;
     bool dtb_randomness;
     bool second_ns_uart_present;
+    SMMUStage smmu_stage;
     OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;
