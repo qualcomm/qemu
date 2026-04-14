@@ -1,6 +1,7 @@
 /GNUmakefile
 /build/
 /roms/hexagon-firmware-build/
+/build_*/
 /.cache/
 /.vscode/
 *.pyc
@@ -16,6 +17,7 @@ GPATH
 GRTAGS
 GTAGS
 *~
+*.semcode.db
 *.ast_raw
 *.depend_raw
 *.swp
