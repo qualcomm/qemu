@@ -803,6 +803,23 @@ static inline int64_t get_max_clock_jump(void)
     return 60 * NANOSECONDS_PER_SECOND;
 }
 
+extern int64_t clock_start;
+extern int64_t clock_realtime_start;
+extern int64_t host_ticks_start;
+extern double clock_time_dilation;
+
+static inline int64_t dilate_time(int64_t start, int64_t now)
+{
+    if (start == 0) {
+        /* start value is getting fetched */
+        return now;
+    }
+    g_assert(now >= start);
+    int64_t elapsed = now - start;
+    int64_t elapsed_dilated = elapsed * clock_time_dilation;
+    return start + elapsed_dilated;
+}
+
 /*
  * Low level clock functions
  */
@@ -813,10 +830,9 @@ static inline int64_t get_clock_realtime(void)
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+    int64_t now = tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+    return dilate_time(clock_realtime_start, now);
 }
-
-extern int64_t clock_start;
 
 /* Warning: don't insert tracepoints into these functions, they are
    also used by simpletrace backend and tracepoints would cause
@@ -828,7 +844,8 @@ static inline int64_t get_clock(void)
 {
     LARGE_INTEGER ti;
     QueryPerformanceCounter(&ti);
-    return muldiv64(ti.QuadPart, NANOSECONDS_PER_SECOND, clock_freq);
+    int64_t now = muldiv64(ti.QuadPart, NANOSECONDS_PER_SECOND, clock_freq);
+    return dilate_time(clock_start, now);
 }
 
 #else
@@ -840,10 +857,13 @@ static inline int64_t get_clock(void)
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        int64_t now = ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        return dilate_time(clock_start, now);
     } else {
-        /* XXX: using gettimeofday leads to problems if the date
-           changes, so it should be avoided. */
+        /*
+         * XXX: using gettimeofday leads to problems if the date
+         * changes, so it should be avoided. Time is already dilated.
+         */
         return get_clock_realtime();
     }
 }
@@ -854,7 +874,7 @@ static inline int64_t get_clock(void)
 
 #if defined(_ARCH_PPC64)
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     int64_t retval;
     /* This reads timebase in one 64bit go and includes Cell workaround from:
@@ -869,7 +889,7 @@ static inline int64_t cpu_get_host_ticks(void)
 
 #elif defined(__x86_64__)
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     uint32_t low,high;
     int64_t val;
@@ -882,7 +902,7 @@ static inline int64_t cpu_get_host_ticks(void)
 
 #elif defined(__hppa__)
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     int val;
     asm volatile ("mfctl %%cr16, %0" : "=r"(val));
@@ -891,7 +911,7 @@ static inline int64_t cpu_get_host_ticks(void)
 
 #elif defined(__s390__)
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     int64_t val;
     asm volatile("stck 0(%1)" : "=m" (val) : "a" (&val) : "cc");
@@ -900,7 +920,7 @@ static inline int64_t cpu_get_host_ticks(void)
 
 #elif defined(__sparc__)
 
-static inline int64_t cpu_get_host_ticks (void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
 #if defined(_LP64)
     uint64_t        rval;
@@ -938,7 +958,7 @@ static inline int64_t cpu_get_host_ticks (void)
                               : "=r" (value));          \
     }
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     /* On kernels >= 2.6.25 rdhwr <reg>, $2 and $3 are emulated */
     uint32_t count;
@@ -954,7 +974,7 @@ static inline int64_t cpu_get_host_ticks(void)
 
 #elif defined(__alpha__)
 
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     uint64_t cc;
     uint32_t cur, ofs;
@@ -966,7 +986,7 @@ static inline int64_t cpu_get_host_ticks(void)
 }
 
 #elif defined(__riscv) && __riscv_xlen == 32
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     uint32_t lo, hi, tmph;
     do {
@@ -979,7 +999,7 @@ static inline int64_t cpu_get_host_ticks(void)
 }
 
 #elif defined(__riscv) && __riscv_xlen > 32
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     int64_t val;
 
@@ -988,7 +1008,7 @@ static inline int64_t cpu_get_host_ticks(void)
 }
 
 #elif defined(__loongarch64)
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     uint64_t val;
 
@@ -1000,10 +1020,16 @@ static inline int64_t cpu_get_host_ticks(void)
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be
    totally wrong, but hopefully better than nothing.  */
-static inline int64_t cpu_get_host_ticks(void)
+static inline int64_t _cpu_get_host_ticks(void)
 {
     return get_clock();
 }
 #endif
+
+static inline int64_t cpu_get_host_ticks(void)
+{
+    int64_t now = _cpu_get_host_ticks();
+    return dilate_time(host_ticks_start, now);
+}
 
 #endif
