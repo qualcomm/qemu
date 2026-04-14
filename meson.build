@@ -369,6 +369,8 @@ elif host_os == 'sunos'
 elif host_os == 'haiku'
   qemu_common_flags += ['-DB_USE_POSITIVE_POSIX_ERRORS', '-D_BSD_SOURCE', '-fPIC']
 elif host_os == 'windows'
+  # spice headers report a warning with clang
+  qemu_common_flags += ['-Wno-pragma-pack']
   # plugins use delaylib, and clang needs to be used with lld to make it work.
   if compiler.get_id() == 'clang' and compiler.get_linker_id() != 'ld.lld'
     error('On windows, you need to use lld with clang - use msys2 clang64/clangarm64 env')
