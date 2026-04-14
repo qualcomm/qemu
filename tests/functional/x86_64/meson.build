@@ -43,6 +43,6 @@ tests_x86_64_system_thorough = [
   'vfio_user_client',
   'vhost_user_bridge',
   'virtio_balloon',
-  'virtio_gpu',
+  # 'virtio_gpu', # issue: no drm render node available
   'rebuild_vmfd',
 ]
