@@ -1862,9 +1862,23 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
 
     dev = qdev_new(TYPE_ARM_SMMUV3);
 
-    if (!vmc->no_nested_smmu) {
-        object_property_set_str(OBJECT(dev), "stage", "nested", &error_fatal);
+    const char *stage = NULL;
+    if (vmc->no_nested_smmu) {
+        stage = "1";
+    } else {
+        switch (vms->smmu_stage) {
+        case SMMU_STAGE_1:
+            stage = "1";
+            break;
+        case SMMU_STAGE_2:
+            stage = "2";
+            break;
+        case SMMU_NESTED:
+            stage = "nested";
+            break;
+        }
     }
+    object_property_set_str(OBJECT(dev), "stage", stage, &error_fatal);
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
     object_property_set_link(OBJECT(dev), "memory", OBJECT(vms->sysmem),
@@ -3371,11 +3385,19 @@ static void virt_set_iommu(Object *obj, const char *value, Error **errp)
 
     if (!strcmp(value, "smmuv3")) {
         vms->iommu = VIRT_IOMMU_SMMUV3;
+        vms->smmu_stage = SMMU_NESTED;
+    } else if (!strcmp(value, "smmuv3-stage1")) {
+        vms->iommu = VIRT_IOMMU_SMMUV3;
+        vms->smmu_stage = SMMU_STAGE_1;
+    } else if (!strcmp(value, "smmuv3-stage2")) {
+        vms->iommu = VIRT_IOMMU_SMMUV3;
+        vms->smmu_stage = SMMU_STAGE_2;
     } else if (!strcmp(value, "none")) {
         vms->iommu = VIRT_IOMMU_NONE;
     } else {
         error_setg(errp, "Invalid iommu value");
-        error_append_hint(errp, "Valid values are none, smmuv3.\n");
+        error_append_hint(errp, "Valid values are none, smmuv3, "
+                                "smmuv3-stage1, smmuv3-stage2.\n");
     }
 }
 
