@@ -146,6 +146,10 @@ QEMU_EXTERN_C int daemon(int, int);
  */
 #undef FSCALE
 
+#if __has_include(<backtrace.h>)
+#include <backtrace.h>
+#endif
+
 #ifdef CONFIG_IOVEC
 #include <sys/uio.h>
 #endif
@@ -850,6 +854,25 @@ static inline void qemu_thread_jit_write(void)
 #else
 static inline void qemu_thread_jit_write(void) {}
 static inline void qemu_thread_jit_execute(void) {}
+#endif
+
+#if __has_include(<backtrace.h>)
+static inline void __attribute__((always_inline))
+print_stack_trace(FILE * stream)
+{
+    static __thread struct backtrace_state *state;
+    if (!state) {
+        state = backtrace_create_state(NULL, 0, NULL, NULL);
+    }
+    fprintf(stream, "Stack trace:\n");
+    backtrace_print(state, 0, stream);
+}
+#else
+static inline void
+print_stack_trace(FILE *stream)
+{
+    fprintf(stream, "Stack trace is not available\n");
+}
 #endif
 
 /**
