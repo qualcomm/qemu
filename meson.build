@@ -360,6 +360,10 @@ if host_os == 'darwin'
   # won't work when we're compiling with gcc as a C compiler.
   if compiler.get_id() == 'gcc'
     qemu_common_flags += '-DOS_OBJECT_USE_OBJC=0'
+  elif compiler.get_id() == 'clang'
+    # error: 'strchrnul' is only available on macOS 15.4 or newer
+    # [-Werror,-Wunguarded-availability-new]
+    qemu_common_flags += ['-Wno-unguarded-availability-new']
   endif
 elif host_os == 'sunos'
   # needed for CMSG_ macros in sys/socket.h
