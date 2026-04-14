@@ -995,6 +995,8 @@ static void tlb_add_large_page(CPUState *cpu, int mmu_idx,
     cpu->neg.tlb.d[mmu_idx].large_page_mask = lp_mask;
 }
 
+bool tlb_force_mmu_slow_path;
+
 static inline void tlb_set_compare(CPUTLBEntryFull *full, CPUTLBEntry *ent,
                                    vaddr address, int flags,
                                    MMUAccessType access_type, bool enable)
@@ -1002,7 +1004,7 @@ static inline void tlb_set_compare(CPUTLBEntryFull *full, CPUTLBEntry *ent,
     if (enable) {
         address |= flags & TLB_FLAGS_MASK;
         flags &= TLB_SLOW_FLAGS_MASK;
-        if (flags) {
+        if (flags || tlb_force_mmu_slow_path) {
             address |= TLB_FORCE_SLOW;
         }
     } else {
@@ -1623,6 +1625,7 @@ typedef struct MMULookupLocals {
     int mmu_idx;
 } MMULookupLocals;
 
+bool tlb_check_address_translation;
 /**
  * mmu_lookup1: translate one page
  * @cpu: generic cpu state
@@ -1664,6 +1667,13 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop,
     full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     flags = tlb_addr & (TLB_FLAGS_MASK & ~TLB_FORCE_SLOW);
     flags |= full->slow_flags[access_type];
+
+    if (tlb_check_address_translation) {
+        g_assert(tlb_force_mmu_slow_path);
+        vaddr page = addr & TARGET_PAGE_MASK;
+        hwaddr physaddr = cpu_get_phys_page_debug(cpu, page);
+        g_assert(full->phys_addr == physaddr);
+    }
 
     if (likely(!maybe_resized)) {
         /* Alignment has not been checked by tlb_fill_align. */
