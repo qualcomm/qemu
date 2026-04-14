@@ -1,0 +1,54 @@
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  build_container:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # cd tests/docker/dockerfiles/
+        # ls *docker | sed -e 's/.docker//' | tr '\n' ','
+        # remove: debian-bootstrap,debian-toolchain,debian,debian-all-test-cross,python
+        container: [alpine,centos9,debian-amd64-cross,debian-arm64-cross,debian-armhf-cross,debian-hexagon-cross,debian-i686-cross,debian-loongarch-cross,debian-mips64el-cross,debian-mipsel-cross,debian-ppc64el-cross,debian-riscv64-cross,debian-s390x-cross,debian-tricore-cross,debian-xtensa-cross,fedora,fedora-rust-nightly,fedora-win64-cross,ubuntu2204]
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman build -t docker.io/pboqemu/qemu-ci:${{matrix.container}} - < tests/docker/dockerfiles/${{matrix.container}}.docker
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman push docker.io/pboqemu/qemu-ci:${{matrix.container}}
+
+  build_container_debian_per_arch:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+          - runner: ubuntu-24.04
+            arch: amd64
+    runs-on: ${{matrix.runner}}
+    steps:
+      # we clean up runner first, to get more disk space
+      - run: sudo swapoff -a && sudo rm -f /mnt/swapfile
+      - run: sudo rm -rf /opt/ /usr/local/.ghcup /usr/local/lib/android /usr/lib/google-cloud-sdk /usr/lib/jvm /usr/share/dotnet /usr/share/swift /usr/local/julia* /usr/local/share/powershell
+      - run: docker system prune -af
+      - run: df -ah
+      - uses: actions/checkout@v6
+      - run: podman build -t qemu/debian --platform linux/${{matrix.arch}} - < tests/docker/dockerfiles/debian.docker
+      - run: podman run -it -v $(pwd):$(pwd) -w $(pwd) qemu/debian ./build_ci_container.sh
+      - run: podman commit "$(podman ps -aq)" --change CMD=/bin/bash docker.io/pboqemu/qemu-ci:debian.${{matrix.arch}}
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman push docker.io/pboqemu/qemu-ci:debian.${{matrix.arch}}
+
+  build_container_debian:
+    needs: build_container_debian_per_arch
+    runs-on: ubuntu-24.04
+    steps:
+      # assemble multi arch image
+      - run: podman manifest create docker.io/pboqemu/qemu-ci:debian --amend docker.io/pboqemu/qemu-ci:debian.amd64 --amend docker.io/pboqemu/qemu-ci:debian.arm64
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman push docker.io/pboqemu/qemu-ci:debian
