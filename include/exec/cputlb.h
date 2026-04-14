@@ -26,6 +26,9 @@
 #include "exec/vaddr.h"
 #include "system/ram_addr.h"
 
+extern bool tlb_force_mmu_slow_path;
+extern bool tlb_check_address_translation;
+
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
