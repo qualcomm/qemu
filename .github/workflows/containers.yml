@@ -1,0 +1,63 @@
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  build_x64_cross_container:
+    strategy:
+      fail-fast: false
+      matrix:
+        container: [alpine,centos9,debian-amd64-cross,debian-arm64-cross,debian-loongarch-cross,debian-ppc64el-cross,debian-riscv64-cross,debian-s390x-cross,debian-sparc64-cross,fedora-win64-cross,fedora-winarm64-cross,fedora,ubuntu2404,debian-all-test-cross,debian-i686-cross,debian-loongarch-cross,debian-xtensa-cross,debian-hexagon-cross,debian-tricore-cross]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman build --timestamp 0 -t docker.io/pboqemu/qemu-ci:${{matrix.container}} -f tests/docker/dockerfiles/${{matrix.container}}.docker --cache-to docker.io/pboqemu/qemu-ci
+      - run: podman push docker.io/pboqemu/qemu-ci:${{matrix.container}}
+
+  build_arm64_cross_container:
+    strategy:
+      fail-fast: false
+      matrix:
+        container: [debian-all-test-cross]
+    runs-on: ubuntu-26.04-arm
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman build --timestamp 0 -f tests/docker/dockerfiles/debian-all-test-cross.docker --cache-to docker.io/pboqemu/qemu-ci
+      # do not push result, only cache layers
+
+  build_container_debian_per_arch:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04-arm
+            arch: arm64
+          - runner: ubuntu-26.04
+            arch: amd64
+    runs-on: ${{matrix.runner}}
+    steps:
+      # we clean up runner first, to get more disk space
+      - run: sudo swapoff -a && sudo rm -f /mnt/swapfile
+      - run: sudo rm -rf /opt/ /usr/local/.ghcup /usr/local/lib/android /usr/lib/google-cloud-sdk /usr/lib/jvm /usr/share/dotnet /usr/share/swift /usr/local/julia* /usr/local/share/powershell
+      - run: docker system prune -af
+      - run: df -ah
+      - uses: actions/checkout@v6
+      - run: podman build -t qemu/debian --platform linux/${{matrix.arch}} -f tests/docker/dockerfiles/debian.docker
+      - run: podman run -it -v $(pwd):$(pwd) -w $(pwd) qemu/debian bash -c 'apt update && apt install -y gdb gdb-multiarch podman-remote && ./configure && ninja -C build precache-functional'
+      - run: podman commit "$(podman ps -aq)" --change CMD=/bin/bash docker.io/pboqemu/qemu-ci:debian.${{matrix.arch}}
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman push docker.io/pboqemu/qemu-ci:debian.${{matrix.arch}}
+
+  build_container_debian:
+    needs: build_container_debian_per_arch
+    runs-on: ubuntu-26.04
+    steps:
+      # assemble multi arch image
+      - run: podman manifest create docker.io/pboqemu/qemu-ci:debian --amend docker.io/pboqemu/qemu-ci:debian.amd64 --amend docker.io/pboqemu/qemu-ci:debian.arm64
+      - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
+      - run: podman push docker.io/pboqemu/qemu-ci:debian
