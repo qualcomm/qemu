@@ -3804,6 +3804,8 @@ if have_system or have_user
   subdir('target')
 endif
 
+common_ss.add(files('sanitizer.c'))
+
 if have_block
   block_ss.add(files(
     'block.c',
