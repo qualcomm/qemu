@@ -27,7 +27,7 @@ trap "rm -rf $test_log" EXIT
 
 err=0
 delay=10m
-timeout $delay "$@" > $test_log/stdout 2> $test_log/stderr || err=$?
+timeout --foreground $delay "$@" > $test_log/stdout 2> $test_log/stderr || err=$?
 
 if [ $err -eq 0 ]; then
     # success, show results
