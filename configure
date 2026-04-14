@@ -1317,12 +1317,12 @@ fi
 # functions to probe cross compilers
 
 runc="no"
-if test $use_containers = "yes" && (has "docker" || has "podman"); then
-    runc=$($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe)
-    if test "$runc" != "no"; then
-        docker_py="$python $source_path/tests/docker/docker.py --engine $container_engine"
-    fi
-fi
+#if test $use_containers = "yes" && (has "docker" || has "podman"); then
+#    runc=$($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe)
+#    if test "$runc" != "no"; then
+#        docker_py="$python $source_path/tests/docker/docker.py --engine $container_engine"
+#    fi
+#fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 : ${cross_prefix_aarch64="aarch64-linux-gnu-"}
