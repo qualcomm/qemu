@@ -233,6 +233,8 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                kernel-irqchip=on|off|split controls accelerated irqchip support (default=on)\n"
     "                kvm-shadow-mem=size of KVM shadow MMU in bytes\n"
     "                one-insn-per-tb=on|off (one guest instruction per TCG translation block)\n"
+    "                slow-path-memory=on|off (force slow path for MMU emulation)\n"
+    "                check-address-translation=on|off (check MMU translation is correct for every access)\n"
     "                split-wx=on|off (enable TCG split w^x mapping)\n"
     "                tb-size=n (TCG translation block cache size)\n"
     "                dirty-ring-size=n (KVM dirty ring GFN count, default 0)\n"
