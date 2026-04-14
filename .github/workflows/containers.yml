@@ -39,6 +39,7 @@ jobs:
       - run: df -ah
       - uses: actions/checkout@v6
       - run: podman build -t qemu/debian --platform linux/${{matrix.arch}} - < tests/docker/dockerfiles/debian.docker
+      # add cross compilers and cache test assets
       - run: podman run -it -v $(pwd):$(pwd) -w $(pwd) qemu/debian ./build_ci_container.sh
       - run: podman commit "$(podman ps -aq)" --change CMD=/bin/bash docker.io/pboqemu/qemu-ci:debian.${{matrix.arch}}
       - run: podman login -u pboqemu -p ${{secrets.DOCKERHUB_PASSWORD}}
