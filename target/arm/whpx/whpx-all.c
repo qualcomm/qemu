@@ -439,7 +439,28 @@ int whpx_vcpu_run(CPUState *cpu)
         switch (vcpu->exit_ctx.ExitReason) {
         case WHvRunVpExitReasonGpaIntercept:
         case WHvRunVpExitReasonUnmappedGpa:
+        {
+#ifdef CONFIG_LIBQEMU
+            uint32_t ec = syn_get_ec(vcpu->exit_ctx.MemoryAccess.Syndrome);
+            uint64_t gpa = vcpu->exit_ctx.MemoryAccess.Gpa;
+
+            if (ec != EC_DATAABORT && ec != EC_DATAABORT_SAME_EL) {
+                /*
+                 * Not a data abort - likely an acces to an unmapped GPA.
+                 */
+                uint8_t dummy;
+                MemTxResult res = address_space_read(&address_space_memory, gpa,
+                                                     MEMTXATTRS_UNSPECIFIED,
+                                                     &dummy, 1);
+                if (res != MEMTX_OK) {
+                    error_report("WHPX: unmapped GPA 0x%llx EC=0x%x",
+                                 (unsigned long long)gpa, ec);
+                }
+                break;
+            }
+#else
             assert(syn_get_ec(vcpu->exit_ctx.MemoryAccess.Syndrome) == EC_DATAABORT);
+#endif
             advance_pc = true;
 
             if (vcpu->exit_ctx.MemoryAccess.Syndrome & BIT(8)) {
@@ -453,6 +474,7 @@ int whpx_vcpu_run(CPUState *cpu)
 
             ret = whpx_handle_mmio(cpu, &vcpu->exit_ctx.MemoryAccess);
             break;
+        }
         case WHvRunVpExitReasonCanceled:
             cpu->exception_index = EXCP_INTERRUPT;
             ret = 1;
