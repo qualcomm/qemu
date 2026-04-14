@@ -816,6 +816,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                                       sizeof(*env->pmu.g_events));
         env->g_dir_list = g_malloc0(sizeof(GList *));
 
+        if (cpu->vp_mode && cpu->coproc_path && cpu->coproc_path[0] == '\0') {
+            warn_report("WARNING: Hexagon COPROC is disabled on DSP%d.",
+                        cpu->subsystem_id);
+            cpu->num_coproc_instance = 0;
+        }
+
         if (cpu->num_coproc_instance) {
             trace_hexagon_coproc_file(cpu->coproc_path);
             if (COPROC_SUCCESS != coproc_init(cpu->coproc_path, cpu->rev_reg)) {
