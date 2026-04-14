@@ -113,6 +113,10 @@ typedef enum {
 } Riscv64PrivilegeLevel;
 
 typedef struct {
+    struct qemu_plugin_register *reg_r31;
+} Ppc64Cpu;
+
+typedef struct {
     uint64_t timestamp;
     uint64_t data;
 } UftraceEntry;
@@ -766,6 +770,67 @@ static CpuOps riscv64_ops = {
     .does_insn_modify_frame_pointer = riscv64_does_insn_modify_frame_pointer,
 };
 
+static uint8_t ppc64_num_privilege_levels(void)
+{
+    return 1;
+}
+
+static const char *ppc64_get_privilege_level_name(uint8_t pl)
+{
+    return "";
+}
+
+static uint8_t ppc64_get_privilege_level(Cpu *cpu_)
+{
+    return 0;
+}
+
+static uint64_t ppc64_get_frame_pointer(Cpu *cpu_)
+{
+    Ppc64Cpu *cpu = cpu_->arch;
+    return cpu_read_register64(cpu_, cpu->reg_r31);
+}
+
+static uint64_t ppc64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp);
+}
+
+static uint64_t ppc64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp + 16);
+}
+
+static void ppc64_init(Cpu *cpu_)
+{
+    Ppc64Cpu *cpu = g_new0(Ppc64Cpu, 1);
+    cpu_->arch = cpu;
+    cpu->reg_r31 = plugin_find_register("r31");
+}
+
+static void ppc64_end(Cpu *cpu)
+{
+    g_free(cpu->arch);
+}
+
+static bool ppc64_does_insn_modify_frame_pointer(const char *disas)
+{
+    /* fp is s0 in disassembly */
+    return strstr(disas, "r31");
+}
+
+static CpuOps ppc64_ops = {
+    .init = ppc64_init,
+    .end = ppc64_end,
+    .get_frame_pointer = ppc64_get_frame_pointer,
+    .get_next_frame_pointer = ppc64_get_next_frame_pointer,
+    .get_next_return_address = ppc64_get_next_return_address,
+    .get_privilege_level = ppc64_get_privilege_level,
+    .num_privilege_levels = ppc64_num_privilege_levels,
+    .get_privilege_level_name = ppc64_get_privilege_level_name,
+    .does_insn_modify_frame_pointer = ppc64_does_insn_modify_frame_pointer,
+};
+
 static void track_privilege_change(unsigned int cpu_index, void *udata)
 {
     Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
@@ -978,6 +1043,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         arch_ops = x64_ops;
     } else if (!strcmp(info->target_name, "riscv64")) {
         arch_ops = riscv64_ops;
+    } else if (!strcmp(info->target_name, "ppc64")) {
+        arch_ops = ppc64_ops;
     } else {
         fprintf(stderr, "plugin uftrace: %s target is not supported\n",
                 info->target_name);
