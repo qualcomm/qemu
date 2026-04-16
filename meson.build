@@ -1425,7 +1425,7 @@ vcl = not_found
 if not get_option('virclrenderer').auto() or have_system or have_vhost_user_gpu
   vcl = dependency('virclrenderer',
                    fallback: ['virclrenderer', 'libvirclrenderer_dep'],
-                   default_options: ['vcl=true'],
+                   default_options: ['vcl=true', 'warning_level=2'],
                    required: get_option('virclrenderer'),
                    static: true)
   if vcl.found()
