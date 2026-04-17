@@ -37,12 +37,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #include "mmvec/mmvec.h"
 #include "hw/core/registerfields.h"
 
-#ifndef CONFIG_USER_ONLY
-#error "Hexagon does not support system emulation"
-#endif
-
-#ifndef CONFIG_USER_ONLY
-#endif
+#include "reg_fields.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
