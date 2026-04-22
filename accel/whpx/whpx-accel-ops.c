@@ -20,6 +20,10 @@
 #include "system/whpx-all.h"
 #include "system/whpx-accel-ops.h"
 
+#ifdef CONFIG_LIBQEMU
+#include "libqemu/callbacks.h"
+#endif
+
 static void *whpx_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
@@ -51,6 +55,9 @@ static void *whpx_cpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(cpu);
             }
         }
+#ifdef CONFIG_LIBQEMU
+        libqemu_cpu_end_of_loop_cb(cpu);
+#endif
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     whpx_destroy_vcpu(cpu);
