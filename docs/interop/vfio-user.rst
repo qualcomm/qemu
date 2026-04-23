@@ -1429,6 +1429,9 @@ Reply
 * *count* is the size of the data transferred.
 * *data* is the data read.
 
+Note that whether short reads return an error or just set count appropriately is
+a client-side choice; servers should be prepared to handle both cases.
+
 ``VFIO_USER_DMA_WRITE``
 -----------------------
 
@@ -1463,11 +1466,14 @@ Reply
 +=========+========+==========+
 | address | 0      | 8        |
 +---------+--------+----------+
-| count   | 8      | 4        |
+| count   | 8      | 8        |
 +---------+--------+----------+
 
 * *address* is the client DMA memory address being accessed.
 * *count* is the size of the data transferred.
+
+Note that whether short writes return an error or just set count appropriately
+is a client-side choice; servers should be prepared to handle both cases.
 
 ``VFIO_USER_DEVICE_RESET``
 --------------------------

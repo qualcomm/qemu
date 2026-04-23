@@ -56,7 +56,6 @@ struct VncJobQueue {
     QemuCond cond;
     QemuMutex mutex;
     QemuThread thread;
-    bool exit;
     QTAILQ_HEAD(, VncJob) jobs;
 };
 
@@ -84,26 +83,26 @@ VncJob *vnc_job_new(VncState *vs)
 
     assert(vs->magic == VNC_MAGIC);
     job->vs = vs;
-    vnc_lock_queue(queue);
     QLIST_INIT(&job->rectangles);
-    vnc_unlock_queue(queue);
     return job;
 }
 
+/*
+ * Do not call this after pushing the job.
+ */
 int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
 {
     VncRectEntry *entry = g_new0(VncRectEntry, 1);
 
     trace_vnc_job_add_rect(job->vs, job, x, y, w, h);
+    assert(!QTAILQ_IN_USE(job, next));
 
     entry->rect.x = x;
     entry->rect.y = y;
     entry->rect.w = w;
     entry->rect.h = h;
 
-    vnc_lock_queue(queue);
     QLIST_INSERT_HEAD(&job->rectangles, entry, next);
-    vnc_unlock_queue(queue);
     return 1;
 }
 
@@ -121,16 +120,21 @@ static void vnc_job_free(VncJob *job)
     g_free(job);
 }
 
+/*
+ * Push a job onto the queue. Ownership of the job is transferred.
+ */
 void vnc_job_push(VncJob *job)
 {
-    vnc_lock_queue(queue);
-    if (queue->exit || QLIST_EMPTY(&job->rectangles)) {
+    assert(!QTAILQ_IN_USE(job, next));
+
+    if (QLIST_EMPTY(&job->rectangles)) {
         vnc_job_free(job);
     } else {
+        vnc_lock_queue(queue);
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
         qemu_cond_broadcast(&queue->cond);
+        vnc_unlock_queue(queue);
     }
-    vnc_unlock_queue(queue);
 }
 
 static bool vnc_has_job_locked(VncState *vs)
@@ -138,7 +142,7 @@ static bool vnc_has_job_locked(VncState *vs)
     VncJob *job;
 
     QTAILQ_FOREACH(job, &queue->jobs, next) {
-        if (job->vs == vs || !vs) {
+        if (job->vs == vs) {
             return true;
         }
     }
@@ -160,7 +164,7 @@ void vnc_jobs_consume_buffer(VncState *vs)
     bool flush;
 
     vnc_lock_output(vs);
-    if (vs->jobs_buffer.offset) {
+    if (!buffer_empty(&vs->jobs_buffer)) {
         if (vs->ioc != NULL && buffer_empty(&vs->output)) {
             g_clear_handle_id(&vs->ioc_tag, g_source_remove);
             if (vs->disconnecting == FALSE) {
@@ -248,16 +252,11 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     int saved_offset;
 
     vnc_lock_queue(queue);
-    while (QTAILQ_EMPTY(&queue->jobs) && !queue->exit) {
+    while (QTAILQ_EMPTY(&queue->jobs)) {
         qemu_cond_wait(&queue->cond, &queue->mutex);
     }
-    /* Here job can only be NULL if queue->exit is true */
     job = QTAILQ_FIRST(&queue->jobs);
     vnc_unlock_queue(queue);
-
-    if (queue->exit) {
-        return -1;
-    }
 
     assert(job->vs->magic == VNC_MAGIC);
     vc = container_of(job->vs, VncConnection, vs);
@@ -326,7 +325,6 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
         qemu_bh_schedule(job->vs->bh);
     }  else {
-        buffer_reset(&vs.output);
         /* Copy persistent encoding data */
         vnc_async_encoding_end(job->vs, &vs);
     }
@@ -352,22 +350,12 @@ static VncJobQueue *vnc_queue_init(void)
     return queue;
 }
 
-static void vnc_queue_clear(VncJobQueue *q)
-{
-    qemu_cond_destroy(&queue->cond);
-    qemu_mutex_destroy(&queue->mutex);
-    g_free(q);
-    queue = NULL; /* Unset global queue */
-}
-
 static void *vnc_worker_thread(void *arg)
 {
     VncJobQueue *queue = arg;
 
-    qemu_thread_get_self(&queue->thread);
-
     while (!vnc_worker_thread_loop(queue)) ;
-    vnc_queue_clear(queue);
+    g_assert_not_reached();
     return NULL;
 }
 

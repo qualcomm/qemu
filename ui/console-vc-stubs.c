@@ -14,13 +14,7 @@ void qemu_text_console_update_size(QemuTextConsole *c)
 {
 }
 
-const char *
-qemu_text_console_get_label(QemuTextConsole *c)
-{
-    return NULL;
-}
-
-void qemu_text_console_update_cursor(void)
+void vt100_update_cursor(void)
 {
 }
 
