@@ -147,7 +147,7 @@ static int path_offset(const void *fdt, const char *path)
             if (*at == '/') {
                 at = strchr(at, '@');
             } else {
-                *at = tolower(*at);
+                *at = tolower((unsigned char)*at);
                 ++at;
             }
     }
