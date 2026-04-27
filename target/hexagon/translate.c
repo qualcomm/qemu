@@ -703,6 +703,7 @@ static void gen_start_packet(DisasContext *ctx)
     }
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
+    ctx->hmx_pkt.act_valid = false;
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         ctx->new_value[i] = NULL;
     }
@@ -1315,6 +1316,9 @@ static void gen_commit_packet(DisasContext *ctx)
     gen_pred_writes(ctx);
     if (ctx->pkt.pkt_has_hvx) {
         gen_commit_hvx(ctx);
+    }
+    if (ctx->pkt.pkt_has_coproc) {
+        gen_helper_hmx_commit_packet(tcg_env);
     }
     update_exec_counters(ctx);
 

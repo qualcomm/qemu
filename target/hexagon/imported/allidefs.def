@@ -29,3 +29,4 @@
 #include "system.idef"
 #include "subinsns.idef"
 #include "allext.idef"
+#include "hmx/ext.idef"

@@ -1,0 +1,9 @@
+/*
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#define EXTNAME hmx
+#include "hmx/encode_ext.def"
+#undef EXTNAME
