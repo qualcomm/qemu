@@ -206,6 +206,18 @@ static void do_whpx_cpu_synchronize_pre_loadvm(CPUState *cpu,
 }
 
 /*
+ * Partition support
+ */
+
+static void whpx_partition_reset(AccelState *as)
+{
+    struct whpx_state *whpx = &whpx_global;
+    if (whp_dispatch.WHvResetPartition) {
+        whp_dispatch.WHvResetPartition(whpx->partition);
+    }
+}
+
+/*
  * CPU support.
  */
 
@@ -470,6 +482,34 @@ static void whpx_set_kernel_irqchip(Object *obj, Visitor *v,
     }
 }
 
+static void whpx_set_gicd_base_address(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    whpx->gicd_base_address = value;
+}
+
+static void whpx_set_gicr_base_address(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    whpx->gicr_base_address = value;
+}
+
 static void whpx_set_hyperv(Object *obj, Visitor *v,
                                    const char *name, void *opaque,
                                    Error **errp)
@@ -526,6 +566,7 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
     ac->name = "WHPX";
     ac->init_machine = whpx_accel_init;
     ac->pre_resume_vm = whpx_pre_resume_vm;
+    ac->reset_vm = whpx_partition_reset;
     ac->allowed = &whpx_allowed;
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
@@ -538,6 +579,16 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "hyperv",
         "Configure Hyper-V enlightenments");
+    object_class_property_add(oc, "gicd-base-address", "uint64",
+        NULL, whpx_set_gicd_base_address,
+        NULL, NULL);
+    object_class_property_set_description(oc, "gicd-base-address",
+        "Set the GICv3 distributor base address for WHPX");
+    object_class_property_add(oc, "gicr-base-address", "uint64",
+        NULL, whpx_set_gicr_base_address,
+        NULL, NULL);
+    object_class_property_set_description(oc, "gicr-base-address",
+        "Set the GICv3 redistributor base address for WHPX");
 }
 
 static void whpx_accel_instance_init(Object *obj)
@@ -550,6 +601,10 @@ static void whpx_accel_instance_init(Object *obj)
 
     whpx->hyperv_enlightenments_allowed = true;
     whpx->hyperv_enlightenments_required = false;
+
+    /* Default GIC base addresses (QEMU virt machine default) */
+    whpx->gicd_base_address = 0x08000000;
+    whpx->gicr_base_address = 0x080A0000;
 }
 
 static const TypeInfo whpx_accel_type = {

@@ -439,7 +439,28 @@ int whpx_vcpu_run(CPUState *cpu)
         switch (vcpu->exit_ctx.ExitReason) {
         case WHvRunVpExitReasonGpaIntercept:
         case WHvRunVpExitReasonUnmappedGpa:
+        {
+#ifdef CONFIG_LIBQEMU
+            uint32_t ec = syn_get_ec(vcpu->exit_ctx.MemoryAccess.Syndrome);
+            uint64_t gpa = vcpu->exit_ctx.MemoryAccess.Gpa;
+
+            if (ec != EC_DATAABORT && ec != EC_DATAABORT_SAME_EL) {
+                /*
+                 * Not a data abort - likely an acces to an unmapped GPA.
+                 */
+                uint8_t dummy;
+                MemTxResult res = address_space_read(&address_space_memory, gpa,
+                                                     MEMTXATTRS_UNSPECIFIED,
+                                                     &dummy, 1);
+                if (res != MEMTX_OK) {
+                    error_report("WHPX: unmapped GPA 0x%llx EC=0x%x",
+                                 (unsigned long long)gpa, ec);
+                }
+                break;
+            }
+#else
             assert(syn_get_ec(vcpu->exit_ctx.MemoryAccess.Syndrome) == EC_DATAABORT);
+#endif
             advance_pc = true;
 
             if (vcpu->exit_ctx.MemoryAccess.Syndrome & BIT(8)) {
@@ -453,6 +474,7 @@ int whpx_vcpu_run(CPUState *cpu)
 
             ret = whpx_handle_mmio(cpu, &vcpu->exit_ctx.MemoryAccess);
             break;
+        }
         case WHvRunVpExitReasonCanceled:
             cpu->exception_index = EXCP_INTERRUPT;
             ret = 1;
@@ -472,8 +494,6 @@ int whpx_vcpu_run(CPUState *cpu)
             if (arm_cpu->power_state != PSCI_OFF) {
                 whpx_psci_cpu_off(arm_cpu);
             }
-            /* Partition-wide reset, to reset state for reboots to succeed. */
-            whp_dispatch.WHvResetPartition(whpx->partition);
             bql_unlock();
             break;
         case WHvRunVpExitReasonNone:
@@ -922,8 +942,8 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_ARM64_IC_PARAMETERS ic_params = {
         .EmulationMode = WHvArm64IcEmulationModeGicV3,
         .GicV3Parameters = {
-            .GicdBaseAddress = 0x08000000,
-            .GitsTranslaterBaseAddress = 0x08080000,
+            .GicdBaseAddress = whpx->gicd_base_address,
+            .GitsTranslaterBaseAddress = whpx->gicd_base_address + 0x80000,
             .GicLpiIntIdBits = 0,
             .GicPpiPerformanceMonitorsInterrupt = VIRTUAL_PMU_IRQ,
             .GicPpiOverflowInterruptFromCntv = ARCH_TIMER_VIRT_IRQ
