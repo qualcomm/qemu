@@ -123,6 +123,10 @@
 #define Q6_mxclracc_hf() \
     _HMX_WORD(0xA6E0C013)
 
+/* M8_mxswap: mxswapacc */
+#define Q6_mxswapacc() \
+    _HMX_WORD(0xA6E0C014)
+
 /* ================================================================== */
 /* Activation loads (Rs=address, Rt=range)                            */
 /* ================================================================== */
@@ -166,6 +170,54 @@
 /* M8_mxmem_wei_f8: weight.f8=mxmem(Rs32,Rt32) */
 #define Q6_weight_f8_mxmem_RR(Rs, Rt) \
     _HMX_RS_RT(0x9200E147, Rs, Rt)
+
+/* M8_mxmem_wei_sm: weight.sm=mxmem(Rs32,Rt32) */
+#define Q6_weight_sm_mxmem_RR(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1F1, Rs, Rt)
+
+/* M8_mxmem_wei_sc: weight.sc=mxmem(Rs32,Rt32)  (scrumb) */
+#define Q6_weight_sc_mxmem_RR(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1F0, Rs, Rt)
+
+/* M8_mxmem_wei_b1: weight.ubit=mxmem(Rs32,Rt32) */
+#define Q6_weight_ubit_mxmem_RR(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1E3, Rs, Rt)
+
+/* M8_mxmem_wei_sb1: weight.sbit=mxmem(Rs32,Rt32) */
+#define Q6_weight_sbit_mxmem_RR(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1E4, Rs, Rt)
+
+/* ================================================================== */
+/* Weight load modifiers (Rs=address, Rt=range)                       */
+/* ================================================================== */
+
+/* M8_mxmems_wei_b: weight.b=mxmem(Rs32,Rt32):single */
+#define Q6_weight_b_mxmem_RR_single(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1E6, Rs, Rt)
+
+/* M8_mxmemdr_wei_b: weight.b=mxmem(Rs32,Rt32):drop */
+#define Q6_weight_b_mxmem_RR_drop(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1E7, Rs, Rt)
+
+/* M8_mxmema_wei_b: weight.b=mxmem(Rs32,Rt32):after */
+#define Q6_weight_b_mxmem_RR_after(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1E9, Rs, Rt)
+
+/* M8_mxmemdi_wei_b: weight.b=mxmem(Rs32,Rt32):dilate */
+#define Q6_weight_b_mxmem_RR_dilate(Rs, Rt) \
+    _HMX_RS_RT(0x9200E1EB, Rs, Rt)
+
+/* ================================================================== */
+/* Activation load modifiers (Rs=address, Rt=range)                   */
+/* ================================================================== */
+
+/* M8_mxmems_blk_sm_act_ub: activation.ub=mxmem(Rs32,Rt32):single */
+#define Q6_activation_ub_mxmem_RR_single(Rs, Rt) \
+    _HMX_RS_RT(0x9200C1F0, Rs, Rt)
+
+/* M8_mxmemu_blk_sm_act_ub: activation.ub=mxmem(Rs32,Rt32):above */
+#define Q6_activation_ub_mxmem_RR_above(Rs, Rt) \
+    _HMX_RS_RT(0x9200C1EE, Rs, Rt)
 
 /* ================================================================== */
 /* Bias operations (Rs=address)                                       */
