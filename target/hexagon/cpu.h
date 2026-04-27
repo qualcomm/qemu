@@ -31,6 +31,7 @@
 #include "exec/target_long.h"
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
+#include "hmx_state.h"
 #include "hw/core/registerfields.h"
 #include "qemu/bitmap.h"
 #ifndef CONFIG_USER_ONLY
@@ -192,6 +193,18 @@ typedef struct CPUArchState {
     VTCMStoreLog vtcm_log;
 
     uint32_t hvx_vec_len;    /* HVX vector length in bytes (64 or 128) */
+
+    /*
+     * Per-CPU HMX scratch buffers for TCG GVec weight operations (128B each).
+     * 16-byte aligned for tcg_gen_gvec_* requirements.
+     * These must be at fixed env offsets for GVec standard ops.
+     */
+    uint32_t hmx_wei_raw[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+    int32_t  hmx_wei_expanded[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+    int32_t  hmx_mac_tmp[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+
+    /* Pointer to shared HMX state (for TCG access via env) */
+    HmxState *hmx_state;
 } CPUHexagonState;
 
 typedef struct HexagonCPUClass {
@@ -207,6 +220,8 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPUHexagonState env;
+
+    HmxState *hmx;  /* HMX state (self-alloc or from device) */
 
     uint32_t rev_reg;
     bool lldb_compat;

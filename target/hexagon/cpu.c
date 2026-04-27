@@ -530,6 +530,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     arch_set_thread_reg(env, HEX_REG_PC, cpu->boot_addr);
 #endif
     env->cause_code = HEX_EVENT_NONE;
+
+    if (env->hmx_state) {
+        memset(env->hmx_state, 0, sizeof(HmxState));
+    }
 }
 
 static void hexagon_cpu_disas_set_info(const CPUState *cs,
@@ -559,6 +563,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+#ifdef CONFIG_USER_ONLY
+    /* Linux-user: self-allocate HMX state per CPU */
+    HEXAGON_CPU(cs)->hmx = g_malloc0(sizeof(HmxState));
+#endif
+    env->hmx_state = HEXAGON_CPU(cs)->hmx;
 
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);

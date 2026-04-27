@@ -795,9 +795,12 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
+    pkt->pkt_has_coproc = false;
     for (i = 0; i < num_insns; i++) {
         pkt->pkt_has_hvx |=
             GET_ATTRIB(pkt->insn[i].opcode, A_CVI);
+        pkt->pkt_has_coproc |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_HMX);
     }
 
     /*

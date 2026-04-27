@@ -72,6 +72,7 @@
 #include "encode_pp.def"
 #include "encode_subinsn.def"
 #include "allextenc.def"
+#include "shared_extenc.def"
 
 #ifdef __SELF_DEF_FIELD32
 #undef __SELF_DEF_FIELD32

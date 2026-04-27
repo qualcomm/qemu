@@ -34,7 +34,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "gen_tcg_sys.h"
 #endif
-
+#include "gen_tcg_hmx.h"
 #include "genptr.h"
 
 TCGv gen_read_reg(TCGv result, int num)

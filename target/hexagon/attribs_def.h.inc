@@ -242,5 +242,21 @@ DEF_ATTRIB(EA_PAGECROSS, "EA may cross page boundary", "", "")
 DEF_ATTRIB(CVI_GATHER_ADDR_4B, "Gather with 4-byte addresses", "", "")
 DEF_ATTRIB(HVX_FLT_OUT_BF, "HVX IEEE FP: bfloat output", "", "")
 
+/* HMX attributes */
+DEF_ATTRIB(HMX, "HMX coprocessor instruction", "", "")
+DEF_ATTRIB(HMX_CVT, "HMX convert instruction", "", "")
+DEF_ATTRIB(HMX_FLT, "HMX floating-point instruction", "", "")
+DEF_ATTRIB(HMX_CU_SCALAR, "HMX scalar operand", "", "")
+DEF_ATTRIB(HMX_BLOCK_ALIGN, "HMX block-aligned access", "", "")
+DEF_ATTRIB(HMX_128B_ALIGN, "HMX 128-byte aligned access", "", "")
+DEF_ATTRIB(SHARED_EXTENSION, "Shared extension instruction", "", "")
+DEF_ATTRIB(PAIR_1OF2, "First of instruction pair", "", "")
+DEF_ATTRIB(PAIR_2OF2, "Second of instruction pair", "", "")
+DEF_ATTRIB(NOTE_MX_PAIR, "Needs to be paired in a packet", "", "")
+DEF_ATTRIB(FAKEINSN, "Not a real instruction", "", "")
+DEF_ATTRIB(MPY, "Multiply instruction", "", "")
+DEF_ATTRIB(EA_REG_ONLY, "EA is register only", "", "")
+DEF_ATTRIB(VDBG, "Vector debug instruction", "", "")
+
 /* Keep this as the last attribute: */
 DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")

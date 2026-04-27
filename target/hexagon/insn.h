@@ -72,6 +72,7 @@ struct Packet {
     bool pkt_has_scalar_store_s1;
 
     bool pkt_has_hvx;
+    bool pkt_has_coproc;
     Insn *vhist_insn;
 
     bool pkt_has_write_conflict;

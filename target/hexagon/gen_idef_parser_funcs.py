@@ -112,6 +112,8 @@ def main():
                 continue
             if tag.startswith("V6_"):
                 continue
+            if tag.startswith("M8_"):
+                continue
             if ( tag.startswith("F") and
                  tag not in {
                      "F2_sfimm_p",
