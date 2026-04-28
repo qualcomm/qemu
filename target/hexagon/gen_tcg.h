@@ -1445,7 +1445,7 @@
             HELPER(tcg_env, RsV, \
                    tcg_constant_tl(insn->slot), \
                    tcg_constant_tl(ctx->mem_idx), \
-                   tcg_constant_tl(ctx->pkt->pc)); \
+                   tcg_constant_tl(ctx->pkt.pc)); \
         } \
     } while (0)
 #define fGEN_TCG_Y2_dcinva(SHORTCODE) \
@@ -2837,6 +2837,31 @@
 
 #define fGEN_TCG_L6_memcpy(SHORTCODE) gen_vtcm_memcpy(ctx, RsV, RtV, MuV)
 
+#ifdef CONFIG_USER_ONLY
+#define fGEN_TCG_J2_trap0(SHORTCODE) \
+    do { \
+        uiV = uiV; \
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt.pc); \
+        TCGv excp = tcg_constant_tl(HEX_EVENT_TRAP0); \
+        gen_helper_raise_exception(tcg_env, excp, tcg_constant_tl(ctx->pkt.pc)); \
+    } while (0)
+#else
+/*
+ * In system mode, we must set env->cause_code to the trap immediate (uiV)
+ * before raising the exception.  The semihosting handler checks cause_code == 0
+ * to decide whether to handle trap0 as a semihosting call.  Without this,
+ * cause_code retains a stale value and semihosting breaks.
+ */
+#define fGEN_TCG_J2_trap0(SHORTCODE) \
+    do { \
+        uiV = uiV; \
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt.pc); \
+        tcg_gen_st_tl(tcg_constant_tl(uiV), tcg_env, \
+                      offsetof(CPUHexagonState, cause_code)); \
+        TCGv excp = tcg_constant_tl(HEX_EVENT_TRAP0); \
+        gen_helper_raise_exception(tcg_env, excp, tcg_constant_tl(ctx->pkt.pc)); \
+    } while (0)
+#endif
 #endif
 
 #define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)

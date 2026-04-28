@@ -107,6 +107,7 @@ enum data_cache_state {
 #define PACKET_WORDS_MAX                    4
 
 #include "qemu/bitops.h"
+#include "cpu-qom.h"
 
 #define PCALIGN 4
 #define PCALIGN_MASK (PCALIGN - 1)
@@ -135,6 +136,6 @@ static inline bool is_packet_end(uint32_t endocing)
 }
 
 int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc, GString *buf,
-                        uint32_t rev);
+                        const HexagonCPUDef *hex_def);
 
 #endif

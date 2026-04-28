@@ -268,17 +268,8 @@ static void sim_handle_trap0(CPUHexagonState *env)
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
         target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
-        HexagonCPU *cpu = env_archcpu(env);
-        if (!cpu->vp_mode) {
-            hexagon_dump_json(env);
-            exit(ret);
-        } else {
-            CPUState *cs = CPU(cpu);
-            qemu_log_mask(CPU_LOG_RESET | LOG_GUEST_ERROR, "resetting\n");
-            CPU_FOREACH(cs) {
-                cpu_reset(cs);
-            }
-        }
+        hexagon_dump_json(env);
+        exit(ret);
     }
     break;
 

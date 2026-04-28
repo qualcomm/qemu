@@ -18,7 +18,7 @@
     clippy::too_many_arguments
 )]
 
-use glib_sys::{GHashTable, GHashTableIter, GPtrArray, GSList};
+use glib_sys::{GHashTable, GHashTableIter, GSList};
 use util_sys::{Error, QDict, QObject, Visitor};
 
 #[cfg(MESON)]

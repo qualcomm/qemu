@@ -504,13 +504,11 @@ void hexagon_stop_thread(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     if (!thread_enabled_mask) {
-        if (!cpu->vp_mode) {
-            /* All threads are stopped, exit */
-            if (cpu->dump_json_file) {
-                hexagon_dump_json(env);
-            }
-            exit(get_thread0_r2());
+        /* All threads are stopped, exit */
+        if (cpu->dump_json_file) {
+            hexagon_dump_json(env);
         }
+        exit(get_thread0_r2());
     }
 }
 
@@ -777,9 +775,8 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 
         CPUState *cs = env_cpu(env);
         HexagonCPU *cpu = HEXAGON_CPU(cs);
-        uint32_t rev = cpu->rev_reg & 0xff;
         /* Ownership exchange */
-        if (rev > 0x75) {
+        if (hexagon_version(cpu) > 0x75) {
             memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
             memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
             memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));

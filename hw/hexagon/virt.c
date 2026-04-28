@@ -579,7 +579,6 @@ static void virt_init(MachineState *ms)
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 0) & 1);
         qdev_prop_set_bit(DEVICE(cpu), "hvx-bfloat",
                              (m_cfg->cfgtable.coproc2_fp16_acc_exp >> 1) & 1);
-        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
     }
 
     /* Create TLB object first */
@@ -599,7 +598,8 @@ static void virt_init(MachineState *ms)
 
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(vms->gsregs));
     qdev_prop_set_uint64(vms->gsregs, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(vms->gsregs, "dsp-rev", v68_rev);
+    g_assert(m_cfg->rev_id);
+    qdev_prop_set_uint32(vms->gsregs, "dsp-rev", m_cfg->rev_id);
 
     /* Link the qtimer interface to globalreg */
     if (!object_property_set_link(OBJECT(vms->gsregs), "qtimer",

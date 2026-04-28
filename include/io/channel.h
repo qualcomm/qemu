@@ -599,6 +599,47 @@ ssize_t qio_channel_pwrite(QIOChannel *ioc, void *buf, size_t buflen,
                            off_t offset, Error **errp);
 
 /**
+ * qio_channel_pwritev_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to write data from
+ * @niov: the length of the @iov array
+ * @offset: the starting offset in the channel to write to
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Writes @iov, possibly blocking or (if the channel is non-blocking)
+ * yielding from the current coroutine multiple times until the entire
+ * content is written.  Otherwise behaves as qio_channel_pwritev().
+ *
+ * Returns: 0 if all bytes were written, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_pwritev_all(QIOChannel *ioc,
+                                               const struct iovec *iov,
+                                               size_t niov,
+                                               off_t offset,
+                                               Error **errp);
+
+/**
+ * qio_channel_pwrite_all:
+ * @ioc: the channel object
+ * @buf: the memory region to write data from
+ * @buflen: the number of bytes to write from @buf
+ * @offset: the starting offset in the channel to write to
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Writes @buflen bytes from @buf, possibly blocking or (if the
+ * channel is non-blocking) yielding from the current coroutine
+ * multiple times until the entire content is written.  Otherwise
+ * behaves as qio_channel_pwrite().
+ *
+ * Returns: 0 if all bytes were written, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_pwrite_all(QIOChannel *ioc,
+                                              const void *buf,
+                                              size_t buflen,
+                                              off_t offset,
+                                              Error **errp);
+
+/**
  * qio_channel_preadv
  * @ioc: the channel object
  * @iov: the array of memory regions to read data into
@@ -633,6 +674,98 @@ ssize_t qio_channel_preadv(QIOChannel *ioc, const struct iovec *iov,
  */
 ssize_t qio_channel_pread(QIOChannel *ioc, void *buf, size_t buflen,
                           off_t offset, Error **errp);
+
+/**
+ * qio_channel_preadv_all_eof:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @iov, possibly blocking or (if the channel is non-blocking)
+ * yielding from the current coroutine multiple times until the entire
+ * content is read.  If end-of-file occurs immediately it is not an
+ * error, but if it occurs after data has been read it will return
+ * an error rather than a short-read.  Otherwise behaves as
+ * qio_channel_preadv().
+ *
+ * Returns: 1 if all bytes were read, 0 if end-of-file occurs
+ *          without data, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_preadv_all_eof(QIOChannel *ioc,
+                                                  const struct iovec *iov,
+                                                  size_t niov,
+                                                  off_t offset,
+                                                  Error **errp);
+
+/**
+ * qio_channel_preadv_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @iov, possibly blocking or (if the channel is non-blocking)
+ * yielding from the current coroutine multiple times until the entire
+ * content is read.  If end-of-file occurs before all requested data
+ * has been read, an error will be reported.  Otherwise behaves as
+ * qio_channel_preadv().
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_preadv_all(QIOChannel *ioc,
+                                              const struct iovec *iov,
+                                              size_t niov,
+                                              off_t offset,
+                                              Error **errp);
+
+/**
+ * qio_channel_pread_all_eof:
+ * @ioc: the channel object
+ * @buf: the memory region to read data into
+ * @buflen: the number of bytes to read into @buf
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @buflen bytes, possibly blocking or (if the channel is
+ * non-blocking) yielding from the current coroutine multiple times
+ * until the entire content is read.  If end-of-file occurs
+ * immediately it is not an error, but if it occurs after data has
+ * been read it will return an error rather than a short-read.
+ * Otherwise behaves as qio_channel_pread().
+ *
+ * Returns: 1 if all bytes were read, 0 if end-of-file occurs
+ *          without data, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_pread_all_eof(QIOChannel *ioc,
+                                                 void *buf,
+                                                 size_t buflen,
+                                                 off_t offset,
+                                                 Error **errp);
+
+/**
+ * qio_channel_pread_all:
+ * @ioc: the channel object
+ * @buf: the memory region to read data into
+ * @buflen: the number of bytes to read into @buf
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @buflen bytes, possibly blocking or (if the channel is
+ * non-blocking) yielding from the current coroutine multiple times
+ * until the entire content is read.  If end-of-file occurs before
+ * all requested data has been read, an error will be reported.
+ * Otherwise behaves as qio_channel_pread().
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_pread_all(QIOChannel *ioc,
+                                             void *buf,
+                                             size_t buflen,
+                                             off_t offset,
+                                             Error **errp);
 
 /**
  * qio_channel_shutdown:

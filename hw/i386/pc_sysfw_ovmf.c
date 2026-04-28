@@ -27,7 +27,7 @@
 #include "qemu/error-report.h"
 #include "hw/i386/pc.h"
 #include "exec/target_page.h"
-#include "cpu.h"
+#include "target/i386/cpu.h"
 #include "target/i386/sev.h"
 #include "kvm/tdx.h"
 

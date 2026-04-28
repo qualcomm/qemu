@@ -11,6 +11,7 @@ static hexagon_machine_config v66g_1024 = {
     .l2vic_size =     0x00001000,
     .csr_base =       0xfc900000,
     .qtmr_region =    0xfc921000,
+    .rev_id =         0xa666,
     .cfgtable = {
         .l2tcm_base = 0x0000d800,
         .reserved0 = 0x0000d400,

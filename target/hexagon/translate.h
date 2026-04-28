@@ -31,8 +31,9 @@ QEMU_BUILD_BUG_MSG(NUM_GPREGS > CHAR_BIT * sizeof(target_ulong),
 
 typedef struct DisasContext {
     DisasContextBase base;
-    Packet *pkt;
+    Packet pkt;
     Insn *insn;
+    const HexagonCPUDef *hex_def;
     uint32_t next_PC;
     uint32_t mem_idx;
     uint32_t num_packets;

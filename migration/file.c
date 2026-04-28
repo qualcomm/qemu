@@ -112,6 +112,7 @@ QIOChannel *file_connect_outgoing(MigrationState *s,
         error_setg_errno(errp, errno,
                          "failed to truncate migration file to offset %" PRIx64,
                          offset);
+        object_unref(OBJECT(fioc));
         goto out;
     }
 
@@ -119,6 +120,7 @@ QIOChannel *file_connect_outgoing(MigrationState *s,
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {
+        object_unref(OBJECT(fioc));
         ioc = NULL;
         goto out;
     }
@@ -200,7 +202,7 @@ void file_connect_incoming(FileMigrationArgs *file_args, Error **errp)
 int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
                             int niov, MultiFDPages_t *pages, Error **errp)
 {
-    ssize_t ret = 0;
+    int ret = 0;
     int i, slice_idx, slice_num;
     uintptr_t base, next, offset;
     size_t len;
@@ -239,8 +241,8 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
             break;
         }
 
-        ret = qio_channel_pwritev(ioc, &iov[slice_idx], slice_num,
-                                  block->pages_offset + offset, errp);
+        ret = qio_channel_pwritev_all(ioc, &iov[slice_idx], slice_num,
+                                      block->pages_offset + offset, errp);
         if (ret < 0) {
             break;
         }
@@ -249,20 +251,21 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
         slice_num = 0;
     }
 
-    return (ret < 0) ? ret : 0;
+    return ret;
 }
 
 int multifd_file_recv_data(MultiFDRecvParams *p, Error **errp)
 {
+    ERRP_GUARD();
     MultiFDRecvData *data = p->data;
-    size_t ret;
+    int ret;
 
-    ret = qio_channel_pread(p->c, (char *) data->opaque,
-                            data->size, data->file_offset, errp);
-    if (ret != data->size) {
+    ret = qio_channel_pread_all(p->c, (char *) data->opaque,
+                                data->size, data->file_offset, errp);
+    if (ret != 0) {
         error_prepend(errp,
-                      "multifd recv (%u): read 0x%zx, expected 0x%zx",
-                      p->id, ret, data->size);
+                      "multifd recv (%u): ",
+                      p->id);
         return -1;
     }
 

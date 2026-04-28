@@ -29,24 +29,6 @@ struct hexagon_board_boot_info {
     uint32_t kernel_elf_flags;
 };
 
-typedef enum {
-    unknown_rev = 0,
-    v66_rev = 0xa666,
-    v67_rev = 0x2667,
-    v68_rev = 0x8d68,
-    v69_rev = 0x8c69,
-    v71_rev = 0x8c71,
-    v73_rev = 0x8c73,
-    v73m_rev = 0xcc73,
-    v75_rev = 0x8c75,
-    v79_rev = 0x8c79,
-    v79m_1_rev = 0xdc79,
-    v81qa_1_rev = 0x8781,
-    v81_rev = 0x8781, /* alias for v81qa_1 */
-    v81na_2_rev = 0x8081,
-    v81dgb_1_rev = 0xcc81,
-} Rev_t;
-
 /* Config table address bases represent bits [35:16].
  */
 #define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
@@ -165,6 +147,7 @@ typedef struct {
     /* QTimer csr base */
     uint32_t csr_base;
     uint32_t qtmr_region;
+    uint32_t rev_id;
     hexagon_config_table cfgtable;
 } hexagon_machine_config;
 

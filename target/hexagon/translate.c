@@ -222,7 +222,7 @@ static void gen_cpu_limit(DisasContext *ctx, TCGv dest)
 static void gen_cpu_limit(DisasContext *ctx, TCGv dest)
 {
     if (ctx->need_cpu_limit) {
-        TCGv PC = tcg_constant_tl(ctx->pkt->pc);
+        TCGv PC = tcg_constant_tl(ctx->pkt.pc);
         gen_helper_cpu_limit(tcg_env, PC, dest);
     }
 }
@@ -252,7 +252,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
 
 static void gen_end_tb(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
 
     gen_exec_counters(ctx);
 
@@ -297,9 +297,9 @@ static void gen_end_tb(DisasContext *ctx)
 void gen_exception_end_tb(DisasContext *ctx, int excp)
 {
 #ifdef CONFIG_USER_ONLY
-    gen_exception(excp, ctx->pkt->pc);
+    gen_exception(excp, ctx->pkt.pc);
 #else
-    gen_precise_exception(excp, ctx->pkt->pc);
+    gen_precise_exception(excp, ctx->pkt.pc);
 #endif
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -387,7 +387,7 @@ static void gen_coproc_check(DisasContext *ctx)
             reg_field_info[SSR_XE2].offset,
             reg_field_info[SSR_XE2].width);
     tcg_gen_brcondi_tl(TCG_COND_NE, xe, 0, skip_exception);
-    gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt->pc);
+    gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
     gen_set_label(skip_exception);
 }
 #endif
@@ -401,9 +401,9 @@ static void gen_check_mult_reg_write(DisasContext *ctx)
         tcg_gen_brcondi_tl(TCG_COND_EQ, ctx->mult_reg_written, 0,
                            skip_exception);
 #ifdef CONFIG_USER_ONLY
-        gen_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt->pc);
+        gen_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
 #else
-        gen_precise_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt->pc);
+        gen_precise_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
 #endif
         gen_set_label(skip_exception);
     }
@@ -573,7 +573,7 @@ static bool pkt_has_pcycle_read(Packet *pkt)
 
 static bool need_next_PC(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
         for (int i = 0; i < pkt->num_insns; i++) {
             uint16_t opcode = pkt->insn[i].opcode;
@@ -682,7 +682,7 @@ static bool pkt_raises_exception(Packet *pkt)
 
 static bool need_commit(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
 
     /*
      * If the short-circuit property is set to false, we'll always do the commit
@@ -738,7 +738,7 @@ static void mark_implicit_writes(DisasContext *ctx)
 
 static void analyze_packet(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     ctx->pkt_has_uncond_mult_reg_write = false;
     bitmap_zero(ctx->wreg_mult_gprs, NUM_GPREGS);
     bitmap_zero(ctx->uncond_wreg_gprs, NUM_GPREGS);
@@ -821,7 +821,7 @@ static void gen_paranoid_start_packet(DisasContext *ctx)
 
 static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     target_ulong next_PC = (check_for_opcode(pkt, Y2_k0lock) ||
                             check_for_opcode(pkt, Y2_tlblock)) ?
                                ctx->base.pc_next :
@@ -1003,12 +1003,12 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_helper_inc_gcycle_xt(tcg_env);
     }
     if (pkt->pkt_has_hvx && !ctx->hvx_coproc_enabled && !ctx->hvx_check_emitted) {
-        gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt->pc);
+        gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
         ctx->hvx_check_emitted = true;
     }
     if (pkt->pkt_has_coproc) {
         if (!ctx->num_coproc_instance) {
-            gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt->pc);
+            gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
         } else if (!ctx->coproc_check_emitted) {
             gen_coproc_check(ctx);
             ctx->coproc_check_emitted = true;
@@ -1028,16 +1028,16 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
          * HVX while in this mode.
          */
 #ifndef CONFIG_USER_ONLY
-        gen_precise_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt->pc);
+        gen_precise_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt.pc);
 #else
-        gen_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt->pc);
+        gen_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt.pc);
 #endif
     }
 }
 
 bool is_gather_store_insn(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     Insn *insn = ctx->insn;
     if (GET_ATTRIB(insn->opcode, A_CVI_NEW) &&
         insn->new_value_producer_slot == 1) {
@@ -1202,7 +1202,7 @@ static bool slot_is_predicated(Packet *pkt, int slot_num)
 
 void process_store(DisasContext *ctx, int slot_num)
 {
-    bool is_predicated = slot_is_predicated(ctx->pkt, slot_num);
+    bool is_predicated = slot_is_predicated(&ctx->pkt, slot_num);
     TCGLabel *label_end = NULL;
 
     /*
@@ -1283,7 +1283,7 @@ static void process_store_log(DisasContext *ctx)
      *  slot 1 and then slot 0.  This will be important when
      *  the memory accesses overlap.
      */
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     if (pkt->pkt_has_scalar_store_s1) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 1);
@@ -1297,7 +1297,7 @@ static void process_store_log(DisasContext *ctx)
 /* Zero out a 32-bit cache line */
 static void process_dczeroa(DisasContext *ctx)
 {
-    if (ctx->pkt->pkt_has_dczeroa) {
+    if (ctx->pkt.pkt_has_dczeroa) {
         /* Store 32 bytes of zero starting at (addr & ~0x1f) */
         TCGv addr = tcg_temp_new();
 
@@ -1330,7 +1330,7 @@ static void gen_commit_hvx(DisasContext *ctx)
 
     /* Early exit if not needed */
     if (!ctx->need_commit) {
-        g_assert(!pkt_has_hvx_store(ctx->pkt));
+        g_assert(!pkt_has_hvx_store(&ctx->pkt));
         return;
     }
 
@@ -1364,7 +1364,7 @@ static void gen_commit_hvx(DisasContext *ctx)
         tcg_gen_gvec_mov(MO_64, dstoff, srcoff, size, size);
     }
 
-    if (pkt_has_hvx_store(ctx->pkt)) {
+    if (pkt_has_hvx_store(&ctx->pkt)) {
         gen_helper_commit_hvx_stores(tcg_env);
     }
 }
@@ -1383,7 +1383,7 @@ static void gen_cpu_limit_init(void)
 static const int PCYCLES_PER_PACKET = 3;
 static void update_exec_counters(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
     int num_insns = pkt->num_insns;
     int num_real_insns = 0;
     int num_hvx_insns = 0;
@@ -1439,7 +1439,7 @@ static void check_imprecise_exception(Packet *pkt)
 
 static void gen_commit_packet(DisasContext *ctx)
 {
-    Packet *pkt = ctx->pkt;
+    Packet *pkt = &ctx->pkt;
 
     gen_check_mult_reg_write(ctx);
 
@@ -1559,9 +1559,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 {
     uint32_t words[PACKET_WORDS_MAX];
     int nwords, words_read;
-    Packet pkt = {0};
     int i;
-    HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
 
     nwords = read_packet_words(env, ctx, words);
     if (!nwords) {
@@ -1569,43 +1567,41 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         return;
     }
 
-    ctx->pkt = &pkt;
-    words_read = decode_packet(ctx, nwords, words, &pkt, false,
-                               hex_cpu->rev_reg, ctx->base.pc_next);
+    words_read = decode_packet(ctx, nwords, words, &ctx->pkt, false,
+                               ctx->base.pc_next);
     if (words_read > 0) {
-        if (pkt.pkt_has_write_conflict) {
+        if (ctx->pkt.pkt_has_write_conflict) {
             gen_exception_decode_fail(ctx, words_read,
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
             return;
         }
 #ifndef CONFIG_USER_ONLY
-        if (check_for_attrib(&pkt, A_PRIV)) {
+        if (check_for_attrib(&ctx->pkt, A_PRIV)) {
             if (ctx->mem_idx != MMU_KERNEL_IDX) {
                 gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
-                ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
+                ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
                 return;
             }
         }
-        if (check_for_attrib(&pkt, A_GUEST)) {
+        if (check_for_attrib(&ctx->pkt, A_GUEST)) {
             if (ctx->mem_idx != MMU_KERNEL_IDX &&
                 ctx->mem_idx != MMU_GUEST_IDX) {
                 gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
-                ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
+                ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
                 return;
             }
         }
 #endif
         gen_start_packet(env, ctx);
-        for (i = 0; i < pkt.num_insns; i++) {
-            ctx->insn = &pkt.insn[i];
+        for (i = 0; i < ctx->pkt.num_insns; i++) {
+            ctx->insn = &ctx->pkt.insn[i];
             gen_insn(ctx);
         }
         gen_commit_packet(ctx);
-        ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
+        ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
     } else {
-        pkt.pc = ctx->base.pc_next;
-        ctx->pkt = &pkt;
-        ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
+        ctx->pkt.pc = ctx->base.pc_next;
+        ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
         gen_exception_decode_fail(ctx, nwords, HEX_CAUSE_INVALID_PACKET);
     }
 }
@@ -1656,7 +1652,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hvx_64b_mode = false;
     ctx->paranoid_commit_state = hex_cpu->paranoid_commit_state;
     ctx->l2line_size = hex_cpu->l2line_size;
-    ctx->rev = hex_cpu->rev_reg & 0xff;
+    ctx->rev = hexagon_version(hex_cpu);
 #ifndef CONFIG_USER_ONLY
     ctx->pmu_num_packets = 0;
     ctx->pmu_hvx_packets = 0;
@@ -1688,6 +1684,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         ctx->base.max_insns = 1;
     }
     ctx->short_circuit = hex_cpu->short_circuit;
+    ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
     init_semihosting_guestfds();
 }
 
@@ -1799,7 +1796,8 @@ void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
     DisasContext ctx;
 
     translator_loop(cs, tb, max_insns, pc, host_pc,
-                    &hexagon_tr_ops, &ctx.base);
+                    &hexagon_tr_ops, &ctx.base,
+                    TCG_TYPE_VA);
 }
 
 #define NAME_LEN               64

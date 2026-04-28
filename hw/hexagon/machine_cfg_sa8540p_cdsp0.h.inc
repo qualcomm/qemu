@@ -11,6 +11,7 @@ static hexagon_machine_config SA8540P_cdsp0 = {
     .l2vic_size =      0x00001000,
     .csr_base =        0x1B300000,
     .qtmr_region =     0x1B300000 + 0xA1000,
+    .rev_id =          0x8d68,
     .cfgtable = {
         .l2tcm_base = 0x00001a00,
         .reserved0 = 0x00000000,

@@ -248,7 +248,7 @@ void mem_vector_gather_finish(thread_t* thread, insn_t * insn)
 #endif
 
 bool is_daz_mode(thread_t *thread) {
-    return hexagon_rev_byte(thread) >= 0x81 &&
+    return hexagon_version_env(thread) >= 0x81 &&
         GET_FIELD(USR_FPDAZ, thread->gpr[HEX_REG_USR]);
 }
 

@@ -26,7 +26,6 @@
 #include "hw/hyperv/hyperv.h"
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
-#include "exec/target_page.h"
 
 struct SynICState {
     DeviceState parent_obj;
@@ -709,13 +708,16 @@ uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
     EventFlagHandler *handler;
 
     if (unlikely(!fast)) {
+        MemTxResult result;
         hwaddr addr = param;
 
         if (addr & (__alignof__(addr) - 1)) {
             return HV_STATUS_INVALID_ALIGNMENT;
         }
 
-        param = ldq_phys(&address_space_memory, addr);
+        param = address_space_ldq_le(&address_space_memory, addr,
+                                     MEMTXATTRS_UNSPECIFIED, &result);
+        assert(result == MEMTX_OK);
     }
 
     /*

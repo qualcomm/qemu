@@ -561,7 +561,7 @@ static inline void gen_store_conditional8(DisasContext *ctx,
 static TCGv gen_slotval(DisasContext *ctx)
 {
     int slotval =
-        (ctx->pkt->pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
+        (ctx->pkt.pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
     return tcg_constant_tl(slotval);
 }
 
@@ -634,7 +634,7 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
 
     TCGv PC_wr = ctx->need_next_pc ? hex_next_PC : hex_gpr[HEX_REG_PC];
 
-    if (ctx->pkt->pkt_has_multi_cof) {
+    if (ctx->pkt.pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
         branch_taken = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_NE, ctx->branch_taken, 0, branch_taken);
@@ -650,7 +650,7 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
 
     tcg_gen_mov_tl(PC_wr, addr);
 
-    if (ctx->pkt->pkt_has_multi_cof) {
+    if (ctx->pkt.pkt_has_multi_cof) {
         gen_set_label(branch_taken);
     }
 
@@ -662,8 +662,8 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
 static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
                                    TCGCond cond, TCGv pred)
 {
-    target_ulong dest = ctx->pkt->pc + pc_off;
-    if (ctx->pkt->pkt_has_multi_cof) {
+    target_ulong dest = ctx->pkt.pc + pc_off;
+    if (ctx->pkt.pkt_has_multi_cof) {
         gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), cond, pred);
     } else {
         /* Defer this jump to the end of the TB */
@@ -712,7 +712,7 @@ static inline void gen_loop0r(DisasContext *ctx, TCGv RsV, int riV)
     fIMMEXT(riV);
     fPCALIGN(riV);
     tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC0), RsV);
-    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt->pc + riV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt.pc + riV);
     gen_set_usr_fieldi(ctx, USR_LPCFG, 0);
 }
 
@@ -726,7 +726,7 @@ static inline void gen_loop1r(DisasContext *ctx, TCGv RsV, int riV)
     fIMMEXT(riV);
     fPCALIGN(riV);
     tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC1), RsV);
-    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA1), ctx->pkt->pc + riV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA1), ctx->pkt.pc + riV);
 }
 
 static void gen_loop1i(DisasContext *ctx, int count, int riV)
@@ -756,7 +756,7 @@ static void gen_ploopNsr(DisasContext *ctx, int N, TCGv RsV, int riV)
     fIMMEXT(riV);
     fPCALIGN(riV);
     tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC0), RsV);
-    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt->pc + riV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt.pc + riV);
     gen_set_usr_fieldi(ctx, USR_LPCFG, N);
     gen_pred_write(ctx, 3, tcg_constant_tl(0));
 }

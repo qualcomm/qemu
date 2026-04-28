@@ -156,6 +156,7 @@ HEX_TESTS += test_vminh
 HEX_TESTS += test_vpmpyh
 HEX_TESTS += test_vspliceb
 
+HEX_TESTS += check_rev_gating
 HEX_TESTS += test_pnew_jump_loads
 
 HEX_TESTS += v68_hvx
@@ -182,6 +183,16 @@ reg_mut: reg_mut.c hex_test.h
 test_pnew_jump_loads: test_pnew_jump_loads.c hex_test.h
 unaligned_pc: unaligned_pc.c
 utimer: utimer.c hex_test.h
+check_rev_gating: check_rev_gating.c
+
+# The test exercises revision gating by executing a v68 .word instruction on
+# a v66 cpu.
+#
+# NOTE: The static musl toolchain libraries are compiled for v68, so even
+# with -mv66 the linker sets ELF flags to v68 (max of all inputs). We must
+# force -cpu v66 at runtime to test the revision gating.
+run-check_rev_gating: check_rev_gating
+	$(call run-test, $<, env QEMU=$(QEMU) $(QEMU) -cpu v66 $(QEMU_OPTS) $<)
 
 # This test has to be compiled for the -mv67t target
 usr: usr.c hex_test.h

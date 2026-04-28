@@ -31,7 +31,7 @@
 #ifdef QEMU_GENERATE
 #define HEXAGON_REV_BYTE() (ctx->rev)
 #else
-#define HEXAGON_REV_BYTE() (hexagon_rev_byte(env))
+#define HEXAGON_REV_BYTE() hexagon_version_env(env)
 #endif
 
 #ifdef QEMU_GENERATE
@@ -99,7 +99,7 @@
  */
 #define CHECK_NOSHUF(VA, SIZE) \
     do { \
-        if (insn->slot == 0 && ctx->pkt->pkt_has_scalar_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt.pkt_has_scalar_store_s1) { \
             probe_noshuf_load(VA, SIZE, ctx->mem_idx); \
             process_store(ctx, 1); \
         } \
@@ -110,11 +110,11 @@
         TCGLabel *noshuf_label = gen_new_label(); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, PRED, 0, noshuf_label); \
         GET_EA; \
-        if (insn->slot == 0 && ctx->pkt->pkt_has_scalar_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt.pkt_has_scalar_store_s1) { \
             probe_noshuf_load(EA, SIZE, ctx->mem_idx); \
         } \
         gen_set_label(noshuf_label); \
-        if (insn->slot == 0 && ctx->pkt->pkt_has_scalar_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt.pkt_has_scalar_store_s1) { \
             process_store(ctx, 1); \
         } \
     } while (0)
@@ -748,7 +748,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fIN_DEBUG_MODE(TNUM) \
     0    /* FIXME */
 
-#define fTLBMATCH_MIN_SIZE() (hexagon_rev_byte(thread) < 0x79 ? 6 : 9)
+#define fTLBMATCH_MIN_SIZE() (hexagon_version_env(thread) < 0x79 ? 6 : 9)
 
 /* Extended DMA TLB is in entries 512 512+QDSP6_DMAJTLB_SZ */
 #define DMA_TLB_OFFSET 512

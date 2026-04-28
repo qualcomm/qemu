@@ -15,7 +15,6 @@ config ARM_VIRT
     select GPIO_KEY
     select DEVICE_TREE
     select FW_CFG_DMA
-    select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PFLASH_CFI01
     select PL011 # UART

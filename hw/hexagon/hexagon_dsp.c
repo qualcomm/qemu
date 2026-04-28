@@ -84,35 +84,56 @@ static void hex_symbol_callback(const char *st_name, int st_info,
     }
 }
 
-static Rev_t rev_from_rev_byte(int byte)
+static HexagonVersion hex_ver_from_byte(int byte)
 {
     switch (byte) {
     case 0x65:
         warn_report("binary arch revision is too old (v%02x), using v66 instead",
                     byte);
         /* fallthrough */
-    case 0x66: return v66_rev;
-    case 0x67: return v67_rev;
-    case 0x68: return v68_rev;
-    case 0x69: return v69_rev;
-    case 0x71: return v71_rev;
-    case 0x73: return v73_rev;
-    case 0x75: return v75_rev;
-    case 0x77: return v75_rev; /* v77 is identical to v75 */
-    case 0x79: return v79_rev;
-    case 0x81: return v81_rev;
-    default: return unknown_rev;
+    case 0x66: return HEX_VER_V66;
+    case 0x67: return HEX_VER_V67;
+    case 0x68: return HEX_VER_V68;
+    case 0x69: return HEX_VER_V69;
+    case 0x71: return HEX_VER_V71;
+    case 0x73: return HEX_VER_V73;
+    case 0x75: return HEX_VER_V75;
+    case 0x77: return HEX_VER_V77; /* v77 is identical to v75 */
+    case 0x79: return HEX_VER_V79;
+    case 0x81: return HEX_VER_V81;
+    default: return HEX_VER_NONE;
     }
 }
 
-static void hexagon_load_kernel(HexagonCPU *cpu, Rev_t *rev)
+/*
+ * The rev id holds two bytes that identify the Hexagon arch revision and
+ * the revision variant. This maps an arch revision to standard rev ids.
+ */
+static uint32_t hex_ver_to_rev_id(HexagonVersion hex_ver)
 {
-    uint64_t pentry;
+    switch (hex_ver) {
+    case HEX_VER_V66: return 0xa666;
+    case HEX_VER_V67: return 0x2667;
+    case HEX_VER_V68: return 0x8d68;
+    case HEX_VER_V69: return 0x8c69;
+    case HEX_VER_V71: return 0x8c71;
+    case HEX_VER_V73: return 0x8c73;
+    case HEX_VER_V75: return 0x8c75;
+    case HEX_VER_V77: return 0xff77;
+    case HEX_VER_V79: return 0x8c79;
+    case HEX_VER_V81: return 0x8781;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void hexagon_load_kernel(HexagonVersion *hex_ver, uint64_t *boot_evb)
+{
     long kernel_size;
-    int elf_rev_byte, rev_byte;
+    int elf_rev_byte;
 
     kernel_size = load_elf_ram_sym(hexagon_binfo.kernel_filename, NULL, NULL,
-                      NULL, &pentry, NULL, NULL,
+                      NULL, boot_evb, NULL, NULL,
                       &hexagon_binfo.kernel_elf_flags, 0, EM_HEXAGON, 0, 0,
                       &address_space_memory, false, hex_symbol_callback);
 
@@ -122,29 +143,26 @@ static void hexagon_load_kernel(HexagonCPU *cpu, Rev_t *rev)
         exit(1);
     }
 
-    rev_byte = *rev & 0xff;
     elf_rev_byte = hexagon_binfo.kernel_elf_flags & 0xff;
 
-    if (*rev == unknown_rev) {
-        *rev = rev_from_rev_byte(elf_rev_byte);
-        if (*rev == unknown_rev) {
+    if (*hex_ver == HEX_VER_ANY) {
+        *hex_ver = hex_ver_from_byte(elf_rev_byte);
+        if (*hex_ver == HEX_VER_NONE) {
             error_report("could not identify binary revision: 0x%02x",
                          elf_rev_byte);
             exit(1);
         }
-    } else if (rev_byte != elf_rev_byte) {
+    } else if (*hex_ver != elf_rev_byte) {
         warn_report("using v%02x cpu but binary is for v%02x",
-                     rev_byte, elf_rev_byte);
+                     *hex_ver, elf_rev_byte);
     }
-
-    qdev_prop_set_uint32(DEVICE(cpu->globalregs), "boot-evb", pentry);
 }
 
-static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
-                                   Rev_t *rev)
+static void hexagon_init_bootstrap(MachineState *machine,
+                                   HexagonVersion *hex_ver, uint64_t *boot_evb)
 {
     if (machine->kernel_filename) {
-        hexagon_load_kernel(cpu, rev);
+        hexagon_load_kernel(hex_ver, boot_evb);
         if (isdb_secure_flag || isdb_trusted_flag) {
             /* By convention these flags are at offsets 0x30 and 0x34 */
             uint32_t  mem;
@@ -159,11 +177,11 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu,
                 cpu_physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
             }
         }
-    } else if (!cpu->vp_mode && !qtest_enabled()) {
+    } else if (!qtest_enabled()) {
         error_report("kernel image must be given with -kernel");
         exit(1);
-    } else {
-        *rev = glue(HEXAGON_LATEST_REV, _rev);
+    } else if (*hex_ver == HEX_VER_ANY) {
+        *hex_ver = glue(HEX_VER_, HEXAGON_LATEST_REV_UPPER);
     }
 }
 
@@ -376,7 +394,35 @@ static void create_cdsp_turing_rsc(void)
     }
 }
 
-static void hexagon_common_init(MachineState *machine, Rev_t rev,
+static HexagonVersion machine_cpu_version(MachineState *machine)
+{
+    ObjectClass *oc = object_class_by_name(machine->cpu_type);
+    HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(oc);
+    return mcc->hex_def->hex_version;
+}
+
+static void copy_cpu_properties(const char *from, const char *to)
+{
+    g_assert(strcmp(from, to) != 0);
+    Object *ref = object_new(from);
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+
+    object_property_iter_init(&iter, ref);
+    while ((prop = object_property_iter_next(&iter))) {
+        const GlobalProperty *gp = qdev_find_global_prop(ref, prop->name);
+        if (gp) {
+            GlobalProperty *copy = g_new0(GlobalProperty, 1);
+            copy->driver = g_strdup(to);
+            copy->property = g_strdup(gp->property);
+            copy->value = g_strdup(gp->value);
+            qdev_prop_register_global(copy);
+        }
+    }
+    object_unref(ref);
+}
+
+static void hexagon_common_init(MachineState *machine,
                                 hexagon_machine_config *m_cfg,
                                 bool start_ticking)
 {
@@ -450,9 +496,26 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), errp);
 
+    HexagonVersion hex_ver = machine_cpu_version(machine);
+    uint64_t boot_evb;
+    hexagon_init_bootstrap(machine, &hex_ver, &boot_evb);
+    g_assert(hex_ver != HEX_VER_ANY && hex_ver != HEX_VER_NONE);
+    qdev_prop_set_uint32(glob_regs_dev, "boot-evb", boot_evb);
+    g_autoptr(GString) cpu_type = g_string_new("");
+    g_string_printf(cpu_type, "v%2x%s", hex_ver, HEXAGON_CPU_TYPE_SUFFIX);
+
+    /*
+     * When the user changes CPU type, user-specified properties from -cpu
+     * (registered as global properties for the original type) won't
+     * automatically apply to the overridden type; so copy them.
+     */
+    if (strcmp(machine->cpu_type, cpu_type->str) != 0) {
+        copy_cpu_properties(machine->cpu_type, cpu_type->str);
+    }
+
     /* Now create CPUs. */
     for (int i = 0; i < machine->smp.cpus; i++) {
-        HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        HexagonCPU *cpu = HEXAGON_CPU(object_new(cpu_type->str));
         cpus[i] = cpu;
         qemu_register_reset(do_cpu_reset, cpu);
 
@@ -483,18 +546,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             goto out;
         }
 
-        if (i == 0) {
-            if (cpu->rev_reg) {
-                rev = cpu->rev_reg;
-            }
-            hexagon_init_bootstrap(machine, cpu, &rev);
-        } else {
-            if (cpus[0]->usefs) {
-                qdev_prop_set_string(DEVICE(cpu), "usefs", cpus[0]->usefs);
-            }
+        if (i != 0 && cpus[0]->usefs) {
+            qdev_prop_set_string(DEVICE(cpu), "usefs", cpus[0]->usefs);
         }
-
-        qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", rev);
     }
 
     QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
@@ -525,7 +579,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         goto out;
     }
 
-    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
+    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", hex_ver_to_rev_id(hex_ver));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), errp);
 
     /*
@@ -622,7 +676,7 @@ static void machcfg_disable_coproc(hexagon_machine_config *cfg)
 
 static void v66g_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v66_rev, &v66g_1024, false);
+    hexagon_common_init(machine, &v66g_1024, false);
 }
 
 static void v66g_1024_init(ObjectClass *oc, const void *data)
@@ -656,7 +710,7 @@ static void v66g_linux_init(ObjectClass *oc, const void *data)
 static void v68n_1024_config_init(MachineState *machine)
 
 {
-    hexagon_common_init(machine, v68_rev, &v68n_1024, false);
+    hexagon_common_init(machine, &v68n_1024, false);
 }
 
 static void v68n_1024_init(ObjectClass *oc, const void *data)
@@ -691,7 +745,7 @@ static void v68n_h2_init(ObjectClass *oc, const void *data)
 
 static void v69na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v69_rev, &v69na_1024, false);
+    hexagon_common_init(machine, &v69na_1024, false);
 }
 
 static void v69na_1024_init(ObjectClass *oc, const void *data)
@@ -707,19 +761,19 @@ static void v69na_1024_init(ObjectClass *oc, const void *data)
 
 static void v73na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73_rev, &v73na_1024, false);
+    hexagon_common_init(machine, &v73na_1024, false);
 }
 
 static void v73m_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73m_rev, &v73m, false);
+    hexagon_common_init(machine, &v73m, false);
 }
 
 #include "smem_entries.inc"
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0, true);
+    hexagon_common_init(machine, &SA8775P_cdsp0, true);
 
     /* Create and map the TCSR device */
     DeviceState *tcsr = qdev_new(TYPE_TCSR);
@@ -809,7 +863,7 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
 
 static void SA8540P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v68_rev, &SA8540P_cdsp0, false);
+    hexagon_common_init(machine, &SA8540P_cdsp0, false);
 }
 
 static void SA8540P_cdsp0_init(ObjectClass *oc, const void *data)
@@ -826,7 +880,7 @@ static void SA8540P_cdsp0_init(ObjectClass *oc, const void *data)
 
 static void SA8797P_nsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81_rev, &SA8797P_nsp0, false);
+    hexagon_common_init(machine, &SA8797P_nsp0, false);
 }
 
 static void SA8797P_nsp0_init(ObjectClass *oc, const void *data)
@@ -884,7 +938,7 @@ static void v73m_init(ObjectClass *oc, const void *data)
 
 static void v75na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v75_rev, &v75na_1024, false);
+    hexagon_common_init(machine, &v75na_1024, false);
 }
 
 static void sim_nocoproc_config_init(MachineState *machine)
@@ -892,12 +946,12 @@ static void sim_nocoproc_config_init(MachineState *machine)
     hexagon_machine_config v81dgb_1_nocoproc;
     memcpy(&v81dgb_1_nocoproc, &v81dgb_1, sizeof(v81dgb_1));
     machcfg_disable_coproc(&v81dgb_1_nocoproc);
-    hexagon_common_init(machine, unknown_rev, &v81dgb_1_nocoproc, false);
+    hexagon_common_init(machine, &v81dgb_1_nocoproc, false);
 }
 
 static void sim_coproc_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, unknown_rev, &v75na_1024, false);
+    hexagon_common_init(machine, &v75na_1024, false);
 }
 
 static void v75na_1024_linux_config_init(MachineState *machine)
@@ -931,7 +985,7 @@ static void v75na_1024_init(ObjectClass *oc, const void *data)
 
 static void v79na_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v79_rev, &v79na_1, false);
+    hexagon_common_init(machine, &v79na_1, false);
 }
 
 static void v79na_1_linux_config_init(MachineState *machine)
@@ -943,7 +997,7 @@ static void v79na_1_linux_config_init(MachineState *machine)
 
 static void v79m_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v79m_1_rev, &v79m_1, false);
+    hexagon_common_init(machine, &v79m_1, false);
 }
 
 static void v79na_1_linux_init(ObjectClass *oc, const void *data)
@@ -981,7 +1035,7 @@ static void v79m_1_init(ObjectClass *oc, const void *data)
 
 static void v81qa_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81_rev, &v81qa_1, false);
+    hexagon_common_init(machine, &v81qa_1, false);
 }
 
 static void v81qa_1_init(ObjectClass *oc, const void *data)
@@ -992,7 +1046,7 @@ static void v81qa_1_init(ObjectClass *oc, const void *data)
     mc->init = v81qa_1_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
     mc->default_cpus = 12;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -1000,7 +1054,7 @@ static void v81qa_1_init(ObjectClass *oc, const void *data)
 
 static void v81na_2_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81na_2_rev, &v81na_2, false);
+    hexagon_common_init(machine, &v81na_2, false);
 }
 
 static void v81na_2_init(ObjectClass *oc, const void *data)
@@ -1011,7 +1065,7 @@ static void v81na_2_init(ObjectClass *oc, const void *data)
     mc->init = v81na_2_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
     mc->default_cpus = 12;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
@@ -1019,7 +1073,7 @@ static void v81na_2_init(ObjectClass *oc, const void *data)
 
 static void v81dgb_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1, false);
+    hexagon_common_init(machine, &v81dgb_1, false);
 }
 
 static void v81dgb_1_init(ObjectClass *oc, const void *data)
@@ -1030,7 +1084,7 @@ static void v81dgb_1_init(ObjectClass *oc, const void *data)
     mc->init = v81dgb_1_config_init;
     mc->is_default = false;
     mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = TYPE_HEXAGON_CPU_ANY;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
     mc->default_cpus = 12;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;

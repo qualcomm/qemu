@@ -11,25 +11,31 @@ const char *get_elf_cpu_model(uint32_t eflags)
     int err;
 
     switch (eflags) {
-    case 0x04:   /* v5  */
-    case 0x05:   /* v55 */
-    case 0x60:   /* v60 */
-    case 0x61:   /* v61 */
-    case 0x62:   /* v62 */
-    case 0x65:   /* v65 */
-    case 0x66:   /* v66 */
+    case 0x04:
+        return "v5";
+    case 0x05:
+        return "v55";
+    case 0x60:
+        return "v60";
+    case 0x61:
+        return "v61";
+    case 0x62:
+        return "v62";
+    case 0x65:
+        return "v65";
+    case 0x66:
         return "v66";
-    case 0x67:   /* v67 */
-    case 0x8067: /* v67t */
+    case 0x67:
+    case 0x8067:        /* v67t */
         return "v67";
-    case 0x68:   /* v68 */
+    case 0x68:
         return "v68";
-    case 0x69:   /* v69 */
+    case 0x69:
         return "v69";
-    case 0x71:   /* v71 */
-    case 0x8071: /* v71t */
+    case 0x71:
+    case 0x8071:        /* v71t */
         return "v71";
-    case 0x73:   /* v73 */
+    case 0x73:
         return "v73";
     case 0x75:   /* v75 */
         return "v75";

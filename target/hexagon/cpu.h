@@ -12,9 +12,6 @@ typedef struct CPUArchState CPUHexagonState;
 typedef struct ProcessorState processor_t;
 
 #include "fpu/softfloat-types.h"
-
-uint8_t hexagon_rev_byte(CPUHexagonState *env);
-
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
@@ -432,6 +429,8 @@ typedef struct HexagonCPUClass {
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
+
+    const HexagonCPUDef *hex_def;
 } HexagonCPUClass;
 
 struct ArchCPU {
@@ -446,7 +445,6 @@ struct ArchCPU {
     gchar *usefs;
     gchar *coproc_path;
     gchar *cmdline;
-    bool vp_mode;
     L2VicInterface *l2vic;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
@@ -455,7 +453,6 @@ struct ArchCPU {
 #endif
     bool hvx_bfloat;
     bool coproc2_bfloat;
-    uint32_t rev_reg;
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool paranoid_commit_state;
@@ -494,12 +491,6 @@ FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
 FIELD(TB_FLAGS, SS_PENDING, 9, 1)
 
 #include "cpu_memop_pc.h"
-
-static inline bool rev_implements_64b_hvx(CPUHexagonState *env)
-{
-    HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
-    return (hex_cpu->rev_reg & 255) <= (v66_rev & 255);
-}
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
@@ -556,6 +547,18 @@ void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
 #endif
 uint32_t hexagon_creg_read_debug(CPUHexagonState *env, uint32_t reg);
 typedef HexagonCPU ArchCPU;
+
+HexagonVersion hexagon_version(HexagonCPU *hex_cpu);
+static inline HexagonVersion hexagon_version_env(CPUHexagonState *env)
+{
+    HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
+    return hexagon_version(hex_cpu);
+}
+
+static inline bool rev_implements_64b_hvx(CPUHexagonState *env)
+{
+    return hexagon_version_env(env) <= HEX_VER_V66;
+}
 
 void hexagon_translate_init(void);
 void hexagon_cpu_soft_reset(CPUHexagonState *env);
