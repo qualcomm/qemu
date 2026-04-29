@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Qualcomm Innovation Center, Inc. All Rights Reserved.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Windows Builds
+
+on: [ pull_request, push, workflow_dispatch, workflow_call ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { sys: ucrt64,     runs-on: "windows-latest",  preset: "debug" }
+          - { sys: ucrt64,     runs-on: "windows-latest",  preset: "release" }
+          - { sys: clangarm64, runs-on: "windows-11-arm",  preset: "debug" }
+          - { sys: clangarm64, runs-on: "windows-11-arm",  preset: "release" }
+
+    name: ${{ matrix.sys }} ${{ matrix.preset }}
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          update: true
+
+      - name: Install dependencies
+        run: quic/install-deps.sh
+
+      - name: Configure
+        run: cmake --preset=${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset=${{ matrix.preset }} --parallel $(nproc)

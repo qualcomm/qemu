@@ -1,0 +1,68 @@
+# Copyright (c) 2026 Qualcomm Innovation Center, Inc. All Rights Reserved.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Ubuntu Builds
+
+on: [ pull_request, push, workflow_dispatch, workflow_call ]
+
+jobs:
+  build-libqemu:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04, ubuntu-24.04 ]
+        preset: [ debug, release, san ]
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo quic/install-deps.sh
+
+      - name: Configure
+        run: cmake --preset "${{ matrix.preset }}"
+
+      - name: Build
+        run: cmake --build --preset "${{ matrix.preset }}" --parallel $(nproc)
+
+  build-qemu-hexagon:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04, ubuntu-24.04 ]
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo quic/install-deps.sh
+
+      - name: Configure
+        run: ./quic/build.sh configure hexagon
+
+      - name: Build
+        run: ./quic/build.sh build
+
+  build-qemu-aarch64:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04, ubuntu-24.04 ]
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo quic/install-deps.sh
+
+      - name: Configure
+        run: ./quic/build.sh configure aarch64
+
+      - name: Build
+        run: ./quic/build.sh build
