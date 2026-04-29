@@ -26,12 +26,13 @@ endif()
 
 set(LIBQEMU_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/libqemu)
 
-include(qemu.cmake)
-
 # --- Target ---
 
 add_library(libqemu INTERFACE)
 add_library(libqemu::libqemu ALIAS libqemu)
+
+include(qemu.cmake)
+
 add_dependencies(libqemu qemu)
 target_include_directories(libqemu INTERFACE
     $<BUILD_INTERFACE:${QEMU_INSTALL_DIR}/${LIBQEMU_INCLUDE_DIR}>
@@ -43,6 +44,8 @@ else()
 endif()
 target_compile_definitions(libqemu INTERFACE
     LIBQEMU_LIBRARY_DIR="$<BUILD_INTERFACE:${QEMU_INSTALL_DIR}/lib>$<INSTALL_INTERFACE:${LIBQEMU_LIBRARY_DIR}>")
+
+install(TARGETS libqemu EXPORT libqemu-targets)
 
 # --- Package config ---
 
@@ -64,8 +67,6 @@ export(EXPORT libqemu-targets NAMESPACE libqemu::
     FILE ${CMAKE_CURRENT_BINARY_DIR}/libqemu-targets.cmake)
 
 # --- Install ---
-
-install(TARGETS libqemu EXPORT libqemu-targets)
 
 install(EXPORT libqemu-targets
     NAMESPACE libqemu::
