@@ -1,0 +1,28 @@
+# Copyright (c) 2026 Qualcomm Innovation Center, Inc. All Rights Reserved.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: macOS Builds
+
+on: [ pull_request, push, workflow_dispatch, workflow_call ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macOS-15, macOS-26 ]
+        preset: [ debug, release ]
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: quic/install-deps.sh
+
+      - name: Configure
+        run: cmake --preset "${{ matrix.preset }}"
+
+      - name: Build
+        run: cmake --build --preset "${{ matrix.preset }}" --parallel $(sysctl -n hw.logicalcpu)
