@@ -19,11 +19,6 @@ foreach(target ${LIBQEMU_TARGETS})
 endforeach()
 set(LIBQEMU_TARGETS ${temp})
 
-if(LIST_LIBQEMU_TARGETS)
-    message(${LIBQEMU_TARGETS})
-    return()
-endif()
-
 set(LIBQEMU_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/libqemu)
 
 # --- Target ---
