@@ -28,20 +28,6 @@
 #include "exec/tlb-flags.h"
 #include "trace.h"
 
-#ifndef CONFIG_USER_ONLY
-static inline MemOp mo_endian_env(CPURISCVState *env)
-{
-    /*
-     * A couple of bits in MSTATUS set the endianness:
-     *  - MSTATUS_UBE (User-mode),
-     *  - MSTATUS_SBE (Supervisor-mode),
-     *  - MSTATUS_MBE (Machine-mode)
-     * but we don't implement that yet.
-     */
-    return MO_TE;
-}
-#endif
-
 /* Exceptions processing helpers */
 G_NORETURN void riscv_raise_exception(CPURISCVState *env,
                                       RISCVException exception,
@@ -279,6 +265,20 @@ void helper_cbo_inval(CPURISCVState *env, target_ulong address)
     check_zicbom_access(env, address, ra);
 
     /* We don't emulate the cache-hierarchy, so we're done. */
+}
+
+void helper_sc_probe_write(CPURISCVState *env, target_ulong addr,
+                           target_ulong size)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = riscv_env_mmu_index(env, false);
+
+    if (addr & (size - 1)) {
+        env->badaddr = addr;
+        riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ADDR_MIS, ra);
+    }
+
+    probe_write(env, addr, size, mmu_idx, ra);
 }
 
 #ifndef CONFIG_USER_ONLY
