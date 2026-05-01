@@ -7,8 +7,6 @@
 import os
 from os.path import join
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
-from unittest import skip
 
 class MiniVMTest(QemuSystemTest):
     '''
@@ -45,7 +43,6 @@ class MiniVMTest(QemuSystemTest):
         '''
         self.common_hexagon_minivm('test_interrupts')
 
-    @skip('failing test')
     def test_minivm_processors(self):
         '''
         Tests that minivm guests can spawn and halt virtual processors, wait
