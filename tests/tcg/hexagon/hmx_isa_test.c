@@ -1841,12 +1841,15 @@ static void test_nonlegacy_convert(uint8_t *base)
     /*
      * Q2: Relu via bias shape=2 -- make acc negative, relu clamps to 0.
      * Shape=2 in the FXP bias applies max(0, x) after shift.
+     * Use negative input_bias to force accumulator negative regardless
+     * of weight signedness (v71+ treats byte weights as unsigned).
      */
     memset(wei, 0, 128);
     for (i = 0; i < 32; i++) {
-        wei32[i] = 0x000000B0;  /* signed -80 */
+        wei32[i] = 0x00000050;  /* positive weight */
     }
-    setup_fxp_bias(base + VTCM_BIAS_OFF, fxp_shape_bias(2));
+    setup_fxp_bias(base + VTCM_BIAS_OFF,
+                   pack_fxp_bias(-100000, 20, 2, 0x080, 0xFF0));
     Q6_mxclracc();
     Q6_bias_mxmem2_A(base + VTCM_BIAS_OFF);
     hmx_matmul_byte((uintptr_t)act, 0, (uintptr_t)wei, 0);

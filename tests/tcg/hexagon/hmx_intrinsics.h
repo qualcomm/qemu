@@ -127,6 +127,10 @@
 #define Q6_mxswapacc() \
     _HMX_WORD(0xA6E0C014)
 
+/* M8_mxaccshl: mxaccshl */
+#define Q6_mxaccshl() \
+    _HMX_WORD(0xA6E0C017)
+
 /* ================================================================== */
 /* Activation loads (Rs=address, Rt=range)                            */
 /* ================================================================== */
