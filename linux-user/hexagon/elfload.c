@@ -38,8 +38,15 @@ const char *get_elf_cpu_model(uint32_t eflags)
     case 0x8071:        /* v71t */
         return "v71";
     case 0x73:
-    case 0x79:
         return "v73";
+    case 0x75:
+        return "v75";
+    case 0x77:
+        return "v77";
+    case 0x79:
+        return "v79";
+    case 0x81:
+        return "v81";
     }
 
     err = snprintf(buf, sizeof(buf), "unknown (0x%x)", eflags);
