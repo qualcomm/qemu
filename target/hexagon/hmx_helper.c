@@ -20,6 +20,11 @@
 #error "HMX helpers require 128-bit integer support (CONFIG_INT128)"
 #endif
 
+static inline HexagonVersion hmx_cpu_version(CPUHexagonState *env)
+{
+    return HEXAGON_CPU_GET_CLASS(env_archcpu(env))->hex_def->hex_version;
+}
+
 /* Forward declaration (hmx_fp_convert called before its definition) */
 static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx, int acc_set,
                             int is_f8, int relu, int bias_sel, int maxnorm,
@@ -454,6 +459,22 @@ static inline void hmx_mac32(int32_t *acc_row, const int8_t *weights,
     }
 }
 
+/*
+ * Unsigned weight MAC for V71+ byte weights.
+ *
+ * On v71+, byte weights are treated as unsigned (0..255) rather than
+ * signed (-128..127).  The weight bit pattern is the same but the
+ * multiply interprets it as uint8_t.
+ */
+static inline void hmx_mac32_unsigned(int32_t *acc_row,
+                                       const int8_t *weights,
+                                       int32_t act_x_negate)
+{
+    for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+        acc_row[o] += act_x_negate * (int32_t)(uint8_t)weights[o];
+    }
+}
+
 
 /*
  * Range-limited MAC for group convolution.
@@ -465,6 +486,17 @@ static inline void hmx_mac_group(int32_t *acc_row, const int8_t *weights,
 {
     for (int o = grp_start; o < grp_end; o++) {
         acc_row[o] += act_x_negate * (int32_t)weights[o];
+    }
+}
+
+/* Unsigned weight variant of group MAC for V71+ */
+static inline void hmx_mac_group_unsigned(int32_t *acc_row,
+                                           const int8_t *weights,
+                                           int32_t act_x_negate,
+                                           int grp_start, int grp_end)
+{
+    for (int o = grp_start; o < grp_end; o++) {
+        acc_row[o] += act_x_negate * (int32_t)(uint8_t)weights[o];
     }
 }
 
@@ -579,7 +611,8 @@ static void hmx_fxp_spatial_mac(
     int32_t tile_x_mask, int32_t tile_y_mask,
     int ch_addr, int drop, int deep,
     int current_acc, int format_mask, int negate,
-    int grp_count, int out_start, int out_end)
+    int grp_count, int out_start, int out_end,
+    int wei_unsigned)
 {
     for (int iy = 0; iy < y_count; iy++) {
         int intra_y = intra_y_array[iy];
@@ -620,12 +653,23 @@ static void hmx_fxp_spatial_mac(
             int32_t act_x_neg = (int32_t)act_val * negate;
 
             if (grp_count > 1) {
-                hmx_mac_group(acc->data[spatial],
-                              weights, act_x_neg,
-                              out_start, out_end);
+                if (wei_unsigned) {
+                    hmx_mac_group_unsigned(acc->data[spatial],
+                                           weights, act_x_neg,
+                                           out_start, out_end);
+                } else {
+                    hmx_mac_group(acc->data[spatial],
+                                  weights, act_x_neg,
+                                  out_start, out_end);
+                }
             } else {
-                hmx_mac32(acc->data[spatial],
-                          weights, act_x_neg);
+                if (wei_unsigned) {
+                    hmx_mac32_unsigned(acc->data[spatial],
+                                       weights, act_x_neg);
+                } else {
+                    hmx_mac32(acc->data[spatial],
+                              weights, act_x_neg);
+                }
             }
         }
     }
@@ -643,6 +687,17 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int wei_mod = HMX_UNPACK_MOD(params);
     int current_acc = hmx->current_acc_set;
     uintptr_t ra = GETPC();
+
+    /*
+     * Weight signedness: byte weights (HMX_WEI_B) are always signed int8_t.
+     * Byte unpacking
+     * returns int8_t unchanged, and the fixed-point MAC uses
+     * signed int16_t/int32_t weight semantics at all versions.  There is no
+     * v71+ unsigned override in the reference; the previous QEMU code that
+     * set wei_unsigned=1 for v71+ HMX_WEI_B was incorrect and caused
+     * coproc_conv to produce all-0xff output for filters with bytes > 0x7f.
+     */
+    int wei_unsigned = 0;
 
     /* Weight address: Rs[31:7] is 128B-aligned */
     uint32_t wei_base = rs & 0xFFFFFF80;
@@ -858,7 +913,8 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                                 current_acc,
                                 format_mask, negate,
                                 grp_count,
-                                out_start, out_end);
+                                out_start, out_end,
+                                wei_unsigned);
 
                             wgt_stream_idx++;
                         }
@@ -1362,6 +1418,11 @@ void HELPER(hmx_bias_load)(CPUHexagonState *env, uint32_t rs,
     uint32_t addr = rs & 0xFFFFFF80;
     uint32_t set = rs & 0x3;
 
+    /* Pre-v75: only one bias group supported, force set=0 */
+    if (hmx_cpu_version(env) < HEX_VER_V75) {
+        set = 0;
+    }
+
     if (is_mxmem2) {
         /*
          * mxmem2: load 256 bytes as two 128B HVX vectors
@@ -1391,6 +1452,11 @@ void HELPER(hmx_bias_store)(CPUHexagonState *env, uint32_t rs,
     uintptr_t ra = GETPC();
     uint32_t addr = rs & 0xFFFFFF80;
     uint32_t set = rs & 0x3;
+
+    /* Pre-v75: only one bias group supported, force set=0 */
+    if (hmx_cpu_version(env) < HEX_VER_V75) {
+        set = 0;
+    }
 
     if (is_mxmem2) {
         /*
@@ -2739,6 +2805,11 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
     int fb_limit = (rs >> 4) & 0x1;
     int maxnorm = (rs >> 6) & 1;
     int fp8_odd_sel = (rs >> 11) & 1;  /* FP8 convert: write odd half */
+
+    /* Pre-v75: only one bias group supported, force bias_sel=0 */
+    if (hmx_cpu_version(env) < HEX_VER_V75) {
+        bias_sel = 0;
+    }
 
     /*
      * acc_clear: Rs[0]=0 means clear accumulator after convert.

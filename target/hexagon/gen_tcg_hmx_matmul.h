@@ -138,10 +138,11 @@ static inline void gen_hmx_load_weight_vec(DisasContext *ctx,
  */
 
 /*
- * Byte weights (cpv=4): shift right by sub_idx*8, mask 0xFF,
- * sign-extend from 8 bits.
+ * Byte weights (cpv=4): shift right by sub_idx*8, mask 0xFF.
+ * If wei_unsigned=0 (pre-v71): sign-extend from 8 bits.
+ * If wei_unsigned=1 (v71+): keep as unsigned [0,255].
  */
-static inline void gen_hmx_extract_byte(TCGv_i32 sub_idx)
+static inline void gen_hmx_extract_byte(TCGv_i32 sub_idx, int wei_unsigned)
 {
     TCGv_i32 shift = tcg_temp_new_i32();
     tcg_gen_shli_i32(shift, sub_idx, 3);   /* shift = sub_idx * 8 */
@@ -150,11 +151,13 @@ static inline void gen_hmx_extract_byte(TCGv_i32 sub_idx)
                       shift, HMX_GVEC_LEN, HMX_GVEC_LEN);
     tcg_gen_gvec_andi(MO_32, HMX_WEI_EXP_OFS, HMX_WEI_EXP_OFS,
                       0xFF, HMX_GVEC_LEN, HMX_GVEC_LEN);
-    /* Sign-extend from 8 bits */
-    tcg_gen_gvec_shli(MO_32, HMX_WEI_EXP_OFS, HMX_WEI_EXP_OFS,
-                      24, HMX_GVEC_LEN, HMX_GVEC_LEN);
-    tcg_gen_gvec_sari(MO_32, HMX_WEI_EXP_OFS, HMX_WEI_EXP_OFS,
-                      24, HMX_GVEC_LEN, HMX_GVEC_LEN);
+    if (!wei_unsigned) {
+        /* Sign-extend from 8 bits (pre-v71 behavior) */
+        tcg_gen_gvec_shli(MO_32, HMX_WEI_EXP_OFS, HMX_WEI_EXP_OFS,
+                          24, HMX_GVEC_LEN, HMX_GVEC_LEN);
+        tcg_gen_gvec_sari(MO_32, HMX_WEI_EXP_OFS, HMX_WEI_EXP_OFS,
+                          24, HMX_GVEC_LEN, HMX_GVEC_LEN);
+    }
 }
 
 /*
@@ -336,12 +339,14 @@ static inline void gen_hmx_extract_signed_bit(TCGv_i32 sub_idx)
 
 /*
  * Dispatch weight extraction based on compile-time wei_type.
+ * wei_unsigned: on v71+, byte weights are treated as unsigned.
  */
-static inline void gen_hmx_extract_weights(int wei_type, TCGv_i32 sub_idx)
+static inline void gen_hmx_extract_weights(int wei_type, TCGv_i32 sub_idx,
+                                           int wei_unsigned)
 {
     switch (wei_type) {
     case HMX_WEI_B:
-        gen_hmx_extract_byte(sub_idx);
+        gen_hmx_extract_byte(sub_idx, wei_unsigned);
         break;
     case HMX_WEI_SM:
         gen_hmx_extract_sm(sub_idx);
@@ -501,6 +506,17 @@ static inline void gen_hmx_matmul_fxp(DisasContext *ctx,
 
     static const int cpv_table[8] = { 4, 4, 8, 16, 16, 32, 32, 8 };
     int cpv = cpv_table[wei_type];
+
+    /*
+     * Weight signedness: byte weights (HMX_WEI_B) are always signed int8_t.
+     * Byte unpacking
+     * returns int8_t unchanged, and the fixed-point MAC uses
+     * signed int16_t/int32_t weight semantics at all versions.  There is no
+     * v71+ unsigned override in the reference; the previous QEMU code that
+     * set wei_unsigned=1 for v71+ HMX_WEI_B was incorrect and caused
+     * coproc_conv to produce all-0xff output for filters with bytes > 0x7f.
+     */
+    int wei_unsigned = 0;
 
     /* Compile-time flags from wei_mod */
     int x_dilate_const = (wei_mod == HMX_MOD_DI);
@@ -718,7 +734,7 @@ static inline void gen_hmx_matmul_fxp(DisasContext *ctx,
         /* sub_idx = wgt_stream_idx % cpv (TCGv == TCGv_i32 on hexagon) */
         tcg_gen_andi_tl(sub_idx, wgt_stream_idx, cpv - 1);
     }
-    gen_hmx_extract_weights(wei_type, sub_idx);
+    gen_hmx_extract_weights(wei_type, sub_idx, wei_unsigned);
 
     /* ========== SPATIAL Y LOOP ========== */
     tcg_gen_movi_tl(intra_y, 0);
