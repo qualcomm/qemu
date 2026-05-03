@@ -43,7 +43,12 @@
 #include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
 #include "hw/hexagon/cmd-db.h"
+#include "hw/misc/tcsr.h"
+#include "hw/misc/dspss-pub.h"
+#include "hw/misc/wdog.h"
+#include "hw/misc/qcom-ipcc.h"
 #include "hw/misc/unimp.h"
+#include "qobject/qlist.h"
 
 static hwaddr isdb_secure_flag;
 static hwaddr isdb_trusted_flag;
@@ -424,12 +429,60 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
 
+    /* Create and map the TCSR device */
+    DeviceState *tcsr = qdev_new(TYPE_TCSR);
+    QList *wonce_init_list = qlist_new();
+    qlist_append_int(wonce_init_list, 0x90aff320);
+    qdev_prop_set_array(tcsr, "tz-wonce-init", wonce_init_list);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tcsr), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
+    uint32_t smem_addr = 0x90AFF320;
+    cpu_physical_memory_write(0x01fc0000 + 0x14000, &smem_addr,
+                              sizeof(uint32_t));
+
+    /* Create and map the DSPSS-PUB device at CSR base */
+    DeviceState *dspss_pub = qdev_new(TYPE_DSPSS_PUB);
+    object_property_add_child(OBJECT(machine), "dspss-pub",
+                              OBJECT(dspss_pub));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dspss_pub), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0, SA8775P_cdsp0.csr_base);
+
+    /* Create and map the WDOG device at CSR base + 0x84000 */
+    DeviceState *wdog = qdev_new(TYPE_WDOG);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0,
+                    SA8775P_cdsp0.csr_base + 0x84000);
+
     hwaddr cmd_db_header_addr = 0x0C3F0000;
     hwaddr cmd_db_bin_addr = 0x80860000;
     hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
 
     cpu_physical_memory_write(0x90900000, sa8775p_smem_data,
                               sizeof(sa8775p_smem_data));
+
+    create_unimplemented_device("cxstmtrace", 0x16000000, 0x1000);
+    create_unimplemented_device("cxstmcfg", 0x10002000, 0x1000);
+    create_unimplemented_device("cxetb", 0x11305000, 0x1000);
+    create_unimplemented_device("tpdm-0", 0x11181000, 0x1000);
+    create_unimplemented_device("tpdm-1", 0x11182000, 0x1000);
+    create_unimplemented_device("tpdm-2", 0x11185000, 0x1000);
+    create_unimplemented_device("tpdm-3", 0x11186000, 0x1000);
+    create_unimplemented_device("funnel-0", 0x10041000, 0x1000);
+    create_unimplemented_device("funnel-1", 0x11304000, 0x1000);
+    create_unimplemented_device("tpda", 0x11188000, 0x1000);
+
+    /* IPCC (Inter-Processor Communication Controller) */
+    DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
+    object_property_add_child(OBJECT(machine), "ipcc", OBJECT(ipcc));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipcc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ipcc), 0, 0x00400000);
+
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        sysbus_connect_irq(SYS_BUS_DEVICE(ipcc), 6,
+                           qdev_get_gpio_in(l2vic, 30));
+    }
 
     create_hwkm_prng();
     create_cdsp_pll();

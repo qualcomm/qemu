@@ -298,6 +298,10 @@ qtests_hexagon = [
   'l2vic-test',
   'qct-qtimer-test',
   'cdsp-pll-test',
+  'tcsr-test',
+  'dspss-pub-test',
+  'wdog-test',
+  'qcom-ipcc-test',
   'turing-rsc-test',
 ]
 
