@@ -67,6 +67,53 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
         # Verify full boot to shell prompt
         self.wait_for_console_pattern("bash-5.2#")
 
+    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    def test_linux_bios_boot(self):
+        """
+        Test -bios boot path with loader device for kernel.
+
+        Uses -bios to load the bootloader ELF (loadlinux) as firmware,
+        and -device loader for the raw binary kernel.  This exercises:
+        - ELF firmware loading via load_bios (with ELF entry detection)
+        - Dynamic FDT placement (firmware-only path: kernel_load_addr + 256MB)
+        - Boot stub passing FDT address to firmware
+        """
+        self.set_machine('virt')
+        self.require_netdev('user')
+
+        kernel_path = self.archive_extract(self.ASSET_TARBALL,
+            member=f'qemu-linux-tests-{self.GIT_REF}/vmlinux.bin')
+        booter_path = self.archive_extract(self.ASSET_TARBALL,
+            member=f'qemu-linux-tests-{self.GIT_REF}/loadlinux')
+        disk_path = self.archive_extract(self.ASSET_TARBALL,
+            member=f'qemu-linux-tests-{self.GIT_REF}/disk.qcow2')
+        self.vm.set_console()
+
+        for i in range(1, 7):
+            self.vm.add_args(
+                '-netdev', f'type=user,id=net{i}',
+                '-device', f'virtio-net-device,netdev=net{i}',
+            )
+        self.vm.add_args(
+            '-bios', booter_path,
+            '-device',
+                f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
+            '-m', '4G',
+            '-accel', 'tcg,thread=multi',
+            '-drive', f'if=none,file={disk_path},id=hd0',
+            '-device', 'virtio-blk-device,drive=hd0',
+            '-netdev', 'type=user,id=net0',
+            '-device', 'virtio-net-device,netdev=net0',
+        )
+        self.vm.launch()
+
+        self.wait_for_console_pattern("Brought up 4 CPUs")
+        self.wait_for_console_pattern(
+            "clocksource: Switched to clocksource HVM timer")
+        self.wait_for_console_pattern("EXT2-fs (vda)")
+        self.wait_for_console_pattern("Starting network: OK")
+        self.wait_for_console_pattern("bash-5.2#")
+
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
