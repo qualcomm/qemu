@@ -319,7 +319,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_set_uint(OBJECT(qtimer), "cnttid",
                              0x111, &error_fatal);
     object_property_set_bool(OBJECT(qtimer), "start-ticking",
-                             false, &error_fatal);
+                             true, &error_fatal);
+    object_property_set_uint(OBJECT(qtimer), "periodic-ticks",
+                             192000, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
     /* Link qtimer to globalreg for TIMERLO/TIMERHI reads */
@@ -492,10 +494,20 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     create_cdsp_ccswi();
     create_turing_lmh();
     create_cdsp_turing_rsc();
-    /* The OS running on the DSP expects the timer to be running */
-    uint32_t enable = 0x1;
-    cpu_physical_memory_write(SA8775P_cdsp0.qtmr_region + QCT_QTIMER_CNTP_CTL,
-                              &enable, sizeof(uint32_t));
+    /*
+     * The OS running on the DSP expects the timer to be running and
+     * pre-configured by the hypervisor.  Program an initial TVAL so the
+     * first timer interrupt fires shortly after boot.  The periodic-ticks
+     * property on the qtimer device handles auto-reload.
+     * 19200 ticks = 1ms at 19.2 MHz.
+     */
+    uint32_t val;
+    val = QCT_QTIMER_CNTP_CTL_ENABLE | QCT_QTIMER_CNTP_CTL_INTEN;
+    cpu_physical_memory_write(SA8775P_cdsp0.qtmr_region +
+                              QCT_QTIMER_CNTP_CTL, &val, sizeof(val));
+    val = 19200;
+    cpu_physical_memory_write(SA8775P_cdsp0.qtmr_region +
+                              QCT_QTIMER_CNTP_TVAL, &val, sizeof(val));
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
     uint32_t default_value = 0x20600;
