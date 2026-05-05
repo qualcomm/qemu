@@ -1,0 +1,19 @@
+# Xqccmt: Qualcomm Custom Compressed Jump Table with Alternate Link Register
+#
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Same encoding space as Zcmt cm.jalt / cm.jt (mutually exclusive with Zcmt).
+# contiguous 8-bit index at bits[12:5].
+# index 0-31  (bits[12:10] == 0b000): qc.cm.jt  - plain table jump, no link
+# index 32-255 (bits[12:10] != 0b000): qc.cm.jalt - table jump, link ra or t0 per entry bit 0
+
+%index      2:8          # bits [9:2]
+
+&qc_cmjt    index
+
+@qc_cm_jt   ... ...  ........   ..   &qc_cmjt  %index
+
+# Single entry covers both qc.cm.jt and qc.cm.jalt; translation splits at index >= 32.
+qc_cm_jalt  101 000  ........  10  @qc_cm_jt
