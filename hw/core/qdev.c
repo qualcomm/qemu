@@ -412,33 +412,23 @@ char *qdev_get_dev_path(DeviceState *dev)
     return NULL;
 }
 
-const char *qdev_get_printable_name(DeviceState *vdev)
+char *qdev_get_human_name(DeviceState *dev)
 {
-    /*
-     * Return device ID if explicity set
-     * (e.g. -device virtio-blk-pci,id=foo)
-     * This allows users to correlate errors with their custom device
-     * names.
-     */
-    if (vdev->id) {
-        return g_strdup(vdev->id);
+    if (dev->id) {
+        return g_strdup(dev->id);
     }
     /*
-     * Fall back to the canonical QOM device path (eg. ID for PCI
-     * devices).
-     * This ensures the device is still uniquely and meaningfully
-     * identified.
+     * Fall back to a bus-specific device path, if the bus
+     * provides one (e.g. "PCI device 0000:00:04.0").
      */
-    const char *path = qdev_get_dev_path(vdev);
+    g_autofree char *path = qdev_get_dev_path(dev);
     if (path) {
-        return path;
+        const char *bus_type = object_get_typename(OBJECT(dev->parent_bus));
+        char *name = g_strdup_printf("%s device %s", bus_type, path);
+        return name;
     }
 
-    /*
-     * Final fallback: if all else fails, return a placeholder string.
-     * This ensures the error message always contains a valid string.
-     */
-    return g_strdup("<unknown device>");
+    return object_get_canonical_path(OBJECT(dev));
 }
 
 void qdev_add_unplug_blocker(DeviceState *dev, Error *reason)
@@ -866,14 +856,6 @@ Object *machine_get_container(const char *name)
     assert(object_dynamic_cast(container, TYPE_CONTAINER));
 
     return container;
-}
-
-char *qdev_get_human_name(DeviceState *dev)
-{
-    g_assert(dev != NULL);
-
-    return dev->id ?
-           g_strdup(dev->id) : object_get_canonical_path(OBJECT(dev));
 }
 
 static MachineInitPhase machine_phase;

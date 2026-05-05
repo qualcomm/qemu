@@ -25,6 +25,9 @@ class TestLinters:
             ]
         )
 
+    def test_isort_minikconf(self):
+        check_call([sys.executable, "-m", "isort", "-c", "../scripts/minikconf.py"])
+
     def test_isort_pkg(self):
         check_call([sys.executable, "-m", "isort", "-c", "qemu/"])
 
@@ -61,6 +64,9 @@ class TestLinters:
                 "../docs/sphinx/qapidoc.py",
             ]
         )
+
+    def test_mypy_minikconf(self):
+        check_call([sys.executable, "-m", "mypy", "../scripts/minikconf.py"])
 
     def test_mypy_pkg(self):
         check_call([sys.executable, "-m", "mypy", "-p", "qemu"])

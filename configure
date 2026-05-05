@@ -1959,6 +1959,9 @@ if test "$skip_meson" = no; then
     echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
   fi
   echo "strip = [$(meson_quote $strip)]" >> $cross
+  if has cmake; then
+    echo "cmake = [$(meson_quote cmake)]" >> $cross
+  fi
   echo "widl = [$(meson_quote $widl)]" >> $cross
   echo "windres = [$(meson_quote $windres)]" >> $cross
   echo "windmc = [$(meson_quote $windmc)]" >> $cross
