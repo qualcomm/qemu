@@ -172,9 +172,9 @@ static RISCVException ctr32(CPURISCVState *env, int csrno)
     return ctr(env, csrno);
 }
 
-static RISCVException zcmt(CPURISCVState *env, int csrno)
+static RISCVException zcmt_or_xqccmt(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_cfg(env)->ext_zcmt) {
+    if (!riscv_cpu_cfg(env)->ext_zcmt && !riscv_cpu_cfg(env)->ext_xqccmt) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -5839,7 +5839,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SEED] = { "seed", seed, NULL, NULL, rmw_seed },
 
     /* Zcmt Extension */
-    [CSR_JVT] = {"jvt", zcmt, read_jvt, write_jvt},
+    [CSR_JVT] = {"jvt", zcmt_or_xqccmt, read_jvt, write_jvt},
 
     /* zicfiss Extension, shadow stack register */
     [CSR_SSP]  = { "ssp", cfi_ss, read_ssp, write_ssp },
