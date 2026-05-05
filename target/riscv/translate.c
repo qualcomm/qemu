@@ -1343,10 +1343,18 @@ static uint64_t decode_xqci_48_load_bytes(DisasContext *ctx, uint64_t insn,
 
 #endif /* TARGET_RISCV32 */
 
+/*
+ * Xqccmt (qc.cm.jt / qc.cm.jalt) is supported on both RV32 and RV64,
+ * so its decoder and translation routines are compiled unconditionally.
+ */
+#include "decode-xqccmt-16.c.inc"
+#include "xqccmt/xqccmt-trans-decode.c.inc"
+
 /* The specification allows for longer insns, but not supported by qemu. */
 #define MAX_INSN_LEN  8
 
 const RISCVDecoder16 decoder_table_16[] = {
+    { has_xqccmt_p, decode_xqccmt_16},
 #ifdef TARGET_RISCV32
     { has_xqci_p, decode_xqci_16},
     { has_xqccmp_p, decode_xqccmp_16},
