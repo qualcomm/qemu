@@ -3,7 +3,13 @@
 
 name: Ubuntu Builds
 
-on: [ pull_request, push, workflow_dispatch, workflow_call ]
+on:
+  push:
+    branches:
+      - 'libqemu/**'
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build-libqemu:
