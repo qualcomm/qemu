@@ -7,6 +7,64 @@
 #include "target/hexagon/cpu.h"
 
 
+abi_ulong get_elf_hwcap(CPUState *cs)
+{
+    HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cs);
+    abi_ulong hwcaps = 0;
+    uint32_t hex_ver;
+
+    if (!mcc->hex_def) {
+        return 0;
+    }
+
+    hex_ver = mcc->hex_def->hex_version;
+
+    switch (hex_ver) {
+    case 0x66:
+        hwcaps |= HWCAP_HEXAGON_ISA_V66;
+        break;
+    case 0x67:
+        hwcaps |= HWCAP_HEXAGON_ISA_V67;
+        break;
+    case 0x68:
+        hwcaps |= HWCAP_HEXAGON_ISA_V68;
+        break;
+    case 0x69:
+        hwcaps |= HWCAP_HEXAGON_ISA_V69;
+        break;
+    case 0x71:
+        hwcaps |= HWCAP_HEXAGON_ISA_V71;
+        break;
+    case 0x73:
+        hwcaps |= HWCAP_HEXAGON_ISA_V73;
+        break;
+    case 0x75:
+        hwcaps |= HWCAP_HEXAGON_ISA_V75;
+        break;
+    case 0x77:
+        hwcaps |= HWCAP_HEXAGON_ISA_V77;
+        break;
+    case 0x79:
+        hwcaps |= HWCAP_HEXAGON_ISA_V79;
+        break;
+    case 0x81:
+        hwcaps |= HWCAP_HEXAGON_ISA_V81;
+        break;
+    default:
+        hwcaps |= HWCAP_HEXAGON_ISA_V73;
+        break;
+    }
+
+    hwcaps |= HWCAP_HEXAGON_HVX;
+    hwcaps |= HWCAP_HEXAGON_HVX_LENGTH_128B;
+
+    if (hex_ver >= 0x68) {
+        hwcaps |= HWCAP_HEXAGON_HVX_IEEE_FP;
+    }
+
+    return hwcaps;
+}
+
 const char *get_elf_cpu_model(uint32_t eflags)
 {
     static char buf[32];
@@ -49,54 +107,8 @@ const char *get_elf_cpu_model(uint32_t eflags)
         return "v81";
     }
 
-    err = snprintf(buf, sizeof(buf), "unknown (0x%x)", eflags);
+    err = snprintf(buf, sizeof(buf), "unknown (0x%" PRIx32 ")", eflags);
     return err >= 0 && err < sizeof(buf) ? buf : "unknown";
-}
-
-abi_ulong get_elf_hwcap(CPUState *cs)
-{
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    abi_ulong hwcaps = 0;
-    uint32_t isa_version = cpu->rev_reg & 0xFF;
-
-    switch (isa_version) {
-    case 0x66:
-        hwcaps |= HWCAP_HEXAGON_ISA_V66;
-        break;
-    case 0x67:
-        hwcaps |= HWCAP_HEXAGON_ISA_V67;
-        break;
-    case 0x68:
-        hwcaps |= HWCAP_HEXAGON_ISA_V68;
-        break;
-    case 0x69:
-        hwcaps |= HWCAP_HEXAGON_ISA_V69;
-        break;
-    case 0x71:
-        hwcaps |= HWCAP_HEXAGON_ISA_V71;
-        break;
-    case 0x73:
-        hwcaps |= HWCAP_HEXAGON_ISA_V73;
-        break;
-    case 0x79:
-        hwcaps |= HWCAP_HEXAGON_ISA_V79;
-        break;
-    case 0x81:
-        hwcaps |= HWCAP_HEXAGON_ISA_V81;
-        break;
-    default:
-        hwcaps |= HWCAP_HEXAGON_ISA_V73;
-        break;
-    }
-
-    hwcaps |= HWCAP_HEXAGON_HVX;
-    hwcaps |= HWCAP_HEXAGON_HVX_LENGTH_128B;
-
-    if (isa_version >= 0x68) {
-        hwcaps |= HWCAP_HEXAGON_HVX_IEEE_FP;
-    }
-
-    return hwcaps;
 }
 
 const char *elf_hwcap_str(uint32_t bit)
@@ -105,8 +117,8 @@ const char *elf_hwcap_str(uint32_t bit)
         [0]  = "v2",   [1]  = "v3",   [2]  = "v4",   [3]  = "v5",
         [4]  = "v55",  [5]  = "v60",  [6]  = "v62",  [7]  = "v65",
         [8]  = "v66",  [9]  = "v67",  [10] = "v68",  [11] = "v69",
-        [12] = "v71",  [13] = "v73",  [14] = "v79",  [15] = "v81",
-        [16] = NULL,   [17] = NULL,   [18] = NULL,   [19] = NULL,
+        [12] = "v71",  [13] = "v73",  [14] = "v75",  [15] = "v77",
+        [16] = "v79",  [17] = "v81",  [18] = NULL,   [19] = NULL,
         [20] = NULL,   [21] = NULL,   [22] = NULL,   [23] = "hvx",
         [24] = "cabac", [25] = "hvx_length_128b", [26] = "hvx_ieee_fp",
         [27] = "audio", [28] = NULL,   [29] = NULL,   [30] = NULL,
