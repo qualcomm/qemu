@@ -309,6 +309,8 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
      */
     gen_update_pc(ctx, 0);
     gen_helper_cm_jalt(addr, tcg_env, tcg_constant_i32(a->index));
+    /* The helper returns the raw JVT entry; clear bit 0 to form the target. */
+    tcg_gen_andi_tl(addr, addr, ~(target_ulong)1);
 
     /* c.jt vs c.jalt depends on the index. */
     if (a->index >= 32) {

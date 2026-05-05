@@ -880,11 +880,18 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         }
     }
 
-    /* Verify conflicts and requirements for Xqci/Xqccmp extensions */
+    /* Verify conflicts and requirements for Xqci/Xqccmp/Xqccmt extensions */
 
     if (cpu->cfg.ext_xqccmp) {
         if ((riscv_has_ext(env, RVC) && riscv_has_ext(env, RVD)) || cpu->cfg.ext_zcd || cpu->cfg.ext_zcmp) {
             error_setg(errp, "Any of the extensions: xqccmp conflicts with C,D,Zcd,Zcmp");
+            return;
+        }
+    }
+
+    if (cpu->cfg.ext_xqccmt) {
+        if (cpu->cfg.ext_zcmt) {
+            error_setg(errp, "xqccmt conflicts with Zcmt");
             return;
         }
     }
@@ -896,9 +903,16 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         }
     }
 
-    if (cpu->cfg.ext_xqciac || cpu->cfg.ext_xqcilia || cpu->cfg.ext_xqcibi || cpu->cfg.ext_xqcisim || cpu->cfg.ext_xqccmp || cpu->cfg.ext_xqcibm || cpu->cfg.ext_xqciint || cpu->cfg.ext_xqcicm || cpu->cfg.ext_xqcilb || cpu->cfg.ext_xqcili || cpu->cfg.ext_xqcisync) {
+    if (cpu->cfg.ext_xqciac || cpu->cfg.ext_xqcilia || cpu->cfg.ext_xqcibi || cpu->cfg.ext_xqcisim || cpu->cfg.ext_xqccmp || cpu->cfg.ext_xqccmt || cpu->cfg.ext_xqcibm || cpu->cfg.ext_xqciint || cpu->cfg.ext_xqcicm || cpu->cfg.ext_xqcilb || cpu->cfg.ext_xqcili || cpu->cfg.ext_xqcisync) {
         if (!cpu->cfg.ext_zca) {
-            error_setg(errp, "Any of the extensions: xqciac,xqcilia,xqcibi,xqcisim,xqccmp,xqcibm,xqciint,xqcicm,xqcilb,xqcili,xqcisync requires Zca");
+            error_setg(errp, "Any of the extensions: xqciac,xqcilia,xqcibi,xqcisim,xqccmp,xqccmt,xqcibm,xqciint,xqcicm,xqcilb,xqcili,xqcisync requires Zca");
+            return;
+        }
+    }
+
+    if (cpu->cfg.ext_xqccmt) {
+        if (!cpu->cfg.ext_zicsr) {
+            error_setg(errp, "xqccmt requires Zicsr");
             return;
         }
     }
