@@ -21,6 +21,12 @@
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
 
+/*
+ * Load the raw JVT entry for the given index.  Bit 0 is intentionally not
+ * cleared here: it is metadata for cm.jalt / qc.cm.jalt (the Xqccmt variant
+ * uses bit 0 to select the link register, ra vs t0).  Each translator masks
+ * bit 0 before forming the jump target.
+ */
 target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
 {
     unsigned mmu_index = cpu_mmu_index(env_cpu(env), true);
@@ -54,5 +60,5 @@ target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
         target = cpu_ldq_code_mmu(env, t0, oi, 0);
     }
 
-    return target & ~0x1;
+    return target;
 }
