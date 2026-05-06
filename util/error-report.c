@@ -62,11 +62,17 @@ error_printf_mon(Monitor *cur_mon, const char *fmt, ...)
     return ret;
 }
 
+/*
+ * Print to the current HMP monitor if we have one, else to stderr.
+ */
 int error_vprintf(const char *fmt, va_list ap)
 {
     return error_vprintf_mon(monitor_cur(), fmt, ap);
 }
 
+/*
+ * Print to the current HMP monitor if we have one, else to stderr.
+ */
 int error_printf(const char *fmt, ...)
 {
     va_list ap;
@@ -174,7 +180,8 @@ void loc_set_file(const char *fname, int lno)
 }
 
 /*
- * Print current location to current monitor if we have one, else to stderr.
+ * Print current location to current HMP monitor if we have one, else
+ * to stderr.
  */
 static void print_loc(Monitor *cur)
 {
@@ -214,7 +221,8 @@ char *real_time_iso8601(void)
 }
 
 /*
- * Print a message to current monitor if we have one, else to stderr.
+ * Print a message to current HMP monitor if we have one, else to
+ * stderr.
  * @report_type is the type of message: error, warning or informational.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
@@ -270,7 +278,8 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 }
 
 /*
- * Print an error message to current monitor if we have one, else to stderr.
+ * Print an error message to current HMP monitor if we have one, else
+ * to stderr.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
@@ -282,7 +291,8 @@ void error_vreport(const char *fmt, va_list ap)
 }
 
 /*
- * Print a warning message to current monitor if we have one, else to stderr.
+ * Print a warning message to current HMP monitor if we have one, else
+ * to stderr.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
@@ -293,8 +303,8 @@ void warn_vreport(const char *fmt, va_list ap)
 }
 
 /*
- * Print an information message to current monitor if we have one, else to
- * stderr.
+ * Print an information message to current HMP monitor if we have one,
+ * else to stderr.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
@@ -305,7 +315,8 @@ void info_vreport(const char *fmt, va_list ap)
 }
 
 /*
- * Print an error message to current monitor if we have one, else to stderr.
+ * Print an error message to current HMP monitor if we have one, else
+ * to stderr.
  * Format arguments like sprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
@@ -321,7 +332,8 @@ void error_report(const char *fmt, ...)
 }
 
 /*
- * Print a warning message to current monitor if we have one, else to stderr.
+ * Print a warning message to current HMP monitor if we have one, else
+ * to stderr.
  * Format arguments like sprintf(). The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
@@ -336,8 +348,8 @@ void warn_report(const char *fmt, ...)
 }
 
 /*
- * Print an information message to current monitor if we have one, else to
- * stderr.
+ * Print an information message to current HMP monitor if we have one,
+ * else to stderr.
  * Format arguments like sprintf(). The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
