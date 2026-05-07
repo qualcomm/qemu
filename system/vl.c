@@ -112,7 +112,7 @@
 #include "trace/control.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
-#include "system/arch_init.h"
+#include "qemu/base-arch-defs.h"
 #include "system/confidential-guest-support.h"
 
 #include "ui/qemu-spice.h"
@@ -2844,7 +2844,6 @@ void qmp_x_exit_preconfig(Error **errp)
 
 void qemu_init(int argc, char **argv)
 {
-    QemuOpts *opts;
     QemuOpts *icount_opts = NULL, *accel_opts = NULL;
     QemuOptsList *olist;
     int optind;
@@ -2930,6 +2929,7 @@ void qemu_init(int argc, char **argv)
             drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
         } else {
             const QEMUOption *popt;
+            QemuOpts *opts;
 
             popt = lookup_opt(argc, argv, &optarg, &optind);
             if (!qemu_arch_available(popt->arch_mask)) {
@@ -2965,9 +2965,8 @@ void qemu_init(int argc, char **argv)
                     break;
                 }
             case QEMU_OPTION_drive:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("drive"),
-                                               optarg, false);
-                if (opts == NULL) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("drive"),
+                                             optarg, false)) {
                     exit(1);
                 }
                 break;
@@ -2992,9 +2991,8 @@ void qemu_init(int argc, char **argv)
                 replay_add_blocker("-snapshot");
                 break;
             case QEMU_OPTION_numa:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("numa"),
-                                               optarg, true);
-                if (!opts) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("numa"),
+                                             optarg, true)) {
                     exit(1);
                 }
                 break;
@@ -3053,9 +3051,8 @@ void qemu_init(int argc, char **argv)
                 break;
 #ifdef CONFIG_LIBISCSI
             case QEMU_OPTION_iscsi:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("iscsi"),
-                                               optarg, false);
-                if (!opts) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("iscsi"),
+                                             optarg, false)) {
                     exit(1);
                 }
                 break;
@@ -3108,8 +3105,8 @@ void qemu_init(int argc, char **argv)
                 exit(0);
                 break;
             case QEMU_OPTION_m:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("memory"), optarg, true);
-                if (opts == NULL) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("memory"),
+                                             optarg, true)) {
                     exit(1);
                 }
                 break;
@@ -3233,17 +3230,15 @@ void qemu_init(int argc, char **argv)
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("mon"), optarg,
-                                               true);
-                if (!opts) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("mon"), optarg,
+                                             true)) {
                     exit(1);
                 }
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_chardev:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
-                                               optarg, true);
-                if (!opts) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                             optarg, true)) {
                     exit(1);
                 }
                 break;
@@ -3253,8 +3248,7 @@ void qemu_init(int argc, char **argv)
                     error_report("fsdev support is disabled");
                     exit(1);
                 }
-                opts = qemu_opts_parse_noisily(olist, optarg, true);
-                if (!opts) {
+                if (!qemu_opts_parse_noisily(olist, optarg, true)) {
                     exit(1);
                 }
                 break;
@@ -3393,9 +3387,8 @@ void qemu_init(int argc, char **argv)
                 smbios_entry_add(opts, &error_fatal);
                 break;
             case QEMU_OPTION_fwcfg:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("fw_cfg"),
-                                               optarg, true);
-                if (opts == NULL) {
+                if (!qemu_opts_parse_noisily(qemu_find_opts("fw_cfg"),
+                                             optarg, true)) {
                     exit(1);
                 }
                 break;

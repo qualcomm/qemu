@@ -3,8 +3,8 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
-#include "exec/cpu-defs.h"
 #include "exec/cpu-interrupt.h"
+#include "exec/target_long.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/memory.h"
 #endif
@@ -1174,7 +1174,6 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     /* Fields from here on are preserved across CPU reset. */
-    CPUMIPSMVPContext *mvp;
 #if !defined(CONFIG_USER_ONLY)
     CPUMIPSTLBContext *tlb;
     qemu_irq irq[8];
@@ -1189,7 +1188,6 @@ typedef struct CPUArchState {
 
     const mips_def_t *cpu_model;
     QEMUTimer *timer; /* Internal timer */
-    Clock *count_clock; /* CP0_Count clock */
     target_ulong exception_base; /* ExceptionBase input to the core */
 } CPUMIPSState;
 
@@ -1207,7 +1205,10 @@ struct ArchCPU {
     CPUMIPSState env;
 
     Clock *clock;
+    Clock *count_clock; /* CP0_Count clock */
     Clock *count_div; /* Divider for CP0_Count clock */
+
+    CPUMIPSMVPContext *mvp;
 
     /* Properties */
     bool is_big_endian;
@@ -1224,6 +1225,7 @@ struct MIPSCPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
     const struct mips_def_t *cpu_def;
 

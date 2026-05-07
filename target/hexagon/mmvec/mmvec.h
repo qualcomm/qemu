@@ -17,6 +17,7 @@
 #ifndef HEXAGON_MMVEC_H
 #define HEXAGON_MMVEC_H
 
+#include "exec/target_long.h"
 #include "qemu/bitmap.h"
 
 /* FIXME - Is this needed? */

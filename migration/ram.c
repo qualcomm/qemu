@@ -1136,8 +1136,6 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
     RAMBlock *block;
     int64_t end_time;
 
-    qatomic_add(&mig_stats.dirty_sync_count, 1);
-
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     }
@@ -1150,7 +1148,6 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
             RAMBLOCK_FOREACH_NOT_IGNORED(block) {
                 ramblock_sync_dirty_bitmap(rs, block);
             }
-            qatomic_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
         }
     }
 
@@ -1171,10 +1168,6 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;
         rs->bytes_xfer_prev = migration_transferred_bytes();
-    }
-    if (migrate_events()) {
-        uint64_t generation = qatomic_read(&mig_stats.dirty_sync_count);
-        qapi_event_send_migration_pass(generation);
     }
 }
 
@@ -3449,30 +3442,18 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     return qemu_fflush(f);
 }
 
-static void ram_state_pending_estimate(void *opaque, uint64_t *must_precopy,
-                                       uint64_t *can_postcopy)
-{
-    RAMState **temp = opaque;
-    RAMState *rs = *temp;
-
-    uint64_t remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
-
-    if (migrate_postcopy_ram()) {
-        /* We can do postcopy, and all the data is postcopiable */
-        *can_postcopy += remaining_size;
-    } else {
-        *must_precopy += remaining_size;
-    }
-}
-
-static void ram_state_pending_exact(void *opaque, uint64_t *must_precopy,
-                                    uint64_t *can_postcopy)
+static void ram_state_pending(void *opaque, MigPendingData *pending,
+                              bool exact)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     uint64_t remaining_size;
 
-    if (!migration_in_postcopy()) {
+    /*
+     * Sync is not needed either with: (1) a fast query, or (2) after
+     * postcopy has started (no new dirty will generate anymore).
+     */
+    if (exact && !migration_in_postcopy()) {
         bql_lock();
         WITH_RCU_READ_LOCK_GUARD() {
             migration_bitmap_sync_precopy(false);
@@ -3484,9 +3465,9 @@ static void ram_state_pending_exact(void *opaque, uint64_t *must_precopy,
 
     if (migrate_postcopy_ram()) {
         /* We can do postcopy, and all the data is postcopiable */
-        *can_postcopy += remaining_size;
+        pending->postcopy_bytes += remaining_size;
     } else {
-        *must_precopy += remaining_size;
+        pending->precopy_bytes += remaining_size;
     }
 }
 
@@ -4709,8 +4690,7 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_live_iterate = ram_save_iterate,
     .save_complete = ram_save_complete,
     .has_postcopy = ram_has_postcopy,
-    .state_pending_exact = ram_state_pending_exact,
-    .state_pending_estimate = ram_state_pending_estimate,
+    .save_query_pending = ram_state_pending,
     .load_state = ram_load,
     .save_cleanup = ram_save_cleanup,
     .load_setup = ram_load_setup,

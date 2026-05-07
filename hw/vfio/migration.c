@@ -41,6 +41,12 @@
  */
 #define VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE (1 * MiB)
 
+/*
+ * Migration size of VFIO devices can be as little as a few KBs or as big as
+ * many GBs. This value should be big enough to cover the worst case.
+ */
+#define VFIO_MIG_STOP_COPY_SIZE (100 * GiB)
+
 static unsigned long bytes_transferred;
 
 static const char *mig_state_to_str(enum vfio_device_mig_state state)
@@ -314,8 +320,7 @@ static void vfio_migration_cleanup(VFIODevice *vbasedev)
     migration->data_fd = -1;
 }
 
-static int vfio_query_stop_copy_size(VFIODevice *vbasedev,
-                                     uint64_t *stop_copy_size)
+static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
                               sizeof(struct vfio_device_feature_mig_data_size),
@@ -323,18 +328,32 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev,
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
     struct vfio_device_feature_mig_data_size *mig_data_size =
         (struct vfio_device_feature_mig_data_size *)feature->data;
+    VFIOMigration *migration = vbasedev->migration;
+    int ret;
 
     feature->argsz = sizeof(buf);
     feature->flags =
         VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIG_DATA_SIZE;
 
     if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-        return -errno;
+        /*
+         * If getting pending migration size fails, VFIO_MIG_STOP_COPY_SIZE
+         * is reported so downtime limit won't be violated.
+         */
+        migration->stopcopy_size = VFIO_MIG_STOP_COPY_SIZE;
+        ret = -errno;
+        warn_report_once("VFIO device %s ioctl(VFIO_DEVICE_FEATURE) on "
+                         "VFIO_DEVICE_FEATURE_MIG_DATA_SIZE failed (%d)",
+                         vbasedev->name, ret);
+    } else {
+        migration->stopcopy_size = mig_data_size->stop_copy_length;
+        ret = 0;
     }
 
-    *stop_copy_size = mig_data_size->stop_copy_length;
+    trace_vfio_query_stop_copy_size(vbasedev->name,
+                                    migration->stopcopy_size, ret);
 
-    return 0;
+    return ret;
 }
 
 static int vfio_query_precopy_size(VFIOMigration *migration)
@@ -342,18 +361,25 @@ static int vfio_query_precopy_size(VFIOMigration *migration)
     struct vfio_precopy_info precopy = {
         .argsz = sizeof(precopy),
     };
-
-    migration->precopy_init_size = 0;
-    migration->precopy_dirty_size = 0;
+    int ret;
 
     if (ioctl(migration->data_fd, VFIO_MIG_GET_PRECOPY_INFO, &precopy)) {
-        return -errno;
+        migration->precopy_init_size = 0;
+        migration->precopy_dirty_size = 0;
+        ret = -errno;
+        warn_report_once("VFIO device %s ioctl(VFIO_MIG_GET_PRECOPY_INFO) "
+                         "failed (%d)", migration->vbasedev->name, ret);
+    } else {
+        migration->precopy_init_size = precopy.initial_bytes;
+        migration->precopy_dirty_size = precopy.dirty_bytes;
+        ret = 0;
     }
 
-    migration->precopy_init_size = precopy.initial_bytes;
-    migration->precopy_dirty_size = precopy.dirty_bytes;
+    trace_vfio_query_precopy_size(migration->vbasedev->name,
+                                  migration->precopy_init_size,
+                                  migration->precopy_dirty_size, ret);
 
-    return 0;
+    return ret;
 }
 
 /* Returns the size of saved data on success and -errno on error */
@@ -407,6 +433,16 @@ static void vfio_update_estimated_pending_data(VFIOMigration *migration,
         migration->precopy_dirty_size = 0;
 
         return;
+    }
+
+    /*
+     * The total size remaining requires separate accounting.  Do not trust
+     * the counter, so what we have read() may be more than what reported.
+     */
+    if (migration->stopcopy_size > data_size) {
+        migration->stopcopy_size -= data_size;
+    } else {
+        migration->stopcopy_size = 0;
     }
 
     if (migration->precopy_init_size) {
@@ -463,7 +499,6 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
-    uint64_t stop_copy_size = VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE;
     int ret;
 
     if (!vfio_multifd_setup(vbasedev, false, errp)) {
@@ -472,9 +507,9 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
 
-    vfio_query_stop_copy_size(vbasedev, &stop_copy_size);
+    vfio_query_stop_copy_size(vbasedev);
     migration->data_buffer_size = MIN(VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE,
-                                      stop_copy_size);
+                                      migration->stopcopy_size);
     migration->data_buffer = g_try_malloc0(migration->data_buffer_size);
     if (!migration->data_buffer) {
         error_setg(errp, "%s: Failed to allocate migration data buffer",
@@ -551,52 +586,43 @@ static void vfio_save_cleanup(void *opaque)
     trace_vfio_save_cleanup(vbasedev->name);
 }
 
-static void vfio_state_pending_estimate(void *opaque, uint64_t *must_precopy,
-                                        uint64_t *can_postcopy)
+static void vfio_state_pending_sync(VFIODevice *vbasedev)
 {
-    VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
 
-    if (!vfio_device_state_is_precopy(vbasedev)) {
-        return;
-    }
-
-    *must_precopy +=
-        migration->precopy_init_size + migration->precopy_dirty_size;
-
-    trace_vfio_state_pending_estimate(vbasedev->name, *must_precopy,
-                                      *can_postcopy,
-                                      migration->precopy_init_size,
-                                      migration->precopy_dirty_size);
-}
-
-/*
- * Migration size of VFIO devices can be as little as a few KBs or as big as
- * many GBs. This value should be big enough to cover the worst case.
- */
-#define VFIO_MIG_STOP_COPY_SIZE (100 * GiB)
-
-static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
-                                     uint64_t *can_postcopy)
-{
-    VFIODevice *vbasedev = opaque;
-    VFIOMigration *migration = vbasedev->migration;
-    uint64_t stop_copy_size = VFIO_MIG_STOP_COPY_SIZE;
-
-    /*
-     * If getting pending migration size fails, VFIO_MIG_STOP_COPY_SIZE is
-     * reported so downtime limit won't be violated.
-     */
-    vfio_query_stop_copy_size(vbasedev, &stop_copy_size);
-    *must_precopy += stop_copy_size;
+    vfio_query_stop_copy_size(vbasedev);
 
     if (vfio_device_state_is_precopy(vbasedev)) {
         vfio_query_precopy_size(migration);
     }
+}
 
-    trace_vfio_state_pending_exact(vbasedev->name, *must_precopy, *can_postcopy,
-                                   stop_copy_size, migration->precopy_init_size,
-                                   migration->precopy_dirty_size);
+static void vfio_state_pending(void *opaque, MigPendingData *pending,
+                               bool exact)
+{
+    VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
+    uint64_t precopy_size, stopcopy_size;
+
+    if (exact) {
+        vfio_state_pending_sync(vbasedev);
+    }
+
+    precopy_size =
+        migration->precopy_init_size + migration->precopy_dirty_size;
+
+    if (migration->stopcopy_size > precopy_size) {
+        stopcopy_size = migration->stopcopy_size - precopy_size;
+    } else {
+        stopcopy_size = 0;
+    }
+
+    pending->precopy_bytes += precopy_size;
+    pending->stopcopy_bytes += stopcopy_size;
+
+    trace_vfio_state_pending(vbasedev->name, migration->stopcopy_size,
+                             migration->precopy_init_size,
+                             migration->precopy_dirty_size, exact);
 }
 
 static bool vfio_is_active_iterate(void *opaque)
@@ -841,8 +867,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
     .save_prepare = vfio_save_prepare,
     .save_setup = vfio_save_setup,
     .save_cleanup = vfio_save_cleanup,
-    .state_pending_estimate = vfio_state_pending_estimate,
-    .state_pending_exact = vfio_state_pending_exact,
+    .save_query_pending = vfio_state_pending,
     .is_active_iterate = vfio_is_active_iterate,
     .save_live_iterate = vfio_save_iterate,
     .save_complete = vfio_save_complete_precopy,

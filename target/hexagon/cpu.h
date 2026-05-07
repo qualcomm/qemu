@@ -14,7 +14,7 @@ typedef struct ProcessorState processor_t;
 #include "fpu/softfloat-types.h"
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
-#include "exec/cpu-defs.h"
+#include "exec/target_long.h"
 #include "exec/cpu-interrupt.h"
 #include "exec/target_page.h"
 #include "exec/cputlb.h"
@@ -23,6 +23,8 @@ typedef struct ProcessorState processor_t;
 #include "hw/core/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/intc/l2vic.h"
+#include "qemu/bitmap.h"
+#include "migration/qemu-file.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "reg_fields.h"
