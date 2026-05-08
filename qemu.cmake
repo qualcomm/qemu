@@ -194,6 +194,7 @@ ExternalProject_Add(qemu
         --prefix=<INSTALL_DIR>
         --target-list=${target_list}
         ${QEMU_CONF_ARGS}
+    BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
     INSTALL_COMMAND ${CMAKE_MAKE_PROGRAM} install
     BUILD_ALWAYS on
 )
