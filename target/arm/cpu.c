@@ -1219,6 +1219,11 @@ static const Property arm_cpu_pmsav7_dregion_property =
             DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav7-dregion", ARMCPU,
                                            pmsav7_dregion,
                                            qdev_prop_uint32, uint32_t);
+
+static const Property arm_cpu_pmsav8r_hdregion_property =
+            DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav8r-hdregion", ARMCPU,
+                                           pmsav8r_hdregion,
+                                           qdev_prop_uint32, uint32_t);
 #endif
 
 static bool arm_get_pmu(Object *obj, Error **errp)
@@ -1496,6 +1501,10 @@ static void arm_cpu_post_init(Object *obj)
         if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
             qdev_property_add_static(DEVICE(obj),
                                      &arm_cpu_pmsav7_dregion_property);
+        }
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            qdev_property_add_static(DEVICE(obj),
+                                     &arm_cpu_pmsav8r_hdregion_property);
         }
     }
 
