@@ -281,7 +281,7 @@ static void test_sa8775p_start_ticking_disabled(void)
     uint64_t count1, count2;
 
     qtest_start("-machine SA8775P_CDSP0 "
-                "-global qct-qtimer.start-ticking=off");
+                "-global qct-qtimer.ticker-ctrl=off");
 
     qtest_clock_step(global_qtest, 1000);
 

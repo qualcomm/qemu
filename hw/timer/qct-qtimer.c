@@ -375,17 +375,19 @@ static MemTxResult hex_timer_write(void *opaque,
 
             s->int_level = 0;
             s->cntval = value;
-            ptimer_transaction_begin(s->timer);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                /* Pause the timer if it is running.  This may cause some
-                   inaccuracy due to rounding, but avoids other issues. */
-                ptimer_stop(s->timer);
+            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_OFF) {
+                ptimer_transaction_begin(s->timer);
+                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
+                    /* Pause the timer if it is running.  This may cause some
+                       inaccuracy due to rounding, but avoids other issues. */
+                    ptimer_stop(s->timer);
+                }
+                hex_timer_recalibrate(s, 1);
+                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
+                    ptimer_run(s->timer, 0);
+                }
+                ptimer_transaction_commit(s->timer);
             }
-            hex_timer_recalibrate(s, 1);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                ptimer_run(s->timer, 0);
-            }
-            ptimer_transaction_commit(s->timer);
             break;
         case (QCT_QTIMER_CNTP_CVAL_HI):
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -406,6 +408,11 @@ static MemTxResult hex_timer_write(void *opaque,
 
             if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
                 return MEMTX_ACCESS_ERROR;
+            }
+
+            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_AUTO) {
+                s->control = value;
+                break;
             }
 
             ptimer_transaction_begin(s->timer);
@@ -432,19 +439,25 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            ptimer_transaction_begin(s->timer);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                /* Pause the timer if it is running.  This may cause some
-                   inaccuracy due to rounding, but avoids other issues. */
-                ptimer_stop(s->timer);
+            /* TVAL write: CVAL = CNTPCT + TVAL (TVAL is signed 32-bit) */
+            s->cntval = s->cntpct + ptimer_get_count(s->timer)
+                        + (int64_t)(int32_t)value;
+
+            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_OFF) {
+                ptimer_transaction_begin(s->timer);
+                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
+                    /* Pause the timer if it is running.  This may cause some
+                    inaccuracy due to rounding, but avoids other issues. */
+                    ptimer_stop(s->timer);
+                }
+
+                ptimer_set_freq(s->timer, s->freq);
+                ptimer_set_period(s->timer, 1);
+                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
+                    ptimer_run(s->timer, 0);
+                }
+                ptimer_transaction_commit(s->timer);
             }
-            s->cntval = s->cntpct + value;
-            ptimer_set_freq(s->timer, s->freq);
-            ptimer_set_period(s->timer, 1);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                ptimer_run(s->timer, 0);
-            }
-            ptimer_transaction_commit(s->timer);
             break;
         case QCT_QTIMER_CNTPL0ACR:
             if (view) {
@@ -523,7 +536,11 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < s->nr_frames; i++) {
         s->timer[i].limit = 1;
-        s->timer[i].control = QCT_QTIMER_CNTP_CTL_ENABLE;
+        /* With ticker_ctrl=off, keep ENABLE=0 so SW must explicitly enable
+         * the timer. Otherwise default to ENABLE=1. */
+        s->timer[i].control = (s->ticker_ctrl == ON_OFF_AUTO_OFF)
+                              ? 0
+                              : QCT_QTIMER_CNTP_CTL_ENABLE;
         s->timer[i].cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
                     QCT_QTIMER_AC_CNTACR_RVOFF | QCT_QTIMER_AC_CNTACR_RFRQ |
                     QCT_QTIMER_AC_CNTACR_RPVCT | QCT_QTIMER_AC_CNTACR_RPCT);
@@ -538,7 +555,7 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
         vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_hex_timer, &s->timer[i]);
     }
 
-    if (s->start_ticking == ON_OFF_AUTO_ON) {
+    if (s->ticker_ctrl == ON_OFF_AUTO_ON) {
         for (i = 0; i < s->nr_frames; i++) {
             ptimer_transaction_begin(s->timer[i].timer);
             ptimer_set_limit(s->timer[i].timer, s->timer[i].limit, 1);
@@ -555,7 +572,7 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("frame_stride", QCTQtimerState, frame_stride, 0x1000),
-    DEFINE_PROP_ON_OFF_AUTO("start-ticking", QCTQtimerState, start_ticking,
+    DEFINE_PROP_ON_OFF_AUTO("ticker-ctrl", QCTQtimerState, ticker_ctrl,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_UINT32("cnttid_0", QCTQtimerState, cnttid_0, 0x11),
     DEFINE_PROP_UINT32("cnttid_1", QCTQtimerState, cnttid_1, 0x0),
