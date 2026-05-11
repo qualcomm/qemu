@@ -391,7 +391,9 @@ static MemTxResult hex_timer_write(void *opaque,
 
             s->int_level = 0;
             s->cntval = deposit64(s->cntval, 0, 32, value);
-            hex_timer_rearm(s);
+            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_OFF) {
+                hex_timer_rearm(s);
+            }
             break;
         case (QCT_QTIMER_CNTP_CVAL_HI):
             trace_qtimer_cval_hi_write(value);
@@ -424,7 +426,9 @@ static MemTxResult hex_timer_write(void *opaque,
              * ISTAT (bit 2) is read-only; keep SW writes from polluting it.
              */
             s->control = value & ~QCT_QTIMER_CNTP_CTL_ISTAT;
-            hex_timer_rearm(s);
+            if (s->qtimer->ticker_ctrl == ON_OFF_AUTO_AUTO) {
+                hex_timer_rearm(s);
+            }
             break;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -440,6 +444,9 @@ static MemTxResult hex_timer_write(void *opaque,
             s->cntval = (hex_timer_now(s) + (int64_t)(int32_t)value) &
                         QCT_QTIMER_CNT_MASK;
             hex_timer_rearm(s);
+            if (s->qtimer->ticker_ctrl == ON_OFF_AUTO_OFF) {
+                timer_del(s->timer);
+            }
             break;
         case QCT_QTIMER_CNTPL0ACR:
             if (view) {
@@ -565,6 +572,9 @@ static void qct_qtimer_reset_hold(Object *obj, ResetType type)
         t->int_level = 0;
         t->offset_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         timer_del(t->timer);
+        if (s->ticker_ctrl == ON_OFF_AUTO_ON) {
+            t->control = QCT_QTIMER_CNTP_CTL_ENABLE;
+        }
     }
 }
 
@@ -574,6 +584,8 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("frame_stride", QCTQtimerState, frame_stride, 0x1000),
+     DEFINE_PROP_ON_OFF_AUTO("ticker-ctrl", QCTQtimerState, ticker_ctrl,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_UINT32("cnttid_0", QCTQtimerState, cnttid_0, 0x11),
     DEFINE_PROP_UINT32("cnttid_1", QCTQtimerState, cnttid_1, 0x0),
 };

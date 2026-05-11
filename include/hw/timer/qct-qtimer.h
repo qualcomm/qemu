@@ -20,6 +20,7 @@
 #define TIMER_QCT_QTIMER_H
 
 #include "hw/core/sysbus.h"
+#include "qapi/qapi-types-common.h"
 #include "qemu/timer.h"
 
 #define TYPE_QCT_QTIMER "qct-qtimer"
@@ -54,6 +55,7 @@ struct QCTQtimerState {
     uint32_t nr_frames;
     uint32_t nr_views;
     uint32_t frame_stride;
+    OnOffAuto ticker_ctrl;
     uint32_t cnttid_0;
     uint32_t cnttid_1;
     uint32_t freq_scale;

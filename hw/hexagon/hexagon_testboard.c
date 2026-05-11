@@ -385,7 +385,8 @@ static void copy_cpu_properties(const char *from, const char *to)
 }
 
 static void hexagon_common_init(MachineState *machine,
-                                struct hexagon_machine_config *m_cfg)
+                                struct hexagon_machine_config *m_cfg,
+                                OnOffAuto ticker_ctrl)
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(machine);
     HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(machine);
@@ -507,6 +508,11 @@ static void hexagon_common_init(MachineState *machine,
     object_property_set_uint(OBJECT(qtimer), "nr_frames", 3, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "nr_views", 1, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "cnttid_0", 0x111, &error_fatal);
+    if (ticker_ctrl != ON_OFF_AUTO_AUTO) {
+        object_property_set_str(OBJECT(qtimer), "ticker-ctrl",
+                                ticker_ctrl == ON_OFF_AUTO_ON ? "on" : "off",
+                                &error_fatal);
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
     if (!object_property_set_link(OBJECT(glob_regs_dev), "qtimer",
@@ -621,7 +627,7 @@ static void machcfg_disable_coproc(struct hexagon_machine_config *cfg)
 
 static void v66g_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v66g_1024);
+    hexagon_common_init(machine, &v66g_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void v66g_1024_init(ObjectClass *oc, const void *data)
@@ -655,7 +661,7 @@ static void v66g_linux_init(ObjectClass *oc, const void *data)
 static void v68n_1024_config_init(MachineState *machine)
 
 {
-    hexagon_common_init(machine, &v68n_1024);
+    hexagon_common_init(machine, &v68n_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void v68n_1024_init(ObjectClass *oc, const void *data)
@@ -690,7 +696,7 @@ static void v68n_h2_init(ObjectClass *oc, const void *data)
 
 static void v69na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v69na_1024);
+    hexagon_common_init(machine, &v69na_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void v69na_1024_init(ObjectClass *oc, const void *data)
@@ -706,19 +712,19 @@ static void v69na_1024_init(ObjectClass *oc, const void *data)
 
 static void v73na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v73na_1024);
+    hexagon_common_init(machine, &v73na_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void v73m_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v73m);
+    hexagon_common_init(machine, &v73m, ON_OFF_AUTO_AUTO);
 }
 
 #include "smem_entries.inc"
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &SA8775P_cdsp0);
+    hexagon_common_init(machine, &SA8775P_cdsp0, ON_OFF_AUTO_ON);
 
     /* Create and map the TCSR device */
     DeviceState *tcsr = qdev_new(TYPE_TCSR);
@@ -808,7 +814,7 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
 
 static void SA8540P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &SA8540P_cdsp0);
+    hexagon_common_init(machine, &SA8540P_cdsp0, ON_OFF_AUTO_AUTO);
 }
 
 static void SA8540P_cdsp0_init(ObjectClass *oc, const void *data)
@@ -825,7 +831,7 @@ static void SA8540P_cdsp0_init(ObjectClass *oc, const void *data)
 
 static void SA8797P_nsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &SA8797P_nsp0);
+    hexagon_common_init(machine, &SA8797P_nsp0, ON_OFF_AUTO_AUTO);
 }
 
 static void SA8797P_nsp0_init(ObjectClass *oc, const void *data)
@@ -883,7 +889,7 @@ static void v73m_init(ObjectClass *oc, const void *data)
 
 static void v75na_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v75na_1024);
+    hexagon_common_init(machine, &v75na_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void sim_nocoproc_config_init(MachineState *machine)
@@ -891,12 +897,12 @@ static void sim_nocoproc_config_init(MachineState *machine)
     struct hexagon_machine_config v81dgb_1_nocoproc;
     memcpy(&v81dgb_1_nocoproc, &v81dgb_1, sizeof(v81dgb_1));
     machcfg_disable_coproc(&v81dgb_1_nocoproc);
-    hexagon_common_init(machine, &v81dgb_1_nocoproc);
+    hexagon_common_init(machine, &v81dgb_1_nocoproc, ON_OFF_AUTO_AUTO);
 }
 
 static void sim_coproc_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v75na_1024);
+    hexagon_common_init(machine, &v75na_1024, ON_OFF_AUTO_AUTO);
 }
 
 static void v75na_1024_linux_config_init(MachineState *machine)
@@ -930,7 +936,7 @@ static void v75na_1024_init(ObjectClass *oc, const void *data)
 
 static void v79na_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v79na_1);
+    hexagon_common_init(machine, &v79na_1, ON_OFF_AUTO_AUTO);
 }
 
 static void v79na_1_linux_config_init(MachineState *machine)
@@ -942,7 +948,7 @@ static void v79na_1_linux_config_init(MachineState *machine)
 
 static void v79m_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v79m_1);
+    hexagon_common_init(machine, &v79m_1, ON_OFF_AUTO_AUTO);
 }
 
 static void v79na_1_linux_init(ObjectClass *oc, const void *data)
@@ -980,7 +986,7 @@ static void v79m_1_init(ObjectClass *oc, const void *data)
 
 static void v81qa_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v81qa_1);
+    hexagon_common_init(machine, &v81qa_1, ON_OFF_AUTO_AUTO);
 }
 
 static void v81qa_1_init(ObjectClass *oc, const void *data)
@@ -1001,7 +1007,7 @@ static void v81qa_1_init(ObjectClass *oc, const void *data)
 #include "sc8480xp_nsp0_smem_entries.inc"
 static void sc8480xp_nsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &sc8480xp_nsp0);
+    hexagon_common_init(machine, &sc8480xp_nsp0, ON_OFF_AUTO_AUTO);
 
     /*
      * Create and map the TCSR device
@@ -1153,7 +1159,7 @@ static void sc8480xp_nsp0_init(ObjectClass *oc, const void *data)
 
 static void v81na_2_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v81na_2);
+    hexagon_common_init(machine, &v81na_2, ON_OFF_AUTO_AUTO);
 }
 
 static void v81na_2_init(ObjectClass *oc, const void *data)
@@ -1172,7 +1178,7 @@ static void v81na_2_init(ObjectClass *oc, const void *data)
 
 static void v81dgb_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &v81dgb_1);
+    hexagon_common_init(machine, &v81dgb_1, ON_OFF_AUTO_AUTO);
 }
 
 static void v81dgb_1_init(ObjectClass *oc, const void *data)
