@@ -55,6 +55,7 @@ struct QCTQtimerState {
     uint32_t freq;
     uint32_t nr_frames;
     uint32_t nr_views;
+    uint32_t frame_stride;
     OnOffAuto start_ticking;
     uint32_t cnttid_0;
     uint32_t cnttid_1;

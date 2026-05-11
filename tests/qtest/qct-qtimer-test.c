@@ -297,6 +297,29 @@ static void test_sa8775p_start_ticking_disabled(void)
     qtest_end();
 }
 
+static void test_qtimer_frame_stride(gconstpointer data)
+{
+    uint32_t stride = GPOINTER_TO_UINT(data);
+    uint32_t freq;
+    g_autofree char *args = g_strdup_printf(
+        "-machine virt -global qct-qtimer.frame_stride=0x%x", stride);
+
+    qtest_start(args);
+
+    freq = qtimer_read32(QTIMER_VIEW_BASE, QCT_QTIMER_CNT_FREQ);
+    g_assert_cmpuint(freq, ==, QTIMER_DEFAULT_FREQ_HZ);
+
+    freq = qtimer_read32(QTIMER_VIEW_BASE + stride, QCT_QTIMER_CNT_FREQ);
+    g_assert_cmpuint(freq, ==, QTIMER_DEFAULT_FREQ_HZ);
+
+    if (stride > 0x1000) {
+        freq = qtimer_read32(QTIMER_VIEW_BASE + 0x1000, QCT_QTIMER_CNT_FREQ);
+        g_assert_cmpuint(freq, ==, 0);
+    }
+
+    qtest_end();
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -314,6 +337,11 @@ int main(int argc, char **argv)
                    test_sa8775p_start_ticking);
     qtest_add_func("/qct-qtimer/SA8775P_CDSP0/start-ticking-disabled",
                    test_sa8775p_start_ticking_disabled);
+
+    qtest_add_data_func("/qct-qtimer/virt/frame-stride-2000",
+                        GUINT_TO_POINTER(0x2000), test_qtimer_frame_stride);
+    qtest_add_data_func("/qct-qtimer/virt/frame-stride-4000",
+                        GUINT_TO_POINTER(0x4000), test_qtimer_frame_stride);
 
     return g_test_run();
 }
