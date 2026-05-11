@@ -542,6 +542,14 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
 
+#ifndef CONFIG_LIBQEMU
+        /*
+         * libqemu embeds QEMU into a SystemC co-simulation and does not
+         * drive savevm / live migration. Skipping vmstate registration
+         * avoids idstr collisions for devices whose bus path is not unique
+         * in the SystemC-bridged topology (e.g. qbox virtio-mmio proxies
+         * which are never sysbus_mmio_map()'d).
+         */
         if (qdev_get_vmsd(dev)) {
             if (vmstate_register_with_alias_id(VMSTATE_IF(dev),
                                                VMSTATE_INSTANCE_ID_ANY,
@@ -552,6 +560,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
                 goto post_realize_fail;
             }
         }
+#endif /* CONFIG_LIBQEMU */
 
         /*
          * Clear the reset state, in case the object was previously unrealized
@@ -605,9 +614,11 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             qbus_unrealize(bus);
         }
+#ifndef CONFIG_LIBQEMU
         if (qdev_get_vmsd(dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
         }
+#endif /* CONFIG_LIBQEMU */
         if (dc->unrealize) {
             dc->unrealize(dev);
         }
@@ -623,9 +634,11 @@ child_realize_fail:
         qbus_unrealize(bus);
     }
 
+#ifndef CONFIG_LIBQEMU
     if (qdev_get_vmsd(dev)) {
         vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
     }
+#endif /* CONFIG_LIBQEMU */
 
 post_realize_fail:
     g_free(dev->canonical_path);
