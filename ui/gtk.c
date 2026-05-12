@@ -436,7 +436,7 @@ static void gd_update(DisplayChangeListener *dcl,
 
 static void gd_refresh(DisplayChangeListener *dcl)
 {
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 }
 
 static GdkDevice *gd_get_pointer(GdkDisplay *dpy)
@@ -602,7 +602,7 @@ void gd_hw_gl_flushed(void *vcon)
         qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
         close(fence_fd);
         qemu_dmabuf_set_fence_fd(dmabuf, -1);
-        graphic_hw_gl_block(vc->gfx.dcl.con, false);
+        qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
     }
 }
 
@@ -729,27 +729,27 @@ static void gd_set_ui_refresh_rate(VirtualConsole *vc, int refresh_rate)
 {
     QemuUIInfo info;
 
-    if (!dpy_ui_info_supported(vc->gfx.dcl.con)) {
+    if (!qemu_console_ui_info_supported(vc->gfx.dcl.con)) {
         return;
     }
 
-    info = *dpy_get_ui_info(vc->gfx.dcl.con);
+    info = *qemu_console_get_ui_info(vc->gfx.dcl.con);
     info.refresh_rate = refresh_rate;
-    dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
+    qemu_console_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
 static void gd_set_ui_size(VirtualConsole *vc, gint width, gint height)
 {
     QemuUIInfo info;
 
-    if (!dpy_ui_info_supported(vc->gfx.dcl.con)) {
+    if (!qemu_console_ui_info_supported(vc->gfx.dcl.con)) {
         return;
     }
 
-    info = *dpy_get_ui_info(vc->gfx.dcl.con);
+    info = *qemu_console_get_ui_info(vc->gfx.dcl.con);
     info.width = width;
     info.height = height;
-    dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
+    qemu_console_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
 #if defined(CONFIG_OPENGL)
@@ -2251,6 +2251,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
+    const DisplayChangeListenerOps *ops = &dcl_ops;
     bool zoom_to_fit = false;
     int i;
 
@@ -2275,7 +2276,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
             vc->gfx.drawing_area = gtk_gl_area_new();
             g_signal_connect(vc->gfx.drawing_area, "realize",
                              G_CALLBACK(gl_area_realize), vc);
-            vc->gfx.dcl.ops = &dcl_gl_area_ops;
+            ops = &dcl_gl_area_ops;
             vc->gfx.dgc.ops = &gl_area_ctx_ops;
         } else {
 #ifdef CONFIG_X11
@@ -2290,7 +2291,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
 #pragma GCC diagnostic pop
-            vc->gfx.dcl.ops = &dcl_egl_ops;
+            ops = &dcl_egl_ops;
             vc->gfx.dgc.ops = &egl_ctx_ops;
             vc->gfx.has_dmabuf = qemu_egl_has_dmabuf();
 #else
@@ -2301,7 +2302,6 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 #endif
     {
         vc->gfx.drawing_area = gtk_drawing_area_new();
-        vc->gfx.dcl.ops = &dcl_ops;
     }
 
 
@@ -2325,17 +2325,15 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                              vc->tab_item, gtk_label_new(vc->label));
 
     vc->gfx.kbd = qkbd_state_init(con);
-    vc->gfx.dcl.con = con;
-
     if (display_opengl) {
         qemu_console_set_display_gl_ctx(con, &vc->gfx.dgc);
     }
-    register_displaychangelistener(&vc->gfx.dcl);
+    qemu_console_register_listener(con, &vc->gfx.dcl, ops);
 
     gd_connect_vc_gfx_signals(vc);
     group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
-    if (dpy_ui_info_supported(vc->gfx.dcl.con)) {
+    if (qemu_console_ui_info_supported(vc->gfx.dcl.con)) {
         zoom_to_fit = true;
     }
     if (s->opts->u.gtk.has_zoom_to_fit) {

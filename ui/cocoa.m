@@ -93,9 +93,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_mouse_set = cocoa_mouse_set,
     .dpy_cursor_define = cocoa_cursor_define,
 };
-static DisplayChangeListener dcl = {
-    .ops = &dcl_ops,
-};
+static DisplayChangeListener dcl;
 static QKbdState *kbd;
 static int cursor_hide = 1;
 static int left_command_key_enabled = 1;
@@ -423,10 +421,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         return;
     }
 
-    unregister_displaychangelistener(&dcl);
+    qemu_console_unregister_listener(&dcl);
     qkbd_state_switch_console(kbd, con);
-    dcl.con = con;
-    register_displaychangelistener(&dcl);
+    qemu_console_register_listener(con, &dcl, &dcl_ops);
     [self notifyMouseModeChange];
     [self updateUIInfo];
 }
@@ -672,8 +669,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             CVTime period = CVDisplayLinkGetNominalOutputVideoRefreshPeriod(displayLink);
             CVDisplayLinkRelease(displayLink);
             if (!(period.flags & kCVTimeIsIndefinite)) {
-                update_displaychangelistener(&dcl,
-                                             1000 * period.timeValue / period.timeScale);
+                qemu_console_listener_set_refresh(&dcl,
+                                                  1000 * period.timeValue / period.timeScale);
                 info.refresh_rate = (int64_t)1000 * period.timeScale / period.timeValue;
             }
         }
@@ -691,7 +688,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     info.width = frameSize.width * [[self window] backingScaleFactor];
     info.height = frameSize.height * [[self window] backingScaleFactor];
 
-    dpy_set_ui_info(dcl.con, &info, TRUE);
+    qemu_console_set_ui_info(dcl.con, &info, TRUE);
 }
 
 #pragma clang diagnostic pop
@@ -2059,7 +2056,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 
     if (cbchangecount != [[NSPasteboard generalPasteboard] changeCount]) {
         qemu_clipboard_info_unref(cbinfo);
@@ -2145,11 +2142,9 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     add_console_menu_entries();
     addRemovableDevicesMenuItems();
 
-    dcl.con = qemu_console_lookup_default();
+    qemu_console_register_listener(qemu_console_lookup_default(),
+                                   &dcl, &dcl_ops);
     kbd = qkbd_state_init(dcl.con);
-
-    // register vga output callbacks
-    register_displaychangelistener(&dcl);
     qemu_add_mouse_mode_change_notifier(&mouse_mode_change_notifier);
     [cocoaView notifyMouseModeChange];
     [cocoaView updateUIInfo];

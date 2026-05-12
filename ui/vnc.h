@@ -46,14 +46,6 @@
 #include "vnc-enc-zrle.h"
 #include "ui/kbd-state.h"
 
-// #define _VNC_DEBUG 1
-
-#ifdef _VNC_DEBUG
-#define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define VNC_DEBUG(fmt, ...) do { } while (0)
-#endif
-
 /*****************************************************************************
  *
  * Core data structures
@@ -62,6 +54,7 @@
 
 typedef struct VncState VncState;
 typedef struct VncJob VncJob;
+typedef struct VncJobQueue VncJobQueue;
 typedef struct VncRect VncRect;
 typedef struct VncRectEntry VncRectEntry;
 
@@ -158,6 +151,7 @@ struct VncDisplay
     int ledstate;
     QKbdState *kbd;
     QemuMutex mutex;
+    VncJobQueue *queue;
 
     int cursor_msize;
     uint8_t *cursor_mask;
@@ -547,6 +541,9 @@ enum VncFeatures {
 #define VNC_CLIPBOARD_NOTIFY   (1 << 27)
 #define VNC_CLIPBOARD_PROVIDE  (1 << 28)
 
+VncDisplay *vnc_display_new(const char *id, Error **errp);
+void vnc_display_free(VncDisplay *vd);
+
 /*****************************************************************************
  *
  * Internal APIs
@@ -642,5 +639,9 @@ void vnc_zrle_clear(VncWorker *worker);
 void vnc_server_cut_text_caps(VncState *vs);
 void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text);
 void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t *data);
+
+/* XVP events */
+void vnc_action_shutdown(VncState *vs);
+void vnc_action_reset(VncState *vs);
 
 #endif /* QEMU_VNC_H */

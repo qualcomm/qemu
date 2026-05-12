@@ -23,7 +23,7 @@ typedef struct egl_dpy {
 
 static void egl_refresh(DisplayChangeListener *dcl)
 {
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 }
 
 static void egl_gfx_update(DisplayChangeListener *dcl,
@@ -161,7 +161,7 @@ static void egl_scanout_flush(DisplayChangeListener *dcl,
     }
 
     egl_fb_read(edpy->ds, &edpy->blit_fb);
-    dpy_gfx_update(edpy->dcl.con, x, y, w, h);
+    qemu_console_update(edpy->dcl.con, x, y, w, h);
 }
 
 static const DisplayChangeListenerOps egl_ops = {
@@ -229,13 +229,11 @@ static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
         }
 
         edpy = g_new0(egl_dpy, 1);
-        edpy->dcl.con = con;
-        edpy->dcl.ops = &egl_ops;
         edpy->gls = qemu_gl_init_shader();
         ctx = g_new0(DisplayGLCtx, 1);
         ctx->ops = &eglctx_ops;
         qemu_console_set_display_gl_ctx(con, ctx);
-        register_displaychangelistener(&edpy->dcl);
+        qemu_console_register_listener(con, &edpy->dcl, &egl_ops);
     }
 }
 
