@@ -56,6 +56,7 @@ typedef struct HexagonTLBState HexagonTLBState;
 #define MAX_TLB_ENTRIES 1024
 #define THREADS_MAX 16
 #define VECTOR_UNIT_MAX 8
+#define NUM_PMU_CTRS 8
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 #ifndef CONFIG_USER_ONLY
@@ -161,6 +162,14 @@ typedef struct CPUArchState {
     bool ss_pending;
     uint32_t exec_ctr_tb;
     uint32_t last_cpu;
+
+    /* PMU state */
+    struct {
+        uint32_t num_packets;
+        uint32_t hvx_packets;
+        uint32_t *g_ctrs_off;   /* shared counter offsets [NUM_PMU_CTRS] */
+        uint8_t *g_events;      /* shared event config [NUM_PMU_CTRS] */
+    } pmu;
 #endif
 
     /* Execution counters (not tied to PMU registers) */
@@ -252,8 +261,9 @@ FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)
 FIELD(TB_FLAGS, HVX_COPROC_ENABLED, 5, 1)
 FIELD(TB_FLAGS, HVX_64B_MODE, 6, 1)
-FIELD(TB_FLAGS, SS_ACTIVE, 7, 1)
-FIELD(TB_FLAGS, SS_PENDING, 8, 1)
+FIELD(TB_FLAGS, PMU_ENABLED, 7, 1)
+FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
+FIELD(TB_FLAGS, SS_PENDING, 9, 1)
 
 bool rev_requires_v2x_for_128b_hvx(CPUHexagonState *env);
 
