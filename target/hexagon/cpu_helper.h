@@ -13,7 +13,7 @@ void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
                           int size, uint64_t data, uintptr_t retaddr);
 void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
                           uint32_t length, uintptr_t retaddr);
-uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index);
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, int index);
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env);
@@ -53,6 +53,8 @@ void arch_set_system_reg(CPUHexagonState *env, uint32_t reg,
                         uint32_t val);
 void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
                                 uint32_t val);
+void hexagon_reset_pmu_event_stats(CPUHexagonState *env, int event);
+void hexagon_set_pmu_counter(CPUHexagonState *env, int index, uint32_t val);
 #endif
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);

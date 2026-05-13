@@ -28,6 +28,7 @@
 #include "macros.h"
 #include "sys_macros.h"
 #include "arch.h"
+#include "pmu.h"
 
 
 #ifndef CONFIG_USER_ONLY
@@ -162,9 +163,98 @@ void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
     }
 }
 
-uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
+/*
+ * Aggregate the raw event counter across all threads for a given event.
+ * The PMU counters use a "synthesize on read" model: lightweight per-thread
+ * counters are incremented during execution, and the full counter value is
+ * computed on demand here.
+ */
+static uint32_t hexagon_get_pmu_event_stats(CPUHexagonState *env, int event)
 {
-    g_assert_not_reached();
+    CPUState *cs;
+    uint32_t total = 0;
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *e = cpu_env(cs);
+        switch (event) {
+        case COMMITTED_PKT_ANY:
+            total += e->pmu.num_packets;
+            break;
+        case HVX_PKT:
+            total += e->pmu.hvx_packets;
+            break;
+        default:
+            if (event >= COMMITTED_PKT_T0 && event <= COMMITTED_PKT_T7) {
+                int tid = event - COMMITTED_PKT_T0;
+                if ((int)e->threadId == tid) {
+                    total += e->pmu.num_packets;
+                }
+            }
+            break;
+        }
+    }
+    return total;
+}
+
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, int index)
+{
+    uint8_t event;
+
+    g_assert(index >= 0 && index < NUM_PMU_CTRS);
+
+    if (!env->pmu.g_events || !env->pmu.g_ctrs_off) {
+        return 0;
+    }
+
+    event = env->pmu.g_events[index];
+    if (event == PMU_NO_EVENT) {
+        return env->pmu.g_ctrs_off[index];
+    }
+
+    return env->pmu.g_ctrs_off[index] +
+           hexagon_get_pmu_event_stats(env, event);
+}
+
+void hexagon_reset_pmu_event_stats(CPUHexagonState *env, int event)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *e = cpu_env(cs);
+        switch (event) {
+        case COMMITTED_PKT_ANY:
+            e->pmu.num_packets = 0;
+            break;
+        case HVX_PKT:
+            e->pmu.hvx_packets = 0;
+            break;
+        default:
+            if (event >= COMMITTED_PKT_T0 && event <= COMMITTED_PKT_T7) {
+                int tid = event - COMMITTED_PKT_T0;
+                if ((int)e->threadId == tid) {
+                    e->pmu.num_packets = 0;
+                }
+            }
+            break;
+        }
+    }
+}
+
+void hexagon_set_pmu_counter(CPUHexagonState *env, int index, uint32_t val)
+{
+    uint8_t event;
+
+    g_assert(index >= 0 && index < NUM_PMU_CTRS);
+
+    if (!env->pmu.g_events || !env->pmu.g_ctrs_off) {
+        return;
+    }
+
+    event = env->pmu.g_events[index];
+    if (event != PMU_NO_EVENT) {
+        hexagon_reset_pmu_event_stats(env, event);
+    }
+    env->pmu.g_ctrs_off[index] = val;
 }
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)

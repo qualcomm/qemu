@@ -29,6 +29,7 @@
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
 #include "cpu_helper.h"
+#include "pmu.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon.h"
 
@@ -402,6 +403,7 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     bool pcycle_enabled;
     bool hvx_enabled;
     bool ss_active;
+    bool pmu_enabled;
 
     syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
 
@@ -433,6 +435,10 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
                           reg_field_info[SSR_SS].width);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE, ss_active);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_PENDING, env->ss_pending);
+
+    pmu_enabled = extract32(syscfg, reg_field_info[SYSCFG_PM].offset,
+                            reg_field_info[SYSCFG_PM].width);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PMU_ENABLED, pmu_enabled);
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, true);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, true);
@@ -528,6 +534,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->vstore_pending, 0, sizeof(target_ulong) * VSTORES_MAX);
     env->t_cycle_count = 0;
     env->vtcm_pending = false;
+    env->pmu.num_packets = 0;
+    env->pmu.hvx_packets = 0;
 
     clear_wait_mode(env);
 
@@ -592,6 +600,30 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     if (cpu->num_tlbs > MAX_TLB_ENTRIES) {
         error_setg(errp, "Number of TLBs selected is invalid");
         return;
+    }
+
+    /* PMU: share global counter arrays across all Hexagon CPUs. */
+    {
+        CPUState *other;
+        CPUHexagonState *first_env = NULL;
+
+        CPU_FOREACH(other) {
+            if (object_dynamic_cast(OBJECT(other), TYPE_HEXAGON_CPU)
+                && other != cs) {
+                CPUHexagonState *e = cpu_env(other);
+                if (e->pmu.g_ctrs_off) {
+                    first_env = e;
+                    break;
+                }
+            }
+        }
+        if (first_env) {
+            env->pmu.g_ctrs_off = first_env->pmu.g_ctrs_off;
+            env->pmu.g_events = first_env->pmu.g_events;
+        } else {
+            env->pmu.g_ctrs_off = g_new0(uint32_t, NUM_PMU_CTRS);
+            env->pmu.g_events = g_new0(uint8_t, NUM_PMU_CTRS);
+        }
     }
 #endif
 
@@ -945,6 +977,7 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
     target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
+    int ssr_pe = GET_SSR_FIELD(SSR_PE, ssr);
 
     if (reg <= HEX_GREG_G3) {
         return env->greg[reg];
@@ -957,6 +990,12 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
         return ssr_ce ? hexagon_get_sys_pcycle_count_high(env) : 0;
 
     default:
+        if (is_pmu_greg(reg)) {
+            if (!ssr_pe) {
+                return 0;
+            }
+            return hexagon_get_pmu_counter(env, pmu_index_from_greg(reg));
+        }
         qemu_log_mask(LOG_UNIMP, "reading greg %" PRId32
                 " not yet supported.\n", reg);
         return 0;
