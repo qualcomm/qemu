@@ -32,6 +32,8 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.exec_ctr_pkt, HexagonCPU),
         VMSTATE_UINT32(env.exec_ctr_insn, HexagonCPU),
         VMSTATE_UINT32(env.exec_ctr_hvx, HexagonCPU),
+        VMSTATE_UINT32(env.pmu.num_packets, HexagonCPU),
+        VMSTATE_UINT32(env.pmu.hvx_packets, HexagonCPU),
 
         VMSTATE_END_OF_LIST()
     },
