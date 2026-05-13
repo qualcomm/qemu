@@ -22,6 +22,7 @@
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/cpregs.h"
+#include "target/arm/arm-powerctl.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/intc/armv7m_nvic.h"
 #include "system/kvm.h"
@@ -47,6 +48,41 @@ void libqemu_cpu_arm_set_cp15_cbar(Object *obj, uint64_t cbar)
     /* Note: For ARMv8, CBAR is ARM_CP_CONST, so only reset_cbar matters */
 }
 
+int libqemu_arm_set_cpu_on_and_reset(Object *obj)
+{
+    Error *err = NULL;
+
+    uint64_t cpuid = object_property_get_uint(obj, "mp-affinity", &err);
+    if (err) {
+        fprintf(
+            stderr,
+            "libqemu_arm_set_cpu_on_and_reset: error getting property: %s\n",
+            error_get_pretty(err));
+        error_free(err);
+        return QEMU_ARM_POWERCTL_INVALID_PARAM;
+    }
+
+    int ret = arm_set_cpu_on_and_reset(cpuid);
+
+    return ret;
+}
+
+int libqemu_arm_set_cpu_off(Object *obj)
+{
+    Error *err = NULL;
+
+    uint64_t cpuid = object_property_get_uint(obj, "mp-affinity", &err);
+    if (err) {
+        fprintf(stderr, "libqemu_arm_set_cpu_off: error getting property: %s\n",
+                error_get_pretty(err));
+        error_free(err);
+        return QEMU_ARM_POWERCTL_INVALID_PARAM;
+    }
+
+    int ret = arm_set_cpu_off(cpuid);
+
+    return ret;
+}
 
 void libqemu_cpu_aarch64_set_aarch64_mode(Object *obj, bool aarch64_mode)
 {
