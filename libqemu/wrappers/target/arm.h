@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 void libqemu_cpu_arm_set_cp15_cbar(Object *cpu, uint64_t cbar);
+void libqemu_cpu_arm_set_imp_buildoptr(Object *obj, uint32_t imp_buildoptr_val);
 void libqemu_cpu_aarch64_set_aarch64_mode(Object *cpu, bool aarch64_mode);
 
 int libqemu_arm_set_cpu_on_and_reset(Object *cpu);
