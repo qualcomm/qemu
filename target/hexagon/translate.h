@@ -110,6 +110,9 @@ typedef struct DisasContext {
 #ifndef CONFIG_USER_ONLY
     bool need_cpu_limit;
     bool gen_cacheop_exceptions;
+    bool pmu_enabled;
+    uint32_t pmu_num_packets;
+    uint32_t pmu_hvx_packets;
 #endif
 } DisasContext;
 
@@ -361,6 +364,8 @@ extern TCGv hex_ss_pending;
 extern TCGv hex_exec_ctr_tb;
 extern TCGv hex_last_cpu;
 extern TCGv hex_thread_id;
+extern TCGv hex_pmu_num_packets;
+extern TCGv hex_pmu_hvx_packets;
 #endif
 extern TCGv hex_exec_ctr_pkt;
 extern TCGv hex_exec_ctr_insn;

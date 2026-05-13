@@ -79,6 +79,8 @@ TCGv hex_ss_pending;
 TCGv hex_exec_ctr_tb;
 TCGv hex_last_cpu;
 TCGv hex_thread_id;
+TCGv hex_pmu_num_packets;
+TCGv hex_pmu_hvx_packets;
 #endif
 TCGv hex_exec_ctr_pkt;
 TCGv hex_exec_ctr_insn;
@@ -165,9 +167,39 @@ static void gen_exec_counters(DisasContext *ctx)
     tcg_gen_addi_tl(hex_exec_ctr_hvx, hex_exec_ctr_hvx, ctx->num_hvx_insns);
 
 #ifndef CONFIG_USER_ONLY
-   gen_pcycle_counters(ctx);
+    gen_pcycle_counters(ctx);
+    if (ctx->pmu_enabled) {
+        tcg_gen_addi_tl(hex_pmu_num_packets, hex_pmu_num_packets,
+                        ctx->pmu_num_packets);
+        tcg_gen_addi_tl(hex_pmu_hvx_packets, hex_pmu_hvx_packets,
+                        ctx->pmu_hvx_packets);
+        ctx->pmu_num_packets = 0;
+        ctx->pmu_hvx_packets = 0;
+    }
 #endif
 }
+
+#ifndef CONFIG_USER_ONLY
+/*
+ * Flush PMU counters mid-TB before a packet that reads a PMU register.
+ * This ensures the helper sees up-to-date counter values.
+ */
+static void gen_pmu_counters(DisasContext *ctx)
+{
+    if (!ctx->pmu_enabled) {
+        return;
+    }
+    if (ctx->pmu_num_packets == 0 && ctx->pmu_hvx_packets == 0) {
+        return;
+    }
+    tcg_gen_addi_tl(hex_pmu_num_packets, hex_pmu_num_packets,
+                    ctx->pmu_num_packets);
+    tcg_gen_addi_tl(hex_pmu_hvx_packets, hex_pmu_hvx_packets,
+                    ctx->pmu_hvx_packets);
+    ctx->pmu_num_packets = 0;
+    ctx->pmu_hvx_packets = 0;
+}
+#endif
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
@@ -404,6 +436,22 @@ static bool has_sreg_write_to_global(Packet const *pkt)
         }
     }
     return false;
+}
+
+/*
+ * Check if packet contains an instruction that reads a PMU register.
+ * This includes control reg reads (A2_tfrcrr, A4_tfrcpp), system
+ * reg reads (Y2_tfrscrr, Y4_tfrscpp), and guest reg reads
+ * (G4_tfrgcrr, G4_tfrgcpp) which may access PMU counters.
+ */
+static bool pkt_has_pmu_read(Packet *pkt)
+{
+    return check_for_opcode(pkt, A2_tfrcrr) ||
+           check_for_opcode(pkt, A4_tfrcpp) ||
+           check_for_opcode(pkt, Y2_tfrscrr) ||
+           check_for_opcode(pkt, Y4_tfrscpp) ||
+           check_for_opcode(pkt, G4_tfrgcrr) ||
+           check_for_opcode(pkt, G4_tfrgcpp);
 }
 #endif
 
@@ -1203,6 +1251,12 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_cycles += PCYCLES_PER_PACKET;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
+#ifndef CONFIG_USER_ONLY
+    if (ctx->pmu_enabled) {
+        ctx->pmu_num_packets++;
+        ctx->pmu_hvx_packets += (num_hvx_insns > 0) ? 1 : 0;
+    }
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1360,6 +1414,11 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
             ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
             return;
         }
+#ifndef CONFIG_USER_ONLY
+        if (ctx->pmu_enabled && pkt_has_pmu_read(&ctx->pkt)) {
+            gen_pmu_counters(ctx);
+        }
+#endif
         gen_start_packet(ctx);
         for (i = 0; i < ctx->pkt.num_insns; i++) {
             ctx->insn = &ctx->pkt.insn[i];
@@ -1409,6 +1468,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         gen_cpu_limit_init();
     }
     ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
+    ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
+    ctx->pmu_num_packets = 0;
+    ctx->pmu_hvx_packets = 0;
 #endif
 }
 
@@ -1571,6 +1633,10 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, last_cpu), "last_cpu");
     hex_thread_id = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, threadId), "thread_id");
+    hex_pmu_num_packets = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, pmu.num_packets), "pmu_num_packets");
+    hex_pmu_hvx_packets = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_packets), "pmu_hvx_packets");
 #endif
     hex_exec_ctr_pkt = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, exec_ctr_pkt), "exec_ctr_pkt");
