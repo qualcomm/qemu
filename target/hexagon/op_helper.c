@@ -37,6 +37,7 @@
 #include "mmvec/mmvec_qfloat.h"
 #include "op_helper.h"
 #include "cpu_helper.h"
+#include "pmu.h"
 #include "translate.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
@@ -1857,16 +1858,122 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
                   env->next_PC);
 }
 
+static bool pmu_event_implemented(int event)
+{
+    switch (event) {
+    case PMU_NO_EVENT:
+    case COMMITTED_PKT_ANY:
+    case HVX_PKT:
+        return true;
+    default:
+        return (event >= COMMITTED_PKT_T0 && event <= COMMITTED_PKT_T7);
+    }
+}
+
+/*
+ * Set a PMU counter's event. When the event changes, flush the current
+ * event's stats into the counter offset and reset stats for the new event.
+ */
+static void set_pmu_event(CPUHexagonState *env, int index, uint8_t new_event)
+{
+    uint8_t old_event;
+
+    if (!env->pmu.g_events || !env->pmu.g_ctrs_off) {
+        return;
+    }
+
+    old_event = env->pmu.g_events[index];
+    if (old_event == new_event) {
+        return;
+    }
+
+    /* Flush old event stats into offset */
+    if (old_event != PMU_NO_EVENT) {
+        env->pmu.g_ctrs_off[index] =
+            hexagon_get_pmu_counter(env, index);
+        hexagon_reset_pmu_event_stats(env, old_event);
+    }
+
+    env->pmu.g_events[index] = new_event;
+
+    /* Reset stats for the new event */
+    if (new_event != PMU_NO_EVENT) {
+        hexagon_reset_pmu_event_stats(env, new_event);
+    }
+}
+
+static void check_all_pmu_events(CPUHexagonState *env)
+{
+    static uint64_t warned_events;
+
+    if (!env->pmu.g_events) {
+        return;
+    }
+    for (int i = 0; i < NUM_PMU_CTRS; i++) {
+        uint8_t event = env->pmu.g_events[i];
+        if (event != PMU_NO_EVENT && !pmu_event_implemented(event)) {
+            if (!(warned_events & (UINT64_C(1) << event))) {
+                warned_events |= UINT64_C(1) << event;
+                qemu_log_mask(LOG_UNIMP,
+                              "PMU counter %d: event 0x%02x not implemented\n",
+                              i, event);
+            }
+        }
+    }
+}
+
 static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                                   uint32_t val)
 {
-    if (reg == HEX_SREG_PMUSTID0 || reg == HEX_SREG_PMUSTID1
-        || reg == HEX_SREG_PMUCFG || reg == HEX_SREG_PMUEVTCFG
-        || reg == HEX_SREG_PMUEVTCFG1
-        || (reg >= HEX_SREG_PMUCNT4 && reg <= HEX_SREG_PMUCNT3)) {
-        qemu_log_mask(LOG_UNIMP, "PMU registers not yet implemented");
+    int index;
+
+    if (reg == HEX_SREG_PMUSTID0 || reg == HEX_SREG_PMUSTID1) {
+        /* Thread ID filtering - store but don't implement filtering */
+        if (val != 0) {
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: PMUSTID thread-ID filtering not implemented"
+                          " (reg=%s, val=0x%x)\n",
+                          __func__,
+                          reg == HEX_SREG_PMUSTID0 ? "PMUSTID0" : "PMUSTID1",
+                          val);
+        }
+        arch_set_system_reg(env, reg, val);
         return true;
     }
+
+    if (reg == HEX_SREG_PMUEVTCFG) {
+        /* Event config for counters 0-3 (8-bit event per counter) */
+        arch_set_system_reg(env, reg, val);
+        set_pmu_event(env, 0, GET_FIELD(PMUEVTCFG_CNT0, val));
+        set_pmu_event(env, 1, GET_FIELD(PMUEVTCFG_CNT1, val));
+        set_pmu_event(env, 2, GET_FIELD(PMUEVTCFG_CNT2, val));
+        set_pmu_event(env, 3, GET_FIELD(PMUEVTCFG_CNT3, val));
+        return true;
+    }
+
+    if (reg == HEX_SREG_PMUEVTCFG1) {
+        /* Event config for counters 4-7 (8-bit event per counter) */
+        arch_set_system_reg(env, reg, val);
+        set_pmu_event(env, 4, GET_FIELD(PMUEVTCFG1_CNT4, val));
+        set_pmu_event(env, 5, GET_FIELD(PMUEVTCFG1_CNT5, val));
+        set_pmu_event(env, 6, GET_FIELD(PMUEVTCFG1_CNT6, val));
+        set_pmu_event(env, 7, GET_FIELD(PMUEVTCFG1_CNT7, val));
+        return true;
+    }
+
+    if (reg == HEX_SREG_PMUCFG) {
+        /* MSB extension bits - store for now */
+        arch_set_system_reg(env, reg, val);
+        return true;
+    }
+
+    if (reg >= HEX_SREG_PMUCNT4 && reg <= HEX_SREG_PMUCNT3) {
+        /* Direct counter write */
+        index = pmu_index_from_sreg(reg);
+        hexagon_set_pmu_counter(env, index, val);
+        return true;
+    }
+
     return false;
 }
 
@@ -1878,8 +1985,10 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     uint32_t old = arch_get_system_reg(env, HEX_SREG_SYSCFG);
     uint8_t old_en = GET_SYSCFG_FIELD(SYSCFG_PCYCLEEN, old);
     uint8_t old_gie = GET_SYSCFG_FIELD(SYSCFG_GIE, old);
+    uint8_t old_pm = GET_SYSCFG_FIELD(SYSCFG_PM, old);
     uint8_t new_en = GET_SYSCFG_FIELD(SYSCFG_PCYCLEEN, val);
     uint8_t new_gie = GET_SYSCFG_FIELD(SYSCFG_GIE, val);
+    uint8_t new_pm = GET_SYSCFG_FIELD(SYSCFG_PM, val);
     CPUState *cs;
     target_ulong old_mmu_enable = GET_SYSCFG_FIELD(SYSCFG_MMUEN, old);
     target_ulong new_mmu_enable =
@@ -1908,6 +2017,11 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
         }
     }
 
+    /* PMU enable transition: validate configured events */
+    if (!old_pm && new_pm) {
+        check_all_pmu_events(env);
+    }
+
     /* See if global interrupts are turned on */
     if (old_gie != new_gie) {
         qemu_log_mask(CPU_LOG_INT,
@@ -1931,6 +2045,12 @@ static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
     target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
     return GET_SSR_FIELD(SSR_CE, ssr);
+}
+
+static inline bool ssr_pe_enabled(CPUHexagonState *env)
+{
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    return GET_SSR_FIELD(SSR_PE, ssr);
 }
 
 static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
@@ -1957,7 +2077,10 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
     case HEX_REG_UPMUCNT5:
     case HEX_REG_UPMUCNT6:
     case HEX_REG_UPMUCNT7:
-        return 0;
+        if (!ssr_pe_enabled(env)) {
+            return 0;
+        }
+        return hexagon_get_pmu_counter(env, pmu_index_from_creg(reg));
 
     default:
         return env->gpr[reg];
@@ -2055,12 +2178,13 @@ void HELPER(sreg_write_pair_masked)(CPUHexagonState *env, uint32_t reg,
 uint32_t sreg_read(CPUHexagonState *env, uint32_t reg)
 {
     g_assert(bql_locked());
-    if (reg == HEX_SREG_PMUSTID0 || reg == HEX_SREG_PMUSTID1
-        || reg == HEX_SREG_PMUCFG || reg == HEX_SREG_PMUEVTCFG
-        || reg == HEX_SREG_PMUEVTCFG1
-        || (reg >= HEX_SREG_PMUCNT4 && reg <= HEX_SREG_PMUCNT3)) {
-        qemu_log_mask(LOG_UNIMP, "PMU registers not yet implemented");
-        return 0;
+    if (reg >= HEX_SREG_PMUCNT4 && reg <= HEX_SREG_PMUCNT3) {
+        return hexagon_get_pmu_counter(env, pmu_index_from_sreg(reg));
+    }
+    if (reg == HEX_SREG_PMUEVTCFG || reg == HEX_SREG_PMUEVTCFG1 ||
+        reg == HEX_SREG_PMUCFG || reg == HEX_SREG_PMUSTID0 ||
+        reg == HEX_SREG_PMUSTID1) {
+        return arch_get_system_reg(env, reg);
     }
     if (reg == HEX_SREG_IPENDAD) {
         return (arch_get_system_reg(env, HEX_SREG_IPEND) & 0xffff) |
