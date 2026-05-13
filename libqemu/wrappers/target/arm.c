@@ -37,25 +37,14 @@ void libqemu_cpu_arm_set_cp15_cbar(Object *obj, uint64_t cbar)
     ARMCPU *cpu = ARM_CPU(obj);
     CPUARMState *env = &cpu->env;
 
-    if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
-        /* XXX discarding const qualifier here to avoid modifying QEMU upstream code */
-        uint32_t id = ENCODE_CP_REG(15, 0, 1, 15, 0, 4, 0);
-        ARMCPRegInfo *cbar_info = (ARMCPRegInfo *) get_arm_cp_reginfo(cpu->cp_regs, id);
-        assert(cbar_info);
-        cbar_info->resetvalue = cbar;
-    } else {
+    cpu->reset_cbar = cbar;
+
+    /* If CPU is already realized, update the runtime value for ARMv7 */
+    if (!arm_feature(env, ARM_FEATURE_V8)) {
         env->cp15.c15_config_base_address = cbar;
     }
 
-#if 0
-    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
-        /* For AArch64, also update the 32 bits view */
-        uint32_t id = ENCODE_AA64_CP_REG(0, 15, 3, 3, 1, 0);
-        ARMCPRegInfo *cbar_info = (ARMCPRegInfo *) get_arm_cp_reginfo(cpu->cp_regs, id);
-        assert(cbar_info);
-        cbar_info->resetvalue = cbar;
-    }
-#endif
+    /* Note: For ARMv8, CBAR is ARM_CP_CONST, so only reset_cbar matters */
 }
 
 
