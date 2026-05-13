@@ -362,6 +362,9 @@ extern TCGv hex_exec_ctr_tb;
 extern TCGv hex_last_cpu;
 extern TCGv hex_thread_id;
 #endif
+extern TCGv hex_exec_ctr_pkt;
+extern TCGv hex_exec_ctr_insn;
+extern TCGv hex_exec_ctr_hvx;
 
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int excp);

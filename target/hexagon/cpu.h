@@ -162,6 +162,11 @@ typedef struct CPUArchState {
     uint32_t exec_ctr_tb;
     uint32_t last_cpu;
 #endif
+
+    /* Execution counters (not tied to PMU registers) */
+    uint32_t exec_ctr_pkt;
+    uint32_t exec_ctr_insn;
+    uint32_t exec_ctr_hvx;
     target_ulong next_PC;
     target_ulong new_value_usr;
 

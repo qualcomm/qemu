@@ -75,11 +75,8 @@ enum {
     HEX_REG_PKTCNTLO         = 50,
     HEX_REG_PKTCNTHI         = 51,
     HEX_REG_UPMUCNT0         = 52,
-    HEX_REG_QEMU_PKT_CNT     = 52,  /* Alias for backwards compat */
     HEX_REG_UPMUCNT1         = 53,
-    HEX_REG_QEMU_INSN_CNT    = 53,  /* Alias for backwards compat */
     HEX_REG_UPMUCNT2         = 54,
-    HEX_REG_QEMU_HVX_CNT     = 54,  /* Alias for backwards compat */
     HEX_REG_UPMUCNT3         = 55,
     HEX_REG_UPMUCNT4         = 56,
     HEX_REG_UPMUCNT5         = 57,

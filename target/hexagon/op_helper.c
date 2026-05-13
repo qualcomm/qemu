@@ -1945,6 +1945,19 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
         return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERLO);
     case HEX_REG_UTIMERHI:
         return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_TIMERHI);
+    case HEX_REG_PKTCNTLO:
+        return env->exec_ctr_pkt;
+    case HEX_REG_PKTCNTHI:
+        return env->exec_ctr_insn;
+    case HEX_REG_UPMUCNT0:
+    case HEX_REG_UPMUCNT1:
+    case HEX_REG_UPMUCNT2:
+    case HEX_REG_UPMUCNT3:
+    case HEX_REG_UPMUCNT4:
+    case HEX_REG_UPMUCNT5:
+    case HEX_REG_UPMUCNT6:
+    case HEX_REG_UPMUCNT7:
+        return 0;
 
     default:
         return env->gpr[reg];
