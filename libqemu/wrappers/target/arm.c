@@ -48,6 +48,18 @@ void libqemu_cpu_arm_set_cp15_cbar(Object *obj, uint64_t cbar)
     /* Note: For ARMv8, CBAR is ARM_CP_CONST, so only reset_cbar matters */
 }
 
+/* This ARM register is only available for Cortex-R52 */
+void libqemu_cpu_arm_set_imp_buildoptr(Object *obj, uint32_t imp_buildoptr_val)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    uint32_t id = ENCODE_CP_REG(15, 0, 1, 15, 2, 0, 0);
+    ARMCPRegInfo *imp_buildoptr_info =
+        (ARMCPRegInfo *)get_arm_cp_reginfo(cpu->cp_regs, id);
+    assert(imp_buildoptr_info);
+    imp_buildoptr_info->resetvalue = imp_buildoptr_val;
+}
+
 int libqemu_arm_set_cpu_on_and_reset(Object *obj)
 {
     Error *err = NULL;
