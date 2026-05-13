@@ -71,6 +71,18 @@ ExportedFct('object_property_parse', 'bool',
         ['Object *', 'const char *', 'const char *', 'Error **'],
         iothread_locked = True)
 
+ExportedFct('object_property_get_str' , 'const char *',
+        [ 'Object *', 'const char *', 'Error **' ], iothread_locked = True)
+
+ExportedFct('object_property_get_bool', 'bool',
+        [ 'Object *', 'const char *' , 'Error **' ], iothread_locked = True)
+
+ExportedFct('object_property_get_int' , 'int',
+        [ 'Object *', 'const char *', 'Error **' ], iothread_locked = True)
+
+ExportedFct('object_property_get_uint', 'uint64_t',
+        [ 'Object *', 'const char *', 'Error **' ], iothread_locked = True)
+
 ExportedFct('object_property_get_link', 'Object *',
         ['Object *', 'const char *', 'Error **'],
         iothread_locked = True)
@@ -394,8 +406,13 @@ ExportedType('qemu_plugin_hwaddr')
 ExportedType('qemu_plugin_scoreboard')
 ExportedType('qemu_plugin_register')
 
+# ARM specific exports (32-bit and 64-bit)
+PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'arm')
+ExportedFct('cpu_arm_set_cpu_on_and_reset', 'int', [ 'Object *'],
+        priv = 'libqemu_arm_set_cpu_on_and_reset', arch = 'arm')
+ExportedFct('cpu_arm_set_cpu_off', 'int', [ 'Object *'],
+        priv = 'libqemu_arm_set_cpu_off', arch = 'arm')
 # AArch64 specific exports
-PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
 ExportedFct('cpu_arm_add_nvic_link', 'void', [ 'Object *' ],

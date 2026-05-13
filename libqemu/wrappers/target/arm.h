@@ -26,6 +26,9 @@
 void libqemu_cpu_arm_set_cp15_cbar(Object *cpu, uint64_t cbar);
 void libqemu_cpu_aarch64_set_aarch64_mode(Object *cpu, bool aarch64_mode);
 
+int libqemu_arm_set_cpu_on_and_reset(Object *cpu);
+int libqemu_arm_set_cpu_off(Object *cpu);
+
 void libqemu_cpu_arm_add_nvic_link(Object *cpu);
 void libqemu_arm_nvic_add_cpu_link(Object *cpu);
 
