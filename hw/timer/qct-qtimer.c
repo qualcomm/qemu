@@ -178,8 +178,10 @@ static MemTxResult hex_timer_read(void *opaque,
                                 MemTxAttrs attrs)
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
-    uint32_t slot_nr = (offset & 0xF000) >> 12;
-    uint32_t reg_offset = offset & 0xFFF;
+    uint32_t stride = qct_s->frame_stride;
+    uint32_t stride_shift = ctz32(stride);
+    uint32_t slot_nr = (offset & (0xF * stride)) >> stride_shift;
+    uint32_t reg_offset = offset & (stride - 1);
     uint32_t view = slot_nr % qct_s->nr_views;
     uint32_t frame = slot_nr / qct_s->nr_views;
 
@@ -326,8 +328,10 @@ static MemTxResult hex_timer_write(void *opaque,
                                     MemTxAttrs attrs)
 {
     QCTQtimerState *qct_s = (QCTQtimerState*)opaque;
-    uint32_t slot_nr = (offset & 0xF000) >> 12;
-    uint32_t reg_offset = offset & 0xFFF;
+    uint32_t stride = qct_s->frame_stride;
+    uint32_t stride_shift = ctz32(stride);
+    uint32_t slot_nr = (offset & (0xF * stride)) >> stride_shift;
+    uint32_t reg_offset = offset & (stride - 1);
     uint32_t view = slot_nr % qct_s->nr_views;
     uint32_t frame = slot_nr / qct_s->nr_views;
 
@@ -514,7 +518,7 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 
     memory_region_init_io(&s->view_iomem, OBJECT(sbd), &hex_timer_ops, s,
-                          "qutimer_views", QTIMER_MEM_SIZE_BYTES * s->nr_frames * s->nr_views);
+                          "qutimer_views", s->frame_stride * s->nr_frames * s->nr_views);
     sysbus_init_mmio(sbd, &s->view_iomem);
 
     for (i = 0; i < s->nr_frames; i++) {
@@ -550,6 +554,7 @@ static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
+    DEFINE_PROP_UINT32("frame_stride", QCTQtimerState, frame_stride, 0x1000),
     DEFINE_PROP_ON_OFF_AUTO("start-ticking", QCTQtimerState, start_ticking,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_UINT32("cnttid_0", QCTQtimerState, cnttid_0, 0x11),
