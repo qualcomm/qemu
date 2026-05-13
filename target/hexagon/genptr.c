@@ -82,6 +82,14 @@ const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {
     [HEX_REG_GP] = 0x3f,
     [HEX_REG_UPCYCLELO] = IMMUTABLE,
     [HEX_REG_UPCYCLEHI] = IMMUTABLE,
+    [HEX_REG_UPMUCNT0] = IMMUTABLE,
+    [HEX_REG_UPMUCNT1] = IMMUTABLE,
+    [HEX_REG_UPMUCNT2] = IMMUTABLE,
+    [HEX_REG_UPMUCNT3] = IMMUTABLE,
+    [HEX_REG_UPMUCNT4] = IMMUTABLE,
+    [HEX_REG_UPMUCNT5] = IMMUTABLE,
+    [HEX_REG_UPMUCNT6] = IMMUTABLE,
+    [HEX_REG_UPMUCNT7] = IMMUTABLE,
     [HEX_REG_UTIMERLO] = IMMUTABLE,
     [HEX_REG_UTIMERHI] = IMMUTABLE,
 };
@@ -322,8 +330,8 @@ static inline void gen_read_p3_0(TCGv control_reg)
  *                           -> concat the 4 predicate registers together
  *     HEX_REG_PC            actual value stored in DisasContext
  *                           -> assign from ctx->base.pc_next
- *     HEX_REG_QEMU_*_CNT    changes in current TB in DisasContext
- *                           -> add current TB changes to existing reg value
+ *     HEX_REG_PKTCNTLO/HI   read via helper (synthesized from exec counters)
+ *     HEX_REG_UPMUCNT*       PMU counter reads via helper
  */
 static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
                                      TCGv dest)
@@ -332,19 +340,12 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
         gen_read_p3_0(dest);
     } else if (reg_num == HEX_REG_PC) {
         tcg_gen_movi_tl(dest, ctx->base.pc_next);
-    } else if (reg_num == HEX_REG_QEMU_PKT_CNT) {
-        tcg_gen_addi_tl(dest, hex_gpr[HEX_REG_QEMU_PKT_CNT],
-                        ctx->num_packets);
-    } else if (reg_num == HEX_REG_QEMU_INSN_CNT) {
-        tcg_gen_addi_tl(dest, hex_gpr[HEX_REG_QEMU_INSN_CNT],
-                        ctx->num_insns);
-    } else if (reg_num == HEX_REG_QEMU_HVX_CNT) {
-        tcg_gen_addi_tl(dest, hex_gpr[HEX_REG_QEMU_HVX_CNT],
-                        ctx->num_hvx_insns);
-    } else if ((reg_num == HEX_REG_PKTCNTLO)
-            || (reg_num == HEX_REG_PKTCNTHI)
-            || (reg_num == HEX_REG_UTIMERLO)
-            || (reg_num == HEX_REG_UTIMERHI)) {
+    } else if ((reg_num >= HEX_REG_UPMUCNT0 &&
+                reg_num <= HEX_REG_UPMUCNT7) ||
+               (reg_num == HEX_REG_PKTCNTLO) ||
+               (reg_num == HEX_REG_PKTCNTHI) ||
+               (reg_num == HEX_REG_UTIMERLO) ||
+               (reg_num == HEX_REG_UTIMERHI)) {
         gen_helper_creg_read(dest, tcg_env, tcg_constant_tl(reg_num));
     } else {
         tcg_gen_mov_tl(dest, hex_gpr[reg_num]);
@@ -361,22 +362,11 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
     } else if (reg_num == HEX_REG_PC - 1) {
         TCGv pc = tcg_constant_tl(ctx->base.pc_next);
         tcg_gen_concat_i32_i64(dest, hex_gpr[reg_num], pc);
-    } else if (reg_num == HEX_REG_QEMU_PKT_CNT) {
-        TCGv pkt_cnt = tcg_temp_new();
-        TCGv insn_cnt = tcg_temp_new();
-        tcg_gen_addi_tl(pkt_cnt, hex_gpr[HEX_REG_QEMU_PKT_CNT],
-                        ctx->num_packets);
-        tcg_gen_addi_tl(insn_cnt, hex_gpr[HEX_REG_QEMU_INSN_CNT],
-                        ctx->num_insns);
-        tcg_gen_concat_i32_i64(dest, pkt_cnt, insn_cnt);
-    } else if (reg_num == HEX_REG_QEMU_HVX_CNT) {
-        TCGv hvx_cnt = tcg_temp_new();
-        tcg_gen_addi_tl(hvx_cnt, hex_gpr[HEX_REG_QEMU_HVX_CNT],
-                        ctx->num_hvx_insns);
-        tcg_gen_concat_i32_i64(dest, hvx_cnt, hex_gpr[reg_num + 1]);
-    } else if ((reg_num == HEX_REG_PKTCNTLO)
-            || (reg_num == HEX_REG_UTIMERLO)
-            || (reg_num == HEX_REG_UPCYCLELO)) {
+    } else if ((reg_num >= HEX_REG_UPMUCNT0 &&
+                reg_num <= HEX_REG_UPMUCNT7) ||
+               (reg_num == HEX_REG_PKTCNTLO) ||
+               (reg_num == HEX_REG_UTIMERLO) ||
+               (reg_num == HEX_REG_UPCYCLELO)) {
         gen_helper_creg_read_pair(dest, tcg_env, tcg_constant_i32(reg_num));
     } else {
         tcg_gen_concat_i32_i64(dest,
@@ -398,8 +388,7 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
  * Certain control registers require special handling on write
  *     HEX_REG_P3_0_ALIASED  aliased to the predicate registers
  *                           -> break the value across 4 predicate registers
- *     HEX_REG_QEMU_*_CNT    changes in current TB in DisasContext
- *                            -> clear the changes
+ *     HEX_REG_UPMUCNT*       user PMU counters are immutable
  */
 static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
                                       TCGv val)
@@ -410,15 +399,6 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
         const target_ulong reg_mask = reg_immut_masks[reg_num];
         gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
-        if (reg_num == HEX_REG_QEMU_PKT_CNT) {
-            ctx->num_packets = 0;
-        }
-        if (reg_num == HEX_REG_QEMU_INSN_CNT) {
-            ctx->num_insns = 0;
-        }
-        if (reg_num == HEX_REG_QEMU_HVX_CNT) {
-            ctx->num_hvx_insns = 0;
-        }
     }
 }
 

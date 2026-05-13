@@ -80,6 +80,9 @@ TCGv hex_exec_ctr_tb;
 TCGv hex_last_cpu;
 TCGv hex_thread_id;
 #endif
+TCGv hex_exec_ctr_pkt;
+TCGv hex_exec_ctr_insn;
+TCGv hex_exec_ctr_hvx;
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -157,12 +160,9 @@ static inline void gen_pcycle_counters(DisasContext *ctx)
 
 static void gen_exec_counters(DisasContext *ctx)
 {
-    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
-                    hex_gpr[HEX_REG_QEMU_PKT_CNT], ctx->num_packets);
-    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_INSN_CNT],
-                    hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
-    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_HVX_CNT],
-                    hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
+    tcg_gen_addi_tl(hex_exec_ctr_pkt, hex_exec_ctr_pkt, ctx->num_packets);
+    tcg_gen_addi_tl(hex_exec_ctr_insn, hex_exec_ctr_insn, ctx->num_insns);
+    tcg_gen_addi_tl(hex_exec_ctr_hvx, hex_exec_ctr_hvx, ctx->num_hvx_insns);
 
 #ifndef CONFIG_USER_ONLY
    gen_pcycle_counters(ctx);
@@ -1572,6 +1572,12 @@ void hexagon_translate_init(void)
     hex_thread_id = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, threadId), "thread_id");
 #endif
+    hex_exec_ctr_pkt = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, exec_ctr_pkt), "exec_ctr_pkt");
+    hex_exec_ctr_insn = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, exec_ctr_insn), "exec_ctr_insn");
+    hex_exec_ctr_hvx = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, exec_ctr_hvx), "exec_ctr_hvx");
     hex_next_PC = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, next_PC), "next_PC");
 

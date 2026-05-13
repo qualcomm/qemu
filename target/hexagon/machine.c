@@ -29,6 +29,9 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.wait_next_pc, HexagonCPU),
         /* TLB state is now handled by the hexagon_tlb device */
         VMSTATE_UINT64(env.t_cycle_count, HexagonCPU),
+        VMSTATE_UINT32(env.exec_ctr_pkt, HexagonCPU),
+        VMSTATE_UINT32(env.exec_ctr_insn, HexagonCPU),
+        VMSTATE_UINT32(env.exec_ctr_hvx, HexagonCPU),
 
         VMSTATE_END_OF_LIST()
     },

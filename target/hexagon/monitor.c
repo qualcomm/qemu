@@ -9,18 +9,8 @@
 #include "cpu.h"
 #include "cpu_bits.h"
 #include "monitor/monitor.h"
-#include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "hex_mmu.h"
-
-const MonitorDef monitor_defs[] = {
-    { NULL },
-};
-
-const MonitorDef *target_monitor_defs(void)
-{
-    return monitor_defs;
-}
 
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
