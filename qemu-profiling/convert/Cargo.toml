@@ -1,0 +1,18 @@
+[package]
+name = "tcg-prof-convert"
+version = "0.1.0"
+edition = "2021"
+description = "Converter for QEMU PGO plugin profiles to LLVM tool formats"
+license = "BSD-3-Clause-Clear"
+
+[lib]
+name = "tcg_prof_convert"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tcg-prof-convert"
+path = "src/main.rs"
+
+[dependencies]
+goblin = "0.9"
+clap = { version = "4", features = ["derive"] }

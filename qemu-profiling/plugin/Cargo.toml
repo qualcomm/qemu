@@ -1,0 +1,18 @@
+[package]
+name = "qemu-pgo-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "QEMU TCG plugin for generating PGO profiling data"
+license = "BSD-3-Clause-Clear"
+
+[lib]
+crate-type = ["cdylib"]
+name = "tcg_prof"
+
+[features]
+default = []
+tier3 = []
+
+[dependencies]
+memoffset = "0.9"
+rustc-hash = "2"
