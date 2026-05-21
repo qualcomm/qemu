@@ -129,10 +129,9 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
 {
     /*
      * Return the current highest priority pending interrupt for the
-     * specified domain, if it has sufficient priority to preempt. The
-     * intid field of the return value will be in the format of the
-     * ICC_HPPIR register (and will be zero if and only if there is no
-     * interrupt that can preempt).
+     * specified domain, if it has sufficient priority to preempt.
+     * If there is no interrupt that can preempt we signal this by
+     * returning a struct with prio == PRIO_IDLE.
      */
 
     GICv5Common *gic = gicv5_get_gic(env);
@@ -166,7 +165,6 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
         best.prio >= gic_running_prio(env, domain)) {
         return (GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE };
     }
-    best.intid |= R_ICC_HPPIR_EL1_HPPIV_MASK;
     return best;
 }
 
@@ -275,7 +273,7 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
             int ppi;
             int bit = ctz64(en_pend_nact);
 
-            en_pend_nact &= ~(1 << bit);
+            en_pend_nact &= ~(1ULL << bit);
 
             ppi = i * 64 + bit;
             prio = extract64(env->gicv5_cpuif.ppi_priority[ppi / 8],
@@ -575,7 +573,12 @@ static uint64_t gic_icc_hppir_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv5Domain domain = gicv5_logical_domain(env);
     GICv5PendingIrq hppi = gic_hppi(env, domain);
-    return hppi.intid;
+
+    if (hppi.prio == PRIO_IDLE) {
+        /* No valid interrupt */
+        return 0;
+    }
+    return hppi.intid | R_ICC_HPPIR_EL1_HPPIV_MASK;
 }
 
 static bool gic_hppi_is_nmi(CPUARMState *env, GICv5PendingIrq hppi,
@@ -602,13 +605,12 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
     bool cdnmia = ri->opc2 == 1;
 
-    if (!hppi.intid) {
+    if (hppi.prio == PRIO_IDLE) {
         /* No interrupt available to acknowledge */
         trace_gicv5_gicr_cdia_fail(domain,
                                    "no available interrupt to acknowledge");
         return 0;
     }
-    assert(hppi.prio != PRIO_IDLE);
 
     if (gic_hppi_is_nmi(env, hppi, domain) != cdnmia) {
         /* GICR CDIA only acknowledges non-NMI; GICR CDNMIA only NMI */
@@ -631,7 +633,7 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
      * gicv5_activate() cause a re-evaluation of HPPIs they use the
      * right (new) running priority.
      */
-    env->gicv5_cpuif.icc_apr[domain] |= (1 << hppi.prio);
+    env->gicv5_cpuif.icc_apr[domain] |= (1ULL << hppi.prio);
     switch (type) {
     case GICV5_PPI:
     {
@@ -639,7 +641,7 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
         assert(id < GICV5_NUM_PPIS);
         ppireg = id / 64;
-        ppibit = 1 << (id % 64);
+        ppibit = 1ULL << (id % 64);
 
         env->gicv5_cpuif.ppi_active[ppireg] |= ppibit;
         if (!(env->gicv5_cpuif.ppi_hm[ppireg] & ppibit)) {
@@ -707,7 +709,7 @@ static void gic_cddi_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
 
         ppireg = id / 64;
-        ppibit = 1 << (id % 64);
+        ppibit = 1ULL << (id % 64);
 
         env->gicv5_cpuif.ppi_active[ppireg] &= ~ppibit;
         gic_recalc_ppi_hppi(env);

@@ -295,12 +295,13 @@ static int get_physical_address(CPUAlphaState *env, vaddr addr,
     return ret;
 }
 
-hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr alpha_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     hwaddr phys;
     int prot, fail;
 
     fail = get_physical_address(cpu_env(cs), addr, 0, 0, &phys, &prot);
+    phys |= addr & ~TARGET_PAGE_MASK;
     return (fail >= 0 ? -1 : phys);
 }
 

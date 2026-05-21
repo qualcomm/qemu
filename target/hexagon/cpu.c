@@ -919,7 +919,7 @@ static void find_qemu_subpage(vaddr *addr, hwaddr *phys,
 }
 
 #ifndef CONFIG_USER_ONLY
-static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     CPUHexagonState *env = cpu_env(cs);
     hwaddr phys_addr;
@@ -927,10 +927,12 @@ static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     uint64_t page_size = 0;
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
+    vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
 
     if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
                              addr, 0, mmu_idx)) {
         find_qemu_subpage(&addr, &phys_addr, page_size);
+        phys_addr += hexagon_cpu_mmu_enabled(env) ? page_offset : 0;
         return phys_addr;
     }
 
@@ -1064,7 +1066,7 @@ static int64_t hexagon_get_arch_id(CPUState *cs)
 }
 
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
-    .get_phys_page_debug = hexagon_cpu_get_phys_page_debug,
+    .get_phys_addr_debug = hexagon_cpu_get_phys_addr_debug,
     .has_work = hexagon_cpu_has_work,
 };
 #endif

@@ -454,28 +454,27 @@ gchar *qtest_qemu_args(const char *extra_args)
 {
     g_autofree gchar *socket_path = qtest_socket_path("sock");
     g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
-    const char *trace = g_getenv("QTEST_TRACE");
-    g_autofree char *tracearg = trace ? g_strdup_printf("-trace %s ", trace) :
-                                        g_strdup("");
+    const char *args_from_env = g_getenv("QTEST_QEMU_ARGS");
+
     gchar *args = g_strdup_printf(
-                      "%s"
                       "-qtest unix:%s "
                       "-qtest-log %s "
                       "-chardev socket,path=%s,id=char0 "
                       "-mon chardev=char0,mode=control "
                       "-display none "
                       "-audio none "
-                      "%s"
-                      "%s"
-                      " -accel qtest",
+                      "%s "
+                      "%s "
+                      "%s "
+                      "-accel qtest",
 
-                      tracearg,
                       socket_path,
-                      getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
+                      qtest_verbose("qtest") ? DEV_STDERR : DEV_NULL,
                       qmp_socket_path,
                       can_exit_with_parent() ?
-                      "-run-with exit-with-parent=on " : "",
-                      extra_args ?: "");
+                      "-run-with exit-with-parent=on" : "",
+                      extra_args ?: "",
+                      args_from_env ?: "");
 
     return args;
 }
@@ -2142,4 +2141,58 @@ bool mkimg(const char *file, const char *fmt, unsigned size_mb)
     free(qemu_img_abs_path);
 
     return ret && !err;
+}
+
+bool qtest_verbose(const char *domain)
+{
+    const char *log = getenv("QTEST_LOG");
+    const char *found;
+
+    assert(domain);
+
+    if (log) {
+        /*
+         * verbose=true for all domains if:
+         *  QTEST_LOG=
+         *  QTEST_LOG=1
+         *  other one-character variations
+         */
+        if (log[0] == '\0' || log[1] == '\0') {
+            return true;
+        }
+
+        /*
+         * verbose=true for specified domains if:
+         *  QTEST_LOG=<domain>
+         *  QTEST_LOG=<domain1>,<domain2>
+         *  allows other separators, except - and +
+         *
+         * verbose=false for specified domains if:
+         *  QTEST_LOG=-<domain>
+         *  QTEST_LOG=<domain1>,-<domain2> (only false for domain2)
+         *  allows other separators, except - and +
+         */
+        found = strstr(log, domain);
+
+        if (found) {
+            /* reject options given twice */
+            assert(!strstr(found + strlen(domain), domain));
+
+            if (found > log) {
+                ptrdiff_t i = found - log - 1;
+                if (log[i] == '-') {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            /*
+             * If filtering out a specific domain, all others are
+             * enabled.
+             */
+            return !!strstr(log, "-");
+        }
+    }
+
+    return false;
 }

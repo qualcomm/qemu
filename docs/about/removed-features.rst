@@ -1112,7 +1112,7 @@ This machine was removed because it was unused. Alternative AST2500 based
 OpenPOWER machines are ``witherspoon-bmc`` and ``romulus-bmc``.
 
 ppc ``taihu`` machine (removed in 7.2)
-'''''''''''''''''''''''''''''''''''''''''''''
+''''''''''''''''''''''''''''''''''''''
 
 This machine was removed because it was partially emulated and 405
 machines are very similar. Use the ``ref405ep`` machine instead.
@@ -1186,6 +1186,42 @@ Arm ``highbank`` and ``midway`` machines (removed in 11.0)
 There were no known users left for these machines. If you just want to
 boot a Cortex-A15 or Cortex-A9 Linux, use the ``virt`` machine instead.
 
+Arm ``sonorapass-bmc`` machine (removed in 11.1)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``sonorapass-bmc`` machine represents a lab server that never
+entered production. It can be replaced by the ``ast2500-evb`` machine
+using the ``fmc-model`` option to specify the flash type. The I2C
+devices connected to the board can be defined via the QEMU command
+line.
+
+Arm ``qcom-dc-scm-v1-bmc`` and ``qcom-firework-bmc`` machine (removed in 11.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``qcom-dc-scm-v1-bmc`` and ``qcom-firework-bmc`` represent lab
+servers that never entered production. Since they do not rely on any
+specific device models, they can be replaced by the ``ast2600-evb``
+machine using the ``fmc-model`` option to specify the flash type. The
+I2C devices connected to the board can be defined via the QEMU command
+line.
+
+Arm ``fp5280g2-bmc`` machine (removed in 11.1)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``fp5280g2-bmc`` machine does not rely on any specific device
+models, it can be replaced by the ``ast2500-evb`` machine using the
+``fmc-model`` option to specify the flash type. The I2C devices
+connected to the board can be defined via the QEMU command line.
+
+Arm ``fby35`` machine (removed in 11.1)
+'''''''''''''''''''''''''''''''''''''''
+
+The ``fby35`` machine was originally added as an example of a
+multi-SoC system, with the expectation the models would evolve over
+time in an heterogeneous system. This hasn't happened and no public
+firmware is available to boot it. It can be replaced by the
+``ast2700fc``, another multi-SoC machine based on the newer AST2700
+SoCs which are excepted to receive better support in the future.
 
 linux-user mode CPUs
 --------------------
@@ -1392,6 +1428,13 @@ The VXHS code did not compile since v2.12.0. It was removed in 5.1.
 The corresponding upstream server project is no longer maintained.
 Users are recommended to switch to an alternative distributed block
 device driver such as RBD.
+
+``gluster`` backend (removed in 11.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+According to https://marc.info/?l=fedora-devel-list&m=171934833215726
+the GlusterFS development effectively ended.
+
 
 VFIO devices
 ------------

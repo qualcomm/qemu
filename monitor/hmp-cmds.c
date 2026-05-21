@@ -764,19 +764,17 @@ void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
 {
     vaddr addr = qdict_get_int(qdict, "addr");
     CPUState *cs = mon_get_cpu(mon);
-    hwaddr gpa;
+    TranslateForDebugResult tres;
 
     if (!cs) {
         monitor_printf(mon, "No cpu\n");
         return;
     }
 
-    gpa  = cpu_get_phys_page_debug(cs, addr & TARGET_PAGE_MASK);
-    if (gpa == -1) {
+    if (!cpu_translate_for_debug(cs, addr, &tres)) {
         monitor_printf(mon, "Unmapped\n");
     } else {
-        monitor_printf(mon, "gpa: 0x%" HWADDR_PRIx "\n",
-                       gpa + (addr & ~TARGET_PAGE_MASK));
+        monitor_printf(mon, "gpa: 0x%" HWADDR_PRIx "\n", tres.physaddr);
     }
 }
 

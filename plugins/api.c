@@ -617,15 +617,15 @@ qemu_plugin_write_memory_hwaddr(hwaddr addr, GByteArray *data)
 bool qemu_plugin_translate_vaddr(uint64_t vaddr, uint64_t *hwaddr)
 {
 #ifdef CONFIG_SOFTMMU
+    TranslateForDebugResult tres;
+
     g_assert(current_cpu);
 
-    uint64_t res = cpu_get_phys_page_debug(current_cpu, vaddr);
-
-    if (res == (uint64_t)-1) {
+    if (!cpu_translate_for_debug(current_cpu, vaddr, &tres)) {
         return false;
     }
 
-    *hwaddr = res | (vaddr & ~TARGET_PAGE_MASK);
+    *hwaddr = tres.physaddr;
 
     return true;
 #else

@@ -690,6 +690,12 @@ hardening_flags = [
     # it harder to take advantage of uninitialized stack
     # data to drive exploits
     '-ftrivial-auto-var-init=zero',
+    # Ensure GCC zero-initializes padding bits and trailing fields in
+    # unions. This avoids potentially leaking host data into the guest
+    # when we init a struct and copy it into guest memory.  GCC prior
+    # to GCC 15 and clang don't have this, but they zero the padding
+    # and trailing portions of a union by default.
+    '-fzero-init-padding-bits=all',
 ]
 
 # Zero out registers used during a function call
@@ -1662,43 +1668,6 @@ if not get_option('rbd').auto() or have_block
   endif
 endif
 
-glusterfs = not_found
-glusterfs_ftruncate_has_stat = false
-glusterfs_iocb_has_stat = false
-if not get_option('glusterfs').auto() or have_block
-  glusterfs = dependency('glusterfs-api', version: '>=3',
-                         required: get_option('glusterfs'),
-                         method: 'pkg-config')
-  if glusterfs.found()
-    glusterfs_ftruncate_has_stat = cc.links('''
-      #include <glusterfs/api/glfs.h>
-
-      int
-      main(void)
-      {
-          /* new glfs_ftruncate() passes two additional args */
-          return glfs_ftruncate(NULL, 0, NULL, NULL);
-      }
-    ''', dependencies: glusterfs)
-    glusterfs_iocb_has_stat = cc.links('''
-      #include <glusterfs/api/glfs.h>
-
-      /* new glfs_io_cbk() passes two additional glfs_stat structs */
-      static void
-      glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glfs_stat *poststat, void *data)
-      {}
-
-      int
-      main(void)
-      {
-          glfs_io_cbk iocb = &glusterfs_iocb;
-          iocb(NULL, 0 , NULL, NULL, NULL);
-          return 0;
-      }
-    ''', dependencies: glusterfs)
-  endif
-endif
-
 hv_balloon = false
 if get_option('hv_balloon').allowed() and have_system
   if cc.links('''
@@ -2478,15 +2447,6 @@ config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
 config_host_data.set('CONFIG_GBM', gbm.found())
 config_host_data.set('CONFIG_GIO', gio.found())
-config_host_data.set('CONFIG_GLUSTERFS', glusterfs.found())
-if glusterfs.found()
-  config_host_data.set('CONFIG_GLUSTERFS_XLATOR_OPT', glusterfs.version().version_compare('>=4'))
-  config_host_data.set('CONFIG_GLUSTERFS_DISCARD', glusterfs.version().version_compare('>=5'))
-  config_host_data.set('CONFIG_GLUSTERFS_FALLOCATE', glusterfs.version().version_compare('>=6'))
-  config_host_data.set('CONFIG_GLUSTERFS_ZEROFILL', glusterfs.version().version_compare('>=6'))
-  config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
-  config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
-endif
 config_host_data.set('CONFIG_GTK', gtk.found())
 config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_HEXAGON_IDEF_PARSER', get_option('hexagon_idef_parser'))
@@ -5016,7 +4976,6 @@ if host_os == 'windows'
   endif
 endif
 summary_info += {'seccomp support':   seccomp}
-summary_info += {'GlusterFS support': glusterfs}
 summary_info += {'hv-balloon support': hv_balloon}
 summary_info += {'TPM support':       have_tpm}
 summary_info += {'IGVM support':      igvm}

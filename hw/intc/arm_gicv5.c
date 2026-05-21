@@ -926,6 +926,7 @@ void gicv5_set_handling(GICv5Common *cs, uint32_t id,
         if (!spi) {
             qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_handling: tried to set "
                           "priority of unreachable SPI %d\n", id);
+            return;
         }
 
         spi->hm = handling;
@@ -1643,8 +1644,8 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
         if (spi) {
             spi_sample(spi);
             irs_recalc_hppi(s, spi->domain, spi->iaffid);
+            trace_gicv5_spi_state(id, spi->level, spi->pending, spi->active);
         }
-        trace_gicv5_spi_state(id, spi->level, spi->pending, spi->active);
         return true;
     }
     case A_IRS_CR0:
