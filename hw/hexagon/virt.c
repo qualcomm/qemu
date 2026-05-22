@@ -301,7 +301,7 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
 }
 
 static void create_qtimer(HexagonVirtMachineState *vms,
-        const hexagon_machine_config *m_cfg)
+                          const hexagon_machine_config *m_cfg)
 {
     vms->qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
     object_property_set_uint(OBJECT(vms->qtimer), "nr_frames", 2,
