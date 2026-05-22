@@ -228,7 +228,8 @@ static void create_cdsp_turing_rsc(void)
 }
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev,
-                                hexagon_machine_config *m_cfg)
+                                hexagon_machine_config *m_cfg,
+                                bool start_ticking, uint64_t periodic_ticks)
 {
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     hexagon_binfo.ram_size = machine->ram_size;
@@ -320,9 +321,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     object_property_set_uint(OBJECT(qtimer), "cnttid",
                              0x111, &error_fatal);
     object_property_set_bool(OBJECT(qtimer), "start-ticking",
-                             true, &error_fatal);
+                             start_ticking, &error_fatal);
     object_property_set_uint(OBJECT(qtimer), "periodic-ticks",
-                             192000, &error_fatal);
+                             periodic_ticks, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
 
     /* Link qtimer to globalreg for TIMERLO/TIMERHI reads */
@@ -410,7 +411,7 @@ static void init_mc(MachineClass *mc)
 
 static void v66g_1024_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v66_rev, &v66g_1024);
+    hexagon_common_init(machine, v66_rev, &v66g_1024, false, 0);
 }
 
 static void v66g_1024_init(ObjectClass *oc, const void *data)
@@ -430,7 +431,7 @@ static void v66g_1024_init(ObjectClass *oc, const void *data)
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0);
+    hexagon_common_init(machine, v73_rev, &SA8775P_cdsp0, true, 192000);
 
     /* Create and map the TCSR device */
     DeviceState *tcsr = qdev_new(TYPE_TCSR);
@@ -535,7 +536,7 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
 
 static void sim_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v68_rev, &v68n_1024);
+    hexagon_common_init(machine, v68_rev, &v68n_1024, false, 0);
 }
 
 static void sim_init(ObjectClass *oc, const void *data)
@@ -551,7 +552,7 @@ static void sim_init(ObjectClass *oc, const void *data)
 
 static void v81dgb_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1);
+    hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1, false, 0);
 }
 
 static void v81dgb_1_init(ObjectClass *oc, const void *data)
@@ -570,7 +571,7 @@ static void v81dgb_1_init(ObjectClass *oc, const void *data)
 
 static void v81qa_1_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, v81_rev, &v81qa_1);
+    hexagon_common_init(machine, v81_rev, &v81qa_1, false, 0);
 }
 
 static void v81qa_1_init(ObjectClass *oc, const void *data)
