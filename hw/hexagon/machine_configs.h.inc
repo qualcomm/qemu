@@ -30,5 +30,5 @@
 #include "machine_cfg_sa8540p_cdsp0.h.inc"
 #include "machine_cfg_sa8775_cdsp0.h.inc"
 #include "machine_cfg_v68n_1024.h.inc"
-
 #include "machine_cfg_sa8797p_nsp0.h.inc"
+#include "machine_cfg_sc8480xp_nsp0.h.inc"
