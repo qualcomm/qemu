@@ -1,0 +1,14 @@
+Available CPUs:
+  a64fx
+  cortex-a35
+  cortex-a53
+  cortex-a55
+  cortex-a57
+  cortex-a710
+  cortex-a72
+  cortex-a76
+  cortex-a78ae
+  max
+  neoverse-n1
+  neoverse-n2
+  neoverse-v1
