@@ -1,0 +1,4 @@
+Supported machines are:
+none                 empty machine
+virt                 QEMU 11.1 LoongArch Virtual Machine (alias of virt-11.1)
+virt-11.1            QEMU 11.1 LoongArch Virtual Machine (default)
