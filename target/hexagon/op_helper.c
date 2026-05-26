@@ -2347,8 +2347,15 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if ((thread_mask & thread_id_mask) != 0) {
             found = true;
-            cs->exception_index = HEX_EVENT_IMPRECISE;
+            qatomic_set(&cs->exception_index, HEX_EVENT_IMPRECISE);
             thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+            /*
+             * Break the receiving CPU out of any TB chain so it returns to
+             * cpu_handle_exception and dispatches the imprecise NMI.
+             * Pending exception_index now satisfies hexagon_cpu_has_work,
+             * so a halted thread also wakes.
+             */
+            qemu_cpu_kick(cs);
         }
     }
     if (found) {

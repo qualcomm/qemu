@@ -853,9 +853,23 @@ static bool hexagon_cpu_has_work(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
 
-    return hexagon_thread_is_enabled(env) &&
-        (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
-            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
+    if (!hexagon_thread_is_enabled(env)) {
+        return false;
+    }
+
+    /*
+     * A pending exception (e.g. an NMI raised by another thread via
+     * HELPER(nmi)) is reason enough to leave halt and run the dispatch
+     * loop, which will route it through cpu_handle_exception ->
+     * hexagon_cpu_do_interrupt.  This mirrors the predicate already
+     * used by hexagon_wait_thread in cpu_helper.c.
+     */
+    if (qatomic_read(&cs->exception_index) != HEX_EVENT_NONE) {
+        return true;
+    }
+
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
+        | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK);
 }
 
 static void hexagon_cpu_set_irq(void *opaque, int irq, int level)

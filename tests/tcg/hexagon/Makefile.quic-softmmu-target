@@ -95,6 +95,15 @@ run-hvx_misc-sys: hvx_misc-sys
 
 EXTRA_RUNS += run-hvx_ext-sys run-hvx-multi-sys run-hvx_misc-sys
 
+nmi_cross_thread: $(SRC_PATH)/tests/tcg/hexagon/system/nmi_cross_thread.c
+	$(DOWNSTREAM_CC) -mv73 -G0 -O2 -static $< -o $@
+
+run-nmi_cross_thread: nmi_cross_thread
+	$(call run-test, $<, $(QEMU) -M sim -display none -kernel $<, \
+		"$< on $(TARGET_NAME)")
+
+EXTRA_RUNS += run-nmi_cross_thread
+
 mmu.h: ../hex_test.h
 
 mmu_permissions.o: mmu_permissions.c mmu.h
