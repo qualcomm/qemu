@@ -95,7 +95,7 @@ if [ ! -f .configured ]; then
     single-binary)
         configure_flags="--enable-debug"
         export CFLAGS="-fno-omit-frame-pointer"
-        target=--target-list=arm-softmmu,aarch64-softmmu
+        target=--target-list=arm-softmmu,aarch64-softmmu,microblaze-softmmu
         ;;
     all-debug)
         configure_flags="--enable-debug"
