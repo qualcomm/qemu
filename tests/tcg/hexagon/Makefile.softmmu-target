@@ -21,7 +21,12 @@ VPATH += $(HEXAGON_SYSTEM_SRC)
 # with the toolchain (which targets hexagon-sim via libh2) is not used;
 # instead we supply the relevant flags explicitly.
 #
-CC = hexagon-unknown-none-elf-clang
+# config-target.mak sets CC to the docker-wrapped hexagon-unknown-linux-musl
+# compiler.  Derive the none-elf compiler from it by substituting the
+# compiler name; this preserves the docker.py wrapper when present.  If CC
+# was not set by config-target.mak the substitution is a no-op and the bare
+# compiler name is used directly.
+CC := $(subst hexagon-unknown-linux-musl-clang,hexagon-unknown-none-elf-clang,$(CC))
 
 ########### Picolibc sysroot
 #
