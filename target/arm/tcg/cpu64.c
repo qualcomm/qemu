@@ -410,6 +410,8 @@ static void aarch64_a76_initfn(Object *obj)
     define_cortex_a76_cp_reginfo(cpu);
 }
 
+static void define_cortex_a78c_cp_reginfo(ARMCPU *cpu);
+
 static void aarch64_a78c_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -481,6 +483,8 @@ static void aarch64_a78c_initfn(Object *obj)
 
     /* From D5.4 PMCR_EL0 */
     cpu->isar.reset_pmcr_el0 = 0x41243000;
+
+    define_cortex_a78c_cp_reginfo(cpu);
 }
 
 
@@ -703,6 +707,42 @@ static const ARMCPRegInfo neoverse_n1_cp_reginfo[] = {
 static void define_neoverse_n1_cp_reginfo(ARMCPU *cpu)
 {
     define_arm_cp_regs(cpu, neoverse_n1_cp_reginfo);
+}
+
+static const ARMCPRegInfo cortex_a78c_cp_reginfo[] = {
+    { .name = "CPUACTLR2_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
+    { .name = "CPUACTLR3_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 2,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
+    { .name = "CPUECTLR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 1, .opc2 = 4,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
+    { .name = "CPUACTLR5_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 9, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = access_actlr_w },
+    { .name = "CPUPSELR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 8, .opc2 = 0,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 8, .opc2 = 1,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPOR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 8, .opc2 = 2,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPUPMR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 15, .crm = 8, .opc2 = 3,
+      .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+};
+
+static void define_cortex_a78c_cp_reginfo(ARMCPU *cpu)
+{
+    define_arm_cp_regs(cpu, cortex_a78c_cp_reginfo);
 }
 
 static const ARMCPRegInfo neoverse_v1_cp_reginfo[] = {
