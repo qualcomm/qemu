@@ -4723,6 +4723,7 @@ multi_target_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
 
 if get_option('plugins')
   install_headers('include/plugins/qemu-plugin.h', 'libqemu/libqemu-plugin.h')
+  install_headers('include/plugins/qemu-plugin.h', subdir: 'libqemu/plugins')
   if host_os == 'windows'
     # On windows, we want to deliver the qemu_plugin_api.lib file in the qemu installer,
     # so that plugin authors can compile against it.
