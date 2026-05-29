@@ -1032,7 +1032,9 @@ static void gen_sreg_writes(DisasContext *ctx)
             /* This can trigger resched interrupt, so end the TB */
             gen_helper_resched(tcg_env);
             ctx->base.is_jmp = DISAS_NORETURN;
-        } else if (reg_num < HEX_SREG_GLB_START) {
+        }
+
+        if (reg_num < HEX_SREG_GLB_START) {
             tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
         }
     }
