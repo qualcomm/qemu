@@ -20,10 +20,6 @@
 
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#ifdef CONFIG_USER_ONLY
-#define TARGET_PAGE_BITS 16     /* 64K pages */
-#else
-#define TARGET_PAGE_BITS 12     /* 4K pages */
-#endif
+#define TARGET_PAGE_BITS 12
 
 #endif
