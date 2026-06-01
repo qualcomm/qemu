@@ -260,4 +260,7 @@ config TCSR
 config DSPSS_PUB
     bool
 
+config XLNX_ZYNQ_DDRC
+    bool
+
 source macio/Kconfig
