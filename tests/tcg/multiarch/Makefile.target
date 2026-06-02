@@ -74,6 +74,10 @@ tb-link: LDFLAGS+=-lpthread
 # code to work around the compiler.
 sha1: CFLAGS+=-Wno-stringop-overread -Wno-unknown-warning-option
 
+# clang's -Wunused-but-set-global fires on `phase`, which is intentionally
+# observed only by tests/tcg/multiarch/gdbstub/late-attach.py via GDB.
+late-attach: CFLAGS+=-Wno-unused-but-set-variable -Wno-unknown-warning-option
+
 # The vma-pthread seems very sensitive on gitlab and we currently
 # don't know if its exposing a real bug or the test is flaky.
 ifneq ($(GITLAB_CI),)
