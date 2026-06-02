@@ -43,7 +43,7 @@ if get_option('plugins')
     t += shared_module(fs.stem(i), files(i),
                        include_directories: ['../../libqemu'],
                        dependencies: plugins_deps,
-                       install: host_os != 'windows',
+                       install: true,
                        install_dir: get_option('libdir'))
   endforeach
 endif

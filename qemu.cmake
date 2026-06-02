@@ -225,3 +225,15 @@ foreach(target ${LIBQEMU_TARGETS})
         install(FILES ${lib_path} DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif()
 endforeach()
+
+# Windows' DLL loader does not search libdir, so libqemu plugin DLLs must
+# sit next to libqemu-system-*.dll for g_module_open to find them.
+if (WIN32)
+    set(LIBQEMU_PLUGINS libidlinker)
+    foreach(plugin ${LIBQEMU_PLUGINS})
+        set(plugin_path ${QEMU_INSTALL_DIR}/lib/${plugin}.dll)
+        install(FILES ${plugin_path} DESTINATION ${CMAKE_INSTALL_BINDIR})
+        add_custom_command(TARGET qemu POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${plugin_path} ${CMAKE_BINARY_DIR})
+    endforeach()
+endif()
