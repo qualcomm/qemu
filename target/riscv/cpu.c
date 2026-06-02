@@ -1054,7 +1054,20 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
             }
             break;
         default:
-            g_assert_not_reached();
+            /*
+             * Handle non-standard local interrupts (IRQ >= 12, < IRQ_LOCAL_MAX).
+             * The RISC-V spec reserves IRQ numbers 12+ for platform-defined
+             * local interrupts. These are used by custom CLINT implementations
+             * (e.g., Qualcomm SC8480XP uses IRQ 21 for RSC DRV0, IRQ 27 for qtimer).
+             * Treat them the same as standard interrupts: set the corresponding
+             * MIP bit so firmware can detect and handle them.
+             */
+            if (irq >= 12) {
+                riscv_cpu_update_mip(env, 1 << irq, BOOL_TO_MASK(level));
+            } else {
+                g_assert_not_reached();
+            }
+            break;
         }
     } else if (irq < (IRQ_LOCAL_MAX + IRQ_LOCAL_GUEST_MAX)) {
         /* Require H-extension for handling guest local interrupts */
