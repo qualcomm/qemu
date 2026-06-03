@@ -17,16 +17,16 @@
 #define TYPE_TURING_RSC "turing-rsc"
 OBJECT_DECLARE_TYPE(TuringRscState, TuringRscClass, TURING_RSC)
 
-/* Hardware limits based on IP catalog */
+/* Hardware limits based on IP catalog (max across all targets) */
 #define TURING_RSC_REGISTER_SPACE_SIZE 0x10000  /* 64KB total */
-#define TURING_RSC_MAX_DRIVERS         1        /* Single driver (DRV0) */
-#define TURING_RSC_MAX_TCS_PER_DRV     6        /* 6 TCS per driver */
-#define TURING_RSC_MAX_CMDS_PER_TCS    16       /* 16 commands per TCS */
-#define TURING_RSC_MAX_SEQ_MEM         48       /* 48 sequencer memory words */
-#define TURING_RSC_MAX_TIMESTAMP_UNITS 6        /* 6 timestamp units */
-#define TURING_RSC_MAX_HW_EVENT_MUX    32       /* 32 HW event mux */
-#define TURING_RSC_MAX_DELAY_VAL       4        /* 4 delay value registers */
-#define TURING_RSC_MAX_BR_ADDR         4        /* 4 branch address registers */
+#define TURING_RSC_MAX_DRIVERS         1   /* Single driver (DRV0) */
+#define TURING_RSC_MAX_TCS_PER_DRV     10  /* 10 TCS per driver (max) */
+#define TURING_RSC_MAX_CMDS_PER_TCS    16  /* 16 commands per TCS */
+#define TURING_RSC_MAX_SEQ_MEM         48  /* 48 sequencer memory words */
+#define TURING_RSC_MAX_TIMESTAMP_UNITS 8   /* 8 timestamp units (max) */
+#define TURING_RSC_MAX_HW_EVENT_MUX    32  /* 32 HW event mux */
+#define TURING_RSC_MAX_DELAY_VAL       4   /* 4 delay value registers */
+#define TURING_RSC_MAX_BR_ADDR         16  /* 16 branch addr regs (max) */
 
 /* Register enumeration based on IP catalog */
 enum turing_rsc_regs {
@@ -182,11 +182,7 @@ enum turing_rsc_regs {
 #define TURING_CMD_STATUS_ISSUED                BIT(8)
 #define TURING_CMD_STATUS_COMPLETED             BIT(16)
 
-/* TCS spacing */
 #define TURING_TCS_SPACING                      0x2A0
-
-/* Command spacing */
-#define TURING_CMD_SPACING                      0x14
 
 /* Timestamp unit structure */
 typedef struct {
@@ -295,7 +291,6 @@ typedef struct {
 
     /* Hardware configuration */
     uint32_t num_tcs;
-    uint32_t cmds_per_tcs;
 
     /* TCS states */
     TuringRscTcsState tcs_states[TURING_RSC_MAX_TCS_PER_DRV];
@@ -321,12 +316,19 @@ struct TuringRscState {
     /* Device configuration */
     uint32_t version;
 
-    /* Driver management */
-    uint32_t num_drivers;
+    /* Driver (single DRV0 only) */
     TuringRscDriverState drivers[TURING_RSC_MAX_DRIVERS];
 
-    /* Properties */
-    uint32_t base_addr;
+    /* Configurable parameters (set via properties per target) */
+    uint32_t rsc_id_reset;
+    uint32_t solver_config_reset;
+    uint32_t parentchild_config_reset;
+    uint32_t cmd_spacing;
+    uint32_t tcs_base_offset;
+    uint32_t cmd_base_in_tcs;
+    uint32_t tcs_timeout_base;
+    uint32_t num_br_addr;
+    uint32_t num_timestamp_units;
 };
 
 #endif /* HW_MISC_QCOM_TURING_RSC_H */
