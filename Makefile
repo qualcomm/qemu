@@ -44,8 +44,6 @@ include config-host.mak
 include Makefile.prereqs
 Makefile.prereqs: config-host.mak
 
-include $(SRC_PATH)/tests/Makefile.include
-
 # 0. ensure the build tree is okay
 
 # Check that we're not trying to do an out-of-tree build from
@@ -180,6 +178,8 @@ endif
 endif # config-host.mak does not exist
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
+
+include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
 
