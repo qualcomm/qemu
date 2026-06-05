@@ -49,6 +49,7 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(NOUSER),,			\
 			--build-arg USER=$(USER)	\
 			--build-arg UID=$(UID))		\
+		$(DOCKER_BUILD_EXTRA)			\
 		-t qemu/$* - < $< $(if $(DOCKER_V),,> /dev/null),\
 		"BUILD", $*)
 
@@ -101,6 +102,8 @@ endif
 
 # alpine has no adduser
 docker-image-alpine: NOUSER=1
+
+docker-image-debian-hexagon-cross: DOCKER_BUILD_EXTRA = --secret id=gitlab_token,env=GITLAB_TOOLCHAIN_UPLOAD_TOKEN
 
 debian-toolchain-run = \
 	$(if $(NOCACHE)$(NOFETCH),					\
