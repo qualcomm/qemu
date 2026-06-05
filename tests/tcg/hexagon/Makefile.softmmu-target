@@ -15,12 +15,12 @@ HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
 VPATH 		+= $(HEXAGON_SYSTEM_SRC)
 
 ########### Compiling options
-CC=hexagon-unknown-linux-musl-clang
-# We force -O0 to avoid optimizations that would break the
-# libc simplifications we made at min_libc.c
 #
-CFLAGS=-mv73 -G0 -nodefaultlibs -nostdlib -static -fno-PIC -O0 -Werror
-LDFLAGS=-lclang_rt.builtins-hexagon
+# Most softmmu tests use the hosted-standalone profile.  Without
+# -nodefaultlibs/-nostdlib, the hexagon-clang bare-metal driver links the
+# toolchain's standalone libc and compiler-rt builtins automatically.
+#
+CFLAGS=-mv73 -G0 -O2 -static -Werror
 
 ########### QEMU options
 QEMU_BASE_MACHINE=-M sim -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system

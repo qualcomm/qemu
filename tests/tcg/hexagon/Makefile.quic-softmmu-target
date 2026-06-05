@@ -13,36 +13,15 @@ ifeq (,$(findstring w64,$(CROSS_PREFIX)))
 include $(SRC_PATH)/tests/tcg/hexagon/Makefile.quic-softmmu-target-linux
 endif
 
-TESTS += $(DOWNSTREAM_TESTS)
-
-# Override the build function for downstream
-override define build_fn
-@if test "$(BUILD_WITH_DOWNSTREAM_CC)" = yes; then \
-    if test "$(3)" = LINK; then extra="$(DOWNSTREAM_LDFLAGS)"; else extra=-c; fi && \
-    $(call echo-and-run, $(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) \
-        $(1) -o $(2) $$extra); \
-else \
-    if test "$(3)" = LINK; then extra="$(LDFLAGS)"; else extra=-c; fi && \
-    $(call echo-and-run, $(CC) $(CFLAGS) $(EXTRA_TEST_CFLAGS) \
-        $(1) -o $(2) $$extra); \
-fi
-endef
-
-DOWNSTREAM_CC=hexagon-clang
-DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static -Werror
-DOWNSTREAM_LDFLAGS=
-
-$(DOWNSTREAM_TESTS) simple-assign reg-reads reg-writes: BUILD_WITH_DOWNSTREAM_CC=yes
-
 simple-assign reg-reads reg-writes:
-	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
+	$(CC) $(CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(LDFLAGS)
 
 # Args: cutoff_cpu_rev, test_name, dependency_list
 define test_comp_for_each_cpu
 @for cpu in $(CPU_LIST); do \
     if test "$${cpu##v}" -ge $1; then \
-        $(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) -mhvx -m$$cpu $3 \
-		-o $2-$$cpu $(DOWNSTREAM_LDFLAGS) || exit 1; \
+        $(CC) $(CFLAGS) -mhvx -m$$cpu $3 \
+		-o $2-$$cpu $(LDFLAGS) || exit 1; \
     fi; \
 done && touch $2; #So that make won't rebuild this everytime
 endef
