@@ -1,57 +1,59 @@
 #
 # Docker Hexagon cross-compiler target
 #
-# This docker target is used for building hexagon tests. As it also
-# needs to be able to build QEMU itself in CI we include its
-# build-deps.
+# This docker target is used for building hexagon tests. It uses
+# clang/lld from apt.llvm.org and the hexagon musl sysroot from
+# codelinaro.org .deb packages, avoiding the large monolithic
+# toolchain tarball.
 #
 FROM docker.io/library/debian:13-slim
 
-# Add deb-src repository sources
-RUN sed -i "s/^Types: deb$/Types: deb deb-src/" \
-    /etc/apt/sources.list.d/debian.sources
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+                      ca-certificates \
+                      ccache \
+                      curl \
+                      gnupg && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-# Install common build utilities
-    apt-get install -y --no-install-recommends \
-        curl \
-        ccache \
-        xz-utils \
-        zstd \
-        ca-certificates \
-        libc++1 \
-        libc++abi1 \
-        libunwind-19 \
-        bison \
-        flex \
-        git \
-        ninja-build \
-        python3-pip \
-        python3-setuptools \
-        python3-tomli \
-        python3-venv \
-        python3-wheel && \
-# Install QEMU build deps for use in CI
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy --arch-only qemu && \
-    mkdir -p /usr/libexec/ccache-wrappers && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/c++ && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc && \
-    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
+# Install clang-22 and lld-22 from apt.llvm.org
+RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] \
+https://apt.llvm.org/trixie/ llvm-toolchain-trixie-22 main" \
+        > /etc/apt/sources.list.d/llvm.list && \
+    eatmydata apt-get update && \
+    eatmydata apt-get install --no-install-recommends -y \
+                      clang-22 \
+                      lld-22 && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y
 
-ENV TOOLCHAIN_INSTALL=/opt
-ENV TOOLCHAIN_RELEASE=22.1.0
-ENV TOOLCHAIN_BASENAME=clang+llvm-${TOOLCHAIN_RELEASE}-cross-hexagon-unknown-linux-musl
-ENV TOOLCHAIN_URL=https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/${TOOLCHAIN_RELEASE}_/${TOOLCHAIN_BASENAME}.tar.zst
-ENV CCACHE_WRAPPERSDIR=/usr/libexec/ccache-wrappers
+# Install the hexagon musl sysroot from codelinaro.org .deb packages.
+# clang-hexagon-cross provides hexagon-unknown-linux-musl-clang → clang-22
+# and its deps (musl-dev, linux-libc-dev, libclang-rt builtins) are all
+# in the same tarball so apt resolves them locally.
+ENV HEXAGON_DEBS_VER=22.1.4
+RUN mkdir /tmp/hexagon-debs && \
+    curl -fsSL \
+        "https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/${HEXAGON_DEBS_VER}_/hexagon-debs-${HEXAGON_DEBS_VER}_.tar.gz" \
+        | tar -xzC /tmp/hexagon-debs && \
+    eatmydata apt-get install --no-install-recommends -y /tmp/hexagon-debs/*.deb && \
+    rm -rf /tmp/hexagon-debs
 
-RUN curl -#SL "$TOOLCHAIN_URL" | tar --zstd -xC "$TOOLCHAIN_INSTALL"
-ENV PATH=$PATH:${TOOLCHAIN_INSTALL}/${TOOLCHAIN_BASENAME}/x86_64-linux-gnu/bin
-ENV MAKE=/usr/bin/make
+ENV CCACHE_WRAPPERSDIR="/usr/libexec/ccache-wrappers"
+ENV MAKE="/usr/bin/make"
+
+RUN mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache \
+          /usr/libexec/ccache-wrappers/hexagon-unknown-linux-musl-clang && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' \
+               --show > /packages.txt
+
 # As a final step configure the user (if env is defined)
 ARG USER
 ARG UID
