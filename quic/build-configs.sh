@@ -98,7 +98,6 @@ readonly DEFAULT_CONFIG_OPTS="
 readonly GENERIC_CONFIG_CMD="
     ${SOURCE_DIR}/configure
     --prefix=${INSTALL_DIR}
-    --disable-install-blobs
 "
 
 load_config()

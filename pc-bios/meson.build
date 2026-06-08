@@ -83,6 +83,8 @@ blobs = [
   'npcm8xx_bootrom.bin',
   'vof.bin',
   'vof-nvram.bin',
+  'cmd_db_8775.bin',
+  'cmd_db_header_8775.bin',
 ]
 
 if get_option('install_blobs')

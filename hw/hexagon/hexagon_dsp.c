@@ -47,12 +47,12 @@
 #include "machine_configs.h.inc"
 #include "qemu/qemu-print.h"
 #include "coproc.h"
-#include "hw/hexagon/cmd-db.h"
 #include "hw/misc/tcsr.h"
 #include "hw/misc/dspss-pub.h"
 #include "qobject/qlist.h"
 #include "hw/misc/wdog.h"
 #include "hw/misc/unimp.h"
+#include "qemu/datadir.h"
 
 static bool syscfg_is_linux;
 
@@ -780,9 +780,30 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0, SA8775P_cdsp0.csr_base + 0x84000);
 
-    hwaddr cmd_db_header_addr = 0x0C3F0000;
-    hwaddr cmd_db_bin_addr = 0x80860000;
-    hexagon_load_cmd_db(cmd_db_header_addr, cmd_db_bin_addr);
+    g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                         "cmd_db_header_8775.bin");
+    if (!cmd_db_header) {
+        error_report("Failed to find cmd_db_header_8775.bin");
+        exit(1);
+    }
+    ssize_t size = load_image_targphys(cmd_db_header, 0x0C3F0000,
+                                       UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database header: '%s'",
+                     cmd_db_header);
+        exit(1);
+    }
+
+    g_autofree char *cmd_db = qemu_find_file(QEMU_FILE_TYPE_BIOS, "cmd_db_8775.bin");
+    if (!cmd_db) {
+        error_report("Failed to find cmd_db_8775.bin");
+        exit(1);
+    }
+    size = load_image_targphys(cmd_db, 0x80860000, UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database: '%s'", cmd_db);
+        exit(1);
+    }
 
     cpu_physical_memory_write(0x90900000, sa8775p_smem_data,
         sizeof(sa8775p_smem_data));
