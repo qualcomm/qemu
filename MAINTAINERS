@@ -2975,7 +2975,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
-F: hw/s390x/storage-keys.h
+F: include/hw/s390x/storage-keys.h
 F: hw/s390x/s390-skeys*.c
 L: qemu-s390x@nongnu.org
 
@@ -2984,7 +2984,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
-F: hw/s390x/storage-attributes.h
+F: include/hw/s390x/storage-attributes.h
 F: hw/s390x/s390-stattrib*.c
 L: qemu-s390x@nongnu.org
 
@@ -4173,7 +4173,7 @@ F: disas/riscv*.[ch]
 S390 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
-F: tcg/s390/
+F: tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SPARC TCG target
@@ -4513,9 +4513,7 @@ W: https://travis-ci.org/qemu/qemu
 FreeBSD Hosted Continuous Integration
 M: Li-Wen Hsu <lwhsu@freebsd.org>
 S: Maintained
-F: .gitlab-ci.d/cirrus/freebsd*
 F: tests/vm/freebsd
-W: https://cirrus-ci.com/github/qemu/qemu
 
 Functional testing framework
 M: Thomas Huth <th.huth+qemu@posteo.eu>
