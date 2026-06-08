@@ -769,7 +769,7 @@ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
 static void virtio_gpu_print_stats(void *opaque)
 {
     VirtIOGPU *g = opaque;
-    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+    VirtIOGPUCL *gl = VIRTIO_GPU_CL(g);
 
     if (g->stats.requests) {
         fprintf(stderr, "stats: vq req %4d, %3d -- 3D %4d (%5d)\n",
@@ -790,7 +790,7 @@ static void virtio_gpu_print_stats(void *opaque)
 static void virtio_gpu_fence_poll(void *opaque)
 {
     VirtIOGPU *g = opaque;
-    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+    VirtIOGPUCL *gl = VIRTIO_GPU_CL(g);
 
     vircl_renderer_poll();
     virtio_gpu_process_cmdq(g);
@@ -823,7 +823,7 @@ int virtio_gpu_vircl_init(VirtIOGPU *g)
 {
     int ret;
     uint32_t flags = 0;
-    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+    VirtIOGPUCL *gl = VIRTIO_GPU_CL(g);
 
 #if defined(VIRGL_RENDERER_CALLBACKS_VERSION) && \
     VIRGL_RENDERER_CALLBACKS_VERSION >= 4
@@ -855,22 +855,41 @@ int virtio_gpu_vircl_init(VirtIOGPU *g)
     return 0;
 }
 
-static void capset_add(VirtIOGPU *g, uint32_t capset, bool check_ver)
+/*
+ * How a capset's availability is gated before being advertised to the guest.
+ * The renderer reports both a max version and a max blob size per capset; the
+ * different capsets are validated against different fields (matching the
+ * historic per-capset checks), so the gate must be selected explicitly.
+ */
+typedef enum {
+    CAPSET_GATE_NONE,   /* always advertise */
+    CAPSET_GATE_VERSION, /* advertise only if the renderer reports a version */
+    CAPSET_GATE_SIZE,   /* advertise only if the renderer reports a blob size */
+} CapsetGate;
+
+static void capset_add(GArray *capset_ids, uint32_t capset, CapsetGate gate)
 {
     uint32_t capset_max_ver, capset_max_size;
-    if (check_ver) {
+
+    if (gate != CAPSET_GATE_NONE) {
         vircl_renderer_get_cap_set(capset, &capset_max_ver, &capset_max_size);
+        if (gate == CAPSET_GATE_VERSION && !capset_max_ver) {
+            return;
+        }
+        if (gate == CAPSET_GATE_SIZE && !capset_max_size) {
+            return;
+        }
     }
-    if (!check_ver || capset_max_ver) {
-        g_array_append_val(g->capset_ids, capset);
-    }
+    g_array_append_val(capset_ids, capset);
 }
 
-int virtio_gpu_vircl_get_num_capsets(VirtIOGPU *g)
+GArray *virtio_gpu_vircl_get_capsets(VirtIOGPU *g)
 {
-    capset_add(g, VIRTIO_GPU_CAPSET_VIRGL, false);
-    capset_add(g, VIRTIO_GPU_CAPSET_VIRGL2, true);
-    capset_add(g, VIRTIO_GPU_CAPSET_VENUS, true);
-    capset_add(g, VIRTIO_GPU_CAPSET_VCL, true);
-    return g->capset_ids->len;
+    GArray *capset_ids = g_array_new(false, false, sizeof(uint32_t));
+
+    capset_add(capset_ids, VIRTIO_GPU_CAPSET_VIRGL,  CAPSET_GATE_NONE);
+    capset_add(capset_ids, VIRTIO_GPU_CAPSET_VIRGL2, CAPSET_GATE_VERSION);
+    capset_add(capset_ids, VIRTIO_GPU_CAPSET_VENUS,  CAPSET_GATE_SIZE);
+    capset_add(capset_ids, VIRTIO_GPU_CAPSET_VCL,    CAPSET_GATE_SIZE);
+    return capset_ids;
 }
