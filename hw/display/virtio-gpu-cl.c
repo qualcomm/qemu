@@ -126,10 +126,25 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
     }
 
     g->parent_obj.conf.flags |= (1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED);
-    VIRTIO_GPU_BASE(g)->virtio_config.num_capsets =
-        virtio_gpu_vircl_get_num_capsets(g);
+    g->capset_ids = virtio_gpu_vircl_get_capsets(g);
+    VIRTIO_GPU_BASE(g)->virtio_config.num_capsets = g->capset_ids->len;
 
     virtio_gpu_device_realize(qdev, errp);
+}
+
+static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
+{
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    VirtIOGPUCL *gl = VIRTIO_GPU_CL(qdev);
+
+    if (gl->renderer_inited) {
+        if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
+            timer_free(gl->print_stats);
+        }
+        timer_free(gl->fence_poll);
+    }
+
+    g_array_unref(g->capset_ids);
 }
 
 static const Property virtio_gpu_gl_properties[] = {
@@ -150,6 +165,7 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
     vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
 
     vdc->realize = virtio_gpu_gl_device_realize;
+    vdc->unrealize = virtio_gpu_gl_device_unrealize;
     vdc->reset = virtio_gpu_gl_reset;
     device_class_set_props(dc, virtio_gpu_gl_properties);
 }

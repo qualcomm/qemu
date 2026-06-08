@@ -282,6 +282,9 @@ struct VirtIOGPUCL {
 
     bool renderer_inited;
     bool renderer_reset;
+
+    QEMUTimer *fence_poll;
+    QEMUTimer *print_stats;
 };
 
 struct VirtIOGPUQNN {
@@ -434,7 +437,7 @@ void virtio_gpu_vircl_fence_poll(VirtIOGPU *g);
 void virtio_gpu_vircl_reset_scanout(VirtIOGPU *g);
 void virtio_gpu_vircl_reset(VirtIOGPU *g);
 int virtio_gpu_vircl_init(VirtIOGPU *g);
-int virtio_gpu_vircl_get_num_capsets(VirtIOGPU *g);
+GArray *virtio_gpu_vircl_get_capsets(VirtIOGPU *g);
 #ifdef HAVE_VCL_RESOURCE_BLOB
 int virtio_gpu_vircl_resource_unmap(VirtIOGPU *g,
                                     struct virtio_gpu_simple_resource *res);
