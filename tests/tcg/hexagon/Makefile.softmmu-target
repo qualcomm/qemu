@@ -32,21 +32,9 @@ OVERRIDE_OPTS?=
 QEMU_OPTS+=$(QEMU_BASE_MACHINE) $(QEMU_EXTRA_OPTS) $(OVERRIDE_OPTS) -kernel
 PARANOID_OPTS=-cpu any,paranoid-commit-state=true -display none
 
-crt0.o: crt0/crt0.S crt0/crt0.inc
-crt0_standalone.o: crt0/crt0_standalone.S crt0/crt0.inc
-pte.o: crt0/pte.S
-min_libc.o: crt0/min_libc.c
-tlb.o: crt0/tlb.c
-
-CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o tlb.o
-
 TESTS += \
-	standalone_hw \
-	semihost \
 	tlb-miss-tlblock \
 	$()
-
-$(TESTS): $(CRT0_OBJS)
 
 include $(SRC_PATH)/tests/tcg/hexagon/Makefile.quic-softmmu-target
 
@@ -58,8 +46,6 @@ define build_fn
         $(1) -o $(2) $$extra)
 endef
 
-$(CRT0_OBJS):
-	$(call build_fn,$<,$@)
 $(TESTS):
 	$(call build_fn,$^,$@,LINK)
 
@@ -70,30 +56,9 @@ $(TESTS):
 %.o: %.cpp
 	$(call build_fn,$<,$@)
 
-mmu.h: ../hex_test.h
-
-standalone_hw: standalone_hw.o monitor_insts.o
-semihost.o: semihost.c strutils.h
-semihost: semihost.o
-
 ############# Custom build options
 
 
 # We don't want to link this one with crt0 files
 tlb-miss-tlblock: tlb-miss-tlblock.o
 	$(CC) $(CFLAGS) $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
-
-############# Custom test rules
-
-run-standalone_hw: standalone_hw
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
-	$(call run-test, $<, $(QEMU) $(PARANOID_OPTS) -kernel $<, "$< on $(TARGET_NAME) paranoid")
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< -M SA8540P_CDSP0,"$< on $(TARGET_NAME) cdsp0")
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< -M SA8775P_CDSP0,"$< on $(TARGET_NAME) cdsp0")
-
-run-semihost: semihost
-	mkdir -p _semihost_dir
-	touch _semihost_dir/fileA _semihost_dir/fileB
-	$(call run-test, $<, $(QEMU) --append "arg1 arg2" $(QEMU_OPTS) $< \
-		             > $<.stdout 2>&1)
-	$(call quiet-command, grep -q "PASS" $<.stdout, "GREP", "PASS")

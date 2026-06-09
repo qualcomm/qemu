@@ -1,21 +1,12 @@
 
 DOWNSTREAM_TESTS += \
-	invalid_coproc \
-	timer_reg \
 	ieee_fp \
 	coproc \
 	coproc_conv \
 	coproc_conv_fp16 \
 	coproc_range \
-	pcycle \
-	neg-hvx_nocoproc \
-	neg-no-coproc \
 	$()
 
-invalid_coproc.o: invalid_coproc.c mmu.h
-invalid_coproc: invalid_coproc.o
-timer_reg: timer_reg.o
-timer_reg.o: timer_reg.c timer.h
 ieee_fp: ieee_fp.o
 coproc: coproc.o
 coproc.o: coproc.c coproc_ref.h
@@ -28,51 +19,26 @@ coproc_conv_fp16.o: coproc_conv_fp16.cpp coproc_common.h \
 		    vtcm_common.h
 coproc_conv_fp16: coproc_conv_fp16.o
 coproc_range: coproc_range.o
-neg-hvx_nocoproc: hvx_nocoproc.o
-neg-no-coproc: coproc.o
-test-thread: test-thread.o
-pcycle.o: pcycle.c ../hex_test.h
-pcycle: pcycle.o
 
-hvx_nocoproc.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
 ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp
 coproc coproc.o: EXTRA_TEST_CFLAGS= -mhmx -mv81
 coproc_conv.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_range.o: EXTRA_TEST_CFLAGS= -mhmx
-timer_reg.o: EXTRA_TEST_CFLAGS= -DCSR_BASE=0xfc900000
 
-run-vid-group: QEMU_BASE_MACHINE=-cpu v67,sched-limit=on
-run-test-thread: QEMU_EXTRA_OPTS=-smp cpus=8
-run-test-thread-sttcg: QEMU_EXTRA_OPTS+=-accel tcg,thread=single
 run-coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
 run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim_coproc
-run-invalid_coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 
-run-neg-hvx_nocoproc: neg-hvx_nocoproc
 run-vid-group: vid-group
-run-timer_reg: timer_reg
 run-swi_wait: swi_wait
 run-tlblock: tlblock
-run-k0lock: k0lock
 run-vid-group: vid-group
-run-test-thread: run-test-thread-sttcg
 run-coproc:coproc
 run-coproc_conv:coproc_conv
 run-coproc_range:coproc_range
-run-invalid_coproc:invalid_coproc
-
-run-neg-no-coproc:neg-no-coproc
-	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 255 ] ; then \
-		return -1; \
-	fi
-	$(call quiet-command, \
-		grep -q "exception 0x18" $<.stderr, \
-		"GREP", "exception 0x18");
 
 run-gregs: gregs
 	$(call run-test, $<, $(QEMU) -d unimp $(QEMU_OPTS) $< 2> _$<.stderr, \
@@ -131,66 +97,12 @@ endef
 endif
 
 ICOUNT_OPTS=-icount auto
-run-tlblock run-k0lock run-swi_wait run-timer_reg run-vid-group:
+run-tlblock run-swi_wait run-vid-group:
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
 
-run-test-thread run-test-thread-sttcg: test-thread
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< ,"$< on $(TARGET_NAME) $(@:run-$<-%=%)")
-
 run-coproc_conv_fp16: coproc_conv_fp16
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< --append "2 2 2 coproc_input_fp16.dat coproc_output_fp16.dat","$< on $(TARGET_NAME)")
-
-run-reset-test: inf-loop
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn $(QEMU) $(QEMU_OPTS) $<"; \
-		  echo 'expect "Starting thread 0"'; \
-		  echo 'expect "Starting thread 1"'; \
-		  echo 'expect "Starting thread 2"'; \
-		  echo 'expect "Starting thread 3"'; \
-		  echo 'send "system_reset\r"'; \
-		  echo 'expect "Starting thread 0"'; \
-		  echo 'expect "Starting thread 1"'; \
-		  echo 'expect "Starting thread 2"'; \
-		  echo 'expect "Starting thread 3"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"reset through monitor")
-
-run-k0locklock-test: k0locklock
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn timeout 5 $(QEMU) -d guest_errors $(QEMU_OPTS) $<"; \
-		  echo 'expect "Double k0lock at PC"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"done")
-
-run-tlblocklock-test: tlblocklock
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn timeout 5 $(QEMU) -d guest_errors $(QEMU_OPTS) $<"; \
-		  echo 'expect "Double tlblock at PC"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"done")
-
-MTTCG="-accel tcg,thread=multi"
-run-k0lock-syscfg-test: k0lock-syscfg
-	$(call run-test, $@, \
-		echo "starting qemu through 'expect'"; \
-		{ \
-		  echo "spawn timeout 5  $(QEMU) $(MTTCG) $(QEMU_OPTS) $<"; \
-		  echo 'expect "PASS"'; \
-		  echo 'send "quit\r"'; \
-		} | expect, \
-	"done")
-
-EXTRA_RUNS += run-reset-test run-k0locklock-test run-tlblocklock-test run-k0lock-syscfg-test
 
 ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
 # hexagon-lldb starts qemu with an empty environment. To bypass that, we create

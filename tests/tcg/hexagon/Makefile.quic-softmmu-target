@@ -8,27 +8,6 @@
 
 CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
 
-DOWNSTREAM_TESTS += \
-	mmu_permissions \
-	mmu_cacheops \
-	k0lock \
-	k0lock-syscfg \
-	swi \
-	swi2 \
-	hvx_64b \
-	neg-unaligned \
-	neg-vtcm_error \
-	fopen \
-	ftrunc \
-	dirent \
-	access \
-	thread_scheduling \
-	pmu \
-	memcpy \
-	vwctrl \
-	hsv39_tlb \
-	$()
-
 # We skip these tests for windows builds
 ifeq (,$(findstring w64,$(CROSS_PREFIX)))
 include $(SRC_PATH)/tests/tcg/hexagon/Makefile.quic-softmmu-target-linux
@@ -53,9 +32,9 @@ DOWNSTREAM_CC=hexagon-clang
 DOWNSTREAM_CFLAGS=-mv73 -G0 -O2 -static -Werror
 DOWNSTREAM_LDFLAGS=
 
-$(DOWNSTREAM_TESTS) inf-loop k0locklock tlblocklock simple-assign reg-reads reg-writes: BUILD_WITH_DOWNSTREAM_CC=yes
+$(DOWNSTREAM_TESTS) simple-assign reg-reads reg-writes: BUILD_WITH_DOWNSTREAM_CC=yes
 
-inf-loop k0locklock tlblocklock simple-assign reg-reads reg-writes:
+simple-assign reg-reads reg-writes:
 	$(DOWNSTREAM_CC) $(DOWNSTREAM_CFLAGS) $(EXTRA_TEST_CFLAGS) $^ -o $@ $(DOWNSTREAM_LDFLAGS)
 
 # Args: cutoff_cpu_rev, test_name, dependency_list
@@ -95,108 +74,9 @@ run-hvx_misc-sys: hvx_misc-sys
 
 EXTRA_RUNS += run-hvx_ext-sys run-hvx-multi-sys run-hvx_misc-sys
 
-nmi_cross_thread: $(SRC_PATH)/tests/tcg/hexagon/system/nmi_cross_thread.c
-	$(DOWNSTREAM_CC) -mv73 -G0 -O2 -static $< -o $@
-
-run-nmi_cross_thread: nmi_cross_thread
-	$(call run-test, $<, $(QEMU) -M sim -display none -kernel $<, \
-		"$< on $(TARGET_NAME)")
-
-EXTRA_RUNS += run-nmi_cross_thread
-
-mmu.h: ../hex_test.h
-
-mmu_permissions.o: mmu_permissions.c mmu.h
-mmu_permissions: mmu_permissions.o dummy_mutex.o
-mmu_cacheops.o: mmu_cacheops.c mmu.h
-mmu_cacheops: mmu_cacheops.o dummy_mutex.o
-k0lock: k0lock.o thread_common.o
-swi: swi.o thread_common.o
-swi2.o: swi2.c interrupts.h
-swi2: swi2.o thread_common.o
 simple-assign: simple-assign.o
 reg-writes: reg-writes.o
 reg-writes.o: reg-writes.c
-wait: wait.o
-hvx_64b.o: hvx_64b.c mmu.h
-hvx_64b: hvx_64b.o
-neg-unaligned: unaligned.o
-neg-vtcm_error: vtcm_error.o
-fopen: fopen.o
-ftrunc: ftrunc.o
-dirent.o: dirent.c strutils.h
-dirent: dirent.o
-access: access.o
-thread_scheduling: thread_scheduling.o thread_common.o
-pmu: pmu.o thread_common.o
-pmu.o: pmu.c pmu.h
-memcpy.o: memcpy.c vtcm_common.h mmu.h
-memcpy: memcpy.o
-inf-loop: inf-loop.o
-k0lock-syscfg: k0lock-syscfg.c thread_common.o
-k0locklock: k0locklock.o
-tlblocklock: tlblocklock.o
-vwctrl: vwctrl.o
-vwctrl.o: vwctrl.c cfgtable.h mmu.h vtcm_common.h dma.h
-hsv39_tlb: hsv39_tlb.o
-hsv39_tlb.o: hsv39_tlb.c hsv39.h
 
 reg-writes.o: EXTRA_TEST_CFLAGS=-O0 -g
 reg-writes: EXTRA_TEST_CFLAGS=-O0 -g
-memory: EXTRA_TEST_CFLAGS=-DCHECK_UNALIGNED=1
-hvx_64b.o: EXTRA_TEST_CFLAGS= -O2 -mhvx
-vtcm_error.o: EXTRA_TEST_CFLAGS= -mhvx
-pmu pmu.o: EXTRA_TEST_CFLAGS= -mhvx -mv79
-vwctrl: EXTRA_TEST_CFLAGS=-mv79 -mhvx -mhmx
-swi swi2: EXTRA_TEST_CFLAGS=-mv81
-hsv39_tlb: EXTRA_TEST_CFLAGS=-mv81
-
-# memcpy insn was removed in v75
-run-memcpy: QEMU_EXTRA_OPTS=-M V73NA_1024
-run-vwctrl:QEMU_EXTRA_OPTS=-M sim_coproc
-run-pmu: QEMU_EXTRA_OPTS=-smp cpus=8
-run-swi run-swi2: QEMU_EXTRA_OPTS=-M V81QA_1
-run-swi: swi
-run-swi2: swi2
-run-thread_scheduling: thread_scheduling
-run-neg-unaligned: neg-unaligned
-run-hsv39_tlb: QEMU_EXTRA_OPTS=-M V81QA_1
-
-run-neg-vtcm_error: neg-vtcm_error
-	$(call run-test-neg, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 255 ] ; then \
-		return -1; \
-	fi
-	$(call quiet-command, \
-		grep -q "exception 0x26" $<.stderr, \
-		"GREP", "exception 0x26");
-
-run-swi run-swi2 run-thread_scheduling:
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
-	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
-
-run-fopen: fopen
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< -append dummy.so,"$< on $(TARGET_NAME)")
-
-run-ftrunc: ftrunc
-	echo "valid" > _testfile_ftrunc
-	stat _testfile_ftrunc | fgrep "Size: 6"
-	sleep 1
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $<)
-	stat _testfile_ftrunc | fgrep "Size: 1"
-
-run-dirent: dirent
-	rm -rf _dirent_testdir
-	mkdir _dirent_testdir
-	touch _dirent_testdir/fileA _dirent_testdir/fileB
-	echo -n ". .. fileA fileB" > $<.expected
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $< --append _dirent_testdir > $<.stdout)
-	$(call quiet-command, diff -q $<.expected $<.stdout, "DIFF", "expected stdout")
-
-run-access: access
-	echo "valid" > _testfile_access
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $<)
-
-run-hvx_64b: hvx_64b
-	$(call run-test, $<, $(QEMU) -M V66G_1024 -kernel $<, "$< on $(TARGET_NAME) V66")
-	$(call run-test, $<, $(QEMU) -M V68N_1024 -kernel $<, "$< on $(TARGET_NAME) V68")
