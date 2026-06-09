@@ -26,7 +26,6 @@ tcg_tests = {}
 #           'qemu_args': ['qemu command line flags', ...],
 #           'gdb_test': ['gdb test args'],
 #           'env_var': ['VAR=value', ...],
-#           'wrapper': [program_to_launch_test, 'args'...],
 #           'plugin_test': {
 #             'plugin': 'plugin_name',
 #             'args': ['plugin_args', ...],
@@ -86,7 +85,7 @@ foreach target, plan: tcg_tests
       foreach key, _ : setup
         if key not in ['cflags', 'qemu_args', 'gdb_test',
                        'exe_name', 'test_name', 'env_var', 'plugin_test',
-                       'wrapper']
+                       ]
           error('unknown tcg setup entry \'' + key + '\' for test ' + src)
         endif
       endforeach
@@ -195,10 +194,6 @@ foreach target, plan: tcg_tests
                '--bin', exe,
                setup['gdb_test'],
               ]
-      endif
-
-      if 'wrapper' in setup
-        cmd = [setup['wrapper'], cmd]
       endif
 
       # some tests expect QEMU env var to be set
