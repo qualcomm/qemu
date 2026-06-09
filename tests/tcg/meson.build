@@ -5,7 +5,6 @@ if config_host.has_key('GDB')
   gdb_progs = [config_host['GDB'], gdb_progs]
 endif
 gdb = find_program(gdb_progs, required: false)
-prog_gdb_test = find_program('../guest-debug/run-test.py')
 
 tcg_tests = {}
 # tcg_tests is a dictionary with following structure:
@@ -23,7 +22,6 @@ tcg_tests = {}
 #           'test_name': ['provide an alternative test name'],
 #           'cflags': ['cflags to compile test', ...],
 #           'qemu_args': ['qemu command line flags', ...],
-#           'gdb_test': ['gdb test args'],
 #           'env_var': ['VAR=value', ...],
 #           'plugin_test': {
 #             'plugin': 'plugin_name',
@@ -82,7 +80,7 @@ foreach target, plan: tcg_tests
     foreach src, setup: t
       # return a clear error if user mispell a setup entry
       foreach key, _ : setup
-        if key not in ['cflags', 'qemu_args', 'gdb_test',
+        if key not in ['cflags', 'qemu_args',
                        'exe_name', 'test_name', 'env_var', 'plugin_test',
                        ]
           error('unknown tcg setup entry \'' + key + '\' for test ' + src)
@@ -96,10 +94,6 @@ foreach target, plan: tcg_tests
             error('unknown tcg plugin entry \'' + key + '\' for test ' + src)
           endif
         endforeach
-      endif
-
-      if 'gdb_test' in setup and gdb_arch not in gdb_arch_supported
-        continue
       endif
 
       if 'plugin_test' in setup and not get_option('plugins')
@@ -119,9 +113,7 @@ foreach target, plan: tcg_tests
       if 'test_name' in setup
         test_name = setup['test_name']
       endif
-      if 'gdb_test' in setup
-        test_name = 'gdb-' + test_name
-      elif 'plugin_test' in setup
+      if 'plugin_test' in setup
         # remove lib prefix
         plugin = test_plugins[setup['plugin_test']['plugin']]
         plugin_name = fs.stem(plugin).substring(3)
@@ -184,16 +176,6 @@ foreach target, plan: tcg_tests
 
       exe = built_tests[exe_name]
       cmd = [qemu, qemu_args, exe]
-
-      if 'gdb_test' in setup
-        cmd = [prog_gdb_test,
-               '--gdb', 'gdb-multiarch',
-               '--qemu', qemu,
-               '--qargs', ' '.join(qemu_args),
-               '--bin', exe,
-               setup['gdb_test'],
-              ]
-      endif
 
       # some tests expect QEMU env var to be set
       cmd = ['QEMU=' + qemu.full_path(), cmd]
