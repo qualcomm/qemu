@@ -19,7 +19,6 @@
 #include "qemu/module.h"
 
 /* Fixed reset values (not target-dependent) */
-#define RSC_RESET_RSC_CONFIG              0x01300214
 #define RSC_RESET_PDC_SEQ_START_ADDR      0x00004520
 #define RSC_RESET_PDC_MATCH_VALUE_LO      0x00004510
 #define RSC_RESET_PDC_MATCH_VALUE_HI      0x00004514
@@ -127,6 +126,30 @@ static uint64_t turing_rsc_read(void *opaque, hwaddr addr, unsigned size)
         value = drv->secure_override;
         break;
 
+    /* Sequencer registers */
+    case TURING_RSC_SEQ_OVERRIDE_START_ADDR_DRV0:
+        value = drv->seq_override_start_addr;
+        break;
+    case TURING_RSC_SEQ_BUSY_DRV0:
+        value = drv->seq_busy;
+        if (drv->seq_busy) {
+            drv->seq_busy = 0;
+            drv->seq_program_counter = 0;
+        }
+        break;
+    case TURING_RSC_SEQ_PROGRAM_COUNTER_DRV0:
+        value = drv->seq_program_counter;
+        break;
+    case TURING_RSC_SEQ_COMP_DRV0:
+        value = drv->seq_comp;
+        break;
+    case TURING_RSC_SEQ_OVERRIDE_TRIGGER_DRV0:
+        value = drv->seq_override_trigger;
+        break;
+    case TURING_RSC_SEQ_OVERRIDE_TRIGGER_START_ADDRESS_DRV0:
+        value = drv->seq_override_trigger_start_address;
+        break;
+
     /* TCS AMC Mode registers */
     case TURING_TCS_AMC_MODE_IRQ_ENABLE_DRV0:
         value = drv->tcs_amc_mode_irq_enable;
@@ -148,18 +171,20 @@ static uint64_t turing_rsc_read(void *opaque, hwaddr addr, unsigned size)
             value = drv->tcs_timeout_en;
             break;
         }
-        if (offset == s->tcs_timeout_base + 0x4) {
+        if (s->timeout_clr_offset &&
+            offset == s->tcs_timeout_base + s->timeout_clr_offset) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Turing RSC: Read from write-only CLR register"
                           " at offset 0x%x\n", offset);
             value = 0;
             break;
         }
-        if (offset == s->tcs_timeout_base + 0x8) {
+        if (offset == s->tcs_timeout_base + s->timeout_status_offset) {
             value = drv->tcs_timeout_status;
             break;
         }
-        if (offset == s->tcs_timeout_base + 0xC) {
+        if (s->timeout_val_offset &&
+            offset == s->tcs_timeout_base + s->timeout_val_offset) {
             value = drv->tcs_timeout_val;
             break;
         }
@@ -317,6 +342,36 @@ static void turing_rsc_write(void *opaque, hwaddr addr, uint64_t value,
         drv->secure_override = val;
         break;
 
+    /* Sequencer registers */
+    case TURING_RSC_SEQ_OVERRIDE_START_ADDR_DRV0:
+        drv->seq_override_start_addr = val;
+        break;
+    case TURING_RSC_SEQ_BUSY_DRV0:
+        drv->seq_busy = val;
+        break;
+    case TURING_RSC_SEQ_PROGRAM_COUNTER_DRV0:
+        drv->seq_program_counter = val;
+        break;
+    case TURING_RSC_SEQ_COMP_DRV0:
+        if (val & BIT(31)) {
+            drv->seq_comp &= ~1;
+        }
+        break;
+    case TURING_RSC_SEQ_OVERRIDE_TRIGGER_DRV0:
+        drv->seq_override_trigger = val;
+        if (val & 0x1) {
+            /* Sequencer completes instantly in emulation */
+            drv->seq_busy = 0;
+            drv->seq_program_counter = 0;
+        }
+        break;
+    case TURING_RSC_SEQ_OVERRIDE_TRIGGER_START_ADDRESS_DRV0:
+        drv->seq_override_trigger_start_address = val;
+        drv->seq_program_counter = val;
+        drv->seq_busy = 1;
+        drv->seq_comp = 1;
+        break;
+
     /* TCS AMC Mode registers */
     case TURING_TCS_AMC_MODE_IRQ_ENABLE_DRV0:
         drv->tcs_amc_mode_irq_enable = val;
@@ -346,11 +401,13 @@ static void turing_rsc_write(void *opaque, hwaddr addr, uint64_t value,
             drv->tcs_timeout_en = val;
             break;
         }
-        if (offset == s->tcs_timeout_base + 0x4) {
+        if (s->timeout_clr_offset &&
+            offset == s->tcs_timeout_base + s->timeout_clr_offset) {
             drv->tcs_timeout_status &= ~val;
             break;
         }
-        if (offset == s->tcs_timeout_base + 0xC) {
+        if (s->timeout_val_offset &&
+            offset == s->tcs_timeout_base + s->timeout_val_offset) {
             drv->tcs_timeout_val = val;
             break;
         }
@@ -452,7 +509,7 @@ static void turing_rsc_reset_enter(Object *obj, ResetType type)
     if (drv->present) {
         drv->rsc_id = s->rsc_id_reset;
         drv->solver_config = s->solver_config_reset;
-        drv->rsc_config = RSC_RESET_RSC_CONFIG;
+        drv->rsc_config = s->rsc_config_reset;
         drv->parentchild_config = s->parentchild_config_reset;
 
         drv->status0 = 0;
@@ -511,12 +568,20 @@ static const Property turing_rsc_properties[] = {
     DEFINE_PROP_UINT32("rsc-id-reset", TuringRscState, rsc_id_reset, 0),
     DEFINE_PROP_UINT32("solver-config-reset", TuringRscState,
                        solver_config_reset, 0),
+    DEFINE_PROP_UINT32("rsc-config-reset", TuringRscState,
+                       rsc_config_reset, 0),
     DEFINE_PROP_UINT32("parentchild-config-reset", TuringRscState,
                        parentchild_config_reset, 0),
     DEFINE_PROP_UINT32("cmd-spacing", TuringRscState, cmd_spacing, 0),
     DEFINE_PROP_UINT32("tcs-base-offset", TuringRscState, tcs_base_offset, 0),
     DEFINE_PROP_UINT32("cmd-base-in-tcs", TuringRscState, cmd_base_in_tcs, 0),
     DEFINE_PROP_UINT32("tcs-timeout-base", TuringRscState, tcs_timeout_base, 0),
+    DEFINE_PROP_UINT32("timeout-clr-offset", TuringRscState,
+                       timeout_clr_offset, 0),
+    DEFINE_PROP_UINT32("timeout-status-offset", TuringRscState,
+                       timeout_status_offset, 0),
+    DEFINE_PROP_UINT32("timeout-val-offset", TuringRscState,
+                       timeout_val_offset, 0),
     DEFINE_PROP_UINT32("num-br-addr", TuringRscState, num_br_addr, 0),
     DEFINE_PROP_UINT32("num-timestamp-units", TuringRscState,
                        num_timestamp_units, 0),
@@ -528,11 +593,11 @@ static void turing_rsc_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     if (!s->rsc_id_reset || !s->solver_config_reset ||
-        !s->parentchild_config_reset || !s->cmd_spacing ||
-        !s->tcs_base_offset || !s->cmd_base_in_tcs ||
-        !s->tcs_timeout_base || !s->num_br_addr ||
-        !s->num_timestamp_units) {
-        error_setg(errp, "turing-rsc: all properties must be set to"
+        !s->rsc_config_reset || !s->parentchild_config_reset ||
+        !s->cmd_spacing || !s->tcs_base_offset || !s->cmd_base_in_tcs ||
+        !s->tcs_timeout_base || !s->timeout_status_offset ||
+        !s->num_br_addr || !s->num_timestamp_units) {
+        error_setg(errp, "turing-rsc: required properties must be set to"
                    " non-zero values");
         return;
     }

@@ -80,6 +80,7 @@ enum turing_rsc_regs {
     TURING_RSC_SEQ_OVERRIDE_START_ADDR_DRV0         = 0x0400,
     TURING_RSC_SEQ_BUSY_DRV0                        = 0x0404,
     TURING_RSC_SEQ_PROGRAM_COUNTER_DRV0             = 0x0408,
+    TURING_RSC_SEQ_COMP_DRV0                        = 0x0410,
     TURING_RSC_SEQ_CFG_DELAY_VAL_0_DRV0             = 0x0450,
     TURING_RSC_SEQ_OVERRIDE_TRIGGER_DRV0            = 0x0460,
     TURING_RSC_SEQ_OVERRIDE_TRIGGER_START_ADDRESS_DRV0 = 0x0464,
@@ -263,6 +264,7 @@ typedef struct {
     uint32_t seq_override_start_addr;
     uint32_t seq_busy;
     uint32_t seq_program_counter;
+    uint32_t seq_comp;
     uint32_t seq_cfg_delay_val[TURING_RSC_MAX_DELAY_VAL];
     uint32_t seq_override_trigger;
     uint32_t seq_override_trigger_start_address;
@@ -322,11 +324,15 @@ struct TuringRscState {
     /* Configurable parameters (set via properties per target) */
     uint32_t rsc_id_reset;
     uint32_t solver_config_reset;
+    uint32_t rsc_config_reset;
     uint32_t parentchild_config_reset;
     uint32_t cmd_spacing;
     uint32_t tcs_base_offset;
     uint32_t cmd_base_in_tcs;
     uint32_t tcs_timeout_base;
+    uint32_t timeout_clr_offset;
+    uint32_t timeout_status_offset;
+    uint32_t timeout_val_offset;
     uint32_t num_br_addr;
     uint32_t num_timestamp_units;
 };

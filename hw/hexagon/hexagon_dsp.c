@@ -20,6 +20,7 @@
 #include "hw/misc/qcom-qdsp6-cc-regs.h"
 #include "hw/misc/qcom-qdsp6-gdscr.h"
 #include "hw/misc/qcom-qdsp6-cc-swi.h"
+#include "hw/misc/qcom-turing-cc-regs.h"
 #include "hw/misc/qcom-turing-lmh.h"
 #include "hw/misc/qcom-turing-rsc.h"
 #include "hw/timer/qct-qtimer.h"
@@ -360,17 +361,29 @@ static void create_cdsp_ccswi(hexagon_machine_config *cfg)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2F8000);
 }
 
+static void create_turing_cc(hexagon_machine_config *cfg, hwaddr base)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_CC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+}
+
+
 static void create_cdsp_turing_dsp_rsc_8480(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
     qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00040000);
     qdev_prop_set_uint32(dev, "solver-config-reset", 0x06010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01600214);
     qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x20000000);
     qdev_prop_set_uint32(dev, "cmd-spacing", 0x18);
     qdev_prop_set_uint32(dev, "tcs-base-offset", 0x20);
     qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x0110);
-    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x18);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x00);
+    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
     qdev_prop_set_uint32(dev, "num-br-addr", 8);
     qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
@@ -394,11 +407,15 @@ static void create_cdsp_turing_rsc_8480(hexagon_machine_config *cfg)
 
     qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00040000);
     qdev_prop_set_uint32(dev, "solver-config-reset", 0x04010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01300214);
     qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x8000000A);
     qdev_prop_set_uint32(dev, "cmd-spacing", 0x18);
     qdev_prop_set_uint32(dev, "tcs-base-offset", 0x20);
     qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x0D10);
-    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x18);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
+    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
     qdev_prop_set_uint32(dev, "num-br-addr", 16);
     qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
@@ -421,11 +438,15 @@ static void create_cdsp_turing_rsc_8775(hexagon_machine_config *cfg)
 
     qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00020400);
     qdev_prop_set_uint32(dev, "solver-config-reset", 0x00010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01300214);
     qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x8000000AU);
     qdev_prop_set_uint32(dev, "cmd-spacing", 0x14);
     qdev_prop_set_uint32(dev, "tcs-base-offset", 0x10);
     qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
     qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x3D44);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
     qdev_prop_set_uint32(dev, "num-br-addr", 4);
     qdev_prop_set_uint32(dev, "num-timestamp-units", 6);
 
@@ -1192,7 +1213,7 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
     create_cdsp_pll(&sc8480xp_nsp0, -0x40000);
     create_cdsp_clkctl(&sc8480xp_nsp0, -0x3C000);
     create_cdsp_gdscr(0x19d000);
-    create_cdsp_ccswi(&sc8480xp_nsp0);
+    create_turing_cc(&sc8480xp_nsp0, 0x32008000);
     create_turing_lmh(&sc8480xp_nsp0);
     create_cdsp_turing_rsc_8480(&sc8480xp_nsp0);
     create_cdsp_turing_dsp_rsc_8480(&sc8480xp_nsp0);
