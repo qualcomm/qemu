@@ -11,7 +11,6 @@ tcg_tests = {}
 #     'tests': [
 #       {
 #         'src_file': {
-#           'exe_name': ['provide an alternative binary name'],
 #         }
 #       },
 #       ...
@@ -19,10 +18,10 @@ tcg_tests = {}
 #   }
 # }
 #
-# Every test executable, identified by 'exe_name' is built only once.
+# Every test executable, is built only once.
 # Tests for a given src use the same executable by default, and their definition
 # is guaranteed to be unique also.
-# Default name is derived from src if 'exe_name' is omitted.
+# Default name is derived from src.
 
 # plugins come first, as we need to build the list
 subdir('plugins')
@@ -48,23 +47,11 @@ foreach target, plan: tcg_tests
 
   foreach t : tests
     foreach src, setup: t
-      # return a clear error if user mispell a setup entry
-      foreach key, _ : setup
-        if key not in [
-                       'exe_name',
-                       ]
-          error('unknown tcg setup entry \'' + key + '\' for test ' + src)
-        endif
-      endforeach
-
       # meson '/' operator drops left operand if right is an absolute path
       src = folder / src
       file = files(src)
       test = fs.name(file)
       exe_name = fs.stem(src)
-      if 'exe_name' in setup
-        exe_name = setup['exe_name']
-      endif
 
       exe_name = target + '-' + exe_name
       test_name = exe_name
