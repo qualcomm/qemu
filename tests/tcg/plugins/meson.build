@@ -1,4 +1,4 @@
-test_plugins_src = [
+test_plugins = [
 'bb.c',
 'discons.c',
 'empty.c',
@@ -14,12 +14,9 @@ test_plugins_src = [
 
 t = []
 if get_option('plugins')
-  foreach i : test_plugins_src
-    name = fs.stem(i)
-    plugin = shared_module(name, files(i),
-                           dependencies: plugins_deps)
-    t += plugin
-    test_plugins += {name: plugin}
+  foreach i : test_plugins
+    t += shared_module(fs.stem(i), files(i),
+                       dependencies: plugins_deps)
   endforeach
 endif
 if t.length() > 0
