@@ -41,12 +41,40 @@ typedef long HVX_VectorPred   __attribute__((__vector_size__(128)))
                               __attribute__((aligned(128)));
 
 int err;
+#include "hex_test.h"
 
 /* define the number of rows/cols in a square matrix */
 #define MATRIX_SIZE 64
 
 /* define the size of the scatter buffer */
 #define SCATTER_BUFFER_SIZE (MATRIX_SIZE * MATRIX_SIZE)
+
+/* region-bounds test: a 16-word region with guard words above and below */
+#define REGION_WORDS        16
+#define REGION_BYTES        (REGION_WORDS * 4)        /* 64 */
+#define REGION_MU           (REGION_BYTES - 1)        /* 63: region_len - 1 */
+
+/*
+ * Byte offsets of the lanes under test (offsets into the region):
+ *   LANE0_OFF        first word
+ *   LANE1_OFF        last word (60)
+ *   LANE_ABOVE_OFF   one word past the region (64, > Mu)
+ *   LANE_BELOW_OFF   -4 as uint32, so EA = base - 4 (below the region)
+ *   LANE_SCRATCH_OFF in-region scratch word for the filler lanes (32)
+ */
+#define LANE0_OFF           0
+#define LANE1_OFF           ((REGION_WORDS - 1) * 4)
+#define LANE_ABOVE_OFF      REGION_BYTES
+#define LANE_BELOW_OFF      0xFFFFFFFCu
+#define LANE_SCRATCH_OFF    (8 * 4)
+
+/* value written/expected for lane i (the tag encodes the lane index) */
+#define SCATTER_VAL(i)      (0xA0000000u | (unsigned int)(i))
+#define GATHER_VAL(i)       (0xB0000000u | (unsigned int)(i))
+
+/* sentinels for region-bounds tests */
+#define GUARD_SENTINEL      0xEEEEEEEEu
+#define GATHER_PRESET       0x11111111u
 
 /* fake vtcm - put buffers together and force alignment */
 static struct {
@@ -77,6 +105,11 @@ unsigned short half_values_masked[MATRIX_SIZE] __attribute__((aligned(128)));
 unsigned int   word_values[MATRIX_SIZE] __attribute__((aligned(128)));
 unsigned int   word_values_acc[MATRIX_SIZE] __attribute__((aligned(128)));
 unsigned int   word_values_masked[MATRIX_SIZE] __attribute__((aligned(128)));
+
+/* offset/value arrays for the region-bounds test */
+/* (32 lanes = one 128-byte HVX vector) */
+unsigned int   region_word_offsets[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   region_word_values[MATRIX_SIZE]  __attribute__((aligned(128)));
 
 /* declare the arrays of predicates */
 unsigned short half_predicates[MATRIX_SIZE] __attribute__((aligned(128)));
@@ -855,6 +888,111 @@ void check_gather_16_32_masked(void)
                  MATRIX_SIZE * sizeof(unsigned short));
 }
 
+/* Verify vscatter.w drops out-of-region lanes. */
+void region_bounds_scatter_test(void)
+{
+    /*
+     * Read results back through volatile pointers: the compiler cannot see
+     * the side effects of the HVX scatter/gather instructions, so without
+     * volatile it may reuse values cached from before the operation.
+     */
+    volatile unsigned int *region      = &vtcm.vscatter32[4];  /* see above */
+    volatile unsigned int *below_guard = &vtcm.vscatter32[0];  /* see above */
+    volatile unsigned int *above_guard = &vtcm.vscatter32[20]; /* see above */
+    const unsigned int region_mu = REGION_MU;
+
+    /* preset region to zero, guards to sentinel */
+    memset((void *)region, 0, REGION_BYTES);
+    for (int i = 0; i < 4; i++) {
+        below_guard[i] = above_guard[i] = GUARD_SENTINEL;
+    }
+
+    /*
+     * One lane per probe, plus filler lanes that all target a single
+     * in-region scratch word.  No two checked lanes share an address,
+     * so each checked word has exactly one writer.
+     */
+    region_word_offsets[0] = LANE0_OFF;        /* in-region: first word */
+    region_word_offsets[1] = LANE1_OFF;        /* in-region: last word */
+    region_word_offsets[2] = LANE_ABOVE_OFF;   /* above region (> Mu) */
+    region_word_offsets[3] = LANE_BELOW_OFF;   /* below region (EA<base) */
+    for (int i = 4; i < 32; i++) {
+        region_word_offsets[i] = LANE_SCRATCH_OFF; /* harmless, not checked */
+    }
+    for (int i = 0; i < 32; i++) {
+        region_word_values[i] = SCATTER_VAL(i);
+    }
+
+    /* issue the word vscatter for lanes 0..31 (one 128-byte vector) */
+    asm volatile("m0 = %1\n\t"
+                 "v0 = vmem(%2 + #0)\n\t"
+                 "v1 = vmem(%3 + #0)\n\t"
+                 "vscatter(%0, m0, v0.w).w = v1\n\t"
+                 :
+                 : "r"((unsigned int *)region), "r"(region_mu),
+                   "r"(region_word_offsets), "r"(region_word_values)
+                 : "m0", "v0", "v1", "memory");
+
+    sync_scatter((void *)region);
+
+    /* in-region lanes were stored at their own offsets */
+    check32(region[LANE0_OFF / 4], SCATTER_VAL(0));
+    check32(region[LANE1_OFF / 4], SCATTER_VAL(1));
+    /* out-of-region lanes were dropped: guards remain untouched */
+    check32(above_guard[0], GUARD_SENTINEL);
+    check32(below_guard[3], GUARD_SENTINEL);
+}
+
+/* Verify vgather.w drops out-of-region lanes. */
+void region_bounds_gather_test(void)
+{
+    /*
+     * Read results back through volatile pointers: the compiler cannot see
+     * the side effects of the HVX scatter/gather instructions, so without
+     * volatile it may reuse values cached from before the operation.
+     */
+    volatile unsigned int *region = &vtcm.vscatter32[4];  /* see above */
+    const unsigned int region_mu = REGION_MU;
+    volatile unsigned int *gdst = vtcm.vgather32;         /* see above */
+
+    /* preset region with a known pattern: region[k] = GATHER_VAL(k) */
+    for (int i = 0; i < REGION_WORDS; i++) {
+        region[i] = GATHER_VAL(i);
+    }
+
+    /* preset gather destination to a sentinel */
+    for (int i = 0; i < 32; i++) {
+        vtcm.vgather32[i] = GATHER_PRESET;
+    }
+
+    region_word_offsets[0] = LANE0_OFF;        /* in-region: first word */
+    region_word_offsets[1] = LANE1_OFF;        /* in-region: last word */
+    region_word_offsets[2] = LANE_ABOVE_OFF;   /* above region (> Mu) */
+    region_word_offsets[3] = LANE_BELOW_OFF;   /* below region (EA<base) */
+    for (int i = 4; i < 32; i++) {
+        region_word_offsets[i] = LANE_SCRATCH_OFF; /* harmless, not checked */
+    }
+
+    /* issue the word vgather for lanes 0..31 (one 128-byte vector) */
+    asm volatile("m0 = %1\n\t"
+                 "v0 = vmem(%2 + #0)\n\t"
+                 "{ vtmp.w = vgather(%0, m0, v0.w).w\n\t"
+                 "  vmem(%3 + #0) = vtmp.new }\n\t"
+                 :
+                 : "r"((unsigned int *)region), "r"(region_mu),
+                   "r"(region_word_offsets), "r"(vtcm.vgather32)
+                 : "m0", "v0", "memory");
+
+    sync_gather(vtcm.vgather32);
+
+    /* in-region lanes fetched the region word at their own offset */
+    check32(gdst[0], GATHER_VAL(LANE0_OFF / 4));
+    check32(gdst[1], GATHER_VAL(LANE1_OFF / 4));
+    /* out-of-region lanes were dropped: destination left unchanged */
+    check32(gdst[2], GATHER_PRESET);
+    check32(gdst[3], GATHER_PRESET);
+}
+
 /* print scatter16 buffer */
 void print_scatter16_buffer(void)
 {
@@ -1034,6 +1172,10 @@ int main()
     vector_scatter_16_32_masked();
     print_scatter16_32_buffer();
     check_scatter_16_32_masked();
+
+    /* HVX scatter/gather region-bound enforcement (PRM section 5.13) */
+    region_bounds_scatter_test();
+    region_bounds_gather_test();
 
     puts(err ? "FAIL" : "PASS");
     return err;

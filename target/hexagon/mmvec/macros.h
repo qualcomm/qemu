@@ -78,9 +78,9 @@
     do { \
         int log_byte = 0; \
         vaddr_t va = EA; \
-        vaddr_t va_high = EA + LEN; \
         for (int i0 = 0; i0 < 4; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = ((int32_t)(OFFSET) >= 0) && \
+                       (((uint32_t)(OFFSET) + i0) <= (LEN)); \
             LOG_VTCM_BYTE(va + i0, log_byte, INC. ub[4 * IDX + i0], \
                           4 * IDX + i0); \
         } \
@@ -89,9 +89,9 @@
     do { \
         int log_byte = 0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         for (int i0 = 0; i0 < 2; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = ((int32_t)(OFFSET) >= 0) && \
+                       (((uint32_t)(OFFSET) + i0) <= (LEN)); \
             LOG_VTCM_BYTE(va + i0, log_byte, INC.ub[2 * IDX + i0], \
                           2 * IDX + i0); \
         } \
@@ -101,9 +101,9 @@
     do { \
         int log_byte = 0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         for (int i0 = 0; i0 < 2; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = ((int32_t)(OFFSET) >= 0) && \
+                       (((uint32_t)(OFFSET) + i0) <= (LEN)); \
             LOG_VTCM_BYTE(va + i0, log_byte, INC.ub[2 * IDX + i0], \
                           2 * IDX + i0); \
         } \
@@ -113,16 +113,18 @@
     do { \
         int i0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         uintptr_t ra = CPU_MEMOP_PC(env); \
         int log_bank = 0; \
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEMENT_SIZE; i0++) { \
-            log_byte = ((va + i0) <= va_high) && QVAL; \
+            log_byte = ((int32_t)(OFFSET) >= 0) && \
+                       (((uint32_t)(OFFSET) + i0) <= (LEN)) && QVAL; \
             log_bank |= (log_byte << i0); \
-            uint8_t B; \
-            B = cpu_ldub_data_ra(env, EA + i0, ra); \
-            env->tmp_VRegs[0].ub[ELEMENT_SIZE * IDX + i0] = B; \
+            uint8_t B = 0; \
+            if (log_byte) { \
+                B = cpu_ldub_data_ra(env, va + i0, ra); \
+                env->tmp_VRegs[0].ub[ELEMENT_SIZE * IDX + i0] = B; \
+            } \
             LOG_VTCM_BYTE(va + i0, log_byte, B, ELEMENT_SIZE * IDX + i0); \
         } \
         LOG_VTCM_BANK(va, log_bank, BANK_IDX); \
@@ -176,11 +178,11 @@
     do { \
         int i0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         int log_bank = 0; \
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEM_SIZE; i0++) { \
-            log_byte = ((va + i0) <= va_high) && QVAL; \
+            log_byte = ((int32_t)(OFFSET) >= 0) && \
+                       (((uint32_t)(OFFSET) + i0) <= (LEN)) && QVAL; \
             log_bank |= (log_byte << i0); \
             LOG_VTCM_BYTE(va + i0, log_byte, IN.ub[ELEM_SIZE * IDX + i0], \
                           ELEM_SIZE * IDX + i0); \
