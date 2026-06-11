@@ -18,6 +18,13 @@
         ]
       },
       {
+        "name": "libc++",
+        "package": "mingw-w64-x86_64-libc++-21.1.8-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "mingw64/bin/libc++.dll"
+        ]
+      },
+      {
         "name": "libiconv",
         "package": "mingw-w64-x86_64-libiconv-1.18-1-any.pkg.tar.zst",
         "extract_paths": [
@@ -63,6 +70,13 @@
         "package": "mingw-w64-clang-aarch64-gettext-0.22.4-3-any.pkg.tar.zst",
         "extract_paths": [
           "clangarm64/bin/libintl-8.dll"
+        ]
+      },
+      {
+        "name": "libc++",
+        "package": "mingw-w64-clang-aarch64-libc++-21.1.8-1-any.pkg.tar.zst",
+        "extract_paths": [
+          "clangarm64/bin/libc++.dll"
         ]
       },
       {
