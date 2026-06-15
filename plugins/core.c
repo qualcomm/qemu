@@ -109,6 +109,28 @@ static void plugin_vcpu_cb__udata(CPUState *cpu, enum qemu_plugin_event ev)
  * have type information
  */
 QEMU_DISABLE_CFI
+static void plugin_vcpu_cb__udata(CPUState *cpu, enum qemu_plugin_event ev)
+{
+    struct qemu_plugin_cb *cb, *next;
+
+    switch (ev) {
+    case QEMU_PLUGIN_EV_VCPU_INIT:
+        QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
+            qemu_plugin_vcpu_udata_cb_t func = cb->f.vcpu_udata;
+            func(cpu->cpu_index, cb->udata);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/*
+ * Disable CFI checks.
+ * The callback function has been loaded from an external library so we do not
+ * have type information
+ */
+QEMU_DISABLE_CFI
 static void plugin_vcpu_cb__discon(CPUState *cpu,
                                    enum qemu_plugin_event ev,
                                    enum qemu_plugin_discon_type type,
