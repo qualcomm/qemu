@@ -111,6 +111,7 @@ static int64_t report_system_time(void *userdata)
     return virtual_time_ns;
 }
 
+static void vcpu_init(unsigned int cpu_index, void *userdata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->total_insn = 0;
@@ -118,7 +119,6 @@ static int64_t report_system_time(void *userdata)
     vcpu->last_quantum_time = now_ns();
 }
 
-static void vcpu_exit(unsigned int cpu_index, void *userdata)
 static void vcpu_idle(unsigned int cpu_index, void *userdata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
@@ -132,6 +132,7 @@ static void vcpu_resume(unsigned int cpu_index, void *userdata)
     vcpu->sleeping = false;
 }
 
+static void vcpu_exit(unsigned int cpu_index, void *userdata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     update_system_time(vcpu);
