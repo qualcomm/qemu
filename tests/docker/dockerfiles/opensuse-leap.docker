@@ -6,6 +6,10 @@
 
 FROM registry.opensuse.org/opensuse/leap:16.0
 
+# This package update tries to chown /dev/zero, which result in error with
+# podman rootless container.
+RUN zypper al permissions
+
 RUN zypper update -y && \
     zypper install -y \
            Mesa-devel \
