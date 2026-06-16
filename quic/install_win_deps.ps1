@@ -12,8 +12,19 @@ param(
 # Set error action preference to stop on errors
 $ErrorActionPreference = "Stop"
 
-# Detect system architecture
-$arch = $env:PROCESSOR_ARCHITECTURE
+# Detect host CPU architecture via WMI/CIM, which reports the real
+# silicon regardless of whether the current PowerShell process is
+# running natively or under x64-on-ARM emulation.  Win32_Processor
+# .Architecture: 9 = AMD64, 12 = ARM64.
+$cpuArch = (Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1).Architecture
+switch ($cpuArch) {
+    9  { $arch = "AMD64" }
+    12 { $arch = "ARM64" }
+    default {
+        Write-Error "Unsupported processor architecture code: $cpuArch"
+        exit 1
+    }
+}
 Write-Host "Detected architecture: $arch"
 
 # Determine which config to use
