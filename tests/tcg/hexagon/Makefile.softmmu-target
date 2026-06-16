@@ -68,6 +68,7 @@ QEMU_OPTS+=$(QEMU_BASE_MACHINE) -kernel
 TESTS += \
 	standalone_hw \
 	tlb-miss-tlblock \
+	sysreg-tb-end \
 	$()
 
 # Build and link the tests
@@ -85,7 +86,22 @@ endef
 standalone_hw: standalone_hw.o
 	$(call build_fn,$^,$@,LINK)
 
+sysreg-tb-end: sysreg-tb-end.o
+	$(call build_fn,$^,$@,LINK)
+
 ############# Custom build options
+
+# sysreg-tb-end reports its result over the PL011 UART (at 0x10000000)
+# rather than via the semihosting exit code: it prints "PASS" on success and
+# "FAIL" (or nothing, if the translator regresses and the guest hangs) on
+# failure.  Capture the UART to a file and require "PASS" to appear.
+run-sysreg-tb-end: sysreg-tb-end
+	$(call quiet-command, \
+		timeout -s KILL --foreground $(TIMEOUT) \
+			$(QEMU) $(QEMU_OPTS) $< -serial file:$<.uart \
+			< /dev/null > /dev/null 2>&1; \
+		grep -q '^PASS' $<.uart, \
+		TEST, $< via UART)
 
 # tlb-miss-tlblock uses its own entry point and memory layout
 tlb-miss-tlblock: tlb-miss-tlblock.o
