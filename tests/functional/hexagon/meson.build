@@ -8,6 +8,7 @@ test_hexagon_timeouts = {
   'systests': 180,
   'sdk': 180,
   'sa8775p_cdsp0': 180,
+  'sc8480xp_cdsp0': 180,
 }
 
 tests_hexagon_system_thorough = [
@@ -19,4 +20,5 @@ tests_hexagon_system_thorough = [
   'systests',
   'sdk',
   'sa8775p_cdsp0',
+  'sc8480xp_cdsp0',
 ]

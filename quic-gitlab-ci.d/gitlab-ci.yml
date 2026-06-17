@@ -130,7 +130,8 @@ qemu-hexagon-linux-x86_64-misc:
     ./quic/run-functional-test.sh func-hexagon-sdk &&
     ./quic/run-functional-test.sh func-hexagon-minivm &&
     ./quic/run-functional-test.sh func-hexagon-systests &&
-    ./quic/run-functional-test.sh func-hexagon-sa8775p_cdsp0
+    ./quic/run-functional-test.sh func-hexagon-sa8775p_cdsp0 &&
+    ./quic/run-functional-test.sh func-hexagon-sc8480xp_cdsp0
 
 qemu-hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
