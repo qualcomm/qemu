@@ -62,6 +62,7 @@ hexagon-linux-x86_64:
   variables:
     QUIC_BUILD_CONFIG: hexagon
     QUIC_COPROC_JOB: linux-x86_64-tag
+    QUIC_TARBALL_PREFIX: linux-x86_64-qemu-hexagon
 
 # Keep the nightly builds for a little longer, just in case
 hexagon-linux-x86_64-schedule:
@@ -211,6 +212,7 @@ hexagon-linux-x86_64-san:
   variables:
     QUIC_BUILD_CONFIG: hexagon-san
     QUIC_COPROC_JOB: linux-x86_64-tag
+    QUIC_TARBALL_PREFIX: linux-x86_64-san-qemu-hexagon
 
 hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
@@ -256,6 +258,7 @@ hexagon-mac:
   variables:
     QUIC_BUILD_CONFIG: hexagon-mac
     QUIC_COPROC_JOB: mac-tag
+    QUIC_TARBALL_PREFIX: macos-qemu-hexagon
   tags:
     - mac
 
@@ -272,6 +275,7 @@ hexagon-linux-x86_64-no-idef-parser:
   variables:
     QUIC_BUILD_CONFIG: hexagon-no-idef-parser
     QUIC_COPROC_JOB: linux-x86_64-tag
+    QUIC_TARBALL_PREFIX: linux-x86_64-no-idef-parser-qemu-hexagon
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
@@ -304,6 +308,7 @@ hexagon-windows-x86_64-cross:
   variables:
     QUIC_BUILD_CONFIG: hexagon-minimal-cross
     QUIC_COPROC_JOB: windows-x86_64-tag
+    QUIC_TARBALL_PREFIX: windows-x86_64-qemu-hexagon
 
 hexagon-windows-x86_64-cross-tag:
   extends: hexagon-windows-x86_64-cross
@@ -339,6 +344,7 @@ hexagon-linux-aarch64-cross:
   image: docker-registry.qualcomm.com/qqvp/qemu:linux-aarch64-cross
   variables:
     QUIC_BUILD_CONFIG: hexagon-linux-aarch64-cross
+    QUIC_TARBALL_PREFIX: linux-aarch64-qemu-hexagon
 
 hexagon-linux-aarch64-cross-tag:
   extends: hexagon-linux-aarch64-cross
@@ -352,6 +358,7 @@ aarch64-linux:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: aarch64
+    QUIC_TARBALL_PREFIX: linux-aarch64-qemu-aarch64
 
 aarch64-linux-tag:
   extends: aarch64-linux

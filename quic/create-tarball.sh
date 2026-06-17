@@ -16,7 +16,7 @@ print_help()
     echo "          (default: ${BUILD_DIR})"
     echo "    -i    name of the install directory"
     echo "          (default: ${INSTALL_DIR})"
-    echo "    -p    tarball prefix"
+    echo "    -p    tarball prefix (default: none; tarball is named <tag-or-sha>.tar.gz)"
     echo "    -h    print this help"
 }
 
@@ -27,7 +27,7 @@ while getopts "${OPTIONS}" option; do
         "i") readonly INSTALL_DIR="${OPTARG}";;
         "p") readonly TARBALL_PREFIX="${OPTARG}";;
         "h") print_help; exit 0;;
-        "*") print_help; exit 1;;
+        *) print_help; exit 1;;
     esac
 done
 
@@ -45,11 +45,12 @@ if [ -f "${RELEASE_NOTE}" ]; then
     cp "${RELEASE_NOTE}" "${INSTALL_DIR}"
 fi
 
-TAG_NAME="$(git describe --tags --exact-match --match qemu-hexagon* 2>/dev/null || \
-           { printf "qemu-hexagon-" && git rev-parse --short HEAD; } )"
-readonly TAG_NAME
+TAG_OR_SHA="$(git describe --tags --exact-match 2>/dev/null \
+                  || git rev-parse --short HEAD)"
+readonly TAG_OR_SHA
 
-readonly SRC_TARBALL_NAME="${TAG_NAME}-src.tar.gz"
+readonly TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_OR_SHA}.tar.gz"
+readonly SRC_TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_OR_SHA}-src.tar.gz"
 
 relative_realpath() {
     test $# -eq 2 || { echo "relative_realpath usage error"; exit 1; }
@@ -75,7 +76,6 @@ tar --directory="${PWD}" \
     --exclude="coproc_rpc_remote*" \
     .
 
-readonly TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_NAME}.tar.gz"
 tar --directory="${INSTALL_DIR}" \
     --create \
     --gzip \
