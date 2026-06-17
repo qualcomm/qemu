@@ -198,9 +198,14 @@ check_rev_gating: check_rev_gating.c
 run-check_rev_gating: check_rev_gating
 	$(call run-test, $<, env QEMU=$(QEMU) $(QEMU) -cpu v66 $(QEMU_OPTS) $<)
 
-# This test has to be compiled for the -mv67t target
+# Older clang versions don't support -maudio.  Detect support so the
+# test still compiles on those toolchains; the audio-specific code in
+# usr.c is guarded by defined(__HEXAGON_AUDIO__) and will simply be
+# skipped when -maudio is absent.
+HEXAGON_AUDIO_FLAG := $(shell $(CC) -E -maudio - </dev/null >/dev/null 2>&1 && echo -maudio)
+
 usr: usr.c hex_test.h
-	$(CC) $(CFLAGS) -mv67t -O2 $< -o $@ $(LDFLAGS) \
+	$(CC) $(CFLAGS) $(HEXAGON_AUDIO_FLAG) -O2 $< -o $@ $(LDFLAGS) \
 		-Wno-inline-asm -Wno-expansion-to-defined -Wl,--no-warn-mismatch
 
 # Build this test with -mv71 to exercise the CABAC instruction
