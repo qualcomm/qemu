@@ -1174,6 +1174,42 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
     cpu_physical_memory_write(smem_base, sc8480xp_nsp0_smem_data,
         sizeof(sc8480xp_nsp0_smem_data));
 
+    g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                         "cmd_db_header_sc8480xp_nsp0.bin");
+    if (!cmd_db_header) {
+        error_report("Failed to find cmd_db_header_sc8480xp_nsp0.bin");
+        exit(1);
+    }
+
+    /*
+     * How we find cmd_db_header_addr:
+     * - Look for the cluster 0x56414c49 in sc8480xp_smem_entries.inc.
+     *   There will be several, this is the value after the 16th entry.
+     */
+    ssize_t size = load_image_targphys(cmd_db_header, 0x0C30F000,
+                                       UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database header: '%s'",
+                     cmd_db_header);
+        exit(1);
+    }
+
+    g_autofree char *cmd_db = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                             "cmd_db_sc8480xp_nsp0.bin");
+    if (!cmd_db) {
+        error_report("Failed to find cmd_db_sc8480xp_nsp0.bin");
+        exit(1);
+    }
+    /*
+     * How we find cmd_db_header_addr:
+     * - Find sw_aperture.xml and look for CMD_DB
+     */
+    size = load_image_targphys(cmd_db, 0x81C60000, UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database: '%s'", cmd_db);
+        exit(1);
+    }
+
     /* Create and map the DSPSS-PUB device at CSR base */
     DeviceState *dspss_pub = qdev_new(TYPE_DSPSS_PUB);
     /*
