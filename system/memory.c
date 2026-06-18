@@ -1652,6 +1652,20 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
                                 false, errp);
     return memory_region_set_ram_block(mr, rb);
 }
+#else
+bool memory_region_init_ram_from_fd(MemoryRegion *mr,
+                                    Object *owner,
+                                    const char *name,
+                                    uint64_t size,
+                                    uint32_t ram_flags,
+                                    int fd,
+                                    ram_addr_t offset,
+                                    Error **errp)
+{
+    error_setg(errp,
+               "memory_region_init_ram_from_fd is not supported on this platform");
+    return false;
+}
 #endif
 
 static void memory_region_set_ram_ptr(MemoryRegion *mr, uint64_t size,
@@ -1812,6 +1826,16 @@ bool memory_region_is_ram_device(const MemoryRegion *mr)
 bool memory_region_is_protected(const MemoryRegion *mr)
 {
     return mr->ram && (mr->ram_block->flags & RAM_PROTECTED);
+}
+
+bool memory_region_skip_iommu_map(const MemoryRegion *mr)
+{
+    return memory_region_is_ram_device(mr) && mr->ram_device_skip_iommu_map;
+}
+
+void memory_region_set_skip_iommu_map(MemoryRegion *mr, bool skip)
+{
+    mr->ram_device_skip_iommu_map = skip;
 }
 
 bool memory_region_has_guest_memfd(const MemoryRegion *mr)
