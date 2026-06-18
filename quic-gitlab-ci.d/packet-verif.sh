@@ -35,7 +35,7 @@ api "projects/${CI_PROJECT_ID}/pipelines?ref=master&source=schedule&per_page=2" 
 
 api "projects/${CI_PROJECT_ID}/pipelines/${out}/jobs?per_page=100" \
 'for d in data:
-    if d["name"] == "hexagon-linux-x86_64-schedule":
+    if d["name"] == "qemu-hexagon-linux-x86_64-schedule":
         print(d["id"])
         break'
 

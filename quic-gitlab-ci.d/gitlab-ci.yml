@@ -58,7 +58,7 @@ user_guide:
     expire_in: 1 day
 
 # QEMU Hexagon for Linux on x86_64
-hexagon-linux-x86_64:
+qemu-hexagon-linux-x86_64:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon
@@ -66,77 +66,77 @@ hexagon-linux-x86_64:
     QUIC_TARBALL_PREFIX: linux-x86_64-qemu-hexagon
 
 # Keep the nightly builds for a little longer, just in case
-hexagon-linux-x86_64-schedule:
-  extends: hexagon-linux-x86_64
+qemu-hexagon-linux-x86_64-schedule:
+  extends: qemu-hexagon-linux-x86_64
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   artifacts:
     expire_in: 3 days
 
-hexagon-linux-x86_64-tag:
-  extends: hexagon-linux-x86_64
+qemu-hexagon-linux-x86_64-tag:
+  extends: qemu-hexagon-linux-x86_64
   rules:
     - if: $CI_COMMIT_TAG
   artifacts:
     expire_in: never
 
-hexagon-linux-x86_64-check-tcg:
+qemu-hexagon-linux-x86_64-check-tcg:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-check-tcg.sh
 
-hexagon-linux-x86_64-check-tcg-mttcg:
+qemu-hexagon-linux-x86_64-check-tcg-mttcg:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-check-tcg.sh -m
 
-hexagon-linux-x86_64-check:
+qemu-hexagon-linux-x86_64-check:
   stage: test
   extends: .test-artifacts
   tags: [ new-libseccomp ]
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
-hexagon-linux-x86_64-qurt:
+qemu-hexagon-linux-x86_64-qurt:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-functional-test.sh func-hexagon-qurt
 
-hexagon-linux-x86_64-sival:
+qemu-hexagon-linux-x86_64-sival:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-functional-test.sh func-hexagon-sival
 
-hexagon-linux-x86_64-boot:
+qemu-hexagon-linux-x86_64-boot:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-functional-test.sh func-hexagon-linux
 
-hexagon-linux-x86_64-virtio:
+qemu-hexagon-linux-x86_64-virtio:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: ./quic/run-functional-test.sh func-hexagon-virtio
 
-hexagon-linux-x86_64-misc:
+qemu-hexagon-linux-x86_64-misc:
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   script: >
     ./quic/run-functional-test.sh func-hexagon-sdk &&
     ./quic/run-functional-test.sh func-hexagon-minivm &&
     ./quic/run-functional-test.sh func-hexagon-systests &&
     ./quic/run-functional-test.sh func-hexagon-sa8775p_cdsp0
 
-hexagon-linux-x86_64-perf:
+qemu-hexagon-linux-x86_64-perf:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf.sh
@@ -147,10 +147,10 @@ hexagon-linux-x86_64-perf:
       metrics: metrics.txt
     expire_in: 4 days
 
-hexagon-linux-x86_64-perf-mttcg:
+qemu-hexagon-linux-x86_64-perf-mttcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-mttcg.sh
@@ -161,10 +161,10 @@ hexagon-linux-x86_64-perf-mttcg:
       metrics: metrics.txt
     expire_in: 4 days
 
-hexagon-linux-x86_64-perf-ml:
+qemu-hexagon-linux-x86_64-perf-ml:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  needs: [ "hexagon-linux-x86_64" ]
+  needs: [ "qemu-hexagon-linux-x86_64" ]
   tags:
     - performance-hardware
   script: ./quic-gitlab-ci.d/hexagon-linux-x86_64-perf-ml.sh
@@ -191,10 +191,10 @@ fetch-iset:
   artifacts:
     paths: [ "iset.py" ]
 
-hexagon-linux-x86_64-packet-verif:
+qemu-hexagon-linux-x86_64-packet-verif:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  needs: [ "hexagon-linux-x86_64", "fetch-iset" ]
+  needs: [ "qemu-hexagon-linux-x86_64", "fetch-iset" ]
   script: ./quic-gitlab-ci.d/packet-verif.sh
   artifacts:
     when: on_failure
@@ -207,7 +207,7 @@ hexagon-linux-x86_64-packet-verif:
       allow_failure: true
 
 # QEMU Hexagon for Linux on x86_64 with sanatizers enabled
-hexagon-linux-x86_64-san:
+qemu-hexagon-linux-x86_64-san:
   extends: .build-job
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   variables:
@@ -215,46 +215,46 @@ hexagon-linux-x86_64-san:
     QUIC_COPROC_JOB: linux-x86_64-tag
     QUIC_TARBALL_PREFIX: linux-x86_64-san-qemu-hexagon
 
-hexagon-linux-x86_64-san-check-tcg:
+qemu-hexagon-linux-x86_64-san-check-tcg:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64-san" ]
+  needs: [ "qemu-hexagon-linux-x86_64-san" ]
   script: ./quic/run-check-tcg.sh
 
-hexagon-linux-x86_64-san-check:
+qemu-hexagon-linux-x86_64-san-check:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
   tags: [ new-libseccomp ]
-  needs: [ "hexagon-linux-x86_64-san" ]
+  needs: [ "qemu-hexagon-linux-x86_64-san" ]
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
 
-hexagon-linux-x86_64-san-sival:
+qemu-hexagon-linux-x86_64-san-sival:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64-san" ]
+  needs: [ "qemu-hexagon-linux-x86_64-san" ]
   script: ./quic/run-functional-test.sh func-hexagon-sival
 
-hexagon-linux-x86_64-san-boot:
+qemu-hexagon-linux-x86_64-san-boot:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64-san" ]
+  needs: [ "qemu-hexagon-linux-x86_64-san" ]
   script: ./quic/run-functional-test.sh func-hexagon-linux
   when: manual
   allow_failure: true
 
-hexagon-linux-x86_64-san-virtio:
+qemu-hexagon-linux-x86_64-san-virtio:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
   extends: .test-artifacts
-  needs: [ "hexagon-linux-x86_64-san" ]
+  needs: [ "qemu-hexagon-linux-x86_64-san" ]
   script: ./quic/run-functional-test.sh func-hexagon-virtio
 
 # QEMU Hexagon for macOS
-hexagon-mac:
+qemu-hexagon-macOS:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon-mac
@@ -263,15 +263,15 @@ hexagon-mac:
   tags:
     - mac
 
-hexagon-mac-tag:
-  extends: hexagon-mac
+qemu-hexagon-macOS-tag:
+  extends: qemu-hexagon-macOS
   rules:
     - if: $CI_COMMIT_TAG
   artifacts:
     expire_in: never
 
 # QEMU Hexagon for Linux on x86_64 without idef parser
-hexagon-linux-x86_64-no-idef-parser:
+qemu-hexagon-linux-x86_64-no-idef-parser:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: hexagon-no-idef-parser
@@ -281,29 +281,29 @@ hexagon-linux-x86_64-no-idef-parser:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-hexagon-linux-x86_64-no-idef-parser-check-tcg:
+qemu-hexagon-linux-x86_64-no-idef-parser-check-tcg:
   stage: test
   extends: .test-artifacts
   dependencies:
-    - hexagon-linux-x86_64-no-idef-parser
+    - qemu-hexagon-linux-x86_64-no-idef-parser
   script: ./quic/run-check-tcg.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-hexagon-linux-x86_64-no-idef-parser-check:
+qemu-hexagon-linux-x86_64-no-idef-parser-check:
   stage: test
   extends: .test-artifacts
   tags: [ new-libseccomp ]
   dependencies:
-    - hexagon-linux-x86_64-no-idef-parser
+    - qemu-hexagon-linux-x86_64-no-idef-parser
   script: ./build/pyvenv/bin/meson test -C build --no-rebuild --verbose
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
 # QEMU Hexagon for Windows on x86_64
-hexagon-windows-x86_64-cross:
+qemu-hexagon-windows-x86_64:
   extends: .build-job
   image: docker-registry.qualcomm.com/qqvp/qemu:windows-x86_64-cross
   variables:
@@ -311,17 +311,17 @@ hexagon-windows-x86_64-cross:
     QUIC_COPROC_JOB: windows-x86_64-tag
     QUIC_TARBALL_PREFIX: windows-x86_64-qemu-hexagon
 
-hexagon-windows-x86_64-cross-tag:
-  extends: hexagon-windows-x86_64-cross
+qemu-hexagon-windows-x86_64-tag:
+  extends: qemu-hexagon-windows-x86_64
   rules:
     - if: $CI_COMMIT_TAG
   artifacts:
     expire_in: never
 
-hexagon-windows-x86_64-perf-ml:
+qemu-hexagon-windows-x86_64-perf-ml:
   image: docker-registry.qualcomm.com/qqvp/qemu:windows-x86_64-test
   stage: test
-  needs: [ "hexagon-windows-x86_64-cross" ]
+  needs: [ "qemu-hexagon-windows-x86_64" ]
   tags:
     - windows
     - x86_64
@@ -340,29 +340,29 @@ hexagon-windows-x86_64-perf-ml:
       allow_failure: true
 
 # QEMU Hexagon for Linux on aarch64
-hexagon-linux-aarch64-cross:
+qemu-hexagon-linux-aarch64:
   extends: .build-job
   image: docker-registry.qualcomm.com/qqvp/qemu:linux-aarch64-cross
   variables:
     QUIC_BUILD_CONFIG: hexagon-linux-aarch64-cross
     QUIC_TARBALL_PREFIX: linux-aarch64-qemu-hexagon
 
-hexagon-linux-aarch64-cross-tag:
-  extends: hexagon-linux-aarch64-cross
+qemu-hexagon-linux-aarch64-tag:
+  extends: qemu-hexagon-linux-aarch64
   rules:
     - if: $CI_COMMIT_TAG
   artifacts:
     expire_in: never
 
-# QEMU AArch64 for Linux on aarch64
-aarch64-linux:
+# QEMU AArch64 for Linux on x86_64
+qemu-aarch64-linux-x86_64:
   extends: .build-job
   variables:
     QUIC_BUILD_CONFIG: aarch64
     QUIC_TARBALL_PREFIX: linux-aarch64-qemu-aarch64
 
-aarch64-linux-tag:
-  extends: aarch64-linux
+qemu-aarch64-linux-x86_64-tag:
+  extends: qemu-aarch64-linux-x86_64
   rules:
     - if: $CI_COMMIT_TAG
   artifacts:
