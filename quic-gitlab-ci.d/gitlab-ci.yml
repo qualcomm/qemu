@@ -16,7 +16,8 @@ variables:
   FF_SCRIPT_SECTIONS: True
   GIT_DEPTH: 1
 
-  QUIC_BUILD_DIR: ${CI_PROJECT_DIR}/build
+  QUIC_BUILD_DIR: build
+  QUIC_BUILD_DIR_ABS: "${CI_PROJECT_DIR}/${QUIC_BUILD_DIR}"
 
 checkpatch:
   stage: .pre
@@ -41,19 +42,19 @@ user_guide:
   artifacts:
     when: on_failure
     paths:
-      - ${QUIC_BUILD_DIR}
+      - ${QUIC_BUILD_DIR_ABS}
     expire_in: 4 days
 
 .build-job:
   stage: build
   script: ./quic-gitlab-ci.d/build.sh
   variables:
-    QUIC_BUILD_LOG: ${QUIC_BUILD_DIR}/build.log
+    QUIC_BUILD_LOG: ${QUIC_BUILD_DIR_ABS}/build.log
     QUIC_COPROC_REF: qemu-coproc-plugin-13.0.0
   artifacts:
     when: always
     paths:
-      - ${QUIC_BUILD_DIR}
+      - ${QUIC_BUILD_DIR_ABS}
     expire_in: 1 day
 
 # QEMU Hexagon for Linux on x86_64
