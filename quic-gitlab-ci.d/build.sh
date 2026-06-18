@@ -22,9 +22,5 @@ mkdir -p "${QUIC_BUILD_DIR_ABS}"
         ./quic/install-coproc.sh -d "${PWD}"
     fi
 
-    if [ -n "${QUIC_TARBALL_PREFIX:-}" ]; then
-        ./quic/create-tarball.sh -p "${QUIC_TARBALL_PREFIX}"
-    else
-        ./quic/create-tarball.sh
-    fi
+    ./quic/create-tarball.sh -p "${CI_JOB_NAME%-tag}"
 } 2>&1 | tee "${QUIC_BUILD_LOG}"
