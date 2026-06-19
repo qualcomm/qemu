@@ -25,6 +25,7 @@
 #include "migration/cpu.h"
 #include "system/system.h"
 #include "target/hexagon/internal.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
@@ -85,11 +86,11 @@ static void hexagon_init_bootstrap(HexagonDspMachineState *dms, HexagonCPU *cpu)
 
         hexagon_load_kernel(dms, cpu);
         if (dms->isdb_secure_flag) {
-            cpu_physical_memory_write(dms->isdb_secure_flag,
+            physical_memory_write(dms->isdb_secure_flag,
                                      &mem, sizeof(mem));
         }
         if (dms->isdb_trusted_flag) {
-            cpu_physical_memory_write(dms->isdb_trusted_flag,
+            physical_memory_write(dms->isdb_trusted_flag,
                                      &mem, sizeof(mem));
         }
     }
