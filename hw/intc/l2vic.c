@@ -139,7 +139,15 @@ static bool l2vic_update(L2VICState *s, int irq)
         int vid = get_vid(s, irq);
         set_bit32(irq, s->int_status);
         clear_bit32(irq, s->int_pending);
-        clear_bit32(irq, s->int_enable);
+        /*
+         * Only auto-disable for edge-triggered interrupts (type=1).
+         * Level-triggered interrupts (type=0, the default) keep their
+         * enable bit set across deliveries — the firmware enables once
+         * and expects the interrupt to remain enabled.
+         */
+        if (test_bit32(irq, s->int_type)) {
+            clear_bit32(irq, s->int_enable);
+        }
         s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
 
