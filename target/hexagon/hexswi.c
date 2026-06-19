@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "macros.h"
 #include "sys_macros.h"
+#include "accel/tcg/cpu-loop.h"
 #include "tcg/tcg-op.h"
 #include "hex_mmu.h"
 #include "hexswi.h"
