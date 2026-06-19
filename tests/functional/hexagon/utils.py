@@ -8,7 +8,7 @@ import os
 import textwrap
 
 def read_skip_file(dirname):
-    with open(f'{dirname}/SKIP') as f:
+    with open(f'{dirname}/SKIP', encoding='utf-8') as f:
         lines = [line.strip() for line in f.readlines()]
         skip_names = filter(lambda line: line and line[0] != "#", lines)
     return set(skip_names)

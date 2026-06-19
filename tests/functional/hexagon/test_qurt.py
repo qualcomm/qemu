@@ -78,7 +78,7 @@ class QURTTests(QemuSystemTest):
     def test_qurt(self):
         self.archive_extract(self.ASSET_TARBALL)
         self.vm.add_args('-m', '4G', '-no-reboot')
-        results = [self.run_tests_for_arch(a) for a in self.QURT_MACHINES.keys()]
+        results = [self.run_tests_for_arch(a) for a in self.QURT_MACHINES]
         self.assertTrue(all(results))
 
 if __name__ == '__main__':
