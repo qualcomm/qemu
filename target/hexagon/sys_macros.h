@@ -13,6 +13,8 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include "system/physmem.h"
+
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
     GET_FIELD(RES, FIELD, hex_t_sreg[HEX_SREG_SSR])
@@ -80,7 +82,7 @@
   const uintptr_t rs = ((unsigned long)(unsigned)(SRC1)) & 0x7ff; \
   const uintptr_t rt = ((unsigned long)(unsigned)(SRC2)) << 11; \
   const uintptr_t addr = rs + rt;         \
-  cpu_physical_memory_read(addr, &DST, sizeof(uint32_t)); \
+  physical_memory_read(addr, &DST, sizeof(uint32_t)); \
 }
 
 #define fPOW2_HELP_ROUNDUP(VAL) \
