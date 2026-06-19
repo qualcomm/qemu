@@ -13,6 +13,7 @@
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
+#include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "target/hexagon/cpu.h"
 #include "target/hexagon/cpu_bits.h"
