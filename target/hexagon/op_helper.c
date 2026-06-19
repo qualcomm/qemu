@@ -2297,15 +2297,22 @@ static uint32_t get_ready_count(CPUHexagonState *env)
 void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
                        target_ulong next_PC)
 {
-    uint32_t ready_count;
+    /*
+     * get_ready_count() needs the BQL to safely inspect other CPUs' state,
+     * but that state only changes on rare events (start/stop/wait/resume).
+     * Taking the BQL here on every single TB exit, for every running CPU,
+     * turns it into a hot contention point under MTTCG. So only pay that
+     * cost once per HEXAGON_TB_EXEC_PER_CPU_MAX calls, i.e. right before we
+     * would actually act on the result.
+     */
+    env->exec_ctr_tb++;
+    if (env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
+        uint32_t ready_count;
 
-    BQL_LOCK_GUARD();
-    ready_count = get_ready_count(env);
-
-    if (ready_count > 1) {
-        env->exec_ctr_tb++;
-        if (env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
-            env->exec_ctr_tb = 0;
+        BQL_LOCK_GUARD();
+        ready_count = get_ready_count(env);
+        env->exec_ctr_tb = 0;
+        if (ready_count > 1) {
             env->gpr[HEX_REG_PC] = next_PC;
             hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
         }
