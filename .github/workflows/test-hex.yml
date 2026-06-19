@@ -1,0 +1,152 @@
+name: QEMU Hexagon Build and Test
+
+on:
+  push:
+    paths:
+      - 'target/hexagon/**'
+      - 'tests/tcg/hexagon/**'
+      - 'tests/functional/hexagon/**'
+      - 'hw/hexagon/**'
+      - '.github/workflows/test-hex.yml'
+  pull_request:
+    paths:
+      - 'target/hexagon/**'
+      - 'tests/tcg/hexagon/**'
+      - 'tests/functional/hexagon/**'
+      - 'hw/hexagon/**'
+      - '.github/workflows/test-hex.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test Hexagon (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04 }
+          - { os: ubuntu-24.04 }
+          - { os: macOS-15 }
+          - { os: macOS-26 }
+          - { os: windows-latest,  sys: ucrt64,     pkg_prefix: mingw-w64-ucrt-x86_64 }
+          - { os: windows-11-arm,  sys: clangarm64, pkg_prefix: mingw-w64-clang-aarch64 }
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ninja-build \
+            pkg-config \
+            libglib2.0-dev \
+            libpixman-1-dev \
+            libfdt-dev \
+            zlib1g-dev \
+            flex \
+            bison \
+            python3-pip \
+            python3-venv
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            ninja \
+            pkg-config \
+            glib \
+            pixman \
+            dtc \
+            flex \
+            bison \
+            python3
+          # bison and flex are keg-only on macOS; prepend to PATH so meson
+          # finds the Homebrew versions instead of the stale system ones.
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix flex)/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          update: true
+          install: >-
+            base-devel
+            git
+            ${{ matrix.pkg_prefix }}-toolchain
+            ${{ matrix.pkg_prefix }}-ninja
+            ${{ matrix.pkg_prefix }}-pkg-config
+            ${{ matrix.pkg_prefix }}-glib2
+            ${{ matrix.pkg_prefix }}-pixman
+            ${{ matrix.pkg_prefix }}-dtc
+            ${{ matrix.pkg_prefix }}-python
+            flex
+            bison
+
+      - name: Install Rust via rustup (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/cargo" install bindgen-cli
+
+      - name: Configure and Build (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir build
+          cd build
+          ../configure \
+            --disable-capstone \
+            --disable-tools \
+            --disable-guest-agent \
+            --disable-sdl \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-install-blobs \
+            $(test "$RUNNER_OS" = "Linux" && echo --enable-rust) \
+            $(test "$RUNNER_OS" = "Linux" && echo --enable-containers) \
+            --enable-download \
+            --target-list=$(test "$RUNNER_OS" = "Linux" && echo hexagon-linux-user,)hexagon-softmmu
+          make -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+
+      - name: Configure and Build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir build
+          cd build
+          ../configure \
+            --disable-capstone \
+            --disable-tools \
+            --disable-guest-agent \
+            --disable-sdl \
+            --disable-gtk \
+            --disable-vnc \
+            --disable-install-blobs \
+            --enable-download \
+            --target-list=hexagon-softmmu
+          make -j$(nproc)
+
+      - name: Test check-tcg (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: make -C build check-tcg -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+
+      - name: Test check-tcg (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: make -C build check-tcg -j$(nproc)
+
+      # check covers check-qtest, check-functional, check-unit, and more.
+      # SPEED=thorough is required to include tests in the thorough suite.
+      # check is not supported on Windows in this configuration.
+      - name: Test check
+        if: runner.os != 'Windows'
+        run: make -C build check SPEED=thorough -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
