@@ -40,6 +40,7 @@
 #include "hex_interrupts.h"
 #include "hexswi.h"
 #include "exec/cpu-interrupt.h"
+#include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #endif
