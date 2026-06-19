@@ -379,6 +379,7 @@ static bool check_for_attrib(Packet *pkt, int attrib)
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool check_for_opcode(Packet *pkt, uint16_t opcode)
 {
     for (int i = 0; i < pkt->num_insns; i++) {
@@ -388,6 +389,7 @@ static bool check_for_opcode(Packet *pkt, uint16_t opcode)
     }
     return false;
 }
+#endif
 
 static bool need_slot_cancelled(Packet *pkt)
 {
@@ -718,10 +720,7 @@ static void analyze_packet(DisasContext *ctx)
 
 static void gen_start_packet(DisasContext *ctx)
 {
-    target_ulong next_PC = (check_for_opcode(&ctx->pkt, Y2_k0lock) ||
-                            check_for_opcode(&ctx->pkt, Y2_tlblock)) ?
-                               ctx->base.pc_next :
-                               ctx->base.pc_next + ctx->pkt.encod_pkt_size_in_bytes;
+    target_ulong next_PC = ctx->base.pc_next + ctx->pkt.encod_pkt_size_in_bytes;
     int i;
 
     /* Clear out the disassembly context */
