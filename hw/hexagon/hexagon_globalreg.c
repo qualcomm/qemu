@@ -201,7 +201,7 @@ uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
     } else if (reg == HEX_SREG_TIMERHI) {
         value = s->qtimer ? qtimer_get_timer_hi(s->qtimer) : 0;
     } else {
-        value = s->regs[reg];
+        value = qatomic_read(&s->regs[reg]);
     }
 
     trace_hexagon_globalreg_read(get_sreg_name(reg), value);
@@ -223,7 +223,7 @@ void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
         }
     }
 
-    s->regs[reg] = value;
+    qatomic_set(&s->regs[reg], value);
 
     /*
      * Keep IPENDAD (S20) in sync with separate IPEND (S101) and IAD (S102)
@@ -231,16 +231,16 @@ void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
      * so the combined register must reflect changes to the split registers.
      */
     if (reg == HEX_SREG_IPEND) {
-        uint32_t ipendad = s->regs[HEX_SREG_IPENDAD];
+        uint32_t ipendad = qatomic_read(&s->regs[HEX_SREG_IPENDAD]);
         ipendad = deposit32(ipendad, 0, 16, value & 0xFFFF);
-        s->regs[HEX_SREG_IPENDAD] = ipendad;
+        qatomic_set(&s->regs[HEX_SREG_IPENDAD], ipendad);
     } else if (reg == HEX_SREG_IAD) {
-        uint32_t ipendad = s->regs[HEX_SREG_IPENDAD];
+        uint32_t ipendad = qatomic_read(&s->regs[HEX_SREG_IPENDAD]);
         ipendad = deposit32(ipendad, 16, 16, value & 0xFFFF);
-        s->regs[HEX_SREG_IPENDAD] = ipendad;
+        qatomic_set(&s->regs[HEX_SREG_IPENDAD], ipendad);
     }
 
-    trace_hexagon_globalreg_write(get_sreg_name(reg), s->regs[reg]);
+    trace_hexagon_globalreg_write(get_sreg_name(reg), qatomic_read(&s->regs[reg]));
 }
 
 uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
@@ -250,9 +250,10 @@ uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
     const uint32_t reg_mask = global_sreg_immut_masks[reg];
+    uint32_t cur_value = qatomic_read(&s->regs[reg]);
     return reg_mask == IMMUTABLE ?
-            s->regs[reg] :
-            apply_write_mask(value, s->regs[reg], reg_mask);
+            cur_value :
+            apply_write_mask(value, cur_value, reg_mask);
 }
 
 void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
@@ -269,7 +270,7 @@ void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
         }
     }
 
-    s->regs[reg] = final_value;
+    qatomic_set(&s->regs[reg], final_value);
 }
 
 uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s)

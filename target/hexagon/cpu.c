@@ -656,9 +656,16 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
 #ifndef CONFIG_USER_ONLY
-    BQL_LOCK_GUARD();
     CPUHexagonState *env = cpu_env(cs);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
+    /*
+     * This is called on every TB, for every running CPU. SYSCFG is read
+     * (and written, see hexagon_globalreg_{read,write}()) with a
+     * lock-free atomic access, and cpu_mode below only reads this CPU's
+     * own per-thread SSR, so neither needs the BQL here -- avoiding it
+     * matters because taking the BQL on every TB turns it into a
+     * contention point under MTTCG.
+     */
     if (cpu->globalregs) {
         uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
         uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
