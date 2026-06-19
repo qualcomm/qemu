@@ -18,8 +18,7 @@ else:
     cache_dir = Path(Path("~").expanduser(), ".cache", "qemu", "download")
 
 if not cache_dir.exists():
-    print(f"Cache dir {cache_dir} does not exist!", file=sys.stderr)
-    sys.exit(1)
+    sys.exit(0)
 
 os.chdir(cache_dir)
 
