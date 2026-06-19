@@ -17,15 +17,17 @@ print_help()
     echo "    -i    name of the install directory"
     echo "          (default: ${INSTALL_DIR})"
     echo "    -p    tarball prefix (default: none; tarball is named <tag-or-sha>.tar.gz)"
+    echo "    -v    tarball version (default: exact git tag or short SHA)"
     echo "    -h    print this help"
 }
 
-readonly OPTIONS="hb:i:p:"
+readonly OPTIONS="hb:i:p:v:"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
         "i") readonly INSTALL_DIR="${OPTARG}";;
         "p") readonly TARBALL_PREFIX="${OPTARG}";;
+        "v") readonly TARBALL_VERSION="${OPTARG}";;
         "h") print_help; exit 0;;
         *) print_help; exit 1;;
     esac
@@ -45,8 +47,12 @@ if [ -f "${RELEASE_NOTE}" ]; then
     cp "${RELEASE_NOTE}" "${INSTALL_DIR}"
 fi
 
-TAG_OR_SHA="$(git describe --tags --exact-match 2>/dev/null \
-                  || git rev-parse --short HEAD)"
+if [ -n "${TARBALL_VERSION:-}" ]; then
+    TAG_OR_SHA="${TARBALL_VERSION}"
+else
+    TAG_OR_SHA="$(git describe --tags --exact-match 2>/dev/null \
+                      || git rev-parse --short HEAD)"
+fi
 readonly TAG_OR_SHA
 
 readonly TARBALL_NAME="${TARBALL_PREFIX:+${TARBALL_PREFIX}-}${TAG_OR_SHA}.tar.gz"

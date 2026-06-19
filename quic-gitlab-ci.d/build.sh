@@ -5,6 +5,7 @@
 
 : "${QUIC_COPROC_JOB:=}"
 : "${QUIC_COPROC_REF:=}"
+: "${CI_COMMIT_TAG:=}"
 
 set -euxo pipefail
 
@@ -22,5 +23,6 @@ mkdir -p "${QUIC_BUILD_DIR_ABS}"
         ./quic/install-coproc.sh -d "${PWD}"
     fi
 
-    ./quic/create-tarball.sh -p "${CI_JOB_NAME%-tag}"
+    ./quic/create-tarball.sh -p "${CI_JOB_NAME%-tag}" \
+        -v "${CI_COMMIT_TAG#qemu-hexagon-}"
 } 2>&1 | tee "${QUIC_BUILD_LOG}"
