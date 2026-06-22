@@ -392,129 +392,13 @@ ExportedFct('finish_qemu_init', 'void', [ ], priv='finish_qemu_init', on_iothrea
 ExportedFct('sysbus_get_default', 'BusState *', [ ])
 
 
-# TCG PLUGIN API exports
+# TCG PLUGIN API exports, generated automatically from the plugin header.
+# Every function marked QEMU_PLUGIN_API in include/plugins/qemu-plugin.h is
+# exported; changes to the API (new functions, changed parameter lists) are
+# picked up automatically on the next build.
 PublicInclude('plugins/qemu-plugin.h')
 PrivateInclude('qemu/plugin.h')
-
-ExportedFct('qemu_plugin_uninstall', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_simple_cb_t'])
-ExportedFct('qemu_plugin_reset', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_simple_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_init_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_simple_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_exit_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_simple_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_idle_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_simple_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_resume_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_simple_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_tb_trans_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_tb_trans_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_tb_exec_cb', 'void',
-            ['struct qemu_plugin_tb *', 'qemu_plugin_vcpu_udata_cb_t',
-             'enum qemu_plugin_cb_flags', 'void *'])
-ExportedFct('qemu_plugin_register_vcpu_tb_exec_cond_cb', 'void',
-            ['struct qemu_plugin_tb *', 'qemu_plugin_vcpu_udata_cb_t',
-             'enum qemu_plugin_cb_flags', 'enum qemu_plugin_cond',
-             'qemu_plugin_u64', 'uint64_t', 'void *'])
-ExportedFct('qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu', 'void',
-            ['struct qemu_plugin_tb *', 'enum qemu_plugin_op',
-             'qemu_plugin_u64', 'uint64_t'])
-ExportedFct('qemu_plugin_register_vcpu_insn_exec_cb', 'void',
-            ['struct qemu_plugin_insn *', 'qemu_plugin_vcpu_udata_cb_t',
-             'enum qemu_plugin_cb_flags', 'void *'])
-ExportedFct('qemu_plugin_register_vcpu_insn_exec_cond_cb', 'void',
-            ['struct qemu_plugin_insn *', 'qemu_plugin_vcpu_udata_cb_t',
-             'enum qemu_plugin_cb_flags', 'enum qemu_plugin_cond',
-             'qemu_plugin_u64', 'uint64_t', 'void *'])
-ExportedFct('qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu', 'void',
-            ['struct qemu_plugin_insn *', 'enum qemu_plugin_op',
-             'qemu_plugin_u64', 'uint64_t'])
-ExportedFct('qemu_plugin_tb_n_insns', 'size_t',
-            ['const struct qemu_plugin_tb *'])
-ExportedFct('qemu_plugin_tb_vaddr', 'uint64_t',
-            ['const struct qemu_plugin_tb *'])
-ExportedFct('qemu_plugin_tb_get_insn', 'struct qemu_plugin_insn *',
-            ['const struct qemu_plugin_tb *', 'size_t'])
-ExportedFct('qemu_plugin_insn_data', 'size_t',
-            ['const struct qemu_plugin_insn *', 'void *', 'size_t'])
-ExportedFct('qemu_plugin_insn_size', 'size_t',
-            ['const struct qemu_plugin_insn *'])
-ExportedFct('qemu_plugin_insn_vaddr', 'uint64_t',
-            ['const struct qemu_plugin_insn *'])
-ExportedFct('qemu_plugin_insn_haddr', 'void *',
-            ['const struct qemu_plugin_insn *'])
-ExportedFct('qemu_plugin_mem_size_shift', 'unsigned int',
-            ['qemu_plugin_meminfo_t'])
-ExportedFct('qemu_plugin_mem_is_sign_extended', 'bool',
-            ['qemu_plugin_meminfo_t'])
-ExportedFct('qemu_plugin_mem_is_big_endian', 'bool',
-            ['qemu_plugin_meminfo_t'])
-ExportedFct('qemu_plugin_mem_is_store', 'bool',
-            ['qemu_plugin_meminfo_t'])
-ExportedFct('qemu_plugin_get_hwaddr', 'struct qemu_plugin_hwaddr *',
-            ['qemu_plugin_meminfo_t', 'uint64_t'])
-ExportedFct('qemu_plugin_hwaddr_is_io', 'bool',
-            ['const struct qemu_plugin_hwaddr *'])
-ExportedFct('qemu_plugin_hwaddr_phys_addr', 'uint64_t',
-            ['const struct qemu_plugin_hwaddr *'])
-ExportedFct('qemu_plugin_hwaddr_device_name', 'const char *',
-            ['const struct qemu_plugin_hwaddr *'])
-ExportedFct('qemu_plugin_register_vcpu_mem_cb', 'void',
-            ['struct qemu_plugin_insn *', 'qemu_plugin_vcpu_mem_cb_t',
-             'enum qemu_plugin_cb_flags', 'enum qemu_plugin_mem_rw', 'void *'])
-ExportedFct('qemu_plugin_register_vcpu_mem_inline_per_vcpu', 'void',
-            ['struct qemu_plugin_insn *', 'enum qemu_plugin_mem_rw',
-             'enum qemu_plugin_op', 'qemu_plugin_u64', 'uint64_t'])
-ExportedFct('qemu_plugin_request_time_control', 'const void *',
-            ['qemu_plugin_id_t'])
-ExportedFct('qemu_plugin_register_time_cb', 'void',
-            ['const void *', 'qemu_plugin_time_cb_t', 'void *'])
-ExportedFct('qemu_plugin_update_ns', 'void',
-            ['const void *', 'int64_t'])
-ExportedFct('qemu_plugin_register_vcpu_syscall_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_syscall_cb_t'])
-ExportedFct('qemu_plugin_register_vcpu_syscall_ret_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_syscall_ret_cb_t'])
-ExportedFct('qemu_plugin_insn_disas', 'char *',
-            ['const struct qemu_plugin_insn *'])
-ExportedFct('qemu_plugin_insn_symbol', 'const char *',
-            ['const struct qemu_plugin_insn *'])
-ExportedFct('qemu_plugin_vcpu_for_each', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_vcpu_simple_cb_t'])
-ExportedFct('qemu_plugin_register_flush_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_simple_cb_t'])
-ExportedFct('qemu_plugin_register_atexit_cb', 'void',
-            ['qemu_plugin_id_t', 'qemu_plugin_udata_cb_t', 'void *'])
-ExportedFct('qemu_plugin_num_vcpus', 'int', [])
-ExportedFct('qemu_plugin_cpu_request_pause', 'void', ['unsigned int'])
-ExportedFct('qemu_plugin_cpu_resume', 'void', ['unsigned int'])
-ExportedFct('qemu_plugin_bql_lock', 'void', [])
-ExportedFct('qemu_plugin_bql_unlock', 'void', [])
-ExportedFct('qemu_plugin_outs', 'void', ['const char *'])
-ExportedFct('qemu_plugin_bool_parse', 'bool',
-            ['const char *', 'const char *', 'bool *'])
-ExportedFct('qemu_plugin_path_to_binary', 'const char *', [])
-ExportedFct('qemu_plugin_start_code', 'uint64_t', [])
-ExportedFct('qemu_plugin_end_code', 'uint64_t', [])
-ExportedFct('qemu_plugin_entry_code', 'uint64_t', [])
-ExportedFct('qemu_plugin_get_registers', 'GArray *', [])
-ExportedFct('qemu_plugin_read_register', 'bool',
-            ['struct qemu_plugin_register *', 'GByteArray *'])
-ExportedFct('qemu_plugin_scoreboard_new', 'struct qemu_plugin_scoreboard *',
-            ['size_t'])
-ExportedFct('qemu_plugin_scoreboard_free', 'void',
-            ['struct qemu_plugin_scoreboard *'])
-ExportedFct('qemu_plugin_scoreboard_find', 'void *',
-            ['struct qemu_plugin_scoreboard *', 'unsigned int'])
-ExportedFct('qemu_plugin_u64_add', 'void',
-            ['qemu_plugin_u64', 'unsigned int', 'uint64_t'])
-ExportedFct('qemu_plugin_u64_get', 'uint64_t',
-            ['qemu_plugin_u64', 'unsigned int'])
-ExportedFct('qemu_plugin_u64_set', 'void',
-            ['qemu_plugin_u64', 'unsigned int', 'uint64_t'])
-ExportedFct('qemu_plugin_u64_sum', 'uint64_t',
-            ['qemu_plugin_u64'])
+ExportPluginAPI()
 
 # ARM specific exports (32-bit and 64-bit)
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'arm')

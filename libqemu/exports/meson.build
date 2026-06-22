@@ -1,5 +1,6 @@
 export = meson.project_source_root() / 'libqemu/exports.py'
 wrap = meson.project_source_root() / 'scripts/libqemu-wrappers.py'
+plugin_hdr = meson.project_source_root() / 'include/plugins/qemu-plugin.h'
 
 headers_to_install = [ 'typedefs.h', 'struct.h' ]
 
@@ -13,7 +14,7 @@ foreach file_name : ['fill.c',
 
     file = custom_target(file_name,
                          output: file_name,
-                         input: export,
+                         input: [ export, plugin_hdr ],
                          command: [ python, wrap, param, export ],
                          install : headers_to_install.contains(file_name),
                          install_dir : join_paths(get_option('includedir'), 'libqemu/libqemu/exports'),
