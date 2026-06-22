@@ -5,11 +5,12 @@
 
 set -e
 
-SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
-readonly SOURCE_DIR
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+readonly SCRIPT_DIR
 
-HELP_MESSAGE=$(cat << EOF
-Usage: $(basename "${0}") [OPTIONS] COMMAND
+. "${SCRIPT_DIR}/util/help.sh"
+
+HELP_MESSAGE="Usage: $(basename "${0}") [OPTIONS] COMMAND
 
 Commands:
     build       Execute a build
@@ -18,33 +19,16 @@ Commands:
     list        List build configurations
 
 Options:
-    -b    build directory
-          (default: ${SOURCE_DIR}/build)
-    -i    install directory
-          (default: ${SOURCE_DIR}/build/install)
+    -b    build directory (default: ./build)
+    -i    install directory (default: ./build/install)
     -h    print this help
 
 Description:
     The install directory needs to be an absolute path. That means:
         1. If -i is used, it has to be an absolute path
         2. If -b is used and -i is NOT used, -b has to be an absolute path,
-           because the default install directory is based on the build directory
-EOF
-)
-
-print_help()
-{
-    set +x
-    printf "%s\n" "${HELP_MESSAGE}"
-    exit 0
-}
-
-print_help_error()
-{
-    set +x
-    printf "ERROR: %s\n\n%s\n" "${1}" "${HELP_MESSAGE}"
-    exit 1
-}
+           because the default install directory is based on the build
+           directory"
 
 readonly OPTIONS=":hb:i:s:"
 while getopts "${OPTIONS}" OPTION; do
@@ -57,7 +41,7 @@ while getopts "${OPTIONS}" OPTION; do
 done
 
 if [ -z "${BUILD_DIR}" ]; then
-    readonly BUILD_DIR="${SOURCE_DIR}/build"
+    readonly BUILD_DIR="${PWD}/build"
 fi
 
 if [ -z "${INSTALL_DIR}" ]; then
@@ -74,29 +58,26 @@ fi
 shift
 
 if [ "${COMMAND}" = "configure" ]; then
-    HELP_MESSAGE=$(cat << EOF
-Usage: $(basename "${0}") ${COMMAND} CONFIG
+    HELP_MESSAGE="Usage: $(basename "${0}") ${COMMAND} CONFIG [EXTRA_ARGS...]
 
 To see possible build configurations run: $(basename "${0}") list
-EOF
-    )
+EXTRA_ARGS are appended verbatim to the configure command."
 
     readonly CONFIGURATION="${1}"
     if [ -z "${CONFIGURATION}" ]; then
         print_help_error "Missing build configuration"
     fi
 
-    set -u
-    # shellcheck disable=1090
-    . "${SOURCE_DIR}/quic/build-configs.sh"
+    shift
 
-    # Load the configuration
-    if ! load_config "${CONFIGURATION}"; then
-        print_help_error "Unknown build configuration: ${CONFIGURATION}"
-    fi
+    readonly SOURCE_DIR="${SCRIPT_DIR}/.."
+    . "${SCRIPT_DIR}/build-configs.sh"
+
+    # Load the configuration, forwarding any extra configure args.
+    ! load_config "${CONFIGURATION}" "${@}" \
+        && print_help_error "Unknown build configuration: ${CONFIGURATION}"
 
     mkdir -p "${BUILD_DIR}"
-
     cd "${BUILD_DIR}" || exit 1
 
     set -x
@@ -104,7 +85,8 @@ EOF
 elif [ "${COMMAND}" = "build" ]; then
     make --directory "${BUILD_DIR}" --jobs "$(getconf _NPROCESSORS_ONLN)"
 elif [ "${COMMAND}" = "install" ]; then
-    make --directory "${BUILD_DIR}" --jobs "$(getconf _NPROCESSORS_ONLN)" install
+    make --directory "${BUILD_DIR}" --jobs "$(getconf _NPROCESSORS_ONLN)" \
+        install
 elif [ "${COMMAND}" = "list" ]; then
     # List all functions that start with "config_" with their descriptions
     # Descriptions are in "# desc: ..." comments right above the function
@@ -125,7 +107,7 @@ elif [ "${COMMAND}" = "list" ]; then
                 print name
             }
         }
-    ' "${SOURCE_DIR}/quic/build-configs.sh"
+    ' "${SCRIPT_DIR}/build-configs.sh"
 else
     print_help_error "Unknown command"
 fi

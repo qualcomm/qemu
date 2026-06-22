@@ -9,7 +9,7 @@ set -euxo pipefail
 mkdir -p "${QUIC_BUILD_DIR_ABS}"
 
 {
-    ./quic/build.sh configure "${QUIC_BUILD_CONFIG}"
+    ./quic/build.sh configure "${QUIC_BUILD_CONFIG}" ${QUIC_BUILD_EXTRA_CONFIGURE_ARGS:-}
     ./quic/build.sh build
     ./quic/build.sh install
 

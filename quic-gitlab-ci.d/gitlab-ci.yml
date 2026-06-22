@@ -313,7 +313,8 @@ qemu-hexagon-windows-x86_64:
   extends: .build-job
   image: docker-registry.qualcomm.com/qqvp/qemu:windows-x86_64-cross
   variables:
-    QUIC_BUILD_CONFIG: hexagon-minimal-cross
+    QUIC_BUILD_CONFIG: hexagon-minimal
+    QUIC_BUILD_EXTRA_CONFIGURE_ARGS: --cross-prefix=x86_64-w64-mingw32-
 
 qemu-hexagon-windows-x86_64-tag:
   extends: qemu-hexagon-windows-x86_64

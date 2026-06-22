@@ -20,6 +20,9 @@
 # `--without-default-features` (see `DEFAULT_CONFIG_OPTS` below) and additional
 # features are enabled explicitly.
 
+[ -z "${SOURCE_DIR:-}" ] && printf 'Error: SOURCE_DIR not set' >&2 && return 1
+[ -z "${INSTALL_DIR:-}" ] && printf 'Error: INSTALL_DIR not set' >&2 && return 1
+
 readonly QEMU_CONFIGURABLE_FEATURES_OPTS="
     --enable-vhost-kernel
     --enable-vhost-net
@@ -103,6 +106,10 @@ readonly GENERIC_CONFIG_CMD="
 load_config()
 {
     readonly CONFIG_NAME="${1}"
+
+    # Remaining positional args are extra configure args
+    shift
+
     # shellcheck disable=2155
     readonly CONFIG_FUNCTION="config_$(echo "${CONFIG_NAME}" | tr '-' '_')"
 
@@ -111,6 +118,9 @@ load_config()
     fi
 
     "${CONFIG_FUNCTION}"
+
+    # Append any extra configure args passed to load_config
+    [ "${#}" -gt 0 ] && CONFIG_CMD="${CONFIG_CMD} ${*}"
 
     # Clean up CONFIG_CMD by removing extra whitespace
     CONFIG_CMD=$(echo "${CONFIG_CMD}" | tr "\n" " " | tr -s " ")
@@ -142,16 +152,6 @@ config_hexagon_minimal()
         ${GENERIC_CONFIG_CMD}
         --target-list=hexagon-softmmu
         --without-default-features
-    "
-}
-
-# desc: Same as "hexagon_minimal" but for Windows cross-compilation
-config_hexagon_minimal_cross()
-{
-    config_hexagon_minimal
-    CONFIG_CMD="
-        ${CONFIG_CMD}
-        --cross-prefix=x86_64-w64-mingw32-
     "
 }
 
