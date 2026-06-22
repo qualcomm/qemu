@@ -143,6 +143,7 @@
 #include "system/iothread.h"
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
+#include "memory-internal.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 
@@ -2219,7 +2220,7 @@ static void qemu_create_machine(QDict *qdict)
         }
     }
 
-    cpu_exec_init_all();
+    machine_memory_init();
 
     /*
      * Get the default machine options from the machine if it is not already

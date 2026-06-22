@@ -44,6 +44,7 @@
 #include "semihosting/semihost.h"
 #include "hw/misc/qcom-ipcc.h"
 #include "qom/object.h"
+#include "system/physmem.h"
 
 #include "machine_configs.h.inc"
 #include "qemu/qemu-print.h"
@@ -167,15 +168,15 @@ static void hexagon_init_bootstrap(MachineState *machine,
         if (isdb_secure_flag || isdb_trusted_flag) {
             /* By convention these flags are at offsets 0x30 and 0x34 */
             uint32_t  mem;
-            cpu_physical_memory_read(isdb_secure_flag, &mem, sizeof(mem));
+            physical_memory_read(isdb_secure_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
                 mem = cpu_to_le32(1);
-                cpu_physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
+                physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
             }
-            cpu_physical_memory_read(isdb_trusted_flag, &mem, sizeof(mem));
+            physical_memory_read(isdb_trusted_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
                 mem = cpu_to_le32(1);
-                cpu_physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
+                physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
             }
         }
     } else if (!qtest_enabled()) {
@@ -853,7 +854,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcsr), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
     uint32_t smem_addr = 0x90AFF320;
-    cpu_physical_memory_write(0x01fc0000 + 0x14000, &smem_addr,
+    physical_memory_write(0x01fc0000 + 0x14000, &smem_addr,
                           sizeof(uint32_t));
 
     /* Create and map the DSPSS-PUB device at CSR base */
@@ -892,7 +893,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
         exit(1);
     }
 
-    cpu_physical_memory_write(0x90900000, sa8775p_smem_data,
+    physical_memory_write(0x90900000, sa8775p_smem_data,
         sizeof(sa8775p_smem_data));
 
     create_unimplemented_device("cxstmtrace", 0x16000000, 0x1000);
@@ -930,13 +931,13 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
     uint32_t default_value = 0x20600;
-    cpu_physical_memory_write(0xB2C1000, &default_value, sizeof(uint32_t));
+    physical_memory_write(0xB2C1000, &default_value, sizeof(uint32_t));
     default_value = 0x5381;
-    cpu_physical_memory_write(0xB2C1004, &default_value, sizeof(uint32_t));
+    physical_memory_write(0xB2C1004, &default_value, sizeof(uint32_t));
     default_value = 0x180411;
-    cpu_physical_memory_write(0xB2C1008, &default_value, sizeof(uint32_t));
+    physical_memory_write(0xB2C1008, &default_value, sizeof(uint32_t));
     default_value = 0xa600a;
-    cpu_physical_memory_write(0xB2C100c, &default_value, sizeof(uint32_t));
+    physical_memory_write(0xB2C100c, &default_value, sizeof(uint32_t));
 }
 
 static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
@@ -1171,7 +1172,7 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
     stl_le_phys(&address_space_memory, 0x01fc0000 + 0x14000, smem_base);
 
-    cpu_physical_memory_write(smem_base, sc8480xp_nsp0_smem_data,
+    physical_memory_write(smem_base, sc8480xp_nsp0_smem_data,
         sizeof(sc8480xp_nsp0_smem_data));
 
     g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,

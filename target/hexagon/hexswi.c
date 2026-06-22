@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "hexswi.h"
+#include "accel/tcg/cpu-loop.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #include "exec/helper-proto.h"

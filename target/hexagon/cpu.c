@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "system/memory.h"
+#include "exec/page-protection.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"

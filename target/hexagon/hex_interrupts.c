@@ -372,8 +372,7 @@ void hex_interrupt_update(CPUHexagonState *env)
             CPUHexagonState *hex_env = cpu_env(cs);
             const int exe_mode = get_exe_mode(hex_env);
             if (exe_mode != HEX_EXE_MODE_OFF) {
-                cs->interrupt_request |= CPU_INTERRUPT_SWI;
-                cpu_resume(cs);
+                cpu_interrupt(cs, CPU_INTERRUPT_SWI);
             }
         }
     }

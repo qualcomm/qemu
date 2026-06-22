@@ -6,6 +6,7 @@
 
 #include "user/abitypes.h"
 #include "user/page-protection.h"
+#include "exec/page-protection.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"
@@ -26,6 +27,7 @@
 struct image_info {
         abi_ulong       load_bias;
         abi_ulong       load_addr;
+        abi_ulong       phdr_addr;
         abi_ulong       start_code;
         abi_ulong       end_code;
         abi_ulong       start_data;

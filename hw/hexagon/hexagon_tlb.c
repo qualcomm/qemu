@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/qdev-properties.h"
+#include "exec/page-protection.h"
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "qemu/log.h"
