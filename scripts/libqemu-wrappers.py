@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import re
 
@@ -137,6 +138,82 @@ class ExportedFct:
     def gen_pub_typedef_decls():
         for f in ExportedFct.fcts.values():
             f.gen_pub_typedef_decl()
+
+
+# Type keywords that, when they directly precede the trailing identifier of a
+# parameter declaration, mean that identifier is part of the type rather than
+# the parameter name (e.g. "struct qemu_plugin_tb", "unsigned int").
+_TYPE_TAIL_KEYWORDS = ('struct', 'enum', 'union', 'const', 'unsigned', 'signed')
+
+
+def _strip_comments(s):
+    s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)
+    s = re.sub(r'//.*', '', s)
+    return s
+
+
+def _arg_type(a):
+    """Reduce a C parameter declaration to its type, dropping the param name."""
+    a = a.strip()
+
+    if a == '' or a == 'void':
+        return None
+
+    # A trailing identifier with no '*' attached is the parameter name, unless
+    # it is itself the type (no preceding type text, or preceded by a keyword
+    # such as struct/enum/unsigned).
+    m = re.match(r'^(.*?)([A-Za-z_]\w*)$', a)
+    if m and '*' not in m.group(2):
+        head = m.group(1).strip()
+        if head == '' or head.endswith(_TYPE_TAIL_KEYWORDS):
+            return a
+        return head
+
+    return a
+
+
+def parse_plugin_api(header_path):
+    """Parse a QEMU plugin header and return the exported API functions.
+
+    Every function marked with the QEMU_PLUGIN_API macro is returned as a
+    (name, ret_type, [arg_types]) tuple, in declaration order.
+    """
+    with open(header_path) as f:
+        txt = _strip_comments(f.read())
+
+    fcts = []
+    for decl in re.findall(r'\bQEMU_PLUGIN_API\b(.*?);', txt, re.S):
+        # Drop a leading __attribute__((...)) before the return type.
+        decl = re.sub(r'^\s*__attribute__\s*\(\(.*?\)\)', '', decl, flags=re.S)
+        decl = re.sub(r'\s+', ' ', decl).strip()
+
+        m = re.match(r'^(.*?\b)(qemu_plugin_\w+)\s*\((.*)\)$', decl, re.S)
+        if not m:
+            # Not a function declaration (e.g. the macro definition itself).
+            continue
+
+        ret = m.group(1).strip()
+        name = m.group(2)
+        args = [t for t in (_arg_type(a) for a in m.group(3).split(','))
+                if t is not None]
+
+        fcts.append((name, ret, args))
+
+    return fcts
+
+
+def ExportPluginAPI(header = 'include/plugins/qemu-plugin.h'):
+    """Export every QEMU_PLUGIN_API function found in the plugin header.
+
+    Called from exports.py. The header is resolved relative to the repository
+    root (exports.py lives in <root>/libqemu/).
+    """
+    repo_root = os.path.join(os.path.dirname(os.path.abspath(export_file)), '..')
+    path = os.path.join(repo_root, header)
+
+    for name, ret, args in parse_plugin_api(path):
+        ExportedFct(name, ret, args)
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
