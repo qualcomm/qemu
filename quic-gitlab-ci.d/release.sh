@@ -5,7 +5,10 @@
 
 set -ex
 
-readonly VERSION="${CI_COMMIT_TAG#qemu-hexagon-}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+readonly SCRIPT_DIR
+
+. "${SCRIPT_DIR}/util/qemu-version.sh"
 
 readonly BASE_URL="${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/${QUIC_BUILD_DIR}"
 
@@ -30,10 +33,10 @@ derive_label()
 }
 
 ASSET_LINKS=""
-for TARBALL in "${QUIC_BUILD_DIR_ABS}"/qemu-*-"${VERSION}".tar.gz; do
+for TARBALL in "${QUIC_BUILD_DIR_ABS}"/qemu-*-"${QEMU_VERSION}".tar.gz; do
     [ -e "${TARBALL}" ] || continue
     NAME="$(basename "${TARBALL}")"
-    JOB_BASE="${NAME%-"${VERSION}".tar.gz}"
+    JOB_BASE="${NAME%-"${QEMU_VERSION}".tar.gz}"
     URL="${BASE_URL}/${NAME}?job=${JOB_BASE}-tag"
     LABEL="$(derive_label "${JOB_BASE}")"
     LINK="$(printf '{"name":"%s","url":"%s","link_type":"other"}' "${LABEL}" "${URL}")"
@@ -42,6 +45,6 @@ done
 
 release-cli create \
     --tag-name "${CI_COMMIT_TAG}" \
-    --name "QEMU Hexagon ${VERSION}" \
-    --description "QEMU Hexagon ${VERSION}" \
+    --name "QEMU Hexagon ${QEMU_VERSION}" \
+    --description "QEMU Hexagon ${QEMU_VERSION}" \
     --assets-link "[${ASSET_LINKS}]"
