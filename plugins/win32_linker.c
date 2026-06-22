@@ -28,6 +28,17 @@ FARPROC WINAPI dll_failure_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
             return (FARPROC) top;
         }
     }
+    if (dliNotify == dliFailGetProc && pdli->dlp.szProcName) {
+        /*
+         * GetProcAddress failed on the module returned by dliFailLoadLib
+         * (the EXE). The symbol may live in libqbox.dll instead
+         * (e.g. global_set_cci_param), so try resolving it there.
+         */
+        HMODULE qbox = GetModuleHandleA("libqbox.dll");
+        if (qbox) {
+            return GetProcAddress(qbox, pdli->dlp.szProcName);
+        }
+    }
     /* Otherwise we can't do anything special. */
     return 0;
 }
