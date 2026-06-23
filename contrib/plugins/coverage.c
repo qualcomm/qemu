@@ -64,7 +64,7 @@ static void vcpu_tb_executed(unsigned int cpu_index, void* udata)
 #endif
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     int i;
     int bytes_written;
@@ -83,7 +83,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     close(cov_fd);
 }
 
-static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
+static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 {
     uint32_t pc = qemu_plugin_tb_vaddr(tb);
     qemu_plugin_register_vcpu_tb_exec_cb(tb,
@@ -100,7 +100,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     plugin_init();
 
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
     return 0;
 }

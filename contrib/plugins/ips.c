@@ -119,14 +119,14 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
     vcpu->last_quantum_time = now_ns();
 }
 
-static void vcpu_idle(qemu_plugin_id_t id, unsigned int cpu_index)
+static void vcpu_idle(unsigned int cpu_index, void *userdata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->sleeping = true;
     update_system_time(vcpu);
 }
 
-static void vcpu_resume(qemu_plugin_id_t id, unsigned int cpu_index)
+static void vcpu_resume(unsigned int cpu_index, void *userdata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->sleeping = false;
@@ -248,8 +248,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     if (time_handle) {
         g_assert(info->system_emulation);
         qemu_plugin_register_time_cb(time_handle, report_system_time, NULL);
-        qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle);
-        qemu_plugin_register_vcpu_resume_cb(id, vcpu_resume);
+        qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle, NULL);
+        qemu_plugin_register_vcpu_resume_cb(id, vcpu_resume, NULL);
     }
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
