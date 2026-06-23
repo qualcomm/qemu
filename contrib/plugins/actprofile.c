@@ -177,7 +177,7 @@ static InstType get_inst_type(struct qemu_plugin_insn *inst)
     return HEXAGON_SCALAR;
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     int i, cpu_index;
     bool is_first_entry = true;
@@ -245,18 +245,18 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     qemu_plugin_outs("]\n");
     qemu_plugin_outs("}\n");
 }
-static void vcpu_idle(qemu_plugin_id_t id, unsigned int cpu_index) {
+static void vcpu_idle(unsigned int cpu_index, void *userdata) {
     timestamp_sec now = tstamp();
     g_array_append_val(cpu_idle_times[cpu_index], now);
     activity_end(cpu_index);
 }
 
-static void vcpu_resume(qemu_plugin_id_t id, unsigned int cpu_index) {
+static void vcpu_resume(unsigned int cpu_index, void *userdata) {
     timestamp_sec now = tstamp();
     g_array_append_val(cpu_resume_times[cpu_index], now);
 }
 
-static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
+static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 {
     size_t n = qemu_plugin_tb_n_insns(tb);
     size_t i;
@@ -320,9 +320,9 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
         prev_tb_start[i] = NAN;
         prev_tb_type[i] = HEXAGON_SCALAR;
     }
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
-    qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle);
-    qemu_plugin_register_vcpu_resume_cb(id, vcpu_resume);
+    qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle, NULL);
+    qemu_plugin_register_vcpu_resume_cb(id, vcpu_resume, NULL);
     return 0;
 }
