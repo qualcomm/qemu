@@ -57,6 +57,7 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
                 f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
             '-m', '4G',
             '-accel', 'tcg,thread=multi',
+            '-global', 'qct-qtimer.freq-scale=100',
             '-drive', f'if=none,file={disk_path},id=hd0',
             '-device', 'virtio-blk-device,drive=hd0',
             '-netdev', 'type=user,id=net0,hostfwd=tcp::10022-:22',
