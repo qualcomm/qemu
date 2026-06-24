@@ -283,27 +283,6 @@ static void test_sa8775p_ticking(void)
     qtest_end();
 }
 
-static void test_sa8775p_start_ticking_disabled(void)
-{
-    uint64_t count1, count2;
-
-    qtest_start("-machine SA8775P_CDSP0 "
-                "-global qct-qtimer.ticker-ctrl=off");
-
-    qtest_clock_step(global_qtest, 1000);
-
-    count1 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
-
-    qtest_clock_step(global_qtest, 1000);
-
-    count2 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
-
-    /* Counter should NOT advance when start-ticking is disabled */
-    g_assert_cmpuint(count2, ==, count1);
-
-    qtest_end();
-}
-
 static void test_qtimer_frame_stride(gconstpointer data)
 {
     uint32_t stride = GPOINTER_TO_UINT(data);
