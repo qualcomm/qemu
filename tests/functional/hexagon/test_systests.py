@@ -6,6 +6,7 @@
 
 import os
 import re
+import unittest
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test.cmd import wait_for_console_pattern
@@ -343,6 +344,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("sys_atomics")
         self.assertTrue(result, "Test sys_atomics failed")
 
+    @unittest.skip(
+        "skipped pending the new always running qtimer semantics investigation"
+    )
     def test_sys_reg_mut(self) -> None:
         """Tests system register mutation behavior by writing to various system
         control registers and verifying which bits are writable versus

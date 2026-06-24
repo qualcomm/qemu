@@ -59,6 +59,42 @@
  */
 static unsigned int TIMER_VERSION = 0x20020000;
 
+/* Return current counter value derived from QEMU_CLOCK_VIRTUAL. */
+static uint64_t hex_timer_now(QCTHextimerState *s)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (now <= s->offset_ns) {
+        return 0;
+    }
+    uint32_t scaler = MAX(s->qtimer->freq_scale, 1u);
+    uint64_t scaled_elapsed = (uint64_t)(now - s->offset_ns) / scaler;
+    return muldiv64(scaled_elapsed, s->freq, NANOSECONDS_PER_SECOND);
+}
+
+/* Arm (or disarm) the one-shot deadline timer. */
+static void hex_timer_rearm(QCTHextimerState *s)
+{
+    int64_t deadline_ns;
+    if (!(s->control & QCT_QTIMER_CNTP_CTL_ENABLE)) {
+        timer_del(s->timer);
+        return;
+    }
+    /*
+     * muldiv64 truncates, so the computed deadline can be up to 1 ns
+     * earlier than the true cntval crossing. Add 1 ns so hex_timer_now()
+     * is guaranteed to be >= cntval when the QEMUTimer fires; without
+     * this, hex_timer_tick would re-arm at the same deadline and loop.
+     */
+    uint32_t scaler = MAX(s->qtimer->freq_scale, 1u);
+    uint64_t base_ns = muldiv64(s->cntval, NANOSECONDS_PER_SECOND, s->freq);
+    if (base_ns > ((uint64_t)INT64_MAX - (uint64_t)s->offset_ns - 1) / scaler) {
+        timer_del(s->timer);
+        return;
+    }
+    deadline_ns = s->offset_ns + (int64_t)(base_ns * scaler) + 1;
+    timer_mod(s->timer, deadline_ns);
+}
+
 /* qct_qtimer_read/write:
  * if offset < 0x1000 read restricted registers:
  * QCT_QTIMER_AC_CNTFREQ/CNTSR/CNTTID/CNTACR/CNTOFF_(LO/HI)/QCT_QTIMER_VERSION
@@ -143,6 +179,15 @@ static const MemoryRegionOps qct_qtimer_ops = {
     .read = qct_qtimer_read,
     .write = qct_qtimer_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const VMStateDescription vmstate_qct_qtimer = {
@@ -164,11 +209,12 @@ static void qct_qtimer_init(Object *obj)
 
 static void hex_timer_update(QCTHextimerState *s)
 {
-    /* Update interrupts.  */
-    int level = s->int_level && (s->control & QCT_QTIMER_CNTP_CTL_ENABLE);
+    int level = s->int_level
+                && (s->control & QCT_QTIMER_CNTP_CTL_ENABLE)
+                && !(s->control & QCT_QTIMER_CNTP_CTL_INTEN);
     trace_qtimer_interrupt();
-    if (level) qemu_irq_pulse(s->irq);
-    else qemu_set_irq(s->irq, level);
+
+    qemu_set_irq(s->irq, level);
 }
 
 static MemTxResult hex_timer_read(void *opaque,
@@ -247,7 +293,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = extract64(s->cntpct + ptimer_get_count(s->timer), 0, 32);
+            *data = extract64(hex_timer_now(s), 0, 32);
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_HI:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
@@ -258,7 +304,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = extract64(s->cntpct + ptimer_get_count(s->timer), 32, 32);
+            *data = extract64(hex_timer_now(s), 32, 32);
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -269,10 +315,7 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            {
-                uint64_t current_count = s->cntpct + ptimer_get_count(s->timer);
-                *data = s->cntval - current_count;
-            }
+            *data = (uint32_t)(int32_t)(int64_t)(s->cntval - hex_timer_now(s));
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_CTL): /* TimerMIS */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -282,7 +325,8 @@ static MemTxResult hex_timer_read(void *opaque,
             if (view && !(s->cntpl0acr & QCT_QTIMER_CNTPL0ACR_PL0CTEN)) {
                 return MEMTX_ACCESS_ERROR;
             }
-            /* The register CTNP_CTL has 3 bis [0:2]
+            /*
+             * The register CTNP_CTL has 3 bits [0:2]
              * Bit 2: ISTAT (Interrupt is pending or not)
              * Bit 1: IMSK (Mask Interrupt or UnMask)
              * Bit 0: EN (Enable or Disable the timer)
@@ -307,18 +351,6 @@ static MemTxResult hex_timer_read(void *opaque,
             *data = 0;
             return MEMTX_ACCESS_ERROR;
     }
-}
-
-/*
- * Reset the timer limit after settings have changed.
- * May only be called from inside a ptimer transaction block.
- */
-static void hex_timer_recalibrate(QCTHextimerState *s, int reload)
-{
-    uint64_t limit;
-    /* Periodic.  */
-    limit = s->limit;
-    ptimer_set_limit(s->timer, limit, reload);
 }
 
 static MemTxResult hex_timer_write(void *opaque,
@@ -353,16 +385,7 @@ static MemTxResult hex_timer_write(void *opaque,
 
     switch (reg_offset) {
         case (QCT_QTIMER_CNTP_CVAL_LO): /* TimerLoad */
-            /*HEX_TIMER_LOG ("A s->limit        = %d\n", s->limit);
-              HEX_TIMER_LOG ("B s->limit        = %d\n", s->limit);
-              HEX_TIMER_LOG ("value             = %d\n",value);
-              HEX_TIMER_LOG ("s->cntpct         = %d\n", s->cntpct);
-              HEX_TIMER_LOG ("s->cntcval        = %d\n", s->cntval);
-              HEX_TIMER_LOG ("value - cntcval   = %d\n", value - s->cntval);
-             */
-            HEX_TIMER_LOG("value(%" PRId64 ") - cntcval(%" PRId64 ") = %" PRId64
-                          "\n",
-                          value, s->cntval, value - s->cntval);
+            HEX_TIMER_LOG("CVAL_LO write: 0x%" PRIx64 "\n", value);
 
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
@@ -372,22 +395,9 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-
             s->int_level = 0;
-            s->cntval = value;
-            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_OFF) {
-                ptimer_transaction_begin(s->timer);
-                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                    /* Pause the timer if it is running.  This may cause some
-                       inaccuracy due to rounding, but avoids other issues. */
-                    ptimer_stop(s->timer);
-                }
-                hex_timer_recalibrate(s, 1);
-                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                    ptimer_run(s->timer, 0);
-                }
-                ptimer_transaction_commit(s->timer);
-            }
+            s->cntval = deposit64(s->cntval, 0, 32, value);
+            hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_CVAL_HI):
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -398,6 +408,9 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
+            s->int_level = 0;
+            s->cntval = deposit64(s->cntval, 32, 32, value);
+            hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_CTL): /* Timer control register */
             HEX_TIMER_LOG("\tctl write: %" PRIu64 "\n", value);
@@ -410,25 +423,11 @@ static MemTxResult hex_timer_write(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_AUTO) {
-                s->control = value;
-                break;
-            }
-
-            ptimer_transaction_begin(s->timer);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                /* Pause the timer if it is running.  This may cause some
-                   inaccuracy due to rounding, but avoids other issues. */
-                ptimer_stop(s->timer);
-            }
-            s->control = value;
-            hex_timer_recalibrate(s, s->control & QCT_QTIMER_CNTP_CTL_ENABLE);
-            ptimer_set_freq(s->timer, s->freq);
-            ptimer_set_period(s->timer, 1);
-            if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                ptimer_run(s->timer, 0);
-            }
-            ptimer_transaction_commit(s->timer);
+            /*
+             * ISTAT (bit 2) is read-only; keep SW writes from polluting it.
+             */
+            s->control = value & ~QCT_QTIMER_CNTP_CTL_ISTAT;
+            hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -440,24 +439,9 @@ static MemTxResult hex_timer_write(void *opaque,
             }
 
             /* TVAL write: CVAL = CNTPCT + TVAL (TVAL is signed 32-bit) */
-            s->cntval = s->cntpct + ptimer_get_count(s->timer)
-                        + (int64_t)(int32_t)value;
-
-            if (s->qtimer->ticker_ctrl != ON_OFF_AUTO_OFF) {
-                ptimer_transaction_begin(s->timer);
-                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                    /* Pause the timer if it is running.  This may cause some
-                    inaccuracy due to rounding, but avoids other issues. */
-                    ptimer_stop(s->timer);
-                }
-
-                ptimer_set_freq(s->timer, s->freq);
-                ptimer_set_period(s->timer, 1);
-                if (s->control & QCT_QTIMER_CNTP_CTL_ENABLE) {
-                    ptimer_run(s->timer, 0);
-                }
-                ptimer_transaction_commit(s->timer);
-            }
+            s->int_level = 0;
+            s->cntval = hex_timer_now(s) + (int64_t)(int32_t)value;
+            hex_timer_rearm(s);
             break;
         case QCT_QTIMER_CNTPL0ACR:
             if (view) {
@@ -479,33 +463,43 @@ static MemTxResult hex_timer_write(void *opaque,
 static void hex_timer_tick(void *opaque)
 {
     QCTHextimerState *s = (QCTHextimerState *)opaque;
-    if ((s->cntpct >= s->cntval) && (s->int_level != 1)) {
+    HEX_TIMER_LOG("\nFIRE!!! cntval=%" PRId64 " now=%" PRId64 "\n",
+                  s->cntval, hex_timer_now(s));
+    if (hex_timer_now(s) >= s->cntval) {
         s->int_level = 1;
-        HEX_TIMER_LOG("\nFIRE!!! %" PRId64 "\n", s->cntpct);
         hex_timer_update(s);
-        return;
+    } else {
+        hex_timer_rearm(s);
     }
-    s->cntpct += s->limit;
 }
 
 static const MemoryRegionOps hex_timer_ops = {
         .read_with_attrs = hex_timer_read,
         .write_with_attrs = hex_timer_write,
         .endianness = DEVICE_LITTLE_ENDIAN,
+        .valid = {
+            .min_access_size = 4,
+            .max_access_size = 4,
+            .unaligned = false,
+        },
+        .impl = {
+            .min_access_size = 4,
+            .max_access_size = 4,
+        },
 };
 
 static const VMStateDescription vmstate_hex_timer = {
     .name = "hex_timer",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(control, QCTHextimerState),
         VMSTATE_UINT32(cnt_ctrl, QCTHextimerState),
-        VMSTATE_UINT64(cntpct, QCTHextimerState),
+        VMSTATE_INT64(offset_ns, QCTHextimerState),
         VMSTATE_UINT64(cntval, QCTHextimerState),
-        VMSTATE_UINT64(limit, QCTHextimerState),
+        VMSTATE_UINT32(cntpl0acr, QCTHextimerState),
         VMSTATE_UINT32(int_level, QCTHextimerState),
-        VMSTATE_PTIMER(timer, QCTHextimerState),
+        VMSTATE_TIMER_PTR(timer, QCTHextimerState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -535,45 +529,50 @@ static void qct_qtimer_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->view_iomem);
 
     for (i = 0; i < s->nr_frames; i++) {
-        s->timer[i].limit = 1;
-        /* With ticker_ctrl=off, keep ENABLE=0 so SW must explicitly enable
-         * the timer. Otherwise default to ENABLE=1. */
-        s->timer[i].control = (s->ticker_ctrl == ON_OFF_AUTO_OFF)
-                              ? 0
-                              : QCT_QTIMER_CNTP_CTL_ENABLE;
-        s->timer[i].cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
-                    QCT_QTIMER_AC_CNTACR_RVOFF | QCT_QTIMER_AC_CNTACR_RFRQ |
-                    QCT_QTIMER_AC_CNTACR_RPVCT | QCT_QTIMER_AC_CNTACR_RPCT);
-        s->timer[i].qtimer = s;
-        s->timer[i].freq = QTIMER_DEFAULT_FREQ_HZ;
+        QCTHextimerState *t = &s->timer[i];
+
+        t->qtimer = s;
+        t->freq = QTIMER_DEFAULT_FREQ_HZ;
 
         s->secure |= (1 << i);
 
-        sysbus_init_irq(sbd, &(s->timer[i].irq));
+        sysbus_init_irq(sbd, &t->irq);
 
-        (s->timer[i]).timer = ptimer_init(hex_timer_tick, &s->timer[i], PTIMER_POLICY_LEGACY);
-        vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_hex_timer, &s->timer[i]);
+        t->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, hex_timer_tick, t);
+        vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_hex_timer, t);
     }
+}
 
-    if (s->ticker_ctrl == ON_OFF_AUTO_ON) {
-        for (i = 0; i < s->nr_frames; i++) {
-            ptimer_transaction_begin(s->timer[i].timer);
-            ptimer_set_limit(s->timer[i].timer, s->timer[i].limit, 1);
-            ptimer_set_freq(s->timer[i].timer, s->timer[i].freq);
-            ptimer_set_period(s->timer[i].timer, 1);
-            ptimer_run(s->timer[i].timer, 0);
-            ptimer_transaction_commit(s->timer[i].timer);
-        }
+static void qct_qtimer_reset_hold(Object *obj, ResetType type)
+{
+    QCTQtimerState *s = QCT_QTIMER(obj);
+    unsigned int i;
+
+    for (i = 0; i < s->nr_frames; i++) {
+        QCTHextimerState *t = &s->timer[i];
+
+        /*
+         * CTL reset value per TRM is 0 (EN=0, IMASK=0, ISTAT=0); SW must
+         * explicitly enable the compare/IRQ logic. cntval defaults to the
+         * largest 64-bit value so the timer never fires before SW arms it.
+         */
+        t->control = 0;
+        t->cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
+                       QCT_QTIMER_AC_CNTACR_RVOFF | QCT_QTIMER_AC_CNTACR_RFRQ |
+                       QCT_QTIMER_AC_CNTACR_RPVCT | QCT_QTIMER_AC_CNTACR_RPCT);
+        t->cntval = UINT64_MAX;
+        t->int_level = 0;
+        t->offset_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_del(t->timer);
     }
 }
 
 static const Property qct_qtimer_properties[] = {
     DEFINE_PROP_UINT32("freq", QCTQtimerState, freq, QTIMER_DEFAULT_FREQ_HZ),
+    DEFINE_PROP_UINT32("freq-scale", QCTQtimerState, freq_scale, 1),
     DEFINE_PROP_UINT32("nr_frames", QCTQtimerState, nr_frames, 2),
     DEFINE_PROP_UINT32("nr_views", QCTQtimerState, nr_views, 1),
     DEFINE_PROP_UINT32("frame_stride", QCTQtimerState, frame_stride, 0x1000),
-    DEFINE_PROP_ON_OFF_AUTO("ticker-ctrl", QCTQtimerState, ticker_ctrl,
-                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_UINT32("cnttid_0", QCTQtimerState, cnttid_0, 0x11),
     DEFINE_PROP_UINT32("cnttid_1", QCTQtimerState, cnttid_1, 0x0),
 };
@@ -581,10 +580,12 @@ static const Property qct_qtimer_properties[] = {
 static void qct_qtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(k, qct_qtimer_properties);
     k->realize = qct_qtimer_realize;
     k->vmsd = &vmstate_qct_qtimer;
+    rc->phases.hold = qct_qtimer_reset_hold;
 }
 
 static const TypeInfo qct_qtimer_info = {
@@ -603,11 +604,8 @@ static const TypeInfo qct_qtimer_info = {
 static uint32_t qct_qtimer_get_timer_lo(QTimerInterface *obj)
 {
     QCTQtimerState *s = QCT_QTIMER(obj);
-    /* Use frame 0 for timer access */
     if (s->nr_frames > 0) {
-        QCTHextimerState *timer = &s->timer[0];
-        uint64_t count = timer->cntpct + ptimer_get_count(timer->timer);
-        return extract64(count, 0, 32);
+        return extract64(hex_timer_now(&s->timer[0]), 0, 32);
     }
     return 0;
 }
@@ -615,11 +613,8 @@ static uint32_t qct_qtimer_get_timer_lo(QTimerInterface *obj)
 static uint32_t qct_qtimer_get_timer_hi(QTimerInterface *obj)
 {
     QCTQtimerState *s = QCT_QTIMER(obj);
-    /* Use frame 0 for timer access */
     if (s->nr_frames > 0) {
-        QCTHextimerState *timer = &s->timer[0];
-        uint64_t count = timer->cntpct + ptimer_get_count(timer->timer);
-        return extract64(count, 32, 32);
+        return extract64(hex_timer_now(&s->timer[0]), 32, 32);
     }
     return 0;
 }
