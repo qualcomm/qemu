@@ -59,6 +59,14 @@ $(TESTS):
 ############# Custom build options
 
 
-# We don't want to link this one with crt0 files
+# tlb-miss-tlblock is a baremetal binary with no libc dependencies.
+# We don't want to link it with crt0 files.  When the linux-musl
+# driver is used (the default for both hexagon-softmmu and
+# hexagon-linux-user) -target hexagon-unknown-none-elf selects the
+# bare-elf toolchain class, which emits the same baremetal link
+# line as the SDK's hexagon-clang.
+tlb-miss-tlblock.o: tlb-miss-tlblock.S
+	$(CC) $(CFLAGS) -target hexagon-unknown-none-elf -c $< -o $@
+
 tlb-miss-tlblock: tlb-miss-tlblock.o
-	$(CC) $(CFLAGS) $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
+	$(CC) $(CFLAGS) -target hexagon-unknown-none-elf $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
