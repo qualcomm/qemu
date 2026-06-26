@@ -545,12 +545,8 @@ if get_option('asan')
   if cc.has_argument('-fsanitize=address')
     qemu_cflags = ['-fsanitize=address'] + qemu_cflags
     qemu_ldflags = ['-fsanitize=address'] + qemu_ldflags
-    # QUIC-specific
-    # -fno-omit-frame-pointer helps vizualizing the complete call stack for
-    # malloc leaks. See https://github.com/google/sanitizers/wiki/AddressSanitizer#faq
-    qemu_cflags = ['-fno-omit-frame-pointer'] + qemu_cflags
-    qemu_ldflags = ['-fno-omit-frame-pointer'] + qemu_ldflags
-    # end QUIC-specific
+    # Ensure complete stack traces for LSan suppressions to match correctly.
+    qemu_cflags += ['-fno-omit-frame-pointer']
   else
     error('Your compiler does not support -fsanitize=address')
   endif
