@@ -3,6 +3,7 @@
 
 variables:
   RUNNER_TAG: ""
+  QEMU_CI: "2"
 
 default:
   tags:
