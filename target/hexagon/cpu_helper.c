@@ -456,8 +456,6 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 
     hexagon_cpu_soft_reset(env);
 
-    set_enable_mask(env);
-
     cs->halted = 0;
     cs->exception_index = HEX_EVENT_NONE;
     cpu_resume(cs);
@@ -466,6 +464,15 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
+
+    /*
+     * Acquire BQL so we can call set_enable_mask() synchronously for each
+     * target thread.  This ensures the full MODECTL_E mask is visible to
+     * the issuing thread before hexagon_start_threads() returns, regardless
+     * of when the async resume work items drain.
+     */
+    BQL_LOCK_GUARD();
+
     CPU_FOREACH(cs) {
         CPUHexagonState *env = cpu_env(cs);
         if (!(mask & (0x1 << env->threadId))) {
@@ -473,6 +480,7 @@ void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
         }
 
         if (current_env->threadId != env->threadId) {
+            set_enable_mask(env);
             async_safe_run_on_cpu(cs, do_start_thread, RUN_ON_CPU_NULL);
         }
     }
