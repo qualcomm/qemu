@@ -15,6 +15,9 @@
 
 /* Timer testing constants */
 #define TIMER_TEST_OFFSET 1000
+/* TIMER_TEST_OFFSET ticks expressed in nanoseconds of QEMU_CLOCK_VIRTUAL */
+#define TIMER_TEST_NS \
+    ((TIMER_TEST_OFFSET * 1000000000ULL) / QTIMER_DEFAULT_FREQ_HZ)
 
 static uint32_t qtimer_read32(uint64_t base, uint32_t offset)
 {
@@ -182,14 +185,14 @@ static void test_qtimer_timer_behavior(void)
     g_assert_cmpuint(ctl_val, ==, 0x1);
 
     /* Step virtual clock forward but not past target */
-    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET / 2);
+    qtest_clock_step(global_qtest, TIMER_TEST_NS / 2);
 
     /* Timer should still be running */
     new_count = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
     g_assert_cmpuint(new_count, >=, current_count);
 
     /* Step past the target time */
-    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET);
+    qtest_clock_step(global_qtest, TIMER_TEST_NS);
 
     /* Verify counter has advanced past target */
     new_count = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
@@ -205,13 +208,20 @@ static void test_qtimer_timer_behavior(void)
      */
     g_assert_cmpuint(ctl_val, ==, 0x4);
 
-    /* Step clock — timer is stopped, counter must NOT advance */
-    qtest_clock_step(global_qtest, TIMER_TEST_OFFSET / 2);
+    /*
+     * Step clock — CNTPCT runs independently of CNTP_CTL.EN. Only the
+     * compare/IRQ logic is gated by EN, so the counter must keep
+     * advancing even after the timer is disabled.
+     */
+    qtest_clock_step(global_qtest, TIMER_TEST_NS / 2);
 
-    /* Capture count after disable */
-    uint64_t frozen_count = qtimer_read64(QTIMER_VIEW_BASE,
-                                             QCT_QTIMER_CNTPCT_LO);
-    g_assert_cmpuint(new_count, ==, frozen_count);
+    uint64_t count_after_disable = qtimer_read64(QTIMER_VIEW_BASE,
+                                                 QCT_QTIMER_CNTPCT_LO);
+    g_assert_cmpuint(count_after_disable, >, new_count);
+
+    /* ISTAT remains set while CNTPCT >= CVAL, even with EN=0 */
+    ctl_val = qtimer_read64(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_CTL);
+    g_assert_cmpuint(ctl_val, ==, 0x4);
 
     /* Test TVAL direct setting and read-back */
     qtimer_write32(QTIMER_VIEW_BASE, QCT_QTIMER_CNTP_TVAL, 2000);
@@ -231,7 +241,8 @@ static void test_qtimer_timer_behavior(void)
 static void test_qtimer_on_machine(gconstpointer data)
 {
     const char *machine = (const char *)data;
-    g_autofree char *args = g_strdup_printf("-machine %s", machine);
+    g_autofree char *args = g_strdup_printf(
+        "-machine %s -global qct-qtimer.freq-scale=1", machine);
 
     qtest_start(args);
 
@@ -249,50 +260,25 @@ static void test_qtimer_on_machine(gconstpointer data)
 }
 
 /*
- * SA8775P has start-ticking=true so the timer should be running at boot.
- * After stepping the clock, the counter should advance.
+ * SA8775P CDSP0: verify CNTPCT advances independently of CTL.EN.
+ * The counter runs from boot regardless of SW programming the timer,
+ * so simply stepping the virtual clock must produce a higher value.
  */
 #define SA8775P_QTIMER_VIEW_BASE (0x26300000 + 0xA1000)
 
-static void test_sa8775p_start_ticking(void)
+static void test_sa8775p_ticking(void)
 {
     uint64_t count1, count2;
 
     qtest_start("-machine SA8775P_CDSP0");
 
-    /* Step the clock to let the ptimer tick */
-    qtest_clock_step(global_qtest, 1000);
-
+    qtest_clock_step(global_qtest, TIMER_TEST_NS);
     count1 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
 
-    /* Step again */
-    qtest_clock_step(global_qtest, 1000);
-
+    qtest_clock_step(global_qtest, TIMER_TEST_NS);
     count2 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
 
-    /* Counter should have advanced since timer is ticking */
     g_assert_cmpuint(count2, >, count1);
-
-    qtest_end();
-}
-
-static void test_sa8775p_start_ticking_disabled(void)
-{
-    uint64_t count1, count2;
-
-    qtest_start("-machine SA8775P_CDSP0 "
-                "-global qct-qtimer.start-ticking=off");
-
-    qtest_clock_step(global_qtest, 1000);
-
-    count1 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
-
-    qtest_clock_step(global_qtest, 1000);
-
-    count2 = qtimer_read64(SA8775P_QTIMER_VIEW_BASE, QCT_QTIMER_CNTPCT_LO);
-
-    /* Counter should NOT advance when start-ticking is disabled */
-    g_assert_cmpuint(count2, ==, count1);
 
     qtest_end();
 }
@@ -332,11 +318,9 @@ int main(int argc, char **argv)
     qtest_add_data_func("/qct-qtimer/V66G_1024/all-tests", "V66G_1024",
                         test_qtimer_on_machine);
 
-    /* Test start-ticking property on SA8775P */
-    qtest_add_func("/qct-qtimer/SA8775P_CDSP0/start-ticking",
-                   test_sa8775p_start_ticking);
-    qtest_add_func("/qct-qtimer/SA8775P_CDSP0/start-ticking-disabled",
-                   test_sa8775p_start_ticking_disabled);
+    /* Verify counter is live on SA8775P_CDSP0 */
+    qtest_add_func("/qct-qtimer/SA8775P_CDSP0/ticking",
+                   test_sa8775p_ticking);
 
     qtest_add_data_func("/qct-qtimer/virt/frame-stride-2000",
                         GUINT_TO_POINTER(0x2000), test_qtimer_frame_stride);

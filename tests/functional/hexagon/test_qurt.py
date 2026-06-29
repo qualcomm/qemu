@@ -49,7 +49,8 @@ class QURTTests(QemuSystemTest):
     @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_qurt(self):
         self.archive_extract(self.ASSET_TARBALL)
-        self.vm.add_args('-m', '4G', '-no-reboot')
+        self.vm.add_args('-m', '4G', '-no-reboot',
+                         '-global', 'qct-qtimer.freq-scale=100')
         results = [self.run_tests_for_arch(a) for a in self.QURT_MACHINES.keys()]
         self.assertTrue(all(results))
 

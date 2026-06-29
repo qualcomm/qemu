@@ -20,8 +20,7 @@
 #define TIMER_QCT_QTIMER_H
 
 #include "hw/core/sysbus.h"
-#include "hw/core/ptimer.h"
-#include "qapi/qapi-types-common.h"
+#include "qemu/timer.h"
 
 #define TYPE_QCT_QTIMER "qct-qtimer"
 #define TYPE_QCT_HEXTIMER "qct-hextimer"
@@ -30,13 +29,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(QCTHextimerState, QCT_HEXTIMER)
 
 struct QCTHextimerState {
     QCTQtimerState *qtimer;
-    ptimer_state *timer;
-    uint64_t cntval;       /* Physical timer compare value interrupt when cntpct > cntval */
-    uint64_t cntpct;       /* Physical counter */
+    QEMUTimer *timer;       /* one-shot deadline timer */
+    int64_t offset_ns;      /* QEMU_CLOCK_VIRTUAL ns at which cntpct == 0 */
+    uint64_t cntval;        /* 64-bit physical timer compare value */
     uint32_t control;
     uint32_t cnt_ctrl;
     uint32_t cntpl0acr;
-    uint64_t limit;
     uint32_t freq;
     uint32_t int_level;
     qemu_irq irq;
@@ -56,9 +54,9 @@ struct QCTQtimerState {
     uint32_t nr_frames;
     uint32_t nr_views;
     uint32_t frame_stride;
-    OnOffAuto start_ticking;
     uint32_t cnttid_0;
     uint32_t cnttid_1;
+    uint32_t freq_scale;
 };
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)

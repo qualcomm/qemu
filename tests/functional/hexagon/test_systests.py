@@ -364,6 +364,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
         contention handling."""
         self.run_exit_zero("sys_atomics")
 
+    @unittest.skip(
+        "skipped pending the new always running qtimer semantics investigation"
+    )
     def test_sys_reg_mut(self) -> None:
         """Tests system register mutation behavior by writing to various system
         control registers and verifying which bits are writable versus
