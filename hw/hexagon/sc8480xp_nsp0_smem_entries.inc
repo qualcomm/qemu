@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * The binary region was transformed to this table by:
- *  xxd -c 32 -e smem.bin  | awk '{print " 0x"$2"0x"$3", 0x"$4", 0x"$5", 0x"$6", 0x"$7", 0x"$8", 0x"$9}',
+ *  xxd -c 32 -e smem.bin | awk '{print "    0x"$2", 0x"$3", 0x"$4", 0x"$5", 0x"$6", 0x"$7", 0x"$8", 0x"$9","}'
  *
  */
 
