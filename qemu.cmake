@@ -181,6 +181,15 @@ foreach(target ${LIBQEMU_TARGETS})
     endif()
 endforeach()
 
+# QEMU's own build parallelizes via meson/ninja. When the top-level project is
+# built with GNU Make, a literal $(MAKE) in the recipe makes Make treat this as
+# a recursive sub-make and forward its jobserver, so QEMU honours the user's -j.
+if(CMAKE_GENERATOR MATCHES "Make")
+    set(_qemu_build_command "$(MAKE)")
+else()
+    set(_qemu_build_command ${CMAKE_MAKE_PROGRAM})
+endif()
+
 ExternalProject_Add(qemu
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_COMMAND ${CONFIGURE_ENVIRONMENT_VARIABLE} ${CMAKE_CURRENT_SOURCE_DIR}/configure
@@ -190,7 +199,7 @@ ExternalProject_Add(qemu
         --prefix=<INSTALL_DIR>
         --target-list=${target_list}
         ${QEMU_CONF_ARGS}
-    BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
+    BUILD_COMMAND ${_qemu_build_command}
     INSTALL_COMMAND ${CMAKE_MAKE_PROGRAM} install
     BUILD_ALWAYS on
 )
