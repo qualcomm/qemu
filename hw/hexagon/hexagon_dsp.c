@@ -26,7 +26,6 @@
 #include "hw/misc/qcom-turing-rsc.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
-#include "hw/char/pl011.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -535,8 +534,6 @@ static void hexagon_common_init(MachineState *machine,
                      m_cfg->cfgtable.fastl2vic_base << 16);
 
     /* for linux dts you must add 32 to these values */
-    pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15), serial_hd(0));
-
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
                     (m_cfg->cfgtable.subsystem_base << 16) + 0x21000);
