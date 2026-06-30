@@ -397,6 +397,17 @@ build-user-hexagon:
     CONFIGURE_ARGS: --disable-tools --disable-docs --enable-debug-tcg
     MAKE_CHECK_ARGS: check-tcg
 
+build-user-hexagon-noidefparser:
+  extends: .native_build_job_template
+  needs:
+    - job: hexagon-cross-container
+  variables:
+    IMAGE: debian-hexagon-cross
+    TARGETS: hexagon-linux-user
+    CONFIGURE_ARGS: --disable-tools --disable-docs --enable-debug-tcg
+      --disable-hexagon-idef-parser
+    MAKE_CHECK_ARGS: check-tcg
+
 # Build the softmmu targets we have check-tcg tests and compilers in
 # our omnibus all-test-cross container. Those targets that haven't got
 # Debian cross compiler support need to use special containers.
