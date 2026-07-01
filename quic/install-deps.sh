@@ -46,6 +46,7 @@ else
     case "$(uname)" in
         Darwin*)
             brew tap quic/quic https://github.com/quic/homebrew-quic.git
+            brew trust quic/quic
             brew install \
                 pkg-config ninja cmake bison flex \
                 glib pixman sdl2 sdl2_image \
