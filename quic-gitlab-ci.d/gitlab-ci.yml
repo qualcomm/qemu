@@ -343,6 +343,27 @@ qemu-hexagon-windows-x86_64-perf-ml:
     - when: manual
       allow_failure: true
 
+qemu-hexagon-windows-x86_64-perf-ml-v81:
+  image: docker-registry.qualcomm.com/qqvp/qemu:windows-x86_64-test
+  stage: test
+  needs: [ "qemu-hexagon-windows-x86_64" ]
+  tags:
+    - windows
+    - x86_64
+  timeout: 3h
+  script: ./quic/msys2-ucrt64.ps1 ./quic-gitlab-ci.d/hexagon-windows-x86_64-perf-ml-v81.sh
+  artifacts:
+    when: always
+    paths: [ "perf-results.json" ]
+    expire_in: 7 days
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - when: manual
+      allow_failure: true
+
 # QEMU Hexagon for Linux on aarch64
 qemu-hexagon-linux-aarch64:
   extends: .build-job
