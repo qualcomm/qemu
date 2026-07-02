@@ -41,7 +41,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
-    [VIRT_FDT] = { 0x99800000, 0x00400000 },
+    [VIRT_FDT] = { 0xbf800000, 0x00400000 },
     [VIRT_BOOT] = { 0x99c00000, 0x00000200 },
     [VIRT_PLL] = { 0x26300000, 0x00001000 },
 };
