@@ -70,11 +70,8 @@ static void create_fdt(HexagonVirtMachineState *vms)
 
     ms->fdt = fdt;
 
-    qemu_fdt_setprop_string(fdt, "/", "compatible", "linux,hexagon-virt");
     qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x1);
-    qemu_fdt_setprop_string(fdt, "/", "model", "linux,hexagon-virt");
-
     qemu_fdt_setprop_string(fdt, "/", "model", "hexagon-virt,qemu");
     qemu_fdt_setprop_string(fdt, "/", "compatible", "qcom,sm8150");
 
@@ -137,8 +134,12 @@ static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
                           "#address-cells", 2);
     qemu_fdt_setprop_cell(ms->fdt, "/soc/interrupt-controller",
                           "#interrupt-cells", 2);
-    qemu_fdt_setprop_string(ms->fdt, "/soc/interrupt-controller", "compatible",
-                            "qcom,h2-pic,hvm-pic");
+    {
+        /* string list, not one string with embedded commas */
+        static const char pic_compat[] = "qcom,h2-pic\0hvm-pic";
+        qemu_fdt_setprop(ms->fdt, "/soc/interrupt-controller", "compatible",
+                         pic_compat, sizeof(pic_compat));
+    }
     qemu_fdt_setprop(ms->fdt, "/soc/interrupt-controller",
                      "interrupt-controller", NULL, 0);
     qemu_fdt_setprop_cell(ms->fdt, "/soc/interrupt-controller", "phandle",
@@ -159,8 +160,12 @@ static void fdt_add_gpt_node(HexagonVirtMachineState *vms)
     name = g_strdup_printf("/soc/gpt@%" PRIx64,
                            (int64_t)base_memmap[VIRT_GPT].base);
     qemu_fdt_add_subnode(ms->fdt, name);
-    qemu_fdt_setprop_string(ms->fdt, name, "compatible",
-                            "qcom,h2-timer,hvm-timer");
+    {
+        /* string list, not one string with embedded commas */
+        static const char gpt_compat[] = "qcom,h2-timer\0hvm-timer";
+        qemu_fdt_setprop(ms->fdt, name, "compatible",
+                         gpt_compat, sizeof(gpt_compat));
+    }
     qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", irqmap[VIRT_GPT], 0);
     qemu_fdt_setprop_cells(ms->fdt, name, "reg", 0x0,
                            base_memmap[VIRT_GPT].base,
