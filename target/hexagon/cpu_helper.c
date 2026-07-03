@@ -304,6 +304,10 @@ int get_exe_mode(const CPUHexagonState *env)
     if (D_bit && !W_bit && E_bit) {
         return HEX_EXE_MODE_DEBUG;
     }
+    qemu_log("get_exe_mode: thread %u invalid state: "
+             "D=%d W=%d E=%d modectl=0x%x isdbst=0x%x\n",
+             env->threadId, D_bit, W_bit, E_bit,
+             (uint32_t)modectl, (uint32_t)isdbst);
     g_assert_not_reached();
 }
 
@@ -448,6 +452,7 @@ void hexagon_stop_thread(CPUHexagonState *env)
 
     BQL_LOCK_GUARD();
 
+    clear_wait_mode(env);
     thread_enabled_mask = clear_enable_mask(env);
     cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
