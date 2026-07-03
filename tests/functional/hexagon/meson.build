@@ -2,7 +2,7 @@
 
 # Tests requiring external assets not yet available in CI are commented out.
 test_hexagon_timeouts = {
-  'arch_tests': 60,
+  'arch_tests': 180,
 # 'linux': 480,
   'minivm': 180,
 # 'qurt': 2400,

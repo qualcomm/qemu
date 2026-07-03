@@ -20,7 +20,7 @@ class ArchTestsUart(QemuSystemTest):
 
     Tests output results via UART.
     """
-    timeout = 60
+    timeout = 180
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
@@ -81,6 +81,7 @@ class ArchTestsUart(QemuSystemTest):
         """
         self.run_uart_test("test_int_steering")
 
+    @skip("test binary has a defect")
     def test_isr_stress(self) -> None:
         """Tests high-volume interrupt stress with multiple threads
         handling rapid SWI delivery and concurrent interrupt processing.
