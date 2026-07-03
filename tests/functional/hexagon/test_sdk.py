@@ -26,6 +26,7 @@ class SDKTests(QemuSystemTest):
         """Test using -bios instead of -kernel for V81DGB_1 machine."""
         self.run_qprintf_case('V81DGB_1', use_bios=True)
 
+    @skip("V66G_1024 default machine does not support V81 QuRT")
     def test_qprintf_default_bios(self):
         """Test using -bios instead of -kernel for default machine."""
         self.run_qprintf_case(use_bios=True)
@@ -46,6 +47,8 @@ class SDKTests(QemuSystemTest):
 
         sdk_test_path = \
             f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/sdk/V81QA_1'
+        saved_cwd = os.getcwd()
+        os.chdir(sdk_test_path)
         kernel = os.path.join(sdk_test_path, 'runelf.pbn')
         vm = self.get_vm()
         if use_bios:
@@ -55,15 +58,11 @@ class SDKTests(QemuSystemTest):
         else:
             vm.add_args('-m', '4G', '-kernel', kernel, '-append',
                 './run_main_on_hexagon_sim -- ./libqprintf_example_q.so')
-        vm.launch()
-        # TODO: Check semihosting output for "PASSED" indication.
-        #   the 'wait_for_console_pattern()' function expects to
-        #   use the system console.  For now, Hexagon semihosting
-        #   prints directly to stdout/stderr.  When we leverage the
-        #   target independent semihosting, we can take advantage of
-        #   the console redirection and then 'wait_for_console_pattern()'
-        #   should work.
-        vm.wait()
+        try:
+            vm.launch()
+            vm.wait()
+        finally:
+            os.chdir(saved_cwd)
         self.assertEqual(vm.exitcode(), 0, "QEMU failed")
 
 if __name__ == '__main__':
