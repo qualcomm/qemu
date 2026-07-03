@@ -47,10 +47,10 @@ class SDKTests(QemuSystemTest):
 
         sdk_test_path = \
             f'{self.workdir}/qemu-qurt-tests-{self.GIT_REF}/sdk/V81QA_1'
-        saved_cwd = os.getcwd()
-        os.chdir(sdk_test_path)
         kernel = os.path.join(sdk_test_path, 'runelf.pbn')
         vm = self.get_vm()
+        saved_cwd = os.getcwd()
+        os.chdir(sdk_test_path)
         if use_bios:
             vm.add_args('-m', '4G', '-bios', kernel,
                 '-kernel', kernel, '-append',
