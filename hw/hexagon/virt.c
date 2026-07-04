@@ -25,6 +25,7 @@
 #include "hw/misc/cdsp-pll.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/datadir.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
@@ -37,6 +38,9 @@
 #include <libfdt.h>
 
 static const int VIRTIO_DEV_COUNT = 8;
+
+/* Default -bios image: the loadlinux bootloader for the H2 hypervisor */
+#define VIRT_DEFAULT_FIRMWARE "hexagon_loadlinux"
 
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00001000 },
@@ -472,7 +476,7 @@ static uint64_t load_kernel(HexagonVirtMachineState *vms)
     uint64_t lowaddr = 0, highaddr = 0;
     uint64_t (*xlate)(void *, uint64_t) = NULL;
 
-    if (vms->kernel_load_addr && ms->firmware) {
+    if (vms->kernel_load_addr && vms->firmware_path) {
         xlate = kernel_translate;
     }
 
@@ -534,20 +538,42 @@ static uint64_t load_bios(HexagonVirtMachineState *vms)
     int bios_size;
 
     /* Try to load as ELF first */
-    if (load_elf_ram_sym(ms->firmware, NULL, NULL, NULL, &bios_entry,
+    if (load_elf_ram_sym(vms->firmware_path, NULL, NULL, NULL, &bios_entry,
                          &lowaddr, &highaddr, NULL, 0, EM_HEXAGON, 0, 0,
                          &address_space_memory, false, NULL) > 0) {
         return bios_entry;
     }
 
     /* Fall back to loading as raw binary at address 0x0 */
-    bios_size = load_image_targphys(ms->firmware, 0x0, ms->ram_size, NULL);
+    bios_size = load_image_targphys(vms->firmware_path, 0x0, ms->ram_size,
+                                    NULL);
     if (bios_size < 0) {
-        error_report("Could not load BIOS '%s'", ms->firmware);
+        error_report("Could not load BIOS '%s'", vms->firmware_path);
         exit(1);
     }
 
     return 0x0;
+}
+
+/*
+ * Resolve the firmware image to load: -bios <file> if given, otherwise
+ * the bundled default (loadlinux, the H2 hypervisor bootloader).
+ * "-bios none" disables firmware loading, giving direct kernel boot.
+ */
+static void resolve_firmware(HexagonVirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    const char *bios_name = ms->firmware ?: VIRT_DEFAULT_FIRMWARE;
+
+    if (!strcmp(bios_name, "none")) {
+        return;
+    }
+
+    vms->firmware_path = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!vms->firmware_path) {
+        error_report("Could not find firmware '%s'", bios_name);
+        exit(1);
+    }
 }
 
 static void do_cpu_reset(void *opaque)
@@ -578,6 +604,20 @@ static void virt_init(MachineState *ms)
     if (ms->kernel_cmdline && *ms->kernel_cmdline) {
         qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs",
                                 ms->kernel_cmdline);
+    }
+
+    resolve_firmware(vms);
+
+    /*
+     * With firmware, the kernel is loaded at kernel_load_addr; the
+     * initrd and FDT are placed above it, so RAM must reach past it.
+     */
+    if (vms->firmware_path && ms->kernel_filename &&
+        vms->kernel_load_addr >= ms->ram_size) {
+        error_report("RAM size (%" PRIu64 " MiB) too small: the kernel is "
+                     "loaded at 0x%" PRIx64, ms->ram_size / MiB,
+                     vms->kernel_load_addr);
+        exit(1);
     }
 
     vms->sys = get_system_memory();
@@ -626,7 +666,7 @@ static void virt_init(MachineState *ms)
 
         if (i == 0) {
             cpu_0 = cpu;
-            if (ms->firmware && ms->kernel_filename) {
+            if (vms->firmware_path && ms->kernel_filename) {
                 /*
                  * Both BIOS and kernel specified: load BIOS (e.g., loadlinux
                  * hypervisor) and kernel ELF. Create a bootloader stub that
@@ -646,7 +686,7 @@ static void virt_init(MachineState *ms)
                 uint64_t entry = setup_boot(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr", entry);
                 qdev_prop_set_uint32(vms->gsregs, "boot-evb", entry);
-            } else if (ms->firmware) {
+            } else if (vms->firmware_path) {
                 uint64_t entry = load_bios(vms);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr",
                                      entry);

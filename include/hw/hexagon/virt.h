@@ -40,6 +40,7 @@ struct HexagonVirtMachineState {
     QCTQtimerState *qtimer;
     uint64_t kernel_load_addr;
     hwaddr fdt_addr;
+    char *firmware_path;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
