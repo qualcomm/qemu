@@ -87,6 +87,25 @@ and executing from the indicated start address::
 
     $ qemu-system-hexagon -kernel ./prog -append 'arg1 arg2'
 
+Booting Linux on the ``virt`` machine
+-------------------------------------
+The ``virt`` machine boots a guest under the H2 hypervisor.  By default
+``-bios`` resolves to the bundled ``hexagon_loadlinux`` firmware (built
+from the ``roms/hexagon-hypervisor`` submodule), which initializes H2 and
+jumps to a kernel loaded at physical address ``0xa0000000``, passing the
+device tree address in ``r1:0``.  A Linux kernel can then be booted the
+same way as on other architectures::
+
+    $ qemu-system-hexagon -M virt -kernel vmlinux \
+          -initrd rootfs.cpio -append 'console=ttyAMA0 mem=892M'
+
+An external device tree can be supplied with ``-dtb``; otherwise the
+machine generates one.  Use ``-bios none`` to boot a ``-kernel`` image
+directly at its ELF entry point without any firmware, or pass another
+``-bios`` image to replace the bundled bootloader.  See
+``Documentation/arch/hexagon/qemu-boot.rst`` in the Linux source tree
+for kernel build instructions.
+
 Semihosting
 -----------
 `Hexagon supports a semihosting interface
