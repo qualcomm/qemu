@@ -262,6 +262,24 @@ static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
 }
 #endif
 
+/*
+ * Describe the RAM window usable by a kernel running under the H2
+ * hypervisor: it maps PHYS_OFFSET (the kernel load address) through
+ * PHYS_OFFSET + 896MB at most.
+ */
+static void fdt_add_memory_node(const HexagonVirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    g_autofree char *nodename = NULL;
+    hwaddr base = vms->kernel_load_addr;
+    hwaddr size = MIN(ms->ram_size - base, 896 * MiB);
+
+    nodename = g_strdup_printf("/memory@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "memory");
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+}
+
 static void fdt_add_cpu_nodes(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -774,6 +792,7 @@ static void virt_init(MachineState *ms)
     if (ms->dtb == NULL) {
         fdt_add_hvm_pic_node(vms, m_cfg);
         fdt_add_virtio_devices(vms);
+        fdt_add_memory_node(vms);
         fdt_add_cpu_nodes(vms);
         fdt_add_clocks(vms);
         fdt_add_uart(vms, VIRT_UART0);
