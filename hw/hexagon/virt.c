@@ -524,9 +524,39 @@ static uint64_t setup_boot_stub(HexagonVirtMachineState *vms,
     return bootl_base;
 }
 
+/*
+ * Place the FDT in kernel-accessible physical memory.
+ * The kernel maps PHYS_OFFSET..PHYS_OFFSET+896MB, so the FDT must
+ * be within that range.  Place it after the kernel image (and initrd
+ * if present) with some headroom.
+ *
+ * Must be called after the kernel and initrd are loaded and before
+ * the boot stub is created, since the stub embeds the FDT address.
+ */
+static void place_fdt(HexagonVirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+
+    if (ms->kernel_filename) {
+        hwaddr after_images = vms->bootinfo.image_high_addr;
+        if (vms->bootinfo.initrd_size) {
+            hwaddr initrd_end = vms->bootinfo.initrd_start +
+                                vms->bootinfo.initrd_size;
+            if (initrd_end > after_images) {
+                after_images = initrd_end;
+            }
+        }
+        vms->fdt_addr = QEMU_ALIGN_UP(after_images + 16 * MiB, 4 * MiB);
+    } else {
+        /* Firmware-only: place FDT at kernel_load_addr + 256MB */
+        vms->fdt_addr = vms->kernel_load_addr + 256 * MiB;
+    }
+}
+
 static uint64_t setup_boot(HexagonVirtMachineState *vms)
 {
     uint64_t entry_addr = load_kernel(vms);
+    place_fdt(vms);
     return setup_boot_stub(vms, entry_addr);
 }
 
@@ -678,6 +708,7 @@ static void virt_init(MachineState *ms)
                  */
                 uint64_t bios_entry = load_bios(vms);
                 load_kernel(vms);
+                place_fdt(vms);
                 uint64_t stub_entry = setup_boot_stub(vms, bios_entry);
                 qdev_prop_set_uint32(DEVICE(cpu_0), "exec-start-addr",
                                      stub_entry);
@@ -774,27 +805,8 @@ static void virt_init(MachineState *ms)
                           &address_space_memory);
     g_free(guest_config_table);
 
-    /*
-     * Place FDT in kernel-accessible physical memory.
-     * The kernel maps PHYS_OFFSET..PHYS_OFFSET+896MB, so the FDT must
-     * be within that range.  Place it after the kernel image (and initrd
-     * if present) with some headroom.
-     */
-    if (ms->kernel_filename) {
-        hwaddr after_images = vms->bootinfo.image_high_addr;
-        if (vms->bootinfo.initrd_size) {
-            hwaddr initrd_end = vms->bootinfo.initrd_start +
-                                vms->bootinfo.initrd_size;
-            if (initrd_end > after_images) {
-                after_images = initrd_end;
-            }
-        }
-        vms->fdt_addr = QEMU_ALIGN_UP(after_images + 16 * MiB, 4 * MiB);
-    } else {
-        /* Firmware-only: place FDT at kernel_load_addr + 256MB */
-        vms->fdt_addr = vms->kernel_load_addr + 256 * MiB;
-    }
-
+    /* No-op if a boot path above already placed the FDT (idempotent) */
+    place_fdt(vms);
     hexagon_load_fdt(vms);
 
     g_free(cpus);
