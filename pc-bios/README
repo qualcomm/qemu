@@ -100,3 +100,10 @@
   They are built form the SeaBIOS-hppa sources, which is a fork of SeaBIOS
   adapted for hppa.
   SeaBIOS-hppa is available at https://github.com/hdeller/seabios-hppa
+
+- hexagon_loadlinux is the default firmware for the hexagon virt machine.
+  It is the "loadlinux" bootloader from the H2 hypervisor project: it
+  initializes the H2 hypervisor and jumps to a Linux kernel loaded at
+  physical address 0xa0000000, passing the device tree address in r1:0.
+  It is built from the roms/hexagon-hypervisor submodule via the
+  "hexagon-loadlinux" target in roms/Makefile.

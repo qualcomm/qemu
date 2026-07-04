@@ -75,6 +75,7 @@ blobs = [
   'u-boot-sam460.bin',
   'qemu_vga.ndrv',
   'edk2-licenses.txt',
+  'hexagon_loadlinux',
   'hppa-firmware.img',
   'hppa-firmware64.img',
   'opensbi-riscv32-generic-fw_dynamic.bin',
