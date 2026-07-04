@@ -280,6 +280,8 @@ F: docs/devel/hexagon-sys.rst
 F: docs/devel/hexagon-l2vic.rst
 F: tests/functional/hexagon/
 F: docs/devel/hexagon-vm.rst
+F: pc-bios/hexagon_loadlinux
+F: roms/hexagon-hypervisor
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
