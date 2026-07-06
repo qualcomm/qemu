@@ -217,9 +217,9 @@ hppa-firmware:
 hexagon_archv = 73
 hexagon-loadlinux:
 	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$(hexagon_archv) \
-		TARGET=opt NULL_ANGEL_TRAP=1
+		TARGET=opt NULL_ANGEL_TRAP=1 ALL_HTHREADS=1
 	$(MAKE) -C hexagon-hypervisor/linux USE_PKW=0 ARCHV=$(hexagon_archv) \
-		NO_LOAD=1 NULL_ANGEL_TRAP=1 LINUX_LINK_ADDR=0xa0000000 \
+		NO_LOAD=1 NULL_ANGEL_TRAP=1 ALL_HTHREADS=1 LINUX_LINK_ADDR=0xa0000000 \
 		INSTALLPATH=$(CURDIR)/hexagon-hypervisor/artifacts/v$(hexagon_archv)/opt/install \
 		KERNELPATH=$(CURDIR)/hexagon-hypervisor/artifacts/v$(hexagon_archv)/opt/build/kernel \
 		loadlinux
