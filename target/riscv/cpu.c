@@ -2621,6 +2621,8 @@ RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
     NULL
 };
 
+static PropertyInfo prop_uint64_resetvec; /* qdev_prop_uint64 + realized_set_allowed */
+
 static const Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("debug", RISCVCPU, cfg.debug, true),
     DEFINE_PROP_BOOL("big-endian", RISCVCPU, cfg.big_endian, false),
@@ -2650,7 +2652,8 @@ static const Property riscv_cpu_properties[] = {
     {.name = "marchid", .info = &prop_marchid},
 
 #ifndef CONFIG_USER_ONLY
-    DEFINE_PROP_UINT64("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC),
+    DEFINE_PROP_UNSIGNED("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC,
+                         prop_uint64_resetvec, uint64_t),
     DEFINE_PROP_UINT64("rnmi-interrupt-vector", RISCVCPU, env.rnmi_irqvec,
                        DEFAULT_RNMI_IRQVEC),
     DEFINE_PROP_UINT64("rnmi-exception-vector", RISCVCPU, env.rnmi_excpvec,
@@ -2741,6 +2744,10 @@ static void riscv_cpu_common_class_init(ObjectClass *c, const void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &riscv_tcg_ops;
 #endif /* CONFIG_TCG */
+
+    /* Clone uint64 property with set allowed after realized */
+    prop_uint64_resetvec = qdev_prop_uint64;
+    prop_uint64_resetvec.realized_set_allowed = true;
 
     device_class_set_props(dc, riscv_cpu_properties);
 }
