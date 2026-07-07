@@ -279,8 +279,8 @@ static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
                             "qcom,geni-debug-uart");
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
-                           clock_phandle);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "clocks", clock_phandle);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "clock-names", "se");
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           irq_hvm_ic_phandle);
 
