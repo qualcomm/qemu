@@ -218,7 +218,7 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
                            clock_phandle);
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names", clocknames,
@@ -250,7 +250,7 @@ static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                             "qcom,geni-debug-uart");
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
                            clock_phandle);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
