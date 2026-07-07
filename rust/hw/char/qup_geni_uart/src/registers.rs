@@ -186,6 +186,16 @@ impl TryFrom<u64> for RegisterOffset {
 pub const M_GENI_CMD_ACTIVE: u32 = 1 << 0;
 pub const S_GENI_CMD_ACTIVE: u32 = 1 << 12;
 
+// GENI_M_CMD_CTRL_REG fields
+pub const M_GENI_DISABLE: u32 = 1 << 0;
+pub const M_GENI_CMD_ABORT: u32 = 1 << 1;
+pub const M_GENI_CMD_CANCEL: u32 = 1 << 2;
+
+// GENI_S_CMD_CTRL_REG fields
+pub const S_GENI_DISABLE: u32 = 1 << 0;
+pub const S_GENI_CMD_ABORT: u32 = 1 << 1;
+pub const S_GENI_CMD_CANCEL: u32 = 1 << 2;
+
 // FW Revision fields
 pub const FW_REV_PROTOCOL_MSK: u32 = genmask(15, 8);
 pub const FW_REV_PROTOCOL_SHFT: u32 = 8;
@@ -256,6 +266,10 @@ pub const PAR_SPACE: u32 = 0x10;
 // M interrupt enable fields
 pub const M_CMD_DONE_EN: u32 = 1 << 0;
 pub const S_CMD_DONE_EN: u32 = 1 << 0;
+pub const S_CMD_OVERRUN_EN: u32 = 1 << 1;
+pub const S_ILLEGAL_CMD_EN: u32 = 1 << 2;
+pub const S_CMD_CANCEL_EN: u32 = 1 << 4;
+pub const S_CMD_ABORT_EN: u32 = 1 << 5;
 pub const M_CMD_OVERRUN_EN: u32 = 1 << 1;
 pub const M_ILLEGAL_CMD_EN: u32 = 1 << 2;
 pub const M_CMD_FAILURE_EN: u32 = 1 << 3;

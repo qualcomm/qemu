@@ -458,6 +458,44 @@ impl QupGeniUartRegs {
                     }
                 }
             }
+            SeGeniMCmdCtrlReg => {
+                if value & registers::M_GENI_CMD_ABORT != 0 {
+                    self.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                    self.tx_enabled = false;
+                    self.dma_tx_active = false;
+                    self.tx_fifo_len = 0;
+                    self.geni_m_irq_status |= registers::M_CMD_ABORT_EN;
+                    return true;
+                }
+                if value & registers::M_GENI_CMD_CANCEL != 0 {
+                    self.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                    self.tx_enabled = false;
+                    self.dma_tx_active = false;
+                    self.tx_fifo_len = 0;
+                    self.geni_m_irq_status |= registers::M_CMD_CANCEL_EN;
+                    return true;
+                }
+            }
+            SeGeniSCmdCtrlReg => {
+                if value & registers::S_GENI_CMD_ABORT != 0 {
+                    self.geni_status &= !registers::S_GENI_CMD_ACTIVE;
+                    self.rx_enabled = false;
+                    self.dma_rx_active = false;
+                    self.rx_fifo_len = 0;
+                    self.rx_stale_timeout_active = false;
+                    self.geni_s_irq_status |= registers::S_CMD_ABORT_EN;
+                    return true;
+                }
+                if value & registers::S_GENI_CMD_CANCEL != 0 {
+                    self.geni_status &= !registers::S_GENI_CMD_ACTIVE;
+                    self.rx_enabled = false;
+                    self.dma_rx_active = false;
+                    self.rx_fifo_len = 0;
+                    self.rx_stale_timeout_active = false;
+                    self.geni_s_irq_status |= registers::S_CMD_CANCEL_EN;
+                    return true;
+                }
+            }
             SeGeniSCmd0 => {
                 self.geni_s_cmd0 = value;
                 let opcode = (value & registers::M_OPCODE_MSK) >> registers::M_OPCODE_SHFT;
