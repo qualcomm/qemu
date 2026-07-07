@@ -257,6 +257,9 @@ config XLNX_VERSAL_TRNG
 config TCSR
     bool
 
+config QUP_WRAPPER
+    bool
+
 config DSPSS_PUB
     bool
 

@@ -16,5 +16,6 @@ config HEX_VIRT
     select VIRTIO_MMIO
     select PL011
     select X_QUP_GENI_UART_RUST if HAVE_RUST
+    select QUP_WRAPPER if HAVE_RUST
     select VIRTIO_BLK
     select VIRTIO_SCSI

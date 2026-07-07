@@ -48,6 +48,7 @@ void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
 enum {
     VIRT_UART0,
     VIRT_QUP_UART0,
+    VIRT_QUP_WRAPPER0,
     VIRT_QTMR0,
     VIRT_QTMR1,
     VIRT_GPT,

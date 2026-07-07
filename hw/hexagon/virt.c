@@ -24,6 +24,7 @@
 #include "hw/core/register.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/misc/cdsp-pll.h"
+#include "hw/misc/qup-wrapper.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/datadir.h"
@@ -46,6 +47,7 @@ static const int VIRTIO_DEV_COUNT = 8;
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00001000 },
     [VIRT_QUP_UART0] = { 0x10004000, 0x00006000 },
+    [VIRT_QUP_WRAPPER0] = { 0x1000a000, 0x00006000 },
     [VIRT_MMIO] = { 0x11000000, 0x1000000, },
     [VIRT_GPT] = { 0xab000000, 0x00001000 },
     [VIRT_FDT] = { 0xbf800000, 0x00400000 },
@@ -235,21 +237,47 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
 #ifdef CONFIG_X_QUP_GENI_UART_RUST
 static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
 {
+    char *wrappername;
     char *nodename;
+    hwaddr wrapper_base = base_memmap[VIRT_QUP_WRAPPER0].base;
+    hwaddr wrapper_size = base_memmap[VIRT_QUP_WRAPPER0].size;
     hwaddr base = base_memmap[VIRT_QUP_UART0].base;
     hwaddr size = base_memmap[VIRT_QUP_UART0].size;
     int irq = irqmap[VIRT_QUP_UART0];
     MachineState *ms = MACHINE(vms);
+    DeviceState *wrapper_dev;
+
+    /*
+     * The QUP wrapper is the DT parent of the individual GENI Serial
+     * Engines (UART, I2C, SPI, ...).  The Linux qcom_geni_se driver
+     * probes the wrapper and stores it as drvdata on its device; the
+     * child SE drivers (e.g. qcom_geni_serial) fetch it back via
+     * dev_get_drvdata(pdev->dev.parent).  Without this node, se->wrapper
+     * is NULL and geni_se_get_qup_hw_version() oopses.
+     */
+    wrapper_dev = qdev_new(TYPE_QUP_WRAPPER);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(wrapper_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(wrapper_dev), 0, wrapper_base);
+
+    wrappername = g_strdup_printf("/soc/geni-se-qup@%" PRIx64, wrapper_base);
+    qemu_fdt_add_subnode(ms->fdt, wrappername);
+    qemu_fdt_setprop_string(ms->fdt, wrappername, "compatible",
+                            "qcom,sa8255p-geni-se-qup");
+    qemu_fdt_setprop_cells(ms->fdt, wrappername, "reg", 0, wrapper_base,
+                           wrapper_size);
+    qemu_fdt_setprop_cell(ms->fdt, wrappername, "#address-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, wrappername, "#size-cells", 2);
+    qemu_fdt_setprop(ms->fdt, wrappername, "ranges", NULL, 0);
 
     qup_geni_uart_create(base,
                          qdev_get_gpio_in(vms->l2vic, irq),
                          serial_hd(1));
 
-    nodename = g_strdup_printf("/soc/serial@%" PRIx64, base);
+    nodename = g_strdup_printf("%s/serial@%" PRIx64, wrappername, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                             "qcom,geni-debug-uart");
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
                            clock_phandle);
@@ -260,6 +288,7 @@ static void fdt_add_qup_uart(const HexagonVirtMachineState *vms)
     qemu_fdt_setprop_string(ms->fdt, "/aliases", "serial0", nodename);
 
     g_free(nodename);
+    g_free(wrappername);
 }
 #endif
 
