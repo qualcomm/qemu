@@ -123,7 +123,7 @@ class HexagonLinuxDevsTest(LinuxKernelTest):
         Test the default firmware boot path.
 
         Like test_linux_bios_boot, but without -bios: the machine falls
-        back to the bundled hexagon_loadlinux firmware from pc-bios.
+        back to the bundled hexagon_loadlinux_v81 firmware from pc-bios.
         """
         self.set_machine('virt')
         self.require_netdev('user')

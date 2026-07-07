@@ -90,10 +90,12 @@ and executing from the indicated start address::
 Booting Linux on the ``virt`` machine
 -------------------------------------
 The ``virt`` machine boots a guest under the H2 hypervisor.  By default
-``-bios`` resolves to the bundled ``hexagon_loadlinux`` firmware (built
+``-bios`` resolves to the bundled ``hexagon_loadlinux_v81`` firmware (built
 from the ``roms/hexagon-hypervisor`` submodule), which initializes H2 and
 jumps to a kernel loaded at physical address ``0xa0000000``, passing the
-device tree address in ``r1:0``.  A Linux kernel can then be booted the
+device tree address in ``r1:0``.  ``hexagon_loadlinux_v68`` and
+``hexagon_loadlinux_v73`` variants are also bundled and can be selected
+with ``-bios``.  A Linux kernel can then be booted the
 same way as on other architectures::
 
     $ qemu-system-hexagon -M virt -kernel vmlinux \

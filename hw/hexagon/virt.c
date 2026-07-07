@@ -42,7 +42,7 @@
 static const int VIRTIO_DEV_COUNT = 8;
 
 /* Default -bios image: the loadlinux bootloader for the H2 hypervisor */
-#define VIRT_DEFAULT_FIRMWARE "hexagon_loadlinux"
+#define VIRT_DEFAULT_FIRMWARE "hexagon_loadlinux_v81"
 
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00001000 },
