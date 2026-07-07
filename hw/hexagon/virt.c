@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include CONFIG_DEVICES
 #include "hw/hexagon/virt.h"
 #include "elf.h"
 #include "hw/char/pl011.h"
