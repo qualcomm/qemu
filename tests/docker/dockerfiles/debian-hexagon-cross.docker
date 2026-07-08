@@ -5,7 +5,7 @@
 # needs to be able to build QEMU itself in CI we include its
 # build-deps.
 #
-FROM docker.io/library/debian:13-slim
+FROM docker-registry-ro.qualcomm.com/library/debian:trixie-slim
 
 # Add deb-src repository sources
 RUN sed -i "s/^Types: deb$/Types: deb deb-src/" \
