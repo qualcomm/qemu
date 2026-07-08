@@ -241,9 +241,22 @@ hexagon-booter: $(foreach v,$(hexagon_archvs),hexagon-booter-v$(v))
 # from the host filesystem.  Clean first in case the artifacts/vN/opt
 # tree was last built for loadlinux (NULL_ANGEL_TRAP=1) with different
 # CFLAGS.
+#
+# H2K_LOAD_ADDR is overridden away from its default of 0x0: the angel
+# mailbox that H2K_trap_angel polls is mapped by a fixed TLB entry to
+# physical address 0x0 (see ANGEL_VA in
+# hexagon-hypervisor/kernel/util/max/max.h and the angel TLB setup in
+# hexagon-hypervisor/kernel/init/boot/boot.ref.S), independently of
+# H2K_LOAD_ADDR.  Loading booter's own code at physical 0x0 (the
+# default) therefore has it fetch instructions from the same page a
+# QEMU-side angel mailbox device would need to back, which is unsafe.
+# 0x00400000 is a load address already exercised by this project's own
+# CI (see hexagon-hypervisor/ciconfig/builds.pl) and keeps booter's
+# code out of the mailbox's page.
 hexagon-booter-v%:
 	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$* TARGET=opt clean
-	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$* TARGET=opt
+	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$* TARGET=opt \
+		H2K_LOAD_ADDR=0x00400000
 	hexagon-strip --strip-debug \
 		-o ../pc-bios/booter_v$* \
 		hexagon-hypervisor/artifacts/v$*/opt/install/bin/booter

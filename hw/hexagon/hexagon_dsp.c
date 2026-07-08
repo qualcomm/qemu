@@ -13,6 +13,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon-angel-mbox.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/misc/qcom-hwkm-prng.h"
@@ -537,6 +538,27 @@ static void SA8775P_cdsp0_init(ObjectClass *oc, const void *data)
 static void sim_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v68_rev, &v68n_1024, false, 0);
+
+    /*
+     * Unblock H2 hypervisor "booter"'s angel semihosting mailbox poll
+     * loop, which otherwise spins forever since QEMU does not implement
+     * the mailbox protocol.  See docs/system/hexagon/booter.rst.
+     *
+     * booter's boot-time TLB setup (roms/hexagon-hypervisor's
+     * kernel/init/boot/boot.ref.S) installs a 4K entry for ANGEL_VA
+     * (0xffd00000) mapped to physical address 0, nested inside a
+     * coarser 4M entry for Q6_SS_BASE_VA (0xffc00000) that maps to
+     * csr_base.  On real hardware and hexagon-sim, the more specific
+     * entry wins, but QEMU's TLB lookup (hexagon_tlb_find_match())
+     * matches the first (coarser) entry instead, so accesses to
+     * ANGEL_VA actually resolve to csr_base's offset within that 4M
+     * window rather than physical address 0.  Map the mailbox device
+     * there instead of at 0 so it is reached in practice.
+     */
+    DeviceState *angel_mbox_dev = qdev_new(TYPE_HEXAGON_ANGEL_MBOX);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(angel_mbox_dev), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(angel_mbox_dev), 0,
+                            v68n_1024.csr_base, 1);
 }
 
 static void sim_init(ObjectClass *oc, const void *data)

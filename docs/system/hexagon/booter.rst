@@ -77,31 +77,45 @@ For example, to run the H2 kernel-init self-test bundled in
 
 A passing run prints ``TEST PASSED`` to the console before exiting.
 
-Known limitation under ``qemu-system-hexagon``
-------------------------------------------------
+Running ``booter`` under ``qemu-system-hexagon``
+--------------------------------------------------
 
-``booter`` cannot currently be used as a ``-bios``/``-kernel`` image under
-``qemu-system-hexagon`` (e.g. with ``-M sim``) the way ``loadlinux`` is
-used on the ``virt`` machine.  QEMU's Hexagon semihosting support
-(``target/hexagon/hexswi.c``) implements ARM-compatible semihosting that
-is invoked when guest code executes ``trap0`` directly.  ``booter``,
-however, installs its own monitor-mode exception vector table and
-services semihosting requests through H2's ``H2K_trap_angel`` handler
+``booter`` can be used as a ``-kernel`` image under ``qemu-system-hexagon``
+(e.g. with ``-M sim``), but only in a limited way.  QEMU's Hexagon
+semihosting support (``target/hexagon/hexswi.c``) implements
+ARM-compatible semihosting that is invoked when guest code executes
+``trap0`` directly.  ``booter``, however, installs its own monitor-mode
+exception vector table and services semihosting requests through H2's
+``H2K_trap_angel`` handler
 (``roms/hexagon-hypervisor/kernel/traps/angel/angel.ref.S``), which
 communicates with the simulator via a memory-mapped mailbox at a fixed
 virtual address (``ANGEL_VA``, ``0xffd00000``): it writes the request
 there and then polls the same location in a loop, waiting for
 ``hexagon-sim`` to service the request and clear the flag.
 
-QEMU's Hexagon machines do not implement this mailbox protocol or back
-that address with any device, so the write is silently dropped and
-``booter`` spins in ``H2K_trap_angel`` forever, producing no console
-output.  Running, e.g.::
+QEMU does not implement this mailbox protocol.  Instead, the ``sim``
+machine backs the mailbox with a stub device
+(``hw/hexagon/hexagon-angel-mbox.c``) that always reads back a cleared
+busy flag, unblocking ``booter``'s poll loop without actually servicing
+the request: console output text, exit codes, and any other request
+content written to the mailbox are discarded.  This is enough for
+``booter`` to make progress and run to completion, but any output or
+behavior that depends on the angel/semihosting request actually being
+serviced (e.g. console text printed via that path) will not appear.
+
+Note that ``ANGEL_VA`` is nested inside a coarser TLB entry that
+``booter`` installs for ``Q6_SS_BASE_VA`` (``0xffc00000``), mapped to
+the machine's ``csr_base``.  On real hardware and under ``hexagon-sim``,
+the more specific ``ANGEL_VA`` entry takes priority, but QEMU's TLB
+lookup matches the coarser entry first, so accesses to ``ANGEL_VA``
+actually resolve to an offset within the ``csr_base`` window rather than
+to physical address ``0`` as ``booter`` intends.  The stub device is
+mapped at ``csr_base`` to account for this.  Running, e.g.::
 
   qemu-system-hexagon -M sim -kernel pc-bios/booter_v81 -append test.elf \
       -semihosting -semihosting-config target=native
 
-will hang indefinitely.  Until QEMU implements the ``ANGEL_VA`` mailbox
-(or booter gains a QEMU-native semihosting backend that calls ``trap0``
-directly instead of going through the monitor vector table), use
-``hexagon-sim`` to run ``booter`` and H2's test suite, as described above.
+now boots and runs ``booter`` instead of hanging.  To run H2's test
+suite with full semihosting fidelity (including its own console
+output), continue to use ``hexagon-sim`` as described above.
+
