@@ -316,7 +316,7 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "virtio,mmio");
         qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 1,
                                      size);
-        qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
         qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                               irq_hvm_ic_phandle);
 
