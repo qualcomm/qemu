@@ -67,8 +67,7 @@ void cpu_loop(CPUHexagonState *env)
             exit(EXIT_FAILURE);
         /*
          * These cause codes are raised directly by translate.c for linux-user
-         * (not via HEX_EVENT_PRECISE like in sysemu, since hex_cause_code
-         * TCG variable is not available in linux-user mode).
+         * (not via HEX_EVENT_PRECISE like in sysemu).
          */
         case HEX_CAUSE_FETCH_NO_UPAGE:
         case HEX_CAUSE_PRIV_NO_UREAD:
@@ -80,6 +79,11 @@ void cpu_loop(CPUHexagonState *env)
         case HEX_CAUSE_PRIV_USER_NO_SINSN:
         case HEX_CAUSE_INVALID_PACKET:
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
+                            env->gpr[HEX_REG_PC]);
+            break;
+        case HEX_CAUSE_MISALIGNED_LOAD:
+        case HEX_CAUSE_MISALIGNED_STORE:
+            force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN,
                             env->gpr[HEX_REG_PC]);
             break;
         case HEX_CAUSE_PC_NOT_ALIGNED:
