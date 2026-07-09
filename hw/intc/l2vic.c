@@ -151,8 +151,6 @@ static bool l2vic_update(L2VICState *s, int irq)
         s->vid0 = irq;
         s->vid_group[get_vid(s, irq)] = irq;
 
-        /* already low: now call pulse */
-        /*     pulse: calls qemu_upper() and then qemu_lower()) */
         qemu_irq_pulse(s->irq[vid + 2]);
         trace_l2vic_delivered(irq, vid);
         return true;
