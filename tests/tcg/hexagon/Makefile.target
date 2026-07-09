@@ -56,6 +56,7 @@ HEX_TESTS += invalid-encoding
 HEX_TESTS += multiple-writes
 HEX_TESTS += unaligned_pc
 HEX_TESTS += utimer
+HEX_TESTS += unaligned_data
 
 run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
 	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
@@ -122,6 +123,7 @@ preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
 test_pnew_jump_loads: test_pnew_jump_loads.c hex_test.h
+unaligned_data: unaligned_data.c hex_test.h
 unaligned_pc: unaligned_pc.c
 utimer: utimer.c hex_test.h
 
