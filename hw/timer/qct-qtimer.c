@@ -479,7 +479,7 @@ static const MemoryRegionOps hex_timer_ops = {
         .endianness = DEVICE_LITTLE_ENDIAN,
         .valid = {
             .min_access_size = 4,
-            .max_access_size = 4,
+            .max_access_size = 8,
             .unaligned = false,
         },
         .impl = {
