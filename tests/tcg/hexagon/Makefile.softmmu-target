@@ -1,13 +1,5 @@
-##
-##  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
-##
-##  SPDX-License-Identifier: GPL-2.0-or-later
-##
-
-# -*- Mode: makefile -*-
-#
-# Hexagon SoftMMU tests - included from tests/tcg/Makefile
-#
+#  Copyright(c) 2019-2026 Qualcomm Innovation Center, Inc. All Rights Reserved.
+#  SPDX-License-Identifier: GPL-2.0-or-later
 
 HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
 
@@ -21,6 +13,7 @@ CFLAGS=-target hexagon-unknown-none-elf -mv73 -G0 -O2 -static -Werror
 QEMU_BASE_MACHINE=-M sim -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
 QEMU_OPTS+=-display none
 QEMU_EXTRA_OPTS=
+
 # Set this before running make if you want to run tests with specific options,
 # such as MTTCG.
 OVERRIDE_OPTS?=
@@ -32,7 +25,7 @@ TESTS += \
 
 CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
 
-# We skip these tests for windows builds
+# These softmmu-only test rules and runners are skipped for Windows cross builds.
 ifeq (,$(findstring w64,$(CROSS_PREFIX)))
 
 TESTS += ieee_fp coproc_conv coproc_conv_fp16 coproc_range
@@ -67,8 +60,8 @@ run-swi_wait: swi_wait
 run-tlblock: tlblock
 run-vid-group: vid-group
 run-coproc:coproc
-run-coproc_conv:coproc_conv
-run-coproc_range:coproc_range
+run-coproc_conv: coproc_conv
+run-coproc_range: coproc_range
 
 run-gregs: gregs
 	$(call run-test, $<, $(QEMU) -d unimp $(QEMU_OPTS) $< 2> _$<.stderr, \
@@ -114,7 +107,7 @@ run-rev: rev
 	done; \
 	exit $$ret
 
-# Run some tests with paranoid-commit-state turned on
+# Run selected tests a second time with icount when OVERRIDE_OPTS is unset.
 
 ifeq ($(OVERRIDE_OPTS),)
 run-test-extra = $(call run-test, $1, $2, $3)
@@ -134,9 +127,9 @@ run-tlblock run-swi_wait run-vid-group:
 run-coproc_conv_fp16: coproc_conv_fp16
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< --append "2 2 2 coproc_input_fp16.dat coproc_output_fp16.dat","$< on $(TARGET_NAME)")
 
-ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
 # hexagon-lldb starts qemu with an empty environment. To bypass that, we create
 # a wrapper script which properly sets the environment before invoking qemu.
+ifneq ($(HAVE_HEXAGON_LLDB_BIN),)
 .PHONY: FORCE
 qemu-wrapper-for-lldb: FORCE
 	{ echo '#!/bin/bash' && \
@@ -243,7 +236,6 @@ $(TESTS):
 	$(call build_fn,$<,$@)
 
 ############# Custom build options
-
 
 # tlb-miss-tlblock is a baremetal binary with no libc dependencies.
 # We don't want to link it with crt0 files.  When the linux-musl
