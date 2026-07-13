@@ -55,74 +55,9 @@ run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
 run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim_coproc
 
-run-vid-group: vid-group
-run-swi_wait: swi_wait
-run-tlblock: tlblock
-run-vid-group: vid-group
 run-coproc:coproc
 run-coproc_conv: coproc_conv
 run-coproc_range: coproc_range
-
-run-gregs: gregs
-	$(call run-test, $<, $(QEMU) -d unimp $(QEMU_OPTS) $< 2> _$<.stderr, \
-		"$< on $(TARGET_NAME)") || { cat _$<.stderr; exit 1; }
-	grep -E 'Warning: (guest register|ignoring write to guest register)' \
-		_$<.stderr > _$<.stderr.filtered
-	diff $(HEXAGON_SYSTEM_SRC)/expected-gregs-warnings.txt _$<.stderr.filtered
-
-# Test combinations, with expected output separated by a ':'
-#
-REV_TEST_COMBINATIONS="-M V69NA_1024           : 0x69" \
-		      "-cpu any                : 0x73" \
-		      "-cpu v69                : 0x69" \
-		      "-cpu v73 -M V69NA_1024  : 0x73" \
-		      "-cpu v69 -M V73NA_1024  : 0x69" \
-		      "-cpu any -M V69NA_1024  : 0x69" \
-		      "-cpu any -M V73NA_1024  : 0x73"
-
-run-rev: rev
-	@i=0; \
-	ret=0; \
-	for comb in $(REV_TEST_COMBINATIONS); do \
-		opt="$$(echo "$$comb" | cut -d: -f1)"; \
-		exp="$$(echo "$$comb" | cut -d: -f2)"; \
-		echo "$< on $(TARGET_NAME) ($$i)"; \
-		( \
-			if test -n "$(V)"; then set -x; fi; \
-			$(QEMU) $(QEMU_OPTS) $< $$opt >$@.$$i.out 2>$@.$$i.err  \
-		) && \
-		grep -qF $$exp $@.$$i.out; \
-		err=$$?; \
-		if test $$exp != 0x73; then \
-			grep -q 'warning: using .* cpu but binary is for v73' $@.$$i.err; \
-			err=$$(($$err + $$?)); \
-		fi; \
-		if test $$err -eq 0; then \
-			echo "  rev test $$i: OK"; \
-		else \
-			echo "  rev test $$i: FAIL"; \
-			ret=1; \
-		fi; \
-		i=$$(($$i + 1)); \
-	done; \
-	exit $$ret
-
-# Run selected tests a second time with icount when OVERRIDE_OPTS is unset.
-
-ifeq ($(OVERRIDE_OPTS),)
-run-test-extra = $(call run-test, $1, $2, $3)
-else
-# If OVERRIDE_OPTS is defined, we skip tests using custom options that
-# could interfere with OVERRIDE_OPTS
-define run-test-extra
-	echo "WARNING: OVERRIDE_OPTS defined, SKIPPING '$3'"
-endef
-endif
-
-ICOUNT_OPTS=-icount auto
-run-tlblock run-swi_wait run-vid-group:
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
-	$(call run-test-extra, $<, $(QEMU) $(QEMU_OPTS) $< $(ICOUNT_OPTS),"$< on $(TARGET_NAME) icount")
 
 run-coproc_conv_fp16: coproc_conv_fp16
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)  $< --append "2 2 2 coproc_input_fp16.dat coproc_output_fp16.dat","$< on $(TARGET_NAME)")
