@@ -68,7 +68,8 @@ static uint64_t hex_timer_now(QCTHextimerState *s)
     }
     uint32_t scaler = MAX(s->qtimer->freq_scale, 1u);
     uint64_t scaled_elapsed = (uint64_t)(now - s->offset_ns) / scaler;
-    return muldiv64(scaled_elapsed, s->freq, NANOSECONDS_PER_SECOND);
+    return muldiv64(scaled_elapsed, s->freq, NANOSECONDS_PER_SECOND) &
+           QCT_QTIMER_CNT_MASK;
 }
 
 /* Arm (or disarm) the one-shot deadline timer. */
@@ -282,7 +283,8 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = extract64(s->cntval, 32, 32);
+            /* HI half is 24-bit per TRM; bits [31:24] are reserved. */
+            *data = extract64(s->cntval, 32, QCT_QTIMER_CNT_HI_BITS);
             return MEMTX_OK;
         case QCT_QTIMER_CNTPCT_LO:
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RPCT)) {
@@ -304,7 +306,8 @@ static MemTxResult hex_timer_read(void *opaque,
                 return MEMTX_ACCESS_ERROR;
             }
 
-            *data = extract64(hex_timer_now(s), 32, 32);
+            /* HI half is 24-bit per TRM; bits [31:24] are reserved. */
+            *data = extract64(hex_timer_now(s), 32, QCT_QTIMER_CNT_HI_BITS);
             return MEMTX_OK;
         case (QCT_QTIMER_CNTP_TVAL): /* CVAL - CNTP */
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
@@ -409,7 +412,9 @@ static MemTxResult hex_timer_write(void *opaque,
             }
 
             s->int_level = 0;
-            s->cntval = deposit64(s->cntval, 32, 32, value);
+            /* HI half is 24-bit per TRM; bits [31:24] are reserved. */
+            s->cntval = deposit64(s->cntval, 32, QCT_QTIMER_CNT_HI_BITS, value) &
+                        QCT_QTIMER_CNT_MASK;
             hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_CTL): /* Timer control register */
@@ -440,7 +445,8 @@ static MemTxResult hex_timer_write(void *opaque,
 
             /* TVAL write: CVAL = CNTPCT + TVAL (TVAL is signed 32-bit) */
             s->int_level = 0;
-            s->cntval = hex_timer_now(s) + (int64_t)(int32_t)value;
+            s->cntval = (hex_timer_now(s) + (int64_t)(int32_t)value) &
+                        QCT_QTIMER_CNT_MASK;
             hex_timer_rearm(s);
             break;
         case QCT_QTIMER_CNTPL0ACR:
@@ -463,9 +469,12 @@ static MemTxResult hex_timer_write(void *opaque,
 static void hex_timer_tick(void *opaque)
 {
     QCTHextimerState *s = (QCTHextimerState *)opaque;
-    HEX_TIMER_LOG("\nFIRE!!! cntval=%" PRId64 " now=%" PRId64 "\n",
-                  s->cntval, hex_timer_now(s));
-    if (hex_timer_now(s) >= s->cntval) {
+    uint64_t now = hex_timer_now(s);
+    uint64_t diff56 = (now - s->cntval) & QCT_QTIMER_CNT_MASK;
+    int64_t signed_diff = (int64_t)(diff56 << 8) >> 8;
+    HEX_TIMER_LOG("\nFIRE!!! cntval=%" PRId64 " now=%" PRId64 " diff=%" PRId64
+                  "\n", s->cntval, now, signed_diff);
+    if (signed_diff >= 0) {
         s->int_level = 1;
         hex_timer_update(s);
     } else {
@@ -552,15 +561,16 @@ static void qct_qtimer_reset_hold(Object *obj, ResetType type)
         QCTHextimerState *t = &s->timer[i];
 
         /*
-         * CTL reset value per TRM is 0 (EN=0, IMASK=0, ISTAT=0); SW must
-         * explicitly enable the compare/IRQ logic. cntval defaults to the
-         * largest 64-bit value so the timer never fires before SW arms it.
+         * Per TRM: CTL = 0 (EN=0, IMASK=0, ISTAT=0), CVAL = 0 so that
+         * TVAL (= CVAL - CNTPCT) also reads 0 at reset. The QEMUTimer is
+         * only armed when SW sets CTL.EN=1, so cntval=0 does not cause a
+         * spurious fire before SW programs the compare value.
          */
         t->control = 0;
         t->cnt_ctrl = (QCT_QTIMER_AC_CNTACR_RWPT | QCT_QTIMER_AC_CNTACR_RWVT |
                        QCT_QTIMER_AC_CNTACR_RVOFF | QCT_QTIMER_AC_CNTACR_RFRQ |
                        QCT_QTIMER_AC_CNTACR_RPVCT | QCT_QTIMER_AC_CNTACR_RPCT);
-        t->cntval = UINT64_MAX;
+        t->cntval = 0;
         t->int_level = 0;
         t->offset_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         timer_del(t->timer);
