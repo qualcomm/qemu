@@ -36,13 +36,7 @@ CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
 # We skip these tests for windows builds
 ifeq (,$(findstring w64,$(CROSS_PREFIX)))
 
-DOWNSTREAM_TESTS += \
-	ieee_fp \
-	coproc \
-	coproc_conv \
-	coproc_conv_fp16 \
-	coproc_range \
-	$()
+TESTS += ieee_fp coproc_conv coproc_conv_fp16 coproc_range
 
 ieee_fp: ieee_fp.o
 coproc: coproc.o
