@@ -15,12 +15,7 @@ HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
 VPATH 		+= $(HEXAGON_SYSTEM_SRC)
 
 ########### Compiling options
-#
-# Most softmmu tests use the hosted-standalone profile.  Without
-# -nodefaultlibs/-nostdlib, the hexagon-clang bare-metal driver links the
-# toolchain's standalone libc and compiler-rt builtins automatically.
-#
-CFLAGS=-mv73 -G0 -O2 -static -Werror
+CFLAGS=-target hexagon-unknown-none-elf -mv73 -G0 -O2 -static -Werror
 
 ########### QEMU options
 QEMU_BASE_MACHINE=-M sim -cpu any,count-gcycle-xt=on,cacheop-exceptions=true,usefs=$(SRC_PATH)/tests/tcg/hexagon/system
@@ -264,7 +259,7 @@ $(TESTS):
 # bare-elf toolchain class, which emits the same baremetal link
 # line as the SDK's hexagon-clang.
 tlb-miss-tlblock.o: tlb-miss-tlblock.S
-	$(CC) $(CFLAGS) -target hexagon-unknown-none-elf -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 tlb-miss-tlblock: tlb-miss-tlblock.o
-	$(CC) $(CFLAGS) -target hexagon-unknown-none-elf $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
+	$(CC) $(CFLAGS) $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
