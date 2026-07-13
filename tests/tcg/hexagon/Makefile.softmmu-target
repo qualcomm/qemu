@@ -25,7 +25,6 @@ QEMU_EXTRA_OPTS=
 # such as MTTCG.
 OVERRIDE_OPTS?=
 QEMU_OPTS+=$(QEMU_BASE_MACHINE) $(QEMU_EXTRA_OPTS) $(OVERRIDE_OPTS) -kernel
-PARANOID_OPTS=-cpu any,paranoid-commit-state=true -display none
 
 TESTS += \
 	tlb-miss-tlblock \
