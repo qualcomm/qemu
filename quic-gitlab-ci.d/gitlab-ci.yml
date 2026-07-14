@@ -182,23 +182,14 @@ qemu-hexagon-linux-x86_64-perf-ml:
     - when: manual
       allow_failure: true
 
-fetch-iset:
-  tags:
-    - publish_runner # We need a node with access to the NFS paths for iset
-  stage: test
-  script:
-    - cp /prj/qct/coredev/hexagon/sitelinks/arch/pkg/arch/x86_64/v73_stable/src/arch/iset.py ./
-  artifacts:
-    paths: [ "iset.py" ]
-
 qemu-hexagon-linux-x86_64-packet-verif:
   image: $CI_REGISTRY/qqvp/containers/qqvp-dev-u24:latest
   stage: test
-  needs: [ "qemu-hexagon-linux-x86_64", "fetch-iset" ]
-  script: ./quic-gitlab-ci.d/packet-verif.sh
+  needs: [ "qemu-hexagon-linux-x86_64" ]
+  script: ./quic/packet-verif.sh -j "${CI_PROJECT_TOKEN}"
   artifacts:
     when: on_failure
-    paths: [ "verif-qemu-hexagon",  ]
+    paths: [ "qemu-hexagon-testing" ]
     expire_in: 7 days
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
