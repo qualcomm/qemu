@@ -7,6 +7,7 @@ import os
 import re
 import time
 import unittest
+from pathlib import Path
 
 from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
 
@@ -89,6 +90,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
     def test_semihost(self):
         self.run_console_pattern("semihost", "PASS", "-append", "arg1", "arg2")
+
+    def test_dirent(self):
+        testdir = Path(self.scratch_file("_testdir_dirent"))
+        testdir.mkdir()
+        files = [".", "..", "file1", "file2"]
+        for f in files:
+            testdir.joinpath(f).touch()
+        self.run_console_pattern("dirent", " ".join(files), "-append", str(testdir))
 
 if __name__ == "__main__":
     QemuSystemTest.main()

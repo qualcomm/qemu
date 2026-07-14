@@ -344,6 +344,13 @@ static void virt_init(MachineState *ms)
 
     for (int i = 0; i < ms->smp.cpus; i++) {
         hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpus[i]), (i == 0));
+        CPUHexagonState *env = &cpus[i]->env;
+        if (i == 0) {
+            env->g_dir_list = g_malloc0(sizeof(GList *));
+        } else {
+            CPUHexagonState *env0 = cpu_env(qemu_get_cpu(0));
+            env->g_dir_list = env0->g_dir_list;
+        }
     }
 
     fdt_add_cpu_nodes(vms);
