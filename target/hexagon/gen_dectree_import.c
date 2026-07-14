@@ -26,7 +26,9 @@
 #include <stdlib.h>
 #include "opcodes.h"
 
-#define STRINGIZE(X)    #X
+#define STRINGIZE(X)            #X
+/* Expands X before stringizing; use for macro names, not bare parameters. */
+#define STRINGIZE_EXPANDED(X)   STRINGIZE(X)
 
 const char * const opcode_names[] = {
 #define OPCODE(IID) STRINGIZE(IID)
@@ -174,7 +176,7 @@ int main(int argc, char *argv[])
     }
 
     adjust_attribs();
-    fprintf(outfile, "q6version = '" STRINGIZE(HEXAGON_LATEST_REV) "';\n");
+    fprintf(outfile, "q6version = '" STRINGIZE_EXPANDED(HEXAGON_LATEST_REV) "';\n");
     gen_iset_table(outfile);
     gen_tags_list(outfile);
     release_attribs();
