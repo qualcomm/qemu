@@ -19,9 +19,6 @@ QEMU_EXTRA_OPTS=
 OVERRIDE_OPTS?=
 QEMU_OPTS+=$(QEMU_BASE_MACHINE) $(QEMU_EXTRA_OPTS) $(OVERRIDE_OPTS) -kernel
 
-TESTS += \
-	tlb-miss-tlblock \
-	$()
 
 CPU_LIST=$(shell $(QEMU) -cpu help | grep 'v[0-9][0-9]*')
 
@@ -31,8 +28,6 @@ ifeq (,$(findstring w64,$(CROSS_PREFIX)))
 TESTS += ieee_fp coproc_conv coproc_conv_fp16 coproc_range
 
 ieee_fp: ieee_fp.o
-coproc: coproc.o
-coproc.o: coproc.c coproc_ref.h
 coproc_conv.o: coproc_conv.c coproc_common.h coproc_conv_asm.h \
 	       coproc_input_dat.h coproc_ref_output_dat.h util.h \
 	       vtcm_common.h
@@ -44,18 +39,15 @@ coproc_conv_fp16: coproc_conv_fp16.o
 coproc_range: coproc_range.o
 
 ieee_fp.o: EXTRA_TEST_CFLAGS= -mhvx -mhvx-length=128B -mhvx-ieee-fp
-coproc coproc.o: EXTRA_TEST_CFLAGS= -mhmx -mv81
 coproc_conv.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_range.o: EXTRA_TEST_CFLAGS= -mhmx
 
-run-coproc:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
 run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim_coproc
 
-run-coproc:coproc
 run-coproc_conv: coproc_conv
 run-coproc_range: coproc_range
 
@@ -129,21 +121,13 @@ define test_for_each_cpu
 done;
 endef
 
-hvx_ext-sys: hvx_ext.c ../hvx_misc.h
-	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
-hvx-multi-sys: hvx-multi.c ../hvx_misc.h
-	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
 hvx_misc-sys: ../hvx_misc.c ../hvx_misc.h
 	$(call test_comp_for_each_cpu, 75, $@, $(filter %.c %.s,$^))
 
-run-hvx_ext-sys: hvx_ext-sys
-	$(call test_for_each_cpu, 75, $<)
-run-hvx-multi-sys: hvx-multi-sys
-	$(call test_for_each_cpu, 75, $<)
 run-hvx_misc-sys: hvx_misc-sys
 	$(call test_for_each_cpu, 75, $<)
 
-EXTRA_RUNS += run-hvx_ext-sys run-hvx-multi-sys run-hvx_misc-sys
+EXTRA_RUNS += run-hvx_misc-sys
 
 simple-assign: simple-assign.o
 reg-writes: reg-writes.o
@@ -170,16 +154,3 @@ $(TESTS):
 %.o: %.cpp
 	$(call build_fn,$<,$@)
 
-############# Custom build options
-
-# tlb-miss-tlblock is a baremetal binary with no libc dependencies.
-# We don't want to link it with crt0 files.  When the linux-musl
-# driver is used (the default for both hexagon-softmmu and
-# hexagon-linux-user) -target hexagon-unknown-none-elf selects the
-# bare-elf toolchain class, which emits the same baremetal link
-# line as the SDK's hexagon-clang.
-tlb-miss-tlblock.o: tlb-miss-tlblock.S
-	$(CC) $(CFLAGS) -c $< -o $@
-
-tlb-miss-tlblock: tlb-miss-tlblock.o
-	$(CC) $(CFLAGS) $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
