@@ -8,11 +8,16 @@ hexagon-linux-user TCG tests need a Linux/musl cross-compiler.
 ### Build
 
     export GITLAB_TOOLCHAIN_UPLOAD_TOKEN=<token>
-    ./quic/toolchain/build.sh [<baremetal-ver>] [<musl-ver>]
+    ./quic/toolchain/build.sh <revision> [<baremetal-ver>] [<musl-ver>]
 
-Runs fetch, augment, pack, and upload in sequence under
-/tmp/hexagon-toolchain-build.  Defaults to baremetal 21.0.03 and
-musl 22.1.4 if no args given.
+Runs fetch, augment, pack, and upload under
+/tmp/hexagon-toolchain-build.
+
+  - <revision>: required; the upload revision (e.g. revision-1). Bump
+    it on every re-upload so the download URL changes.
+  - <baremetal-ver>: optional baremetal SDK version; defaults to
+    21.0.03.
+  - <musl-ver>: optional musl version; defaults to 22.1.4.
 
 ### Fetch
 
@@ -38,15 +43,23 @@ Defaults to baremetal 21.0.03 and musl 22.1.4 if no args given.
 
     ./quic/toolchain/pack-hexagon-toolchain.sh <toolchain-dir>
 
-Produces <basename>-extended.tar.zst in the current directory, where
-<basename> is the basename of the toolchain dir.
+Produces hexagon-toolchain-<basename>-extended.tar.zst in the current
+directory, where <basename> is the basename of the toolchain dir.
 
 ### Upload
 
     export GITLAB_TOOLCHAIN_UPLOAD_TOKEN=<token>
-    ./quic/toolchain/upload-hexagon-toolchain.sh <tarball>
+    ./quic/toolchain/upload-hexagon-toolchain.sh <tarball> <revision>
 
 ### Use
 
-Update tests/docker/dockerfiles/debian-hexagon-cross.docker to
-reference the new version and rebuild the docker image.
+  1. Choose a new revision such as `revision-1`; increment it (for
+     example `revision-2`) whenever the packaged bytes or metadata
+     change, even if the toolchain version is unchanged.
+  2. Pass that revision to `build.sh` or `upload-hexagon-toolchain.sh`.
+  3. Verify the artifact exists at the resulting authenticated
+     download URL.
+  4. Set `HEXAGON_TOOLCHAIN_REVISION` to the same value in
+     `tests/docker/dockerfiles/debian-hexagon-cross.docker` (and bump
+     `HEXAGON_TOOLCHAIN_VERSION` there only when the toolchain version
+     itself changes), then rebuild the image.

@@ -3,13 +3,14 @@
 
 set -eu
 
-# Check for required argument
-if [ ${#} -ne 1 ]; then
-    printf "%s\n" "Usage: ${0} <tarball>" >&2
+# Check for required arguments
+if [ ${#} -ne 2 ]; then
+    printf "%s\n" "Usage: ${0} <tarball> <revision>" >&2
     exit 1
 fi
 
 readonly TARBALL="${1}"
+readonly HEXAGON_TOOLCHAIN_REVISION="${2}"
 TARBALL_BASENAME="$(basename "${TARBALL}")"
 readonly TARBALL_BASENAME
 
@@ -25,13 +26,10 @@ if ! printf "%s" "${TARBALL_BASENAME}" | grep -q '\.tar\.zst$'; then
     exit 1
 fi
 
-# Derive version from tarball basename by stripping .tar.zst suffix
-readonly VERSION="${TARBALL_BASENAME%.tar.zst}"
-
 # Configuration
 readonly GITLAB_URL="https://gitlab.qualcomm.com"
 readonly PROJECT_ID="qqvp%2Fqemu%2Fqemu"
-readonly PACKAGE_NAME="hexagon-toolchain"
+readonly PACKAGE_NAME="${TARBALL_BASENAME%.tar.zst}"
 
 # Check for GITLAB_TOOLCHAIN_UPLOAD_TOKEN
 if [ -z "${GITLAB_TOOLCHAIN_UPLOAD_TOKEN:-}" ]; then
@@ -44,7 +42,7 @@ fi
 
 # Build the registry URL
 readonly PKG_BASE="${GITLAB_URL}/api/v4/projects/${PROJECT_ID}"
-readonly PKG_PATH="packages/generic/${PACKAGE_NAME}/${VERSION}"
+readonly PKG_PATH="packages/generic/${PACKAGE_NAME}/${HEXAGON_TOOLCHAIN_REVISION}"
 readonly UPLOAD_URL="${PKG_BASE}/${PKG_PATH}/${TARBALL_BASENAME}"
 
 printf "%s\n" "Uploading to GitLab Package Registry..."
