@@ -6,7 +6,7 @@ set -eu
 if [ ${#} -ne 1 ]; then
     printf "%s\n" "Usage: ${0} <toolchain-dir>" >&2
     printf "%s\n" "" >&2
-    printf "%s\n" "Pack a hexagon toolchain into <basename>-extended.tar.zst." >&2
+    printf "%s\n" "Pack a hexagon toolchain into hexagon-toolchain-<basename>-extended.tar.zst." >&2
     printf "%s\n" "<toolchain-dir> should be the directory containing Tools/" >&2
     printf "%s\n" "(typically the unpacked SDK release; basename is used as the version)." >&2
     exit 1
@@ -15,7 +15,7 @@ fi
 readonly TOOLCHAIN_DIR="${1}"
 VERSION="$(basename "${TOOLCHAIN_DIR}")"
 readonly VERSION
-readonly TARBALL="${VERSION}-extended.tar.zst"
+readonly TARBALL="hexagon-toolchain-${VERSION}-extended.tar.zst"
 
 if [ ! -d "${TOOLCHAIN_DIR}/Tools" ]; then
     printf "%s\n" "Error: ${TOOLCHAIN_DIR}/Tools not found" >&2
@@ -28,6 +28,7 @@ if ! command -v zstd >/dev/null 2>&1; then
 fi
 
 printf "%s\n" "Packing ${TOOLCHAIN_DIR}/Tools into ${TARBALL}..."
-tar -I zstd -cf "${TARBALL}" -C "${TOOLCHAIN_DIR}" Tools
+tar --owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX' \
+    -I zstd -cf "${TARBALL}" -C "${TOOLCHAIN_DIR}" Tools
 
 printf "%s\n" "Done: ${TARBALL}"
