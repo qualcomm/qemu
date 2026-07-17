@@ -42,4 +42,11 @@ OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
 
 void target_info_qom_set_target(void);
 
+/**
+ * machine_get_types_available:
+ *
+ * Returns: Machine classes available for the selected target.
+ */
+GSList *machine_get_types_available(void);
+
 #endif /* QEMU_TARGET_INFO_QOM_H */
