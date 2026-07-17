@@ -103,28 +103,17 @@ run-hvx_misc run-scatter_gather run-hvx_histogram run-hvx_sat:
 	$(call run-test, $<, $(QEMU) $(PARANOID_OPTS) $<, "$< on $(TARGET_NAME) paranoid")
 	$(call run-test, $<, $(QEMU) $(IN_ASM_OPTS) -D $<.in_asm $<, "$< on $(TARGET_NAME) in_asm")
 
-# These tests raise an exception and return 1 to the shell
-# We'll grep for the proper exception number in their stderr
 run-privcheck: privcheck
 run-guestcheck: guestcheck
 
-run-privcheck:
+run-privcheck run-guestcheck:
 	$(call run-test, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 1 ] ; then \
+	if [ $$? -ne 132 ] ; then \
 		return 1; \
 	fi
 	$(call quiet-command, \
-		grep -q "exception 0x1b" $<.stderr, \
-		"GREP", "exception 0x1b");
-
-run-guestcheck:
-	$(call run-test, $<, $(QEMU) $< 2> $<.stderr,"$< on $(TARGET_NAME)"); \
-	if [ $$? -ne 1 ] ; then \
-		return 1; \
-	fi
-	$(call quiet-command, \
-		grep -q "exception 0x1a" $<.stderr, \
-		"GREP", "exception 0x1a");
+		grep -q "Illegal instruction" $<.stderr, \
+		"GREP", "Illegal instruction");
 
 HEX_TESTS += invalid-slots
 HEX_TESTS += invalid-encoding

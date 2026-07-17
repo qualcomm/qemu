@@ -67,12 +67,12 @@ TCGv_i64 hex_store_val64[STORES_MAX];
 TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
+TCGv hex_cause_code;
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
 TCGv hex_slot;
 TCGv hex_imprecise_exception;
-TCGv hex_cause_code;
 TCGv_i32 hex_last_cpu;
 TCGv_i32 hex_thread_id;
 TCGv_i32 hex_pmu_num_packets;
@@ -163,13 +163,11 @@ void gen_exception(int excp, target_ulong PC)
                                tcg_constant_tl(PC));
 }
 
-#ifndef CONFIG_USER_ONLY
 static inline void gen_precise_exception(int excp, target_ulong PC)
 {
     tcg_gen_movi_tl(hex_cause_code, excp);
     gen_exception(HEX_EVENT_PRECISE, PC);
 }
-#endif
 
 static inline void gen_pcycle_counters(DisasContext *ctx)
 {
@@ -296,11 +294,7 @@ static void gen_end_tb(DisasContext *ctx)
 
 void gen_exception_end_tb(DisasContext *ctx, int excp)
 {
-#ifdef CONFIG_USER_ONLY
-    gen_exception(excp, ctx->pkt.pc);
-#else
     gen_precise_exception(excp, ctx->pkt.pc);
-#endif
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -400,11 +394,7 @@ static void gen_check_mult_reg_write(DisasContext *ctx)
         TCGLabel *skip_exception = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_EQ, ctx->mult_reg_written, 0,
                            skip_exception);
-#ifdef CONFIG_USER_ONLY
-        gen_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
-#else
         gen_precise_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
-#endif
         gen_set_label(skip_exception);
     }
 }
@@ -1027,11 +1017,7 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
          * generate an exception if there's any attempt to use
          * HVX while in this mode.
          */
-#ifndef CONFIG_USER_ONLY
         gen_precise_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt.pc);
-#else
-        gen_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt.pc);
-#endif
     }
 }
 
@@ -1866,14 +1852,14 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
+    hex_cause_code = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, cause_code), "cause_code");
 
 #ifndef CONFIG_USER_ONLY
     hex_slot = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, slot), "slot");
     hex_imprecise_exception = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, imprecise_exception), "imprecise_exception");
-    hex_cause_code = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, cause_code), "cause_code");
     hex_last_cpu = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, last_cpu), "last_cpu");
     hex_thread_id = tcg_global_mem_new(tcg_env,
