@@ -749,12 +749,13 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     uint64_t page_size = 0;
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
-    vaddr offset_in_page = addr & ~TARGET_PAGE_MASK;
 
     if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
                              addr, 0, mmu_idx)) {
+        vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
         find_qemu_subpage(&addr, &phys_addr, page_size);
-        return phys_addr + offset_in_page;
+        phys_addr += hexagon_cpu_mmu_enabled(env) ? page_offset : 0;
+        return phys_addr;
     }
 
     return -1;
