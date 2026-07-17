@@ -1328,6 +1328,7 @@ static void mps2tz_set_default_ram_info(MPS2TZMachineClass *mmc)
 
 static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -1362,6 +1363,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
 
 static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -1396,6 +1398,7 @@ static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
 
 static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -1435,6 +1438,7 @@ static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
 
 static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
 {
+    TARGET_SPECIFIC_CLASS(oc)->is_available = target_base_arm;
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
