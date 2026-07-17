@@ -31,15 +31,6 @@
 #include "qapi/error.h"
 #include "trace.h"
 
-#define HEX_TIMER_DEBUG 0
-#define HEX_TIMER_LOG(...) \
-    do { \
-        if (HEX_TIMER_DEBUG) { \
-            rcu_read_lock(); \
-            fprintf(stderr, __VA_ARGS__); \
-            rcu_read_unlock(); \
-        } \
-    } while (0)
 
 /* Common timer implementation.  */
 
@@ -388,7 +379,7 @@ static MemTxResult hex_timer_write(void *opaque,
 
     switch (reg_offset) {
         case (QCT_QTIMER_CNTP_CVAL_LO): /* TimerLoad */
-            HEX_TIMER_LOG("CVAL_LO write: 0x%" PRIx64 "\n", value);
+            trace_qtimer_cval_lo_write(value);
 
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
@@ -403,6 +394,7 @@ static MemTxResult hex_timer_write(void *opaque,
             hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_CVAL_HI):
+            trace_qtimer_cval_hi_write(value);
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
             }
@@ -418,7 +410,7 @@ static MemTxResult hex_timer_write(void *opaque,
             hex_timer_rearm(s);
             break;
         case (QCT_QTIMER_CNTP_CTL): /* Timer control register */
-            HEX_TIMER_LOG("\tctl write: %" PRIu64 "\n", value);
+            trace_qtimer_ctl_write(value);
 
             if(!(s->cnt_ctrl & QCT_QTIMER_AC_CNTACR_RWPT)) {
                 return MEMTX_ACCESS_ERROR;
@@ -472,8 +464,7 @@ static void hex_timer_tick(void *opaque)
     uint64_t now = hex_timer_now(s);
     uint64_t diff56 = (now - s->cntval) & QCT_QTIMER_CNT_MASK;
     int64_t signed_diff = (int64_t)(diff56 << 8) >> 8;
-    HEX_TIMER_LOG("\nFIRE!!! cntval=%" PRId64 " now=%" PRId64 " diff=%" PRId64
-                  "\n", s->cntval, now, signed_diff);
+    trace_qtimer_tick(s->cntval, now, signed_diff);
     if (signed_diff >= 0) {
         s->int_level = 1;
         hex_timer_update(s);

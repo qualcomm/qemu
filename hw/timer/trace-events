@@ -127,3 +127,7 @@ hpet_ram_write_counter_write_while_enabled(void) "Writing counter while HPET ena
 qtimer_read(uint64_t offset) "QTimer read from offset 0x%" PRIx64
 qtimer_write(uint64_t offset, uint64_t value) "QTimer write at offset 0x%" PRIx64 " value 0x%08" PRIx64
 qtimer_interrupt(void) "qtimer interrupt generated"
+qtimer_cval_lo_write(uint64_t value) "CVAL_LO write: 0x%" PRIx64
+qtimer_cval_hi_write(uint64_t value) "CVAL_HI write: 0x%" PRIx64
+qtimer_ctl_write(uint64_t value) "CTL write: %" PRIu64
+qtimer_tick(uint64_t cntval, uint64_t now, int64_t diff) "FIRE cntval=%" PRIu64 " now=%" PRIu64 " diff=%" PRId64
