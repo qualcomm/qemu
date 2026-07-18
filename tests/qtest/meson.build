@@ -322,7 +322,9 @@ qtests_riscv64 = ['riscv-csr-test'] + \
 
 qtests_hexagon = ['boot-serial-test', 'hexagon-config-test', 'l2vic-test',
                   'qcom-dsp-test',
-                  'qct-qtimer-test']
+                  'qct-qtimer-test'] + \
+  (config_all_devices.has_key('CONFIG_X_QUP_GENI_UART_RUST') ?
+   ['qup-geni-uart-test'] : [])
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
