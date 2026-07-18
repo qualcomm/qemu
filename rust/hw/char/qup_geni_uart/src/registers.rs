@@ -296,6 +296,16 @@ pub const M_TX_FIFO_WR_ERR_EN: u32 = 1 << 29;
 pub const M_TX_FIFO_WATERMARK_EN: u32 = 1 << 30;
 pub const M_SEC_IRQ_EN: u32 = 1 << 31;
 
+// S interrupt enable/status fields
+pub const S_GP_IRQ_0_EN: u32 = 1 << 9;
+pub const S_GP_IRQ_1_EN: u32 = 1 << 10;
+pub const S_GP_IRQ_2_EN: u32 = 1 << 11;
+pub const S_GP_IRQ_3_EN: u32 = 1 << 12;
+pub const S_RX_FIFO_RD_ERR_EN: u32 = 1 << 24;
+pub const S_RX_FIFO_WR_ERR_EN: u32 = 1 << 25;
+pub const S_RX_FIFO_WATERMARK_EN: u32 = 1 << 26;
+pub const S_RX_FIFO_LAST_EN: u32 = 1 << 27;
+
 // TX FIFO status fields
 pub const TX_FIFO_WC: u32 = genmask(27, 0);
 
@@ -317,6 +327,7 @@ pub const RX_FIFO_DEPTH_MSK_256_BYTES: u32 = genmask(23, 16);
 pub const RX_FIFO_DEPTH_SHFT: u32 = 16;
 
 // Hardware parameters
+pub const BYTES_PER_FIFO_WORD: u32 = 4;
 pub const UART_FIFO_DEPTH_WORDS: u32 = 64;
 pub const UART_FIFO_WIDTH_BITS: u32 = 32;
 pub const UART_OVERSAMPLING: u32 = 32;
