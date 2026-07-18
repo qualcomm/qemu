@@ -85,6 +85,11 @@ pub struct QupGeniUartRegs {
     pub rx_fifo: Fifo,
     pub tx_fifo_len: u32,
     pub rx_fifo_len: u32,
+    /// Valid bytes in the final RX FIFO word; 0 means the word is full.
+    /// Reported to the guest via RX_LAST/RX_LAST_BYTE_VALID.
+    pub rx_last_byte_cnt: u32,
+    /// Bytes still owed by the active TX command, from SE_UART_TX_TRANS_LEN.
+    pub tx_remaining: u32,
 
     // DMA registers
     pub dma_tx_ptr_l: u32,
@@ -150,7 +155,30 @@ impl ResettablePhasesImpl for QupGeniUartState {
 
 impl SysBusDeviceImpl for QupGeniUartState {}
 
+/// RX_LAST_BYTE_VALID count for a FIFO word carrying `len` bytes. A full word
+/// reports zero, which the guest treats as all four bytes valid.
+fn last_byte_cnt(len: usize) -> u32 {
+    if len < registers::BYTES_PER_FIFO_WORD as usize {
+        len as u32
+    } else {
+        0
+    }
+}
+
 impl QupGeniUartRegs {
+    /// TX watermark is a level condition, not a latched event: it asserts
+    /// whenever the FIFO sits at or below the threshold, independent of any
+    /// active command. The guest arms a transfer by enabling this interrupt
+    /// and waiting for it, so gating it on an active command would deadlock.
+    /// A threshold of zero means the guest has disabled the watermark.
+    fn m_irq_status_level(&self) -> u32 {
+        let mut status = self.geni_m_irq_status;
+        if self.geni_tx_watermark > 0 && self.tx_fifo_len <= self.geni_tx_watermark {
+            status |= registers::M_TX_FIFO_WATERMARK_EN;
+        }
+        status
+    }
+
     pub fn read(&mut self, offset: RegisterOffset) -> (bool, u32) {
         use RegisterOffset::*;
 
@@ -161,14 +189,7 @@ impl QupGeniUartRegs {
                 // Return UART protocol in firmware revision
                 (registers::GENI_SE_UART << registers::FW_REV_PROTOCOL_SHFT) | 0x0001
             }
-            SeGeniMIrqStatus => {
-                // Dynamically re-evaluate TX watermark: on real HW, watermark
-                // fires continuously while FIFO level is below threshold
-                if self.tx_enabled && self.tx_fifo_len <= self.geni_tx_watermark {
-                    self.geni_m_irq_status |= registers::M_TX_FIFO_WATERMARK_EN;
-                }
-                self.geni_m_irq_status
-            }
+            SeGeniMIrqStatus => self.m_irq_status_level(),
             SeGeniMIrqEn => self.geni_m_irq_en,
             SeGeniMCmd0 => self.geni_m_cmd0,
             SeGeniSCmd0 => self.geni_s_cmd0,
@@ -194,8 +215,15 @@ impl QupGeniUartRegs {
                 self.tx_fifo_len & registers::TX_FIFO_WC
             }
             SeGeniRxFifoStatus => {
-                // Return RX FIFO word count
-                self.rx_fifo_len & registers::RX_FIFO_WC_MSK
+                let mut status = self.rx_fifo_len & registers::RX_FIFO_WC_MSK;
+                // A short trailing word must be advertised as RX_LAST, otherwise
+                // the guest assumes a full word and consumes padding bytes.
+                if self.rx_fifo_len > 0 && self.rx_last_byte_cnt > 0 {
+                    status |= registers::RX_LAST
+                        | (self.rx_last_byte_cnt << registers::RX_LAST_BYTE_VALID_SHFT)
+                            & registers::RX_LAST_BYTE_VALID_MSK;
+                }
+                status
             }
             SeGeniTxFifoN => {
                 log_mask_ln!(Log::GuestError, "QUP GENI UART: TX FIFO read not supported");
@@ -209,6 +237,16 @@ impl QupGeniUartRegs {
                         self.rx_fifo[i] = self.rx_fifo[i + 1];
                     }
                     self.rx_fifo_len -= 1;
+                    // Watermark is level-triggered; LAST clears once the short
+                    // word it referred to has been consumed.
+                    if self.rx_fifo_len < self.geni_rx_watermark {
+                        self.geni_s_irq_status &= !registers::S_RX_FIFO_WATERMARK_EN;
+                    }
+                    if self.rx_fifo_len == 0 {
+                        self.geni_s_irq_status &= !registers::S_RX_FIFO_LAST_EN;
+                        self.rx_last_byte_cnt = 0;
+                        self.rx_stale_timeout_active = false;
+                    }
                     update_irq = true;
                     data
                 } else {
@@ -281,6 +319,8 @@ impl QupGeniUartRegs {
             }
             SeGeniTxWatermarkReg => {
                 self.geni_tx_watermark = value;
+                // Changing the threshold re-evaluates the level condition
+                return true;
             }
             SeGeniRxWatermarkReg => {
                 self.geni_rx_watermark = value;
@@ -409,8 +449,13 @@ impl QupGeniUartRegs {
                         self.geni_status |= registers::M_GENI_CMD_ACTIVE;
                         self.tx_enabled = true;
                         self.tx_fifo_len = 0;
-                        // FIFO is empty (below watermark), signal space available
-                        self.geni_m_irq_status |= registers::M_TX_FIFO_WATERMARK_EN;
+                        // The command transfers exactly TX_TRANS_LEN bytes
+                        self.tx_remaining = self.uart_tx_trans_len;
+                        if self.tx_remaining == 0 {
+                            self.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                            self.tx_enabled = false;
+                            self.geni_m_irq_status |= registers::M_CMD_DONE_EN;
+                        }
                         return true;
                     }
                     registers::UART_ABORT => {
@@ -418,6 +463,7 @@ impl QupGeniUartRegs {
                         self.tx_enabled = false;
                         self.dma_tx_active = false;
                         self.tx_fifo_len = 0;
+                        self.tx_remaining = 0;
                         self.geni_m_irq_status |= registers::M_CMD_DONE_EN;
                         return true;
                     }
@@ -464,6 +510,7 @@ impl QupGeniUartRegs {
                     self.tx_enabled = false;
                     self.dma_tx_active = false;
                     self.tx_fifo_len = 0;
+                    self.tx_remaining = 0;
                     self.geni_m_irq_status |= registers::M_CMD_ABORT_EN;
                     return true;
                 }
@@ -472,6 +519,7 @@ impl QupGeniUartRegs {
                     self.tx_enabled = false;
                     self.dma_tx_active = false;
                     self.tx_fifo_len = 0;
+                    self.tx_remaining = 0;
                     self.geni_m_irq_status |= registers::M_CMD_CANCEL_EN;
                     return true;
                 }
@@ -482,6 +530,9 @@ impl QupGeniUartRegs {
                     self.rx_enabled = false;
                     self.dma_rx_active = false;
                     self.rx_fifo_len = 0;
+                    self.rx_last_byte_cnt = 0;
+                    self.geni_s_irq_status &=
+                        !(registers::S_RX_FIFO_WATERMARK_EN | registers::S_RX_FIFO_LAST_EN);
                     self.rx_stale_timeout_active = false;
                     self.geni_s_irq_status |= registers::S_CMD_ABORT_EN;
                     return true;
@@ -491,6 +542,9 @@ impl QupGeniUartRegs {
                     self.rx_enabled = false;
                     self.dma_rx_active = false;
                     self.rx_fifo_len = 0;
+                    self.rx_last_byte_cnt = 0;
+                    self.geni_s_irq_status &=
+                        !(registers::S_RX_FIFO_WATERMARK_EN | registers::S_RX_FIFO_LAST_EN);
                     self.rx_stale_timeout_active = false;
                     self.geni_s_irq_status |= registers::S_CMD_CANCEL_EN;
                     return true;
@@ -510,6 +564,9 @@ impl QupGeniUartRegs {
                         self.rx_enabled = false;
                         self.dma_rx_active = false;
                         self.rx_fifo_len = 0;
+                        self.rx_last_byte_cnt = 0;
+                        self.geni_s_irq_status &=
+                            !(registers::S_RX_FIFO_WATERMARK_EN | registers::S_RX_FIFO_LAST_EN);
                         self.rx_stale_timeout_active = false;
                         self.geni_s_irq_status |= registers::S_CMD_DONE_EN;
                         return true;
@@ -531,31 +588,26 @@ impl QupGeniUartRegs {
             }
             SeGeniTxFifoN => {
                 if self.tx_enabled {
-                    // Transmit data immediately via char backend.
-                    // Determine valid byte count: strip trailing null bytes
-                    // (console path writes 1 char per word, packed path uses all 4)
-                    let tx_data: [u8; 4] = [
-                        (value & 0xff) as u8,
-                        ((value >> 8) & 0xff) as u8,
-                        ((value >> 16) & 0xff) as u8,
-                        ((value >> 24) & 0xff) as u8,
-                    ];
-                    let mut len = 4usize;
-                    while len > 1 && tx_data[len - 1] == 0 {
-                        len -= 1;
-                    }
+                    // The active command declares its exact byte count, so the
+                    // final word is partial rather than NUL-padded.
+                    let tx_data = value.to_le_bytes();
+                    let len = self.tx_remaining.min(registers::BYTES_PER_FIFO_WORD) as usize;
                     if self.uart_loopback_cfg & 0x1 != 0 {
                         if self.rx_fifo_len < QUP_FIFO_DEPTH {
                             let idx = self.rx_fifo_len;
                             self.rx_fifo[idx] = value;
                             self.rx_fifo_len += 1;
+                            self.rx_last_byte_cnt = last_byte_cnt(len);
                         }
                     } else {
                         let _ = char_frontend.write_all(&tx_data[..len]);
                     }
-                    // FIFO is always "empty" since we transmit instantly
-                    self.geni_m_irq_status |=
-                        registers::M_TX_FIFO_WATERMARK_EN | registers::M_CMD_DONE_EN;
+                    self.tx_remaining -= len as u32;
+                    if self.tx_remaining == 0 {
+                        self.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                        self.tx_enabled = false;
+                        self.geni_m_irq_status |= registers::M_CMD_DONE_EN;
+                    }
                     return true;
                 } else if self.tx_fifo_len < QUP_FIFO_DEPTH {
                     let idx = self.tx_fifo_len;
@@ -695,6 +747,8 @@ impl QupGeniUartRegs {
 
         self.tx_fifo_len = 0;
         self.rx_fifo_len = 0;
+        self.rx_last_byte_cnt = 0;
+        self.tx_remaining = 0;
         self.tx_enabled = false;
         self.rx_enabled = false;
         self.clk_rate = 19200000;
@@ -835,21 +889,35 @@ impl QupGeniUartState {
         let mut update_irq = false;
 
         // Pack bytes into 32-bit words and add to RX FIFO
-        for chunk in buf.chunks(4) {
-            if regs.rx_fifo_len < QUP_FIFO_DEPTH {
-                let mut word = 0u32;
-                for (i, &byte) in chunk.iter().enumerate() {
-                    word |= (byte as u32) << (i * 8);
-                }
-                let idx = regs.rx_fifo_len;
-                regs.rx_fifo[idx] = word;
-                regs.rx_fifo_len += 1;
-
-                if regs.rx_fifo_len >= regs.geni_rx_watermark {
-                    regs.geni_m_irq_status |= registers::M_RX_FIFO_WATERMARK_EN;
-                    update_irq = true;
-                }
+        for chunk in buf.chunks(registers::BYTES_PER_FIFO_WORD as usize) {
+            if regs.rx_fifo_len >= QUP_FIFO_DEPTH {
+                regs.geni_s_irq_status |= registers::S_RX_FIFO_WR_ERR_EN;
+                update_irq = true;
+                break;
             }
+
+            let mut word = 0u32;
+            for (i, &byte) in chunk.iter().enumerate() {
+                word |= (byte as u32) << (i * 8);
+            }
+            let idx = regs.rx_fifo_len;
+            regs.rx_fifo[idx] = word;
+            regs.rx_fifo_len += 1;
+            regs.rx_last_byte_cnt = last_byte_cnt(chunk.len());
+
+            if regs.rx_fifo_len >= regs.geni_rx_watermark {
+                regs.geni_s_irq_status |= registers::S_RX_FIFO_WATERMARK_EN;
+                update_irq = true;
+            }
+        }
+
+        // A short trailing word ends the burst, which real hardware reports as
+        // a stale/LAST condition. Without it the guest sits below the watermark
+        // and never drains the tail of the input.
+        if regs.rx_last_byte_cnt > 0 {
+            regs.geni_s_irq_status |= registers::S_RX_FIFO_LAST_EN;
+            regs.rx_stale_timeout_active = false;
+            update_irq = true;
         }
 
         drop(regs);
@@ -872,7 +940,10 @@ impl QupGeniUartState {
 
     fn update_irq(&self) {
         let regs = self.regs.borrow();
-        let irq_active = (regs.geni_m_irq_status & regs.geni_m_irq_en) != 0;
+        let irq_active = (regs.m_irq_status_level() & regs.geni_m_irq_en) != 0
+            || (regs.geni_s_irq_status & regs.geni_s_irq_en) != 0
+            || (regs.dma_tx_irq_stat & regs.dma_tx_irq_en) != 0
+            || (regs.dma_rx_irq_stat & regs.dma_rx_irq_en) != 0;
         self.irq.set(irq_active);
     }
 }
@@ -907,8 +978,8 @@ impl_vmstate_struct!(
     QupGeniUartRegs,
     VMStateDescriptionBuilder::<QupGeniUartRegs>::new()
         .name(c"qup_geni_uart/regs")
-        .version_id(1)
-        .minimum_version_id(1)
+        .version_id(2)
+        .minimum_version_id(2)
         .fields(vmstate_fields! {
         vmstate_of!(QupGeniUartRegs, geni_status),
         vmstate_of!(QupGeniUartRegs, geni_m_cmd0),
@@ -944,6 +1015,8 @@ impl_vmstate_struct!(
         vmstate_of!(QupGeniUartRegs, rx_fifo),
         vmstate_of!(QupGeniUartRegs, tx_fifo_len),
         vmstate_of!(QupGeniUartRegs, rx_fifo_len),
+        vmstate_of!(QupGeniUartRegs, rx_last_byte_cnt),
+        vmstate_of!(QupGeniUartRegs, tx_remaining),
         vmstate_of!(QupGeniUartRegs, tx_enabled),
         vmstate_of!(QupGeniUartRegs, rx_enabled),
         vmstate_of!(QupGeniUartRegs, clk_rate),
@@ -971,8 +1044,8 @@ impl_vmstate_struct!(
 pub const VMSTATE_QUP_GENI_UART: VMStateDescription<QupGeniUartState> =
     VMStateDescriptionBuilder::<QupGeniUartState>::new()
         .name(c"qup_geni_uart")
-        .version_id(1)
-        .minimum_version_id(1)
+        .version_id(2)
+        .minimum_version_id(2)
         .fields(vmstate_fields! {
             vmstate_of!(QupGeniUartState, regs),
         })
