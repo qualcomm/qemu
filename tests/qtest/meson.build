@@ -303,7 +303,8 @@ qtests_hexagon = [
   'wdog-test',
   'qcom-ipcc-test',
   'turing-rsc-test',
-]
+] + (config_all_devices.has_key('CONFIG_X_QUP_GENI_UART_RUST') ?
+     ['qup-geni-uart-test'] : [])
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
