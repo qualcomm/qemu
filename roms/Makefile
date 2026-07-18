@@ -220,14 +220,18 @@ hexagon_archvs = 68 73 81
 hexagon-loadlinux: $(foreach v,$(hexagon_archvs),hexagon-loadlinux-v$(v))
 
 # loadlinux is built with NULL_ANGEL_TRAP=1 (semihosting/angel trap
-# disabled), so clean first in case the artifacts/vN/opt tree was last
-# built for booter (NULL_ANGEL_TRAP unset) with different CFLAGS.
+# disabled) and SHUTDOWN_AFTER_GUEST_EXIT=1 (halt the machine on guest
+# poweroff instead of spinning, since the angel SYS_EXIT that would
+# otherwise exit a simulator is a no-op under NULL_ANGEL_TRAP), so clean
+# first in case the artifacts/vN/opt tree was last built for booter
+# (neither macro set) with different CFLAGS.
 hexagon-loadlinux-v%:
 	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$* TARGET=opt clean
 	$(MAKE) -C hexagon-hypervisor USE_PKW=0 ARCHV=$* \
-		TARGET=opt NULL_ANGEL_TRAP=1
+		TARGET=opt NULL_ANGEL_TRAP=1 SHUTDOWN_AFTER_GUEST_EXIT=1
 	$(MAKE) -C hexagon-hypervisor/linux USE_PKW=0 ARCHV=$* \
-		NO_LOAD=1 NULL_ANGEL_TRAP=1 LINUX_LINK_ADDR=0xa0000000 \
+		NO_LOAD=1 NULL_ANGEL_TRAP=1 SHUTDOWN_AFTER_GUEST_EXIT=1 \
+		LINUX_LINK_ADDR=0xa0000000 \
 		INSTALLPATH=$(CURDIR)/hexagon-hypervisor/artifacts/v$*/opt/install \
 		KERNELPATH=$(CURDIR)/hexagon-hypervisor/artifacts/v$*/opt/build/kernel \
 		loadlinux

@@ -16,9 +16,17 @@ It is built from the ``roms/hexagon-hypervisor`` submodule with the Hexagon
 SDK toolchain.  From the top of that submodule, build H2 itself, then the
 loadlinux bootloader that links against it, for each ARCHV in turn:
 
-  make USE_PKW=0 ARCHV=<68|73|81> TARGET=opt NULL_ANGEL_TRAP=1
-  make -C linux USE_PKW=0 ARCHV=<68|73|81> NO_LOAD=1 NULL_ANGEL_TRAP=1 \
+  make USE_PKW=0 ARCHV=<68|73|81> TARGET=opt \
+      NULL_ANGEL_TRAP=1 SHUTDOWN_AFTER_GUEST_EXIT=1
+  make -C linux USE_PKW=0 ARCHV=<68|73|81> NO_LOAD=1 \
+      NULL_ANGEL_TRAP=1 SHUTDOWN_AFTER_GUEST_EXIT=1 \
       LINUX_LINK_ADDR=0xa0000000 loadlinux
+
+``SHUTDOWN_AFTER_GUEST_EXIT=1`` makes H2 halt every hardware thread once
+the Linux guest powers off, so ``qemu-system-hexagon`` actually exits;
+without it the machine spins after ``poweroff`` (under
+``NULL_ANGEL_TRAP`` the angel ``SYS_EXIT`` that would otherwise exit a
+simulator is a no-op).
 
 To rebuild them, ensure ``hexagon-clang`` and ``hexagon-strip`` (from the
 `Hexagon SDK <https://softwarecenter.qualcomm.com/catalog/item/Hexagon_SDK>`_)

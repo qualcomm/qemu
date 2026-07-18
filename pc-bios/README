@@ -101,12 +101,16 @@
   adapted for hppa.
   SeaBIOS-hppa is available at https://github.com/hdeller/seabios-hppa
 
-- hexagon_loadlinux is the default firmware for the hexagon virt machine.
-  It is the "loadlinux" bootloader from the H2 hypervisor project
-  (https://github.com/androm3da/hexagon-hypervisor): it initializes the
-  H2 hypervisor and jumps to a Linux kernel loaded at physical address
-  0xa0000000, passing the device tree address in r1:0. It is built from
-  the roms/hexagon-hypervisor submodule via the "hexagon-loadlinux"
-  target in roms/Makefile. The H2 hypervisor is distributed under the
-  3-clause BSD license (SPDX: BSD-3-Clause), see
+- hexagon_loadlinux_v68, hexagon_loadlinux_v73 and hexagon_loadlinux_v81
+  are the firmware images for the hexagon virt machine, one per supported
+  Hexagon architecture revision; hexagon_loadlinux_v81 is the default,
+  select a non-default variant with -bios hexagon_loadlinux_v68 (or
+  _v73). Each is the "loadlinux" bootloader from the H2 hypervisor
+  project (https://github.com/androm3da/hexagon-hypervisor): it
+  initializes the H2 hypervisor and jumps to a Linux kernel loaded at
+  physical address 0xa0000000, passing the device tree address in r1:0.
+  They are built from the roms/hexagon-hypervisor submodule via the
+  "hexagon-loadlinux" target in roms/Makefile; see
+  roms/README.hexagon-loadlinux for details. The H2 hypervisor is
+  distributed under the 3-clause BSD license (SPDX: BSD-3-Clause), see
   roms/hexagon-hypervisor/LICENSE.txt.
