@@ -2335,11 +2335,16 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
     CPU_FOREACH(cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
-        if ((thread_mask & thread_id_mask) != 0) {
-            cs->exception_index = HEX_EVENT_IMPRECISE;
-            thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
-            hex_interrupt_update(thread_env);
+        if ((thread_mask & thread_id_mask) == 0) {
+            continue;
         }
+        if (get_exe_mode(thread_env) == HEX_EXE_MODE_OFF) {
+            continue;
+        }
+        cs->exception_index = HEX_EVENT_IMPRECISE;
+        thread_env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+
+        cpu_interrupt(cs, CPU_INTERRUPT_SWI);
     }
 }
 
