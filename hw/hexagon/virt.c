@@ -80,7 +80,8 @@ static void create_fdt(HexagonVirtMachineState *vms)
     qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x1);
     qemu_fdt_setprop_string(fdt, "/", "model", "hexagon-virt,qemu");
-    qemu_fdt_setprop_string(fdt, "/", "compatible", "qcom,sm8150");
+    static const char root_compat[] = "qemu,hexagon-virt\0qcom,sm8150";
+    qemu_fdt_setprop(fdt, "/", "compatible", root_compat, sizeof(root_compat));
 
     qemu_fdt_add_subnode(fdt, "/soc");
     qemu_fdt_setprop_cell(fdt, "/soc", "#address-cells", 0x2);
