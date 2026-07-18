@@ -608,15 +608,7 @@ bool vnc_display_reload_certs(const char *id, Error **errp)
    3) resolutions > 1024
 */
 
-static int vnc_update_client(VncState *vs, int has_dirty);
-static void vnc_disconnect_start(VncState *vs);
-
 static void vnc_colordepth(VncState *vs);
-static void framebuffer_update_request(VncState *vs, int incremental,
-                                       int x_position, int y_position,
-                                       int w, int h);
-static void vnc_refresh(DisplayChangeListener *dcl);
-static int vnc_refresh_server_surface(VncDisplay *vd);
 
 static int vnc_width(VncDisplay *vd)
 {
@@ -1763,7 +1755,8 @@ static void check_pointer_type_change(Notifier *notifier, void *data)
     vs->absolute = absolute;
 }
 
-static void pointer_event(VncState *vs, int button_mask, int x, int y)
+static void pointer_event(VncState *vs, uint8_t button_mask,
+                          uint16_t x, uint16_t y)
 {
     static uint32_t bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]       = 0x01,
@@ -1841,7 +1834,7 @@ static void kbd_leds(Notifier *notifier, void *data)
     }
 }
 
-static void do_key_event(VncState *vs, int down, int keycode, int sym)
+static void do_key_event(VncState *vs, int down, int keycode, uint32_t sym)
 {
     unsigned int lnx = qemu_input_key_number_to_linux(keycode);
 
@@ -2019,7 +2012,7 @@ static const char *code2name(int keycode)
     return QKeyCode_str(qemu_input_key_number_to_qcode(keycode));
 }
 
-static void key_event(VncState *vs, int down, uint32_t sym)
+static void key_event(VncState *vs, bool down, uint32_t sym)
 {
     int keycode;
     int lsym = sym;
@@ -2034,8 +2027,8 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     do_key_event(vs, down, keycode, sym);
 }
 
-static void ext_key_event(VncState *vs, int down,
-                          uint32_t sym, uint16_t keycode)
+static void ext_key_event(VncState *vs, bool down,
+                          uint32_t sym, uint32_t keycode)
 {
     /* if the user specifies a keyboard layout, always use it */
     if (keyboard_layout) {
@@ -2046,8 +2039,9 @@ static void ext_key_event(VncState *vs, int down,
     }
 }
 
-static void framebuffer_update_request(VncState *vs, int incremental,
-                                       int x, int y, int w, int h)
+static void framebuffer_update_request(VncState *vs, uint8_t incremental,
+                                       uint16_t x, uint16_t y,
+                                       uint16_t w, uint16_t h)
 {
     if (incremental) {
         if (vs->update != VNC_STATE_UPDATE_FORCE) {
@@ -2250,10 +2244,11 @@ static void send_color_map(VncState *vs)
     vnc_unlock_output(vs);
 }
 
-static void set_pixel_format(VncState *vs, int bits_per_pixel,
-                             int big_endian_flag, int true_color_flag,
-                             int red_max, int green_max, int blue_max,
-                             int red_shift, int green_shift, int blue_shift)
+static void set_pixel_format(VncState *vs, uint8_t bits_per_pixel,
+                             uint8_t big_endian_flag, uint8_t true_color_flag,
+                             uint16_t red_max, uint16_t green_max,
+                             uint16_t blue_max, uint8_t red_shift,
+                             uint8_t green_shift, uint8_t blue_shift)
 {
     if (!true_color_flag) {
         /* Expose a reasonable default 256 color map */
@@ -2276,18 +2271,30 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
         return;
     }
 
+    if (red_max > UINT8_MAX || green_max > UINT8_MAX || blue_max > UINT8_MAX) {
+        vnc_client_error(vs);
+        return;
+    }
+
+    if (red_shift >= bits_per_pixel || red_shift >= 32 ||
+        green_shift >= bits_per_pixel || green_shift >= 32 ||
+        blue_shift >= bits_per_pixel || blue_shift >= 32) {
+        vnc_client_error(vs);
+        return;
+    }
+
     vs->client_pf.rmax = red_max ? red_max : 0xFF;
     vs->client_pf.rbits = ctpopl(red_max);
     vs->client_pf.rshift = red_shift;
-    vs->client_pf.rmask = red_max << red_shift;
+    vs->client_pf.rmask = (uint32_t)red_max << red_shift;
     vs->client_pf.gmax = green_max ? green_max : 0xFF;
     vs->client_pf.gbits = ctpopl(green_max);
     vs->client_pf.gshift = green_shift;
-    vs->client_pf.gmask = green_max << green_shift;
+    vs->client_pf.gmask = (uint32_t)green_max << green_shift;
     vs->client_pf.bmax = blue_max ? blue_max : 0xFF;
     vs->client_pf.bbits = ctpopl(blue_max);
     vs->client_pf.bshift = blue_shift;
-    vs->client_pf.bmask = blue_max << blue_shift;
+    vs->client_pf.bmask = (uint32_t)blue_max << blue_shift;
     vs->client_pf.bits_per_pixel = bits_per_pixel;
     vs->client_pf.bytes_per_pixel = bits_per_pixel / 8;
     vs->client_pf.depth = bits_per_pixel == 32 ? 24 : bits_per_pixel;
@@ -2998,15 +3005,23 @@ void vnc_sent_lossy_rect(VncWorker *worker, int x, int y, int w, int h)
     }
 }
 
-static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
+static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y,
+                                  int height)
 {
     VncState *vs;
     int sty = y / VNC_STAT_RECT;
     int stx = x / VNC_STAT_RECT;
     int has_dirty = 0;
+    int rows;
 
     y = QEMU_ALIGN_DOWN(y, VNC_STAT_RECT);
     x = QEMU_ALIGN_DOWN(x, VNC_STAT_RECT);
+    rows = MIN(VNC_STAT_RECT, height - y);
+
+    rows = MIN(VNC_STAT_RECT, height - y);
+    if (rows <= 0) {
+        return 0;
+    }
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         VncConnection *vc = container_of(vs, VncConnection, vs);
@@ -3022,7 +3037,7 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
         }
 
         vc->worker.lossy_rect[sty][stx] = 0;
-        for (j = 0; j < VNC_STAT_RECT; ++j) {
+        for (j = 0; j < rows; ++j) {
             bitmap_set(vs->dirty[y + j],
                        x / VNC_DIRTY_PIXELS_PER_BIT,
                        VNC_STAT_RECT / VNC_DIRTY_PIXELS_PER_BIT);
@@ -3073,7 +3088,7 @@ static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 
             if (timercmp(&res, &VNC_REFRESH_LOSSY, >)) {
                 rect->freq = 0;
-                has_dirty += vnc_refresh_lossy_rect(vd, x, y);
+                has_dirty += vnc_refresh_lossy_rect(vd, x, y, height);
                 memset(rect->times, 0, sizeof (rect->times));
                 continue ;
             }
