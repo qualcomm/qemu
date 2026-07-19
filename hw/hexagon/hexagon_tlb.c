@@ -101,9 +101,18 @@ static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
     if (entry == 0) {
         return 0;
     }
-    tlb_pgsize_t size =
-        ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
-    g_assert(size < NUM_PGSIZE_TYPES);
+    unsigned size = ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
+    if (size >= NUM_PGSIZE_TYPES) {
+        /*
+         * The guest can park any value in a TLB slot, so this field is not
+         * trustworthy.  Saturate rather than aborting the emulator.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "hexagon TLB: entry 0x%016" PRIx64 " encodes page size "
+                      "%u, clamping to %s\n",
+                      entry, size, pgsize_str[NUM_PGSIZE_TYPES - 1]);
+        size = NUM_PGSIZE_TYPES - 1;
+    }
     return size;
 }
 
@@ -239,8 +248,15 @@ static inline bool hex_tlb_entry_match(uint64_t entry, uint8_t asid,
 static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
                              bool consider_gbit)
 {
-    bool valid1 = GET_TLB_FIELD(entry1, PTE_V);
-    bool valid2 = GET_TLB_FIELD(entry2, PTE_V);
+    /*
+     * Bail out before decoding anything else: an invalid entry can hold an
+     * arbitrary value the guest parked there, so its page-size field is not
+     * meaningful.
+     */
+    if (!GET_TLB_FIELD(entry1, PTE_V) || !GET_TLB_FIELD(entry2, PTE_V)) {
+        return false;
+    }
+
     Range range1;
     uint64_t size1 = hex_tlb_page_size_bytes(entry1);
     range_init_nofail(&range1, ROUND_DOWN(hex_tlb_virt_addr(entry1), size1),
@@ -253,10 +269,6 @@ static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
     int asid2 = GET_TLB_FIELD(entry2, PTE_ASID);
     bool gbit1 = GET_TLB_FIELD(entry1, PTE_G);
     bool gbit2 = GET_TLB_FIELD(entry2, PTE_G);
-
-    if (!valid1 || !valid2) {
-        return false;
-    }
 
     if (range_overlaps_range(&range1, &range2)) {
         if (asid1 == asid2) {
