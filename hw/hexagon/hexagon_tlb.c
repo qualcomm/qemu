@@ -101,7 +101,16 @@ static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
     if (entry == 0) {
         return 0;
     }
-    unsigned size = ctz64(entry) + (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
+    /*
+     * The page size is encoded as the position of the lowest set bit of the
+     * PPD field.  Restrict the scan to that field: the bits above it belong
+     * to other fields (C, permissions, VPN, ASID...), and letting them pick
+     * the size turns an entry whose PPD happens to be zero into an absurdly
+     * large page that then appears to overlap everything.
+     */
+    uint64_t ppd = GET_TLB_FIELD(entry, PTE_PPD);
+    unsigned size = (ppd ? ctz64(ppd) : 0) +
+                    (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
     if (size >= NUM_PGSIZE_TYPES) {
         /*
          * The guest can park any value in a TLB slot, so this field is not
