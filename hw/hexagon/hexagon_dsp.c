@@ -25,7 +25,6 @@
 #include "hw/misc/qcom-turing-rsc.h"
 #include "hw/timer/qct-qtimer.h"
 #include "hw/intc/l2vic.h"
-#include "hw/char/pl011.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -364,9 +363,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                      m_cfg->cfgtable.fastl2vic_base << 16);
-
-    pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15),
-                 serial_hd(0));
 
     sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,

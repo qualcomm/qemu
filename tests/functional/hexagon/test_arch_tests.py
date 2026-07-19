@@ -29,9 +29,15 @@ class ArchTestsUart(QemuSystemTest):
     )
 
     def run_uart_test(self, test_name: str,
-                      machine: str = "V81QA_1") -> None:
+                      machine: str = "virt") -> None:
         """
         Run an arch test binary and verify PASS via UART console output.
+
+        These binaries write their results to a PL011 at 0x10000000, which is
+        part of the virt machine's device window.  The DSP machines map DDR
+        there instead, so virt is the machine that can carry them.  '-bios
+        none' suppresses the default loadlinux firmware so -kernel boots
+        directly.
         """
         self.set_machine(machine)
         self.archive_extract(self.ASSET_TARBALL)
@@ -40,6 +46,7 @@ class ArchTestsUart(QemuSystemTest):
                                   'bin', test_name)
         self.vm.set_console()
         self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-bios", "none")
         self.set_vm_arg("-kernel", target_bin)
         self.vm.launch()
         wait_for_console_pattern(self, "PASS")
@@ -110,7 +117,6 @@ class ArchTestsUart(QemuSystemTest):
         instructions, thread entry dispatch, and MODECTL state."""
         self.run_uart_test("test_threads")
 
-    @skip("QTimer TIMERLO/TIMERHI read as zero, needs start-ticking")
     def test_timer(self) -> None:
         """Tests system timer: QTimer version register, TIMERLO/TIMERHI
         monotonic reads, pcycle-based timing.
