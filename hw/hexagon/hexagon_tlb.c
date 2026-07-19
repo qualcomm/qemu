@@ -23,10 +23,21 @@
     ((uint64_t)fEXTRACTU_BITS(ENTRY, reg_field_info[FIELD].width, \
                               reg_field_info[FIELD].offset))
 
-/* PPD (physical page descriptor) */
-static inline uint64_t GET_PPD(uint64_t entry)
+/*
+ * HSV39 (39-bit extended addressing) is a property of the DMA TLB.  Bit 27
+ * only selects it for entries living in the DMA TLB range; in a JTLB entry
+ * that bit is not an addressing-mode selector, so interpreting it as one
+ * there would relocate the entry's VA and inflate its page size.
+ */
+static inline bool hex_tlb_is_hsv39(uint64_t entry, bool dma)
 {
-    if (GET_TLB_FIELD(entry, PTE_HSV39)) {
+    return dma && GET_TLB_FIELD(entry, PTE_HSV39);
+}
+
+/* PPD (physical page descriptor) */
+static inline uint64_t GET_PPD(uint64_t entry, bool dma)
+{
+    if (hex_tlb_is_hsv39(entry, dma)) {
         int PA4543_shift = reg_field_info[PTE_PPD].width;
         int PA4544_shift = PA4543_shift + reg_field_info[PTE_PA43].width;
         return GET_TLB_FIELD(entry, PTE_PPD) |
@@ -96,7 +107,7 @@ static const uint64_t encmask_2_mask[] = {
 /*
  * @return the page size type from @a entry.
  */
-static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
+static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry, bool dma)
 {
     if (entry == 0) {
         return 0;
@@ -110,7 +121,7 @@ static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
      */
     uint64_t ppd = GET_TLB_FIELD(entry, PTE_PPD);
     unsigned size = (ppd ? ctz64(ppd) : 0) +
-                    (GET_TLB_FIELD(entry, PTE_HSV39) ? 4 : 0);
+                    (hex_tlb_is_hsv39(entry, dma) ? 4 : 0);
     if (size >= NUM_PGSIZE_TYPES) {
         /*
          * The guest can park any value in a TLB slot, so this field is not
@@ -128,33 +139,33 @@ static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
 /*
  * @return the page size of @a entry, in bytes.
  */
-static inline uint64_t hex_tlb_page_size_bytes(uint64_t entry)
+static inline uint64_t hex_tlb_page_size_bytes(uint64_t entry, bool dma)
 {
-    return 1ull << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize_type(entry));
+    return 1ull << (TARGET_PAGE_BITS + 2 * hex_tlb_pgsize_type(entry, dma));
 }
 
-static inline uint64_t hex_tlb_phys_page_num(uint64_t entry)
+static inline uint64_t hex_tlb_phys_page_num(uint64_t entry, bool dma)
 {
-    uint32_t ppd = GET_PPD(entry);
+    uint32_t ppd = GET_PPD(entry, dma);
     return ppd >> 1;
 }
 
-static inline uint64_t hex_tlb_phys_addr(uint64_t entry)
+static inline uint64_t hex_tlb_phys_addr(uint64_t entry, bool dma)
 {
-    uint64_t pagemask = encmask_2_mask[hex_tlb_pgsize_type(entry)];
-    uint64_t pagenum = hex_tlb_phys_page_num(entry);
+    uint64_t pagemask = encmask_2_mask[hex_tlb_pgsize_type(entry, dma)];
+    uint64_t pagenum = hex_tlb_phys_page_num(entry, dma);
     uint64_t PA = (pagenum << TARGET_PAGE_BITS) & (~pagemask);
     return PA;
 }
 
-static inline vaddr hex_tlb_virt_addr(uint64_t entry)
+static inline vaddr hex_tlb_virt_addr(uint64_t entry, bool dma)
 {
-    int shift = GET_TLB_FIELD(entry, PTE_HSV39) ? 20 : TARGET_PAGE_BITS;
+    int shift = hex_tlb_is_hsv39(entry, dma) ? 20 : TARGET_PAGE_BITS;
     return (vaddr)GET_TLB_FIELD(entry, PTE_VPN) << shift;
 }
 
 static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
-                                              uint64_t VA)
+                                              uint64_t VA, bool dma)
 {
     if (GET_TLB_FIELD(entry, PTE_V)) {
         if (GET_TLB_FIELD(entry, PTE_G)) {
@@ -166,9 +177,9 @@ static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
             }
         }
 
-        uint64_t page_size = hex_tlb_page_size_bytes(entry);
+        uint64_t page_size = hex_tlb_page_size_bytes(entry, dma);
         uint64_t page_start =
-            ROUND_DOWN(hex_tlb_virt_addr(entry), page_size);
+            ROUND_DOWN(hex_tlb_virt_addr(entry, dma), page_size);
         if (page_start <= VA && VA < page_start + page_size) {
             /* FIXME - Anything else we need to check? */
             return true;
@@ -242,19 +253,20 @@ static inline bool hex_tlb_entry_match(uint64_t entry, uint8_t asid,
                                        MMUAccessType access_type,
                                        hwaddr *PA, int *prot, uint64_t *size,
                                        int32_t *excp, int32_t *cause_code,
-                                       int mmu_idx)
+                                       int mmu_idx, bool dma)
 {
-    if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
+    if (hex_tlb_entry_match_noperm(entry, asid, VA, dma)) {
         hex_tlb_entry_get_perm(entry, access_type, mmu_idx, prot, excp,
                                cause_code);
-        *PA = hex_tlb_phys_addr(entry);
-        *size = hex_tlb_page_size_bytes(entry);
+        *PA = hex_tlb_phys_addr(entry, dma);
+        *size = hex_tlb_page_size_bytes(entry, dma);
         return true;
     }
     return false;
 }
 
-static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
+static bool hex_tlb_is_match(uint64_t entry1, bool dma1,
+                             uint64_t entry2, bool dma2,
                              bool consider_gbit)
 {
     /*
@@ -267,12 +279,14 @@ static bool hex_tlb_is_match(uint64_t entry1, uint64_t entry2,
     }
 
     Range range1;
-    uint64_t size1 = hex_tlb_page_size_bytes(entry1);
-    range_init_nofail(&range1, ROUND_DOWN(hex_tlb_virt_addr(entry1), size1),
+    uint64_t size1 = hex_tlb_page_size_bytes(entry1, dma1);
+    range_init_nofail(&range1,
+                      ROUND_DOWN(hex_tlb_virt_addr(entry1, dma1), size1),
                       size1);
     Range range2;
-    uint64_t size2 = hex_tlb_page_size_bytes(entry2);
-    range_init_nofail(&range2, ROUND_DOWN(hex_tlb_virt_addr(entry2), size2),
+    uint64_t size2 = hex_tlb_page_size_bytes(entry2, dma2);
+    range_init_nofail(&range2,
+                      ROUND_DOWN(hex_tlb_virt_addr(entry2, dma2), size2),
                       size2);
     int asid1 = GET_TLB_FIELD(entry1, PTE_ASID);
     int asid2 = GET_TLB_FIELD(entry2, PTE_ASID);
@@ -474,7 +488,7 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
     for (i = 0; i < tlb->num_entries; i++) {
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match(entry, asid, VA, access_type, PA, prot,
-                                size, excp, cause_code, mmu_idx)) {
+                                size, excp, cause_code, mmu_idx, false)) {
             return true;
         }
     }
@@ -483,7 +497,7 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
     for (i = DMA_TLB_OFFSET; i < DMA_TLB_OFFSET + tlb->dma_entries; i++) {
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match(entry, asid, VA, access_type, PA, prot,
-                                size, excp, cause_code, mmu_idx)) {
+                                size, excp, cause_code, mmu_idx, true)) {
             return true;
         }
     }
@@ -510,7 +524,7 @@ static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb, uint32_t asid,
         for (uint32_t i = DMA_TLB_OFFSET;
              i < DMA_TLB_OFFSET + tlb->dma_entries; i++) {
             uint64_t entry = tlb->entries[i];
-            if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
+            if (hex_tlb_entry_match_noperm(entry, asid, VA, true)) {
                 if (idx != not_found) {
                     *imprecise_exception = HEX_EVENT_IMPRECISE;
                     *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
@@ -523,7 +537,7 @@ static uint32_t hex_tlb_lookup_by_asid(HexagonTLBState *tlb, uint32_t asid,
         /* Search regular TLB entries */
         for (uint32_t i = 0; i < tlb->num_entries; i++) {
             uint64_t entry = tlb->entries[i];
-            if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
+            if (hex_tlb_entry_match_noperm(entry, asid, VA, false)) {
                 if (idx != not_found) {
                     *imprecise_exception = HEX_EVENT_IMPRECISE;
                     *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
@@ -570,9 +584,15 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
         return 0;
     }
 
+    /*
+     * The probe entry is decoded in the context of the range it is being
+     * compared against, so that a DMA-range check honours HSV39 on both
+     * sides and a JTLB check honours it on neither.
+     */
+
     /* Check regular TLB entries */
     for (i = 0; i < tlb->num_entries; i++) {
-        if (hex_tlb_is_match(entry, tlb->entries[i], false)) {
+        if (hex_tlb_is_match(entry, false, tlb->entries[i], false, false)) {
             matches++;
             last_match = i;
         }
@@ -580,7 +600,7 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
 
     /* Check DMA TLB entries */
     for (i = DMA_TLB_OFFSET; i < DMA_TLB_OFFSET + tlb->dma_entries; i++) {
-        if (hex_tlb_is_match(entry, tlb->entries[i], false)) {
+        if (hex_tlb_is_match(entry, true, tlb->entries[i], true, false)) {
             matches++;
             last_match = i;  /* Return actual index */
         }
@@ -607,8 +627,8 @@ void hexagon_tlb_dump(HexagonTLBState *tlb)
         uint64_t entry = tlb->entries[i];
         if (GET_TLB_FIELD(entry, PTE_V)) {
             qemu_printf("0x%016" PRIx64 ": ", entry);
-            uint64_t PA = hex_tlb_phys_addr(entry);
-            uint64_t VA = hex_tlb_virt_addr(entry);
+            uint64_t PA = hex_tlb_phys_addr(entry, false);
+            uint64_t VA = hex_tlb_virt_addr(entry, false);
             qemu_printf(
                 "V:%" PRId64 " G:%" PRId64 " A1:%" PRId64 " A0:%" PRId64,
                 GET_TLB_FIELD(entry, PTE_V), GET_TLB_FIELD(entry, PTE_G),
@@ -622,8 +642,8 @@ void hexagon_tlb_dump(HexagonTLBState *tlb)
                 GET_TLB_FIELD(entry, PTE_R), GET_TLB_FIELD(entry, PTE_U),
                 GET_TLB_FIELD(entry, PTE_C));
             qemu_printf(" PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")\n", PA,
-                        pgsize_str[hex_tlb_pgsize_type(entry)],
-                        hex_tlb_page_size_bytes(entry));
+                        pgsize_str[hex_tlb_pgsize_type(entry, false)],
+                        hex_tlb_page_size_bytes(entry, false));
         }
     }
 }
