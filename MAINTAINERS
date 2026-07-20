@@ -4554,7 +4554,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 T: git https://gitlab.com/stsquad/qemu testing/next
 M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Maintained
-F: .github/workflows/lockdown.yml
+F: .github/workflows/*
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/
 F: .travis.yml
