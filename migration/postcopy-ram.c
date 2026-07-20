@@ -297,9 +297,6 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
     unsigned int smp_cpus = ms->smp.cpus;
     PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
 
-    /* Initialize all counters to be zeros */
-    memset(ctx->latency_buckets, 0, sizeof(ctx->latency_buckets));
-
     ctx->vcpu_blocktime_total = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_faults_count = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_faults_current = g_new0(uint8_t, smp_cpus);
@@ -1093,7 +1090,11 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         /*
          * Account how many concurrent faults on this vCPU we trapped.  See
          * comments above vcpu_faults_current[] on why it can be more than one.
+         *
+         * vcpu_faults_current[] is uint8_t, so assert before incrementing to
+         * catch overflow before it wraps.
          */
+        assert(dc->vcpu_faults_current[cpu] < 255);
         if (dc->vcpu_faults_current[cpu]++ == 0) {
             dc->smp_cpus_down++;
             /*
@@ -1103,9 +1104,6 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
              */
             dc->last_begin = current;
         }
-
-        /* Making sure it won't overflow - it really should never! */
-        assert(dc->vcpu_faults_current[cpu] <= 255);
     } else {
         /*
          * For non-vCPU thread faults, we don't care about tid or cpu index
@@ -1368,7 +1366,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
                 }
             }
             if (msg.event != UFFD_EVENT_PAGEFAULT) {
-                error_report("%s: Read unexpected event %ud from userfaultfd",
+                error_report("%s: Read unexpected event %u from userfaultfd",
                              __func__, msg.event);
                 continue; /* It's not a page fault, shouldn't happen */
             }
@@ -1443,7 +1441,7 @@ retry:
                     }
                 }
                 if (msg.event != UFFD_EVENT_PAGEFAULT) {
-                    error_report("%s: Read unexpected event %ud "
+                    error_report("%s: Read unexpected event %u "
                                  "from userfaultfd (shared)",
                                  __func__, msg.event);
                     continue; /* It's not a page fault, shouldn't happen */
