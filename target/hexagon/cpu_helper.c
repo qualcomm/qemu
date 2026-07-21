@@ -577,49 +577,6 @@ int get_cpu_mode(CPUHexagonState *env)
     return HEX_CPU_MODE_MONITOR;
 }
 
-const char *get_sys_ssr_str(uint32_t ssr)
-
-{
-    if (sys_in_monitor_mode_ssr(ssr)) {
-        return "monitor";
-    } else if (sys_in_guest_mode_ssr(ssr)) {
-        return "guest";
-    } else if (sys_in_user_mode_ssr(ssr)) {
-        return "user";
-    }
-    return "unknown";
-}
-
-const char *get_sys_str(CPUHexagonState *env)
-
-{
-    if (sys_in_monitor_mode(env)) {
-        return "monitor";
-    } else if (sys_in_guest_mode(env)) {
-        return "guest";
-    } else if (sys_in_user_mode(env)) {
-        return "user";
-    }
-    return "unknown";
-}
-
-const char *get_exe_mode_str(CPUHexagonState *env)
-
-{
-    int exe_mode = get_exe_mode(env);
-
-    if (exe_mode == HEX_EXE_MODE_OFF) {
-        return "off";
-    } else if (exe_mode == HEX_EXE_MODE_RUN) {
-        return "run";
-    } else if (exe_mode == HEX_EXE_MODE_WAIT) {
-        return "wait";
-    } else if (exe_mode == HEX_EXE_MODE_DEBUG) {
-        return "debug";
-    }
-    return "unknown";
-}
-
 int get_exe_mode(CPUHexagonState *env)
 {
     g_assert(bql_locked());

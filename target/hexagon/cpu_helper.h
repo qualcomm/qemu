@@ -89,8 +89,6 @@ void hexagon_enable_int(CPUHexagonState *env, uint32_t int_num);
 
 
 
-const char *get_sys_ssr_str(uint32_t ssr);
-const char *get_sys_str(CPUHexagonState *env);
 int sys_in_monitor_mode_reg(uint32_t ssr);
 int sys_in_guest_mode_reg(uint32_t ssr);
 int sys_in_user_mode_reg(uint32_t ssr);
@@ -99,7 +97,6 @@ int sys_in_guest_mode(CPUHexagonState *env);
 int sys_in_user_mode(CPUHexagonState *env);
 int get_cpu_mode(CPUHexagonState *env);
 int get_exe_mode(CPUHexagonState *env);
-const char *get_exe_mode_str(CPUHexagonState *env);
 void clear_wait_mode(CPUHexagonState *env);
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t);
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t);
