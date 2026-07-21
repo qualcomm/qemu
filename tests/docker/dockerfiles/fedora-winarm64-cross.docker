@@ -1,0 +1,453 @@
+# Cross compile environment for QEMU targeting Windows on ARM64 (aarch64).
+#
+# Unlike fedora-win64-cross.docker (which pulls prebuilt mingw64 RPMs), no
+# distribution ships cross libraries for the aarch64-w64-mingw32 target.  So
+# this image installs the llvm-mingw toolchain and builds the whole QEMU
+# dependency stack from source, using the latest release of each library.
+#
+# It provides the same set of dependencies as fedora-win64-cross:
+#   SDL2 SDL2_image bzip2 curl gettext glib2 gnutls gtk-vnc2 gtk3 libepoxy
+#   libfdt libgcrypt libjpeg-turbo libpng libtasn1 nettle pixman
+# plus the transitive libraries needed to build them from scratch.
+#
+# It builds natively on both x86_64 and aarch64 hosts: the llvm-mingw build is
+# selected to match the host architecture, and the few code-generation tools
+# reused from the host (glib/gdk-pixbuf codegen, windmc) are host-native.
+#
+# Build it with, e.g.:
+#   podman build -t qemu/fedora-winarm64-cross \
+#       -f tests/docker/dockerfiles/fedora-winarm64-cross.docker .
+
+FROM registry.fedoraproject.org/fedora:43
+
+# ---------------------------------------------------------------------------
+# Host build tooling
+# ---------------------------------------------------------------------------
+RUN dnf --quiet update -y && \
+    dnf --quiet install -y \
+        autoconf \
+        automake \
+        bash \
+        bison \
+        bzip2 \
+        ca-certificates \
+        ccache \
+        cmake \
+        coreutils \
+        diffutils \
+        findutils \
+        flex \
+        gawk \
+        gcc \
+        gcc-c++ \
+        gdk-pixbuf2-devel \
+        gettext-devel \
+        git \
+        glib2-devel \
+        gperf \
+        itstool \
+        libtool \
+        make \
+        meson \
+        ninja-build \
+        patch \
+        perl \
+        pkgconf-pkg-config \
+        python3 \
+        python3-packaging \
+        python3-pip \
+        python3-setuptools \
+        sed \
+        tar \
+        util-linux \
+        which \
+        xz \
+        zstd && \
+    dnf --quiet clean all -y && \
+    rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
+
+# A recent meson, matching what the other QEMU cross images pin.
+RUN /usr/bin/pip3 install meson==1.8.1
+
+# ---------------------------------------------------------------------------
+# llvm-mingw toolchain (provides clang + CRT + Windows headers for aarch64)
+# ---------------------------------------------------------------------------
+ARG LLVM_MINGW_VER=20260616
+# Pick the toolchain build matching the *host* architecture so it runs natively
+# (no emulation) -- this image builds on both x86_64 and aarch64 hosts.  Set
+# LLVM_MINGW_HOST explicitly to override the autodetection if needed.
+ARG LLVM_MINGW_HOST=
+RUN set -e; \
+    host="${LLVM_MINGW_HOST}"; \
+    if [ -z "$host" ]; then \
+        case "$(uname -m)" in \
+            x86_64)  host=ubuntu-22.04-x86_64 ;; \
+            aarch64|arm64) host=ubuntu-22.04-aarch64 ;; \
+            *) echo "unsupported host arch: $(uname -m)" >&2; exit 1 ;; \
+        esac; \
+    fi; \
+    dir="llvm-mingw-${LLVM_MINGW_VER}-ucrt-${host}"; \
+    curl -sSL \
+        "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/${dir}.tar.xz" \
+        -o /tmp/llvm-mingw.tar.xz; \
+    mkdir -p /opt; \
+    tar -C /opt -xf /tmp/llvm-mingw.tar.xz; \
+    ln -s "/opt/${dir}" /opt/llvm-mingw; \
+    rm -f /tmp/llvm-mingw.tar.xz
+
+ENV TARGET="aarch64-w64-mingw32"
+ENV PREFIX="/opt/llvm-mingw/aarch64-w64-mingw32"
+ENV PATH="/opt/llvm-mingw/bin:${PATH}"
+
+# Cross pkg-config wrapper.  It restricts lookups to the cross prefix and is
+# named after the QEMU cross-prefix, so both QEMU's configure
+# (pkg_config=${cross_prefix}pkg-config) and our own library builds pick it up
+# as the *host machine* pkg-config.  Crucially we do NOT export PKG_CONFIG_LIBDIR
+# globally: that would also redirect the *native* (build-machine) pkg-config to
+# the cross prefix and leak the Windows headers/flags of the cross glib into the
+# compilation of native build-time tools (e.g. hexagon's idef-parser).  Native
+# pkg-config therefore keeps using the system default paths (Fedora's glib).
+RUN printf '#!/bin/sh\nexport PKG_CONFIG_LIBDIR="%s/lib/pkgconfig:%s/share/pkgconfig"\nexec /usr/bin/pkg-config "$@"\n' \
+        "$PREFIX" "$PREFIX" \
+        > /opt/llvm-mingw/bin/aarch64-w64-mingw32-pkg-config && \
+    chmod +x /opt/llvm-mingw/bin/aarch64-w64-mingw32-pkg-config
+
+# ---------------------------------------------------------------------------
+# Meson cross file + build helper wrappers used by the RUN steps below.
+# ---------------------------------------------------------------------------
+RUN mkdir -p /opt/cross && printf "%s\n" \
+    "[binaries]" \
+    "c = 'aarch64-w64-mingw32-clang'" \
+    "cpp = 'aarch64-w64-mingw32-clang++'" \
+    "ar = 'aarch64-w64-mingw32-ar'" \
+    "ranlib = 'aarch64-w64-mingw32-ranlib'" \
+    "strip = 'aarch64-w64-mingw32-strip'" \
+    "windres = 'aarch64-w64-mingw32-windres'" \
+    "dlltool = 'aarch64-w64-mingw32-dlltool'" \
+    "pkg-config = 'aarch64-w64-mingw32-pkg-config'" \
+    "" \
+    "[host_machine]" \
+    "system = 'windows'" \
+    "cpu_family = 'aarch64'" \
+    "cpu = 'aarch64'" \
+    "endian = 'little'" \
+    "" \
+    "[properties]" \
+    "sys_root = '/opt/llvm-mingw/aarch64-w64-mingw32'" \
+    > /opt/cross/aarch64-w64-mingw32.meson
+
+ENV MESON_CROSS="/opt/cross/aarch64-w64-mingw32.meson"
+
+# getsrc <url> <dir>: download + extract a source tarball into /build/<dir>
+RUN printf '#!/bin/bash\nset -ex\nrm -rf "/build/$2"\nmkdir -p "/build/$2"\ncurl -sSL "$1" -o /tmp/src.tar\ntar x --strip-components=1 -C "/build/$2" -f /tmp/src.tar\nrm -f /tmp/src.tar\n' \
+        > /usr/local/bin/getsrc && chmod +x /usr/local/bin/getsrc
+
+# xmeson <extra meson args...>: configure/build/install a meson project
+RUN printf '#!/bin/bash\nset -ex\nmeson setup _b \\\n  --cross-file "$MESON_CROSS" \\\n  --prefix "$PREFIX" \\\n  --libdir lib \\\n  --buildtype release \\\n  --wrap-mode nodownload \\\n  -Ddefault_library=shared \\\n  "$@"\nmeson compile -C _b -j "$(nproc)"\nmeson install -C _b\n' \
+        > /usr/local/bin/xmeson && chmod +x /usr/local/bin/xmeson
+
+# xcmake <extra cmake args...>: configure/build/install a cmake project
+RUN printf '#!/bin/bash\nset -ex\nexport PKG_CONFIG=aarch64-w64-mingw32-pkg-config\ncmake -B _b -G Ninja \\\n  -DCMAKE_SYSTEM_NAME=Windows \\\n  -DCMAKE_SYSTEM_PROCESSOR=ARM64 \\\n  -DCMAKE_C_COMPILER=%s-gcc \\\n  -DCMAKE_CXX_COMPILER=%s-g++ \\\n  -DCMAKE_RC_COMPILER=%s-windres \\\n  -DPKG_CONFIG_EXECUTABLE=/opt/llvm-mingw/bin/aarch64-w64-mingw32-pkg-config \\\n  -DCMAKE_INSTALL_PREFIX="$PREFIX" \\\n  -DCMAKE_PREFIX_PATH="$PREFIX" \\\n  -DCMAKE_FIND_ROOT_PATH="$PREFIX" \\\n  -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \\\n  -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \\\n  -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_SHARED_LIBS=ON \\\n  "$@"\ncmake --build _b -j "$(nproc)"\ncmake --install _b\n' \
+        "$TARGET" "$TARGET" "$TARGET" \
+        > /usr/local/bin/xcmake && chmod +x /usr/local/bin/xcmake
+
+# xconf <extra configure args...>: configure/build/install an autotools project
+RUN printf '#!/bin/bash\nset -ex\nexport PKG_CONFIG=aarch64-w64-mingw32-pkg-config\n./configure --host="$TARGET" --prefix="$PREFIX" "$@"\nmake -j "$(nproc)"\nmake install\n' \
+        > /usr/local/bin/xconf && chmod +x /usr/local/bin/xconf
+
+# ===========================================================================
+# Dependency builds (ordered so each library's dependencies precede it)
+# ===========================================================================
+
+# --- zlib ------------------------------------------------------------------
+ARG ZLIB_VER=1.3.2
+RUN getsrc "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VER}.tar.gz" zlib && \
+    cd /build/zlib && xcmake -DZLIB_BUILD_EXAMPLES=OFF && \
+    rm -rf /build/zlib
+
+# --- libffi ----------------------------------------------------------------
+ARG LIBFFI_VER=3.7.1
+RUN getsrc "https://github.com/libffi/libffi/releases/download/v${LIBFFI_VER}/libffi-${LIBFFI_VER}.tar.gz" libffi && \
+    cd /build/libffi && xconf --disable-docs --disable-symvers && \
+    rm -rf /build/libffi
+
+# --- pcre2 -----------------------------------------------------------------
+ARG PCRE2_VER=10.47
+RUN getsrc "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VER}/pcre2-${PCRE2_VER}.tar.gz" pcre2 && \
+    cd /build/pcre2 && xcmake -DPCRE2_BUILD_PCRE2_8=ON -DPCRE2_BUILD_TESTS=OFF -DPCRE2_BUILD_PCRE2GREP=OFF && \
+    rm -rf /build/pcre2
+
+# --- win-iconv (provides iconv() on Windows, needed by glib/gettext) --------
+ARG WINICONV_VER=0.0.8
+RUN getsrc "https://github.com/win-iconv/win-iconv/archive/refs/tags/v${WINICONV_VER}.tar.gz" win-iconv && \
+    cd /build/win-iconv && xcmake -DBUILD_TEST=OFF && \
+    rm -rf /build/win-iconv
+
+# --- gettext (libintl runtime, consumed by glib and friends) ---------------
+ARG GETTEXT_VER=0.26
+RUN getsrc "https://ftp.gnu.org/gnu/gettext/gettext-${GETTEXT_VER}.tar.xz" gettext && \
+    cd /build/gettext && \
+    ./configure --host="$TARGET" --prefix="$PREFIX" \
+        --disable-java --disable-csharp --disable-c++ --without-emacs \
+        --disable-openmp --disable-curses --without-git --without-cvs && \
+    make -C gettext-runtime/intl -j "$(nproc)" && \
+    make -C gettext-runtime/intl install && \
+    rm -rf /build/gettext
+
+# --- glib ------------------------------------------------------------------
+ARG GLIB_VER=2.88.2
+RUN getsrc "https://download.gnome.org/sources/glib/2.88/glib-${GLIB_VER}.tar.xz" glib && \
+    cd /build/glib && \
+    xmeson -Dtests=false -Dintrospection=disabled -Dman-pages=disabled \
+           -Dnls=enabled -Dglib_debug=disabled && \
+    rm -rf /build/glib
+
+# --- pixman ----------------------------------------------------------------
+ARG PIXMAN_VER=0.46.4
+RUN getsrc "https://www.cairographics.org/releases/pixman-${PIXMAN_VER}.tar.xz" pixman && \
+    cd /build/pixman && xmeson -Dtests=disabled -Ddemos=disabled && \
+    rm -rf /build/pixman
+
+# --- libpng ----------------------------------------------------------------
+ARG LIBPNG_VER=1.6.58
+RUN getsrc "https://github.com/pnggroup/libpng/archive/refs/tags/v${LIBPNG_VER}.tar.gz" libpng && \
+    cd /build/libpng && xcmake -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_SHARED=ON -DPNG_STATIC=OFF && \
+    rm -rf /build/libpng
+
+# --- libjpeg-turbo ---------------------------------------------------------
+ARG LIBJPEG_VER=3.2.0
+RUN getsrc "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${LIBJPEG_VER}/libjpeg-turbo-${LIBJPEG_VER}.tar.gz" libjpeg && \
+    cd /build/libjpeg && xcmake -DENABLE_STATIC=OFF -DWITH_TURBOJPEG=ON && \
+    rm -rf /build/libjpeg
+
+# --- bzip2 (static libbz2.a; the shared makefile uses ELF-only linker flags) -
+ARG BZIP2_VER=1.0.8
+RUN getsrc "https://sourceware.org/pub/bzip2/bzip2-${BZIP2_VER}.tar.gz" bzip2 && \
+    cd /build/bzip2 && \
+    make CC="${TARGET}-gcc" AR="${TARGET}-ar" RANLIB="${TARGET}-ranlib" \
+        -j "$(nproc)" libbz2.a && \
+    install -d "$PREFIX/include" "$PREFIX/lib" "$PREFIX/lib/pkgconfig" && \
+    install -m644 bzlib.h "$PREFIX/include/" && \
+    install -m644 libbz2.a "$PREFIX/lib/" && \
+    printf 'prefix=%s\nexec_prefix=${prefix}\nlibdir=${prefix}/lib\nincludedir=${prefix}/include\n\nName: bzip2\nDescription: bzip2 compression library\nVersion: %s\nLibs: -L${libdir} -lbz2\nCflags: -I${includedir}\n' \
+        "$PREFIX" "$BZIP2_VER" > "$PREFIX/lib/pkgconfig/bzip2.pc" && \
+    rm -rf /build/bzip2
+
+# --- freetype (bootstrap, without harfbuzz to break the cycle) -------------
+ARG FREETYPE_VER=2.14.3
+RUN getsrc "https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VER}.tar.xz" freetype && \
+    cd /build/freetype && \
+    xmeson -Dharfbuzz=disabled -Dbrotli=disabled -Dpng=enabled -Dzlib=system && \
+    rm -rf /build/freetype
+
+# --- expat (needed by fontconfig) ------------------------------------------
+ARG EXPAT_VER=2.8.2
+ARG EXPAT_TAG=R_2_8_2
+RUN getsrc "https://github.com/libexpat/libexpat/releases/download/${EXPAT_TAG}/expat-${EXPAT_VER}.tar.xz" expat && \
+    cd /build/expat && xcmake -DEXPAT_BUILD_TESTS=OFF -DEXPAT_BUILD_EXAMPLES=OFF -DEXPAT_BUILD_TOOLS=OFF && \
+    rm -rf /build/expat
+
+# --- fontconfig ------------------------------------------------------------
+ARG FONTCONFIG_VER=2.16.0
+RUN getsrc "https://www.freedesktop.org/software/fontconfig/release/fontconfig-${FONTCONFIG_VER}.tar.xz" fontconfig && \
+    cd /build/fontconfig && \
+    xmeson -Dtests=disabled -Dtools=disabled -Ddoc=disabled -Dnls=disabled && \
+    rm -rf /build/fontconfig
+
+# --- harfbuzz --------------------------------------------------------------
+ARG HARFBUZZ_VER=14.2.1
+RUN getsrc "https://github.com/harfbuzz/harfbuzz/releases/download/${HARFBUZZ_VER}/harfbuzz-${HARFBUZZ_VER}.tar.xz" harfbuzz && \
+    cd /build/harfbuzz && \
+    xmeson -Dtests=disabled -Ddocs=disabled -Dintrospection=disabled \
+           -Dfreetype=enabled -Dglib=enabled -Dcairo=disabled && \
+    rm -rf /build/harfbuzz
+
+# --- fribidi ---------------------------------------------------------------
+ARG FRIBIDI_VER=1.0.16
+RUN getsrc "https://github.com/fribidi/fribidi/releases/download/v${FRIBIDI_VER}/fribidi-${FRIBIDI_VER}.tar.xz" fribidi && \
+    cd /build/fribidi && xmeson -Dtests=false -Ddocs=false -Dbin=false && \
+    rm -rf /build/fribidi
+
+# --- cairo -----------------------------------------------------------------
+ARG CAIRO_VER=1.18.4
+RUN getsrc "https://www.cairographics.org/releases/cairo-${CAIRO_VER}.tar.xz" cairo && \
+    cd /build/cairo && \
+    xmeson -Dtests=disabled -Dxlib=disabled -Dxcb=disabled \
+           -Dfreetype=enabled -Dfontconfig=enabled -Dpng=enabled \
+           -Dzlib=enabled -Dglib=enabled && \
+    rm -rf /build/cairo
+
+# --- pango -----------------------------------------------------------------
+ARG PANGO_VER=1.58.0
+RUN getsrc "https://download.gnome.org/sources/pango/1.58/pango-${PANGO_VER}.tar.xz" pango && \
+    cd /build/pango && \
+    xmeson -Dintrospection=disabled -Dgtk_doc=false \
+           -Dfontconfig=enabled -Dfreetype=enabled -Dcairo=enabled && \
+    rm -rf /build/pango
+
+# --- gdk-pixbuf ------------------------------------------------------------
+ARG GDKPIXBUF_VER=2.44.7
+RUN getsrc "https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-${GDKPIXBUF_VER}.tar.xz" gdk-pixbuf && \
+    cd /build/gdk-pixbuf && \
+    xmeson -Dintrospection=disabled -Dman=false -Dtests=false \
+           -Dpng=enabled -Djpeg=enabled -Dbuiltin_loaders=all && \
+    rm -rf /build/gdk-pixbuf
+
+# --- atk -------------------------------------------------------------------
+ARG ATK_VER=2.38.0
+RUN getsrc "https://download.gnome.org/sources/atk/2.38/atk-${ATK_VER}.tar.xz" atk && \
+    cd /build/atk && xmeson -Dintrospection=false -Ddocs=false && \
+    rm -rf /build/atk
+
+# --- libepoxy --------------------------------------------------------------
+ARG LIBEPOXY_VER=1.5.10
+RUN getsrc "https://github.com/anholt/libepoxy/archive/refs/tags/${LIBEPOXY_VER}.tar.gz" libepoxy && \
+    cd /build/libepoxy && xmeson -Dtests=false -Ddocs=false -Dglx=no -Dx11=false && \
+    rm -rf /build/libepoxy
+
+# When cross-compiling, the glib/gdk-pixbuf pkg-config files advertise their
+# code-generation tools inside the (Windows) cross prefix, where they cannot
+# run.  Point those paths at the native host tools, which are ordinary host ELF
+# binaries (matching the build host) and execute directly.
+RUN for t in glib-compile-resources glib-genmarshal glib-mkenums \
+             glib-compile-schemas gdbus-codegen \
+             gdk-pixbuf-csource gdk-pixbuf-pixdata gdk-pixbuf-query-loaders; do \
+        if [ -e "/usr/bin/$t" ]; then ln -sf "/usr/bin/$t" "$PREFIX/bin/$t"; fi; \
+    done
+
+# --- gtk3 ------------------------------------------------------------------
+ARG GTK3_VER=3.24.52
+RUN getsrc "https://download.gnome.org/sources/gtk/3.24/gtk-${GTK3_VER}.tar.xz" gtk3 && \
+    cd /build/gtk3 && \
+    xmeson -Dintrospection=false -Dgtk_doc=false -Dman=false -Ddemos=false \
+           -Dexamples=false -Dtests=false -Dwin32_backend=true \
+           -Dx11_backend=false -Dbroadway_backend=false && \
+    rm -rf /build/gtk3
+
+# --- gmp (for nettle/gnutls; ARM asm uses ELF-only relocations) ------------
+ARG GMP_VER=6.3.0
+RUN getsrc "https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VER}.tar.xz" gmp && \
+    cd /build/gmp && xconf --enable-shared --disable-static --disable-assembly && \
+    rm -rf /build/gmp
+
+# --- nettle (+ hogweed, for gnutls) ----------------------------------------
+ARG NETTLE_VER=3.10.2
+RUN getsrc "https://ftp.gnu.org/gnu/nettle/nettle-${NETTLE_VER}.tar.gz" nettle && \
+    cd /build/nettle && \
+    xconf --enable-shared --disable-static --disable-documentation \
+        --with-lib-path="$PREFIX/lib" --with-include-path="$PREFIX/include" && \
+    rm -rf /build/nettle
+
+# --- libtasn1 (for gnutls) -------------------------------------------------
+ARG LIBTASN1_VER=4.21.0
+RUN getsrc "https://ftp.gnu.org/gnu/libtasn1/libtasn1-${LIBTASN1_VER}.tar.gz" libtasn1 && \
+    cd /build/libtasn1 && xconf --disable-doc && \
+    rm -rf /build/libtasn1
+
+# --- gnutls (ARM accel asm uses ELF-only directives; use C implementations) -
+ARG GNUTLS_VER=3.8.13
+RUN getsrc "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-${GNUTLS_VER}.tar.xz" gnutls && \
+    cd /build/gnutls && \
+    xconf --disable-doc --disable-tests --disable-tools \
+        --disable-cxx --disable-nls --without-p11-kit --without-idn \
+        --disable-libdane --with-included-unistring \
+        --disable-hardware-acceleration && \
+    rm -rf /build/gnutls
+
+# --- libgpg-error (for libgcrypt) ------------------------------------------
+ARG LIBGPGERROR_VER=1.61
+RUN getsrc "https://gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-${LIBGPGERROR_VER}.tar.bz2" libgpg-error && \
+    cd /build/libgpg-error && \
+    xconf --disable-doc --disable-tests --enable-install-gpg-error-config && \
+    rm -rf /build/libgpg-error
+
+# --- libgcrypt -------------------------------------------------------------
+ARG LIBGCRYPT_VER=1.12.2
+RUN getsrc "https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-${LIBGCRYPT_VER}.tar.bz2" libgcrypt && \
+    cd /build/libgcrypt && \
+    xconf --disable-doc --disable-tests \
+        --with-libgpg-error-prefix="$PREFIX" && \
+    rm -rf /build/libgcrypt
+
+# --- gtk-vnc ---------------------------------------------------------------
+ARG GTKVNC_VER=1.5.0
+RUN getsrc "https://download.gnome.org/sources/gtk-vnc/1.5/gtk-vnc-${GTKVNC_VER}.tar.xz" gtk-vnc && \
+    cd /build/gtk-vnc && \
+    xmeson -Dintrospection=disabled -Dwith-coroutine=gthread \
+           -Dwith-vala=disabled -Dsasl=disabled -Dpulseaudio=disabled && \
+    rm -rf /build/gtk-vnc
+
+# --- SDL2 ------------------------------------------------------------------
+ARG SDL2_VER=2.32.10
+RUN getsrc "https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VER}/SDL2-${SDL2_VER}.tar.gz" sdl2 && \
+    cd /build/sdl2 && xcmake -DSDL_STATIC=OFF -DSDL_SHARED=ON -DSDL_TESTS=OFF && \
+    rm -rf /build/sdl2
+
+# --- SDL2_image ------------------------------------------------------------
+ARG SDL2_IMAGE_VER=2.8.12
+RUN getsrc "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VER}/SDL2_image-${SDL2_IMAGE_VER}.tar.gz" sdl2-image && \
+    cd /build/sdl2-image && \
+    xcmake -DSDL2IMAGE_SAMPLES=OFF -DSDL2IMAGE_TESTS=OFF -DSDL2IMAGE_VENDORED=OFF -DBUILD_SHARED_LIBS=ON && \
+    rm -rf /build/sdl2-image
+
+# --- curl (Windows-native Schannel TLS + zlib) -----------------------------
+ARG CURL_VER=8.21.0
+ARG CURL_TAG=curl-8_21_0
+RUN getsrc "https://github.com/curl/curl/releases/download/${CURL_TAG}/curl-${CURL_VER}.tar.xz" curl && \
+    cd /build/curl && \
+    xcmake -DCURL_USE_SCHANNEL=ON -DCURL_USE_LIBPSL=OFF -DUSE_LIBIDN2=OFF \
+           -DCURL_ZLIB=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF && \
+    rm -rf /build/curl
+
+# --- dtc / libfdt ----------------------------------------------------------
+ARG DTC_VER=1.8.1
+RUN getsrc "https://github.com/dgibson/dtc/archive/refs/tags/v${DTC_VER}.tar.gz" dtc && \
+    cd /build/dtc && \
+    xmeson -Dtools=false -Dtests=false -Dpython=disabled -Dvalgrind=disabled && \
+    rm -rf /build/dtc
+
+# ===========================================================================
+# QEMU cross-build environment
+# ===========================================================================
+
+# QEMU's configure expects ${cross_prefix}windmc to build the guest agent's
+# Windows event-log message table (qga/messages-win32.mc).  llvm-mingw ships no
+# message compiler, so provide GNU binutils' windmc under the target name -- its
+# output (message table + header) is architecture-neutral; only the subsequent
+# windres step is target specific.
+RUN dnf --quiet install -y mingw64-binutils && \
+    dnf --quiet clean all -y && \
+    ln -sf /usr/bin/x86_64-w64-mingw32-windmc \
+        /opt/llvm-mingw/bin/aarch64-w64-mingw32-windmc
+
+# glib unconditionally advertises -mms-bitfields in its pkg-config Cflags on
+# Windows, but that is an x86-only option: it is meaningless on ARM64 (clang
+# already uses the MSVC-compatible layout for the Windows ABI) and makes the
+# native host compiler choke when QEMU feeds glib's cflags to a build-time
+# tool.  Drop it from the installed .pc files.
+RUN sed -i 's/ *-mms-bitfields//g' \
+        /opt/llvm-mingw/aarch64-w64-mingw32/lib/pkgconfig/*.pc
+
+RUN mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-c++" && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-cc" && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-g++" && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-gcc" && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-clang" && \
+    ln -s /usr/bin/ccache "/usr/libexec/ccache-wrappers/${TARGET}-clang++"
+
+ENV CCACHE_WRAPPERSDIR="/usr/libexec/ccache-wrappers"
+ENV LANG="en_US.UTF-8"
+ENV MAKE="/usr/bin/make"
+ENV NINJA="/usr/bin/ninja"
+ENV PYTHON="/usr/bin/python3"
+ENV ABI="aarch64-w64-mingw32"
+ENV MESON_OPTS="--cross-file=/opt/cross/aarch64-w64-mingw32.meson"
+ENV QEMU_CONFIGURE_OPTS="--cross-prefix=aarch64-w64-mingw32-"
+ENV DEF_TARGET_LIST="aarch64-softmmu"
+
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi
