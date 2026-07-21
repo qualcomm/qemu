@@ -495,6 +495,7 @@ static void gic_icc_apr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     GICv5Domain domain = gicv5_logical_domain(env);
     value &= 0xffffffff;
     env->gicv5_cpuif.icc_apr[domain] = value;
+    gicv5_update_irq_fiq(env);
 }
 
 static uint64_t gic_icc_apr_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -633,7 +634,8 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
     switch (type) {
     case GICV5_PPI:
     {
-        uint32_t ppireg, ppibit;
+        uint32_t ppireg;
+        uint64_t ppibit;
 
         assert(id < GICV5_NUM_PPIS);
         ppireg = id / 64;
