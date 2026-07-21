@@ -247,10 +247,149 @@ class QemuBaseTest(unittest.TestCase):
         self.log.removeHandler(self._log_fh)
         self._log_fh.close()
 
+        # By now this test's VMs/helpers have been shut down. Anything still
+        # alive is a leak attributable to this specific test and a likely
+        # cause of a spurious meson TIMEOUT; report it (without force-exiting,
+        # as further tests may still run).
+        try:
+            self._diagnose_pending_state(self.id())
+        except Exception as ex:  # pylint: disable=broad-except
+            print(f"hang diagnostics failed: {ex!r}", file=sys.stderr)
+
+    @staticmethod
+    def _diagnose_pending_state(context, arm_watchdog=False):
+        '''
+        Diagnostic for the "complete TAP output but meson reports TIMEOUT"
+        problem.
+
+        meson's TAP harness only considers a test finished once the process
+        has exited *and* its stdout/stderr pipes have reached EOF, all within
+        the test timeout (see mesonbuild/mtest.py: it awaits p.wait() together
+        with the stdout/stderr reader tasks). Once a test's tearDown() has run,
+        or once all tests are complete, there should be no live non-daemon
+        threads and no surviving child processes. If any remain, they are what
+        keeps the interpreter alive (a stuck non-daemon thread blocks CPython's
+        shutdown) or keeps meson's output pipe open (a child process still
+        holding an inherited fd 1/2), which meson counts as a timeout even
+        though all TAP has already been written.
+
+        @context: a label (e.g. a test id, or "post-run") identifying when
+                  this check ran, so a leak can be attributed to a specific
+                  test rather than only the module as a whole.
+        @arm_watchdog: when True (only appropriate once all tests are done),
+                  and a non-daemon thread is still running, arm a faulthandler
+                  watchdog to dump every thread's stack and force-exit, so an
+                  opaque timeout becomes an actionable backtrace. Between
+                  tests this must stay False -- other tests still need to run.
+
+        Anything suspicious is reported to stderr, which meson captures
+        separately from the TAP stream on stdout.
+        '''
+        import threading
+
+        out = sys.stderr
+
+        def fd_target(path):
+            try:
+                return os.readlink(path)
+            except OSError:
+                return None
+
+        live_threads = [t for t in threading.enumerate()
+                        if t is not threading.main_thread() and t.is_alive()]
+        nondaemon = [t for t in live_threads if not t.daemon]
+
+        # Identify our stdout/stderr so we can spot any child still holding
+        # them (a held pipe never reaches EOF -> meson waits the full timeout).
+        my_stdout = fd_target("/proc/self/fd/1")
+        my_stderr = fd_target("/proc/self/fd/2")
+
+        children = []
+        procdir = "/proc"
+        if os.path.isdir(procdir):
+            mypid = os.getpid()
+            for entry in os.listdir(procdir):
+                if not entry.isdigit():
+                    continue
+                try:
+                    with open(f"{procdir}/{entry}/stat", "rb") as f:
+                        stat = f.read().decode("latin1")
+                    # Fields after the (possibly parenthesised) comm field:
+                    # state ppid ...; rsplit(')') to survive ')' in comm.
+                    ppid = int(stat.rsplit(")", 1)[1].split()[1])
+                except (OSError, ValueError, IndexError):
+                    continue
+                if ppid != mypid:
+                    continue
+                try:
+                    with open(f"{procdir}/{entry}/cmdline", "rb") as f:
+                        cmd = f.read().replace(b"\0", b" ").decode(
+                            errors="replace").strip()
+                except OSError:
+                    cmd = ""
+                holds = []
+                fddir = f"{procdir}/{entry}/fd"
+                try:
+                    for fd in os.listdir(fddir):
+                        tgt = fd_target(f"{fddir}/{fd}")
+                        if tgt is not None and tgt == my_stdout:
+                            holds.append(f"our-stdout(fd={fd})")
+                        elif tgt is not None and tgt == my_stderr:
+                            holds.append(f"our-stderr(fd={fd})")
+                except OSError:
+                    pass
+                children.append((int(entry), cmd or "?", holds))
+
+        if not live_threads and not children:
+            return
+
+        print(f"\n=== qemu-test hang diagnostics [{context}] ===", file=out)
+        print("Nothing should be left running at this point. The items below "
+              "can delay process exit or keep meson's output pipe open, which "
+              "meson reports as a TIMEOUT even once all TAP has been written.",
+              file=out)
+
+        if live_threads:
+            print(f"Live threads besides main: {len(live_threads)} "
+                  f"({len(nondaemon)} non-daemon)", file=out)
+            for t in live_threads:
+                print(f"  - name={t.name!r} daemon={t.daemon} "
+                      f"ident={t.ident}", file=out)
+
+        if children:
+            print(f"Surviving child processes: {len(children)}", file=out)
+            for pid, cmd, holds in children:
+                extra = (" [" + ", ".join(holds) + "]") if holds else ""
+                print(f"  - pid={pid}{extra} cmd={cmd!r}", file=out)
+
+        out.flush()
+
+        # A stuck non-daemon thread blocks interpreter shutdown outright: the
+        # process never exits and meson waits the full timeout. Dump all
+        # thread stacks after a short grace period and force-exit. Only do
+        # this once all tests are done -- never between tests.
+        if arm_watchdog and nondaemon:
+            import faulthandler
+            try:
+                secs = int(os.environ.get("QEMU_TEST_HANG_TIMEOUT", "15"))
+            except ValueError:
+                secs = 15
+            print(f"Non-daemon thread(s) still alive; arming faulthandler "
+                  f"watchdog ({secs}s) to dump stacks and force-exit.",
+                  file=out)
+            out.flush()
+            faulthandler.dump_traceback_later(secs, exit=True)
+
     @staticmethod
     def main():
+        import faulthandler
+
         warnings.simplefilter("default")
         os.environ["PYTHONWARNINGS"] = "default"
+
+        # Dump a traceback on fatal signals (e.g. if meson SIGKILLs us on
+        # timeout after a preceding SIGTERM) to aid hang diagnosis.
+        faulthandler.enable()
 
         test_module = os.path.basename(sys.argv[0])[:-3]
 
@@ -270,6 +409,16 @@ class QemuBaseTest(unittest.TestCase):
                 if hasattr(test, 'console_log_name'):
                     print(' %s' % test.console_log_name, file=sys.stderr)
                 failed[test.id()] = True
+
+        # All TAP output has now been emitted. If the process nonetheless
+        # fails to exit promptly, meson will report a spurious TIMEOUT; try
+        # to pinpoint why before handing control to sys.exit().
+        try:
+            QemuBaseTest._diagnose_pending_state("post-run",
+                                                 arm_watchdog=True)
+        except Exception as ex:  # pylint: disable=broad-except
+            print(f"hang diagnostics failed: {ex!r}", file=sys.stderr)
+
         sys.exit(not res.result.wasSuccessful())
 
 
