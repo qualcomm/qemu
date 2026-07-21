@@ -117,8 +117,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         """))
 
     f.write(hex_common.code_fmt(f"""\
-        {hex_common.semdict[tag]}
-        COUNT_HELPER({tag});
+        {hex_common.semdict[tag]};
     """))
 
     ## Return the scalar result

@@ -62,41 +62,6 @@
 #define SF_BIAS        127
 #define SF_MANTBITS    23
 
-#if COUNT_HEX_HELPERS
-#include "opcodes.h"
-
-typedef struct {
-    int count;
-    const char *tag;
-} HelperCount;
-
-HelperCount helper_counts[] = {
-#define OPCODE(TAG)    { 0, #TAG }
-#include "opcodes_def_generated.h.inc"
-#undef OPCODE
-    { 0, NULL }
-};
-
-#define COUNT_HELPER(TAG) \
-    do { \
-        helper_counts[(TAG)].count++; \
-    } while (0)
-
-void print_helper_counts(void)
-{
-    HelperCount *p;
-
-    printf("HELPER COUNTS\n");
-    for (p = helper_counts; p->tag; p++) {
-        if (p->count) {
-            printf("\t%d\t\t%s\n", p->count, p->tag);
-        }
-    }
-}
-#else
-#define COUNT_HELPER(TAG)              /* Nothing */
-#endif
-
 /* Exceptions processing helpers */
 G_NORETURN
 void do_raise_exception(CPUHexagonState *env, uint32_t exception,

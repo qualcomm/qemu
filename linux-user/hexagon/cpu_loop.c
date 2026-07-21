@@ -46,11 +46,6 @@ void cpu_loop(CPUHexagonState *env)
         case HEX_EVENT_TRAP0:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;
-#if COUNT_HEX_HELPERS
-            if (syscallnum == TARGET_NR_exit_group) {
-                print_helper_counts();
-            }
-#endif
             ret = do_syscall(env,
                              syscallnum,
                              env->gpr[0],

@@ -18,12 +18,4 @@
 #ifndef HEXAGON_INTERNAL_HELPERS_H
 #define HEXAGON_INTERNAL_HELPERS_H
 
-/*
- * Change COUNT_HEX_HELPERS to 1 to count how many times each helper
- * is called.  This is useful to figure out which helpers would benefit
- * from writing an fWRAP macro.
- */
-#define COUNT_HEX_HELPERS 0
-
-
 #endif /* HEXAGON_INTERNAL_HELPERS_H */

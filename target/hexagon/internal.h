@@ -29,13 +29,6 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 int hexagon_hvx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n);
 int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 
-/*
- * Change COUNT_HEX_HELPERS to 1 to count how many times each helper
- * is called.  This is useful to figure out which helpers would benefit
- * from writing an fWRAP macro.
- */
-#define COUNT_HEX_HELPERS 0
-
 void G_NORETURN do_raise_exception(CPUHexagonState *env,
         uint32_t exception,
         target_ulong PC,
@@ -48,10 +41,6 @@ extern void hexagon_dump(CPUHexagonState *env, FILE *f, int flags);
 extern void hexagon_debug_vreg(CPUHexagonState *env, int regnum);
 extern void hexagon_debug_qreg(CPUHexagonState *env, int regnum);
 extern void hexagon_debug(CPUHexagonState *env);
-
-#if COUNT_HEX_HELPERS
-extern void print_helper_counts(void);
-#endif
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 extern const char * const hexagon_sregnames[];
