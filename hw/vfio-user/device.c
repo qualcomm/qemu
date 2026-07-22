@@ -79,9 +79,18 @@ vfio_user_device_io_device_feature(VFIODevice *vbasedev,
                                    struct vfio_device_feature *feature)
 {
     g_autofree VFIOUserDeviceFeature *msgp = NULL;
-    int size = sizeof(VFIOUserHdr) + feature->argsz;
     VFIOUserProxy *proxy = vbasedev->proxy;
     Error *local_err = NULL;
+    int size;
+
+    if (__builtin_add_overflow(feature->argsz, sizeof(VFIOUserHdr), &size)) {
+        error_printf("vfio_user_device_io_device_feature argsz too large\n");
+        return -E2BIG;
+    }
+    if (size > proxy->max_xfer_size) {
+        error_printf("vfio_user_device_io_device_feature argsz too large\n");
+        return -E2BIG;
+    }
 
     msgp = g_malloc0(size);
 
@@ -128,12 +137,25 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
         error_printf("vfio_user_get_region_info argsz too small\n");
         return -E2BIG;
     }
+
+    /*
+     * Ensure that size doesn't overflow, otherwise we'll allocate a much
+     * smaller buffer than we need.
+     */
+    if (__builtin_add_overflow(info->argsz, sizeof(VFIOUserHdr), &size)) {
+        error_printf("vfio_user_get_region_info argsz too large\n");
+        return -E2BIG;
+    }
+    if (size > proxy->max_xfer_size) {
+        error_printf("vfio_user_get_region_info argsz too large\n");
+        return -E2BIG;
+    }
+
     if (fds != NULL && fds->send_fds != 0) {
         error_printf("vfio_user_get_region_info can't send FDs\n");
         return -EINVAL;
     }
 
-    size = info->argsz + sizeof(VFIOUserHdr);
     msgp = g_malloc0(size);
 
     vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_GET_REGION_INFO,
@@ -151,6 +173,21 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
         return -msgp->hdr.error_reply;
     }
     trace_vfio_user_get_region_info(msgp->index, msgp->flags, msgp->size);
+
+    if (msgp->argsz < sizeof(*info)) {
+        error_printf("vfio_user_get_region_info reply argsz too small\n");
+        return -EINVAL;
+    }
+
+    /*
+     * The server can respond with a larger argsz in the reply to request a
+     * larger buffer on the next iteration via vfio_device_get_region_info().
+     * Reject values that would trigger an oversized realloc.
+     */
+    if (msgp->argsz > proxy->max_xfer_size) {
+        error_printf("vfio_user_get_region_info reply argsz too large\n");
+        return -E2BIG;
+    }
 
     memcpy(info, &msgp->argsz, info->argsz);
 
@@ -186,7 +223,8 @@ static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
 
     /* cap_offset in valid area */
     if ((info->flags & VFIO_REGION_INFO_FLAG_CAPS) &&
-        (info->cap_offset < sizeof(*info) || info->cap_offset > info->argsz)) {
+        (info->cap_offset < sizeof(*info)
+         || info->cap_offset + sizeof(struct vfio_info_cap_header) > info->argsz)) {
         return -EINVAL;
     }
 
@@ -255,7 +293,15 @@ static int vfio_user_device_io_set_irqs(VFIODevice *vbasedev,
      * Handle simple case
      */
     if ((irq->flags & VFIO_IRQ_SET_DATA_EVENTFD) == 0) {
-        size = sizeof(VFIOUserHdr) + irq->argsz;
+        if (__builtin_add_overflow(irq->argsz, sizeof(VFIOUserHdr), &size)) {
+            error_printf("vfio_user_set_irqs argsz too large\n");
+            return -E2BIG;
+        }
+        if (size > proxy->max_xfer_size) {
+            error_printf("vfio_user_device_io_set_irqs argsz too large\n");
+            return -E2BIG;
+        }
+
         msgp = g_malloc0(size);
 
         vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_SET_IRQS, size, 0);
