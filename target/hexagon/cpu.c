@@ -40,7 +40,6 @@
 #include "exec/target_page.h"
 #endif
 #include "opcodes.h"
-#include "coproc.h"
 #include "pmu.h"
 
 #define INVALID_REG_VAL (0xababababULL)
@@ -70,7 +69,6 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_BOOL("count-gcycle-xt", HexagonCPU, count_gcycle_xt, false),
     DEFINE_PROP_BOOL("sched-limit", HexagonCPU, sched_limit, false),
     DEFINE_PROP_STRING("usefs", HexagonCPU, usefs),
-    DEFINE_PROP_STRING("coproc", HexagonCPU, coproc_path),
     DEFINE_PROP_STRING("cmdline", HexagonCPU, cmdline),
     DEFINE_PROP_BOOL("cacheop-exceptions", HexagonCPU, cacheop_exceptions,
                      false),
@@ -80,8 +78,6 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("vtcm-size-kb", HexagonCPU, vtcm_size_kb, 0),
 
     DEFINE_PROP_STRING("dump-json-reg-file", HexagonCPU, dump_json_file),
-    DEFINE_PROP_UINT32("num-coproc-instance", HexagonCPU, num_coproc_instance,
-                       0),
     DEFINE_PROP_UINT32("subsystem-id", HexagonCPU, subsystem_id, 0),
     DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
                      TYPE_L2VIC_INTERFACE, L2VicInterface *),
@@ -802,6 +798,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS *
                                       sizeof(*env->pmu.g_events));
         env->g_dir_list = g_malloc0(sizeof(GList *));
+
     } else {
         CPUState *cpu0 = qemu_get_cpu(0);
         CPUHexagonState *env0 = cpu_env(cpu0);

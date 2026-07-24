@@ -6,7 +6,6 @@
 /keycodemapdb
 /libvfio-user
 /slirp
-/rpclib
 /anyhow-*
 /arbitrary-int-*
 /attrs-*

@@ -98,35 +98,18 @@ immediately exits with or without an error message), you can use a [dependency
 walker](https://github.com/lucasg/Dependencies) to identify which dependency
 couldn't be resolved properly.
 
-## Coprocessor plugin
+## HMX (Hexagon Matrix Extensions)
 
-Some Hexagon DSP configurations utilize a separate coprocessor plugin.
-The coprocessor plugin provides emulation support for additional
-instructions that are not a part of the Hexagon core.
+HMX (Hexagon Matrix Extensions) provides hardware acceleration for matrix
+operations and is natively implemented in QEMU. HMX instructions are
+available on Hexagon v75 and later CPU models when using machines that
+support coprocessor2 (such as `sim_coproc`).
 
-QEMU will look for the coprocessor executable in the following order:
+No external plugin or additional configuration is required for HMX support.
+The implementation is fully integrated into QEMU and provides:
 
-1. **If `-cpu any,coproc=<path>` is specified**: QEMU will look for the
-   coprocessor executable (`coproc_rpc_remote` on Linux/macOS or
-   `coproc_rpc_remote.exe` on Windows) in the directory specified by `<path>`.
-
-2. **If no `-cpu coproc=<path>` option is provided**: QEMU will automatically
-   look for the coprocessor executable in the same directory as the QEMU
-   executable itself.
-
-For example:
-- With explicit path: `-cpu any,coproc=/path/to/coproc/dir` will look for
-  `/path/to/coproc/dir/coproc_rpc_remote`
-- Without explicit path: If QEMU is at `/usr/bin/qemu-system-hexagon`, it
-  will look for `/usr/bin/coproc_rpc_remote`
-
-Alternatively, you can choose a machine that does not include a coprocessor.
-
-### Coprocessor support platforms
-
-The coprocessor plugin is supported on the following platforms:
-
-- Linux x86_64
-- macOS aarch64
-- Windows x86_64
-- Windows aarch64
+- Matrix multiply operations (FXP and FP modes)
+- Weight loading from VTCM
+- Accumulator management
+- Convert and store operations
+- Support for various data types (int8, fp16, f8)

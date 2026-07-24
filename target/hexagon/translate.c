@@ -82,7 +82,6 @@ TCGv_i32 hex_pmu_hvx_packets;
 TCGv_i32 hex_exec_ctr_pkt;
 TCGv_i32 hex_exec_ctr_insn;
 TCGv_i32 hex_exec_ctr_hvx;
-TCGv_i32 hex_exec_ctr_hmx;
 TCGv_i32 hex_exec_ctr_tb;
 TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -196,7 +195,6 @@ static void gen_exec_counters(DisasContext *ctx)
     tcg_gen_addi_tl(hex_exec_ctr_pkt, hex_exec_ctr_pkt, ctx->num_packets);
     tcg_gen_addi_tl(hex_exec_ctr_insn, hex_exec_ctr_insn, ctx->num_insns);
     tcg_gen_addi_tl(hex_exec_ctr_hvx, hex_exec_ctr_hvx, ctx->num_hvx_insns);
-    tcg_gen_addi_tl(hex_exec_ctr_hmx, hex_exec_ctr_hmx, ctx->num_hmx_insns);
 
     /*
      * Increment cycle count in order to model PCYCLE (global sreg)
@@ -1835,8 +1833,6 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, exec_ctr_insn), "exec_ctr_insn");
     hex_exec_ctr_hvx = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, exec_ctr_hvx), "exec_ctr_hvx");
-    hex_exec_ctr_hmx = tcg_global_mem_new_i32(tcg_env,
-            offsetof(CPUHexagonState, exec_ctr_hmx), "exec_ctr_hmx");
     hex_exec_ctr_tb = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, exec_ctr_tb), "exec_ctr_tb");
 

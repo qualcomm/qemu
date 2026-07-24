@@ -31,8 +31,6 @@ DEF_HELPER_FLAGS_4(vacsh_pred, TCG_CALL_NO_RWG_SE, s32, env, s64, s64, s64)
 DEF_HELPER_FLAGS_2(cabacdecbin_val, TCG_CALL_NO_RWG_SE, s64, s64, s64)
 DEF_HELPER_FLAGS_2(cabacdecbin_pred, TCG_CALL_NO_RWG_SE, s32, s64, s64)
 
-DEF_HELPER_1(commit_coproc, void, env)
-
 DEF_HELPER_5(check_vtcm_memcpy, void, env, i32, i32, i32, i32)
 
 /* Floating point */

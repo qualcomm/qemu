@@ -71,7 +71,7 @@ hexagon_ss.add(semantics_generated)
 #     printinsn_generated.h.inc
 #     op_attribs_generated.h.inc
 #     opcodes_def_generated.h.inc
-#     coproc_opcodes_generated.h.inc
+#     hmx_opcodes_generated.h.inc
 #
 tcg_func_table_generated = custom_target(
     'tcg_func_table_generated.c.inc',
@@ -102,7 +102,7 @@ hexagon_ss.add(op_attribs_generated)
 
 opcodes_def_generated = custom_target(
     'opcodes_def_generated.h.inc',
-    output: ['coproc_opcodes_generated.h.inc', 'opcodes_def_generated.h.inc'],
+    output: ['hmx_opcodes_generated.h.inc', 'opcodes_def_generated.h.inc'],
     depends: [semantics_generated],
     depend_files: [hex_common_py],
     command: [python, files('gen_opcodes_def.py'), semantics_generated,
@@ -461,52 +461,6 @@ analyze_funcs_generated = custom_target(
     command: [python, files('gen_analyze_funcs.py'), helper_in, '@OUTPUT@'],
 )
 hexagon_ss.add(analyze_funcs_generated)
-
-cmake = import('cmake')
-
-rpclib_cmake_opts = cmake.subproject_options()
-rpclib_cmake_opts.append_compile_args(
-  'cpp', '-Wno-unused-but-set-variable', '-Wno-unused-variable',
-  '-Wno-unused-function', '-std=gnu++17'
-)
-
-if host_machine.system() == 'linux' or (host_machine.system() == 'windows' and host_machine.cpu_family() != 'aarch64')
-  rpclib_cmake_opts.append_compile_args(
-    'cpp', '-Wno-class-memaccess'
-  )
-endif
-
-if host_machine.system() == 'windows'
-  rpclib_cmake_opts.append_compile_args(
-    'cpp', '-DWINVER=0x0A00', '-D_WIN32_WINNT=0x0A00'
-  )
-endif
-
-rpclib_proj = cmake.subproject('rpclib', options:rpclib_cmake_opts)
-rpclib_dep = rpclib_proj.dependency('rpc')
-
-coproc_lib = static_library(
-  'coproc',
-  files('coproc.h', 'coproc.cpp', 'coproc_trace.c'),
-  cpp_args: '-std=c++20',
-  include_directories : [
-    include_directories('../../include'),
-  ],
-  dependencies : [ rpclib_dep, glib ],
-  sources: [ genh, opcodes_def_generated ],
-)
-
-coproc_link_args = [ qemu_ldflags ]
-if 'CONFIG_WIN32' in config_host or host_os == 'windows'
-  coproc_link_args += [ '-static-libstdc++', '-static-libgcc' ]
-endif
-
-coproc_dep = declare_dependency(
-  link_with: coproc_lib,
-  link_args: coproc_link_args
-)
-
-hexagon_ss.add(coproc_dep)
 
 if 'CONFIG_WIN32' in config_host or host_os == 'windows'
   install_data(meson.project_source_root() / 'quic/install_win_deps.ps1',

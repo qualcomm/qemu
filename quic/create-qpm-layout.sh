@@ -16,9 +16,7 @@ if test -z "${BUILD_DIR}"; then
 fi
 
 mkdir -p "${BUILD_DIR}"/"${QEMU_DIR}"/bin
-mkdir -p "${BUILD_DIR}"/"${COPROC_DIR}"
 
 mv "${BUILD_DIR}"/qemu-system-hexagon "${BUILD_DIR}"/"${QEMU_DIR}"/bin
-mv "${BUILD_DIR}"/coproc_rpc_remote "${BUILD_DIR}"/"${COPROC_DIR}"
 
 ln -s "${QEMU_DIR}"/bin/qemu-system-hexagon "${BUILD_DIR}"

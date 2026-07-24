@@ -3,9 +3,6 @@
 # Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-: "${QUIC_COPROC_JOB:=}"
-: "${QUIC_COPROC_REF:=}"
-: "${CI_COMMIT_TAG:=}"
 
 set -euxo pipefail
 
@@ -16,13 +13,5 @@ mkdir -p "${QUIC_BUILD_DIR_ABS}"
     ./quic/build.sh build
     ./quic/build.sh install
 
-    if [ -n "${QUIC_COPROC_JOB}" ] && [ -n "${QUIC_COPROC_REF}" ]; then
-        ./quic/download-coproc-gitlab.sh -j "${CI_JOB_TOKEN}" \
-            "${QUIC_COPROC_JOB}" "${QUIC_COPROC_REF}"
-
-        ./quic/install-coproc.sh -d "${PWD}"
-    fi
-
-    ./quic/create-tarball.sh -p "${CI_JOB_NAME%-tag}" \
-        -v "${CI_COMMIT_TAG#qemu-hexagon-}"
+    ./quic/create-tarball.sh
 } 2>&1 | tee "${QUIC_BUILD_LOG}"

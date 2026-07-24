@@ -154,14 +154,6 @@ DEF_ATTRIB(VFETCH, "memory fetch op to L2 for a single vector", "", "")
 
 DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
 
-DEF_ATTRIB(COPROC, "", "", "")
-DEF_ATTRIB(COPROC_ACC, "", "", "")
-DEF_ATTRIB(COPROC_CVT, "", "", "")
-DEF_ATTRIB(COPROC_POLY, "", "", "")
-
-DEF_ATTRIB(COPROC_CU_SCALAR, "", "", "")
-
-DEF_ATTRIB(COPROC_FLT, "", "", "")
 DEF_ATTRIB(HVX_FLT, "This a floating point HVX instruction.", "", "")
 DEF_ATTRIB(XQFLOAT, "This a extended qfloat instruction.", "", "")
 
@@ -169,8 +161,6 @@ DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "This instruction allocates in all VTCM schedule
 DEF_ATTRIB(XUMINOR, "XU minor SMTable instruction", "", "")
 
 DEF_ATTRIB(SYNC_MARKER, "This instruction needs a sync marker.", "", "")
-DEF_ATTRIB(COPROC_BLOCK_ALIGN, "", "", "")
-DEF_ATTRIB(COPROC_128B_ALIGN, "", "", "")
 
 
 /* Change-of-flow attributes */

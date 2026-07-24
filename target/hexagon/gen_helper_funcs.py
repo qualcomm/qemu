@@ -22,10 +22,6 @@ import re
 import string
 import hex_common
 
-# QUIC specific
-import quic_coproc
-# end-QUIC specific
-
 def gen_decl_insn(f, slot):
     f.write(hex_common.code_fmt(f"""\
         Insn tmp_insn = {{ .slot = {slot} }};\n
@@ -103,13 +99,6 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         f.write(hex_common.code_fmt(f"""\
             uint32_t slot = slotval >> 1;
         """))
-
-    # QUIC specific
-    if quic_coproc.handle_coproc(tag, regs, f):
-        f.write("}\n\n")
-        ## End of the helper definition
-        return
-    # end-QUIC specific
 
     if "A_FPOP" in hex_common.attribdict[tag]:
         f.write(hex_common.code_fmt(f"""\

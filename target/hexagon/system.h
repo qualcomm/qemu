@@ -77,8 +77,6 @@ void mem_dmalink_store(thread_t * thread, size4u_t vaddr, int width,
     size8u_t data, int slot);
 void register_coproc_ldst_exception(thread_t * thread, int slot,
     size4u_t badva);
-int check_coproc_page_cross(thread_t* thread, vaddr_t base,
-    int length, int page_size);
 
 #define TLB_NO_OVERLAP -2
 

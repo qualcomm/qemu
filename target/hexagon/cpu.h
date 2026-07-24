@@ -461,12 +461,10 @@ struct ArchCPU {
     bool sched_limit;
     bool cacheop_exceptions;
     gchar *usefs;
-    gchar *coproc_path;
     gchar *cmdline;
     L2VicInterface *l2vic;
     hwaddr vtcm_base_addr;
     uint32_t vtcm_size_kb;
-    uint32_t num_coproc_instance;
     uint32_t subsystem_id;
 #endif
     bool hvx_bfloat;

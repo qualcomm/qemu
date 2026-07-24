@@ -79,7 +79,6 @@ tar --directory="${PWD}" \
     --exclude=".gitlab" \
     --exclude="quic" \
     --exclude="quic-gitlab-ci.d" \
-    --exclude="coproc_rpc_remote*" \
     .
 
 tar --directory="${INSTALL_DIR}" \

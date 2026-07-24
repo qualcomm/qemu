@@ -55,7 +55,6 @@
 #endif
 #include "mmvec/macros.h"
 #include "translate.h"
-#include "coproc.h"
 #include "trace.h"
 #include "genptr.h"
 
@@ -2438,14 +2437,6 @@ uint32_t HELPER(read_pcyclehi)(CPUHexagonState *env)
 #endif
 }
 
-void HELPER(commit_coproc)(CPUHexagonState *env)
-{
-    CoprocArgs args = {0};
-
-    args.opcode = COPROC_COMMIT;
-    coproc(&args);
-}
-
 void HELPER(check_vtcm_memcpy)(CPUHexagonState *env, uint32_t dst, uint32_t src,
                                uint32_t cp_chunks, uint32_t slot)
 {
@@ -2468,18 +2459,6 @@ void HELPER(check_vtcm_memcpy)(CPUHexagonState *env, uint32_t dst, uint32_t src,
 #define thread env
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")
-
-#ifdef CONFIG_USER_ONLY
-/*
- * The external coproc in user mode has no page table
- */
-static G_GNUC_UNUSED bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
-                               MMUAccessType access_type,
-                               hwaddr *PA, int *prot, uint64_t *size,
-                               int32_t *excp, int mmu_idx) {
-    return true;
-}
-#endif
 
 uint32_t hexagon_creg_read_debug(CPUHexagonState *env, uint32_t reg)
 {
