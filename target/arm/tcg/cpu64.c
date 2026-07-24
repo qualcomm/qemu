@@ -1446,20 +1446,30 @@ void aarch64_max_tcg_initfn(Object *obj)
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
-    { .name = "cortex-a35",         .initfn = aarch64_a35_initfn },
-    { .name = "cortex-a55",         .initfn = aarch64_a55_initfn },
-    { .name = "cortex-a72",         .initfn = aarch64_a72_initfn },
-    { .name = "cortex-a76",         .initfn = aarch64_a76_initfn },
+    { .name = "cortex-a35",         .initfn = aarch64_a35_initfn,
+      .is_available = target_aarch64 },
+    { .name = "cortex-a55",         .initfn = aarch64_a55_initfn,
+      .is_available = target_aarch64 },
+    { .name = "cortex-a72",         .initfn = aarch64_a72_initfn,
+      .is_available = target_aarch64 },
+    { .name = "cortex-a76",         .initfn = aarch64_a76_initfn,
+      .is_available = target_aarch64 },
     /*
      * The Cortex-A78AE differs slightly from the plain Cortex-A78. We don't
      * currently model the latter.
      */
-    { .name = "cortex-a78ae",       .initfn = aarch64_a78ae_initfn },
-    { .name = "cortex-a710",        .initfn = aarch64_a710_initfn },
-    { .name = "a64fx",              .initfn = aarch64_a64fx_initfn },
-    { .name = "neoverse-n1",        .initfn = aarch64_neoverse_n1_initfn },
-    { .name = "neoverse-v1",        .initfn = aarch64_neoverse_v1_initfn },
-    { .name = "neoverse-n2",        .initfn = aarch64_neoverse_n2_initfn },
+    { .name = "cortex-a78ae",       .initfn = aarch64_a78ae_initfn,
+      .is_available = target_aarch64 },
+    { .name = "cortex-a710",        .initfn = aarch64_a710_initfn,
+      .is_available = target_aarch64 },
+    { .name = "a64fx",              .initfn = aarch64_a64fx_initfn,
+      .is_available = target_aarch64 },
+    { .name = "neoverse-n1",        .initfn = aarch64_neoverse_n1_initfn,
+      .is_available = target_aarch64 },
+    { .name = "neoverse-v1",        .initfn = aarch64_neoverse_v1_initfn,
+      .is_available = target_aarch64 },
+    { .name = "neoverse-n2",        .initfn = aarch64_neoverse_n2_initfn,
+      .is_available = target_aarch64 },
 };
 
 static void aarch64_cpu_register_types(void)

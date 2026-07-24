@@ -819,10 +819,13 @@ void aarch64_host_initfn(Object *obj)
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
-    { .name = "cortex-a57",         .initfn = aarch64_a57_initfn },
-    { .name = "cortex-a53",         .initfn = aarch64_a53_initfn },
+    { .name = "cortex-a57",         .initfn = aarch64_a57_initfn,
+      .is_available = target_aarch64 },
+    { .name = "cortex-a53",         .initfn = aarch64_a53_initfn,
+      .is_available = target_aarch64 },
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF) || defined(CONFIG_WHPX)
-    { .name = "host",               .initfn = aarch64_host_initfn },
+    { .name = "host",               .initfn = aarch64_host_initfn,
+      .is_available = target_aarch64 },
 #endif
 };
 
