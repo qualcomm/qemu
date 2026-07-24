@@ -22,4 +22,4 @@
 #include "mappings.idef"
 #include "semantics_auto.idef"
 #include "allext.idef"
-#include "coproc/ext.idef"
+#include "hmx/ext.idef"

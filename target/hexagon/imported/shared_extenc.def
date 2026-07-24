@@ -16,5 +16,5 @@
  */
 
 #define EXTNAME coproc
-#include "coproc/encode_ext.def"
+#include "hmx/encode_ext.def"
 #undef EXTNAME
