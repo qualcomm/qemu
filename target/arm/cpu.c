@@ -2668,6 +2668,9 @@ static void cpu_register_class_init(ObjectClass *oc, const void *data)
     if (acc->info->deprecation_note) {
         cc->deprecation_note = acc->info->deprecation_note;
     }
+    if (acc->info->is_available) {
+        TARGET_SPECIFIC_CLASS(oc)->is_available = acc->info->is_available;
+    }
 }
 
 void arm_cpu_register(const ARMCPUInfo *info)
@@ -2678,6 +2681,9 @@ void arm_cpu_register(const ARMCPUInfo *info)
         .class_init = info->class_init ?: cpu_register_class_init,
         .class_data = info,
     };
+    if (info->is_available) {
+        type_info.interfaces = type_target_specific;
+    }
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
     type_register_static(&type_info);
