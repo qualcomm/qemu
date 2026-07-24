@@ -30,9 +30,6 @@ typedef struct TuringQdsp6PllState {
     uint32_t pll_config_ctl;
     uint32_t pll_config_ctl_u;
     uint32_t pll_config_ctl_u1;
-    uint32_t pll_test_ctl;
-    uint32_t pll_test_ctl_u;
-    uint32_t pll_test_ctl_u1;
     uint32_t pll_ssc;
     uint32_t fusa_status_register;
 } TuringQdsp6PllState;

@@ -28,9 +28,6 @@
 #define PLL_CONFIG_CTL 0x20
 #define PLL_CONFIG_CTL_U 0x24
 #define PLL_CONFIG_CTL_U1 0x28
-#define PLL_TEST_CTL 0x2C
-#define PLL_TEST_CTL_U 0x30
-#define PLL_TEST_CTL_U1 0x34
 #define PLL_SSC 0x38
 #define FUSA_STATUS_REGISTER 0x80
 
@@ -100,15 +97,6 @@ static uint64_t turing_qdsp6ss_pll_read(void *opaque, hwaddr addr,
         break;
     case PLL_CONFIG_CTL_U1:
         value = s->pll_config_ctl_u1;
-        break;
-    case PLL_TEST_CTL:
-        value = s->pll_test_ctl;
-        break;
-    case PLL_TEST_CTL_U:
-        value = s->pll_test_ctl_u;
-        break;
-    case PLL_TEST_CTL_U1:
-        value = s->pll_test_ctl_u1;
         break;
     case PLL_SSC:
         value = s->pll_ssc;
@@ -187,15 +175,6 @@ static void turing_qdsp6ss_pll_write(void *opaque, hwaddr addr, uint64_t value,
     case PLL_CONFIG_CTL_U1:
         s->pll_config_ctl_u1 = v;
         break;
-    case PLL_TEST_CTL:
-        s->pll_test_ctl = v;
-        break;
-    case PLL_TEST_CTL_U:
-        s->pll_test_ctl_u = v;
-        break;
-    case PLL_TEST_CTL_U1:
-        s->pll_test_ctl_u1 = v;
-        break;
     case PLL_SSC:
         s->pll_ssc = v;
         break;
@@ -239,9 +218,6 @@ static void turing_qdsp6ss_pll_reset_hold(Object *obj, ResetType type)
     s->pll_config_ctl = 0x20485699;
     s->pll_config_ctl_u = 0x00002261;
     s->pll_config_ctl_u1 = 0x02AA699C;
-    s->pll_test_ctl = 0x00000000;
-    s->pll_test_ctl_u = 0x00000000;
-    s->pll_test_ctl_u1 = 0x00000000;
     s->pll_ssc = 0x00000000;
     s->fusa_status_register = 0x00000000;
 }
@@ -275,9 +251,6 @@ static const VMStateDescription vmstate_qdsp6ss_pll = {
         VMSTATE_UINT32(pll_config_ctl, TuringQdsp6PllState),
         VMSTATE_UINT32(pll_config_ctl_u, TuringQdsp6PllState),
         VMSTATE_UINT32(pll_config_ctl_u1, TuringQdsp6PllState),
-        VMSTATE_UINT32(pll_test_ctl, TuringQdsp6PllState),
-        VMSTATE_UINT32(pll_test_ctl_u, TuringQdsp6PllState),
-        VMSTATE_UINT32(pll_test_ctl_u1, TuringQdsp6PllState),
         VMSTATE_UINT32(pll_ssc, TuringQdsp6PllState),
         VMSTATE_UINT32(fusa_status_register, TuringQdsp6PllState),
         VMSTATE_END_OF_LIST()
