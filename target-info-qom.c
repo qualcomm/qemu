@@ -61,13 +61,6 @@ GSList *machine_get_types_available(void)
     return filter_types_available(machines);
 }
 
-GSList *get_cpu_types_available(void)
-{
-    GSList *cpu = object_class_get_list_sorted(TYPE_CPU, false);
-
-    return filter_types_available(cpu);
-}
-
 static void target_info_qom_class_init(ObjectClass *oc, const void * data)
 {
     TargetInfoQomClass *klass = TARGET_INFO_CLASS(oc);

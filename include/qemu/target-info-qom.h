@@ -50,13 +50,6 @@ void target_info_qom_set_target_from_argv0(const char *argv0);
  */
 GSList *machine_get_types_available(void);
 
-/**
- * get_cpu_types_available:
- *
- * Returns: Cpu classes available for the selected target.
- */
-GSList *get_cpu_types_available(void);
-
 extern const InterfaceInfo type_target_specific[];
 
 #endif /* QEMU_TARGET_INFO_QOM_H */
