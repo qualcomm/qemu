@@ -92,6 +92,7 @@ static const Property hexagon_cpu_properties[] = {
 #endif
     DEFINE_PROP_BOOL("hvx-bfloat", HexagonCPU, hvx_bfloat, false),
     DEFINE_PROP_BOOL("coproc2-bfloat", HexagonCPU, coproc2_bfloat, false),
+    DEFINE_PROP_BOOL("coproc2-present", HexagonCPU, coproc2_present, false),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
@@ -647,12 +648,6 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     clear_wait_mode(env);
 
     if (cs->cpu_index == 0) {
-        if (cpu->num_coproc_instance) {
-            CoprocArgs args = {0};
-            args.opcode = COPROC_RESET;
-            coproc(&args);
-        }
-
         memset(env->g_gcycle, 0, sizeof(target_ulong) * NUM_GLOBAL_GCYCLE);
         memset(env->pmu.g_ctrs_off, 0,
                NUM_PMU_CTRS * sizeof(*env->pmu.g_ctrs_off));
@@ -807,23 +802,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         env->pmu.g_events = g_malloc0(NUM_PMU_CTRS *
                                       sizeof(*env->pmu.g_events));
         env->g_dir_list = g_malloc0(sizeof(GList *));
-
-        if (cpu->num_coproc_instance) {
-            trace_hexagon_coproc_file(cpu->coproc_path);
-            if (COPROC_SUCCESS != coproc_init(cpu->coproc_path,
-                                              hexagon_version(cpu))) {
-                g_assert_not_reached();
-            }
-
-            CoprocArgs args = {0};
-            args.opcode = COPROC_INIT;
-            args.vtcm_base = cpu->vtcm_base_addr;
-            args.vtcm_size = cpu->vtcm_size_kb * 1024;
-            args.minver = 0;
-            args.reg_usr = GET_FIELD(USR_FPCOPROC, env->gpr[HEX_REG_USR]);
-            args.subsystem_id = cpu->subsystem_id;
-            coproc(&args);
-        }
     } else {
         CPUState *cpu0 = qemu_get_cpu(0);
         CPUHexagonState *env0 = cpu_env(cpu0);

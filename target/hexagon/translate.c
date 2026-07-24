@@ -375,8 +375,14 @@ static bool need_slot_cancelled(Packet *pkt)
 #if !defined(CONFIG_USER_ONLY)
 static void gen_hmx_check(DisasContext *ctx)
 {
-    TCGv xe = tcg_temp_new();
-    TCGLabel *skip_exception = gen_new_label();
+    TCGv xe;
+    TCGLabel *skip_exception;
+    if (!ctx->coproc2_present) {
+        gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
+        return;
+    }
+    xe = tcg_temp_new();
+    skip_exception = gen_new_label();
     tcg_gen_extract_tl(xe, hex_t_sreg[HEX_SREG_SSR],
             reg_field_info[SSR_XE2].offset,
             reg_field_info[SSR_XE2].width);
@@ -997,13 +1003,9 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
         ctx->hvx_check_emitted = true;
     }
-    if (pkt->pkt_has_hmx) {
-        if (!ctx->num_coproc_instance) {
-            gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
-        } else if (!ctx->hmx_check_emitted) {
-            gen_hmx_check(ctx);
-            ctx->hmx_check_emitted = true;
-        }
+    if (pkt->pkt_has_hmx && !ctx->hmx_check_emitted) {
+        gen_hmx_check(ctx);
+        ctx->hmx_check_emitted = true;
     }
     if (pkt_has_pmu_read(pkt)) {
         gen_pmu_counters(ctx);
@@ -1641,7 +1643,6 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 #ifndef CONFIG_USER_ONLY
     ctx->pmu_num_packets = 0;
     ctx->pmu_hvx_packets = 0;
-    ctx->num_coproc_instance = hex_cpu->num_coproc_instance;
 #endif
 
     ctx->mem_idx = FIELD_EX32(hex_flags, TB_FLAGS, MMU_INDEX);
@@ -1654,6 +1655,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     }
     ctx->hvx_check_emitted = false;
     ctx->hmx_check_emitted = false;
+    ctx->coproc2_present = hex_cpu->coproc2_present;
     ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
     ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
 #endif

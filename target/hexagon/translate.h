@@ -80,7 +80,6 @@ typedef struct DisasContext {
     bool pmu_enabled;
     TCGv t_sreg_new_value[NUM_SREGS];
     TCGv greg_new_value[NUM_GREGS];
-    uint32_t num_coproc_instance;
 #endif
     bool implicit_usr_write;
     int preg_log[PRED_WRITES_MAX];
@@ -116,6 +115,7 @@ typedef struct DisasContext {
     bool hmx_check_emitted;
     bool pcycle_enabled;
     bool hvx_coproc_enabled;
+    bool coproc2_present;
     bool hvx_64b_mode;
     TCGv zero;
     TCGv_i64 zero64;

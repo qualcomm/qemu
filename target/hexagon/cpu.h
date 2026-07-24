@@ -471,6 +471,7 @@ struct ArchCPU {
 #endif
     bool hvx_bfloat;
     bool coproc2_bfloat;
+    bool coproc2_present;
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool paranoid_commit_state;
