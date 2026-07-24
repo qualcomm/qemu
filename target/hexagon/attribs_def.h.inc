@@ -482,5 +482,13 @@ DEF_ATTRIB(HVX_IEEE_FP_OUT_16, "HVX IEEE FP extension instruction: 16-bit output
 DEF_ATTRIB(HVX_IEEE_FP_OUT_32, "HVX IEEE FP extension instruction: 32-bit output","","")
 DEF_ATTRIB(HVX_IEEE_FP_BINARY_LATE, "HVX IEEE FP extension instruction: Both inputs can arrive late","","")
 
+/* HMX attributes */
+DEF_ATTRIB(HMX, "HMX coprocessor instruction", "", "")
+DEF_ATTRIB(HMX_CVT, "HMX convert instruction", "", "")
+DEF_ATTRIB(HMX_FLT, "HMX floating-point instruction", "", "")
+DEF_ATTRIB(HMX_CU_SCALAR, "HMX scalar operand", "", "")
+DEF_ATTRIB(HMX_BLOCK_ALIGN, "HMX block-aligned access", "", "")
+DEF_ATTRIB(HMX_128B_ALIGN, "HMX 128-byte aligned access", "", "")
+
 /* Keep this as the last attribute: */
 DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")

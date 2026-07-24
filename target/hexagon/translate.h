@@ -29,6 +29,13 @@
 QEMU_BUILD_BUG_MSG(NUM_GPREGS > CHAR_BIT * sizeof(target_ulong),
         "Hexagon's DisasContext.gpreg_written type is too small");
 
+typedef struct HmxPacketCtx {
+    bool act_valid;      /* true after activation insn is translated */
+    int format_offset;   /* 0 (DM) or 2 (SM) */
+    int act_mod;         /* HMX_ACT_BLK/NOBLK/BLK_U/BLK_S/BLK_D */
+    int act_type;        /* HMX_ACT_UB/HF/F8 */
+} HmxPacketCtx;
+
 typedef struct DisasContext {
     DisasContextBase base;
     Packet pkt;
@@ -120,6 +127,7 @@ typedef struct DisasContext {
     bool ss_active;
     bool ss_pending;
     bool short_circuit;
+    HmxPacketCtx hmx_pkt;
     bool read_after_write;
     bool has_hvx_overlap;
     bool need_next_pc;

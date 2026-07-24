@@ -20,6 +20,7 @@ typedef struct ProcessorState processor_t;
 #include "exec/cputlb.h"
 #include "mmvec/mmvec.h"
 #include "dma/dma.h"
+#include "hmx_state.h"
 #include "hw/core/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/intc/l2vic.h"
@@ -423,6 +424,19 @@ typedef struct CPUArchState {
     qfrnd_mode_enum_t qfrnd_mode;
     int qfcoproc_mode;
     int t_veclogsize;
+
+
+    /*
+     * Per-CPU HMX scratch buffers for TCG GVec weight operations (128B each).
+     * 16-byte aligned for tcg_gen_gvec_* requirements.
+     * These must be at fixed env offsets for GVec standard ops.
+     */
+    uint32_t hmx_wei_raw[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+    int32_t  hmx_wei_expanded[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+    int32_t  hmx_mac_tmp[HMX_OUTPUT_CHANNELS] QEMU_ALIGNED(16);
+
+    /* Pointer to shared HMX state (for TCG access via env) */
+    HmxState *hmx_state;
 } CPUHexagonState;
 #define mmvecx_t CPUHexagonState
 
@@ -439,6 +453,8 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPUHexagonState env;
+
+    HmxState *hmx;  /* HMX state (self-alloc or from device) */
 
 #if !defined(CONFIG_USER_ONLY)
     bool count_gcycle_xt;

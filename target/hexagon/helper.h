@@ -151,3 +151,17 @@ DEF_HELPER_3(sreg_write_pair, void, env, i32, i64)
 DEF_HELPER_3(sreg_write_masked, void, env, i32, i32)
 DEF_HELPER_3(sreg_write_pair_masked, void, env, i32, i64)
 #endif
+
+/* HMX helpers */
+DEF_HELPER_1(hmx_clracc, void, env)
+DEF_HELPER_1(hmx_clracc_hf, void, env)
+DEF_HELPER_1(hmx_accshl, void, env)
+DEF_HELPER_4(hmx_matmul_fxp, void, env, i32, i32, i32)
+DEF_HELPER_4(hmx_matmul_fp, void, env, i32, i32, i32)
+DEF_HELPER_4(hmx_act_load, void, env, i32, i32, i32)
+DEF_HELPER_3(hmx_bias_load, void, env, i32, i32)
+DEF_HELPER_3(hmx_bias_store, void, env, i32, i32)
+DEF_HELPER_4(hmx_cvt_transfer, void, env, i32, i32, i32)
+DEF_HELPER_3(hmx_cvt_rs, i32, env, i32, i32)
+DEF_HELPER_4(hmx_cvt_store, void, env, i32, i32, i32)
+DEF_HELPER_1(hmx_commit_packet, void, env)

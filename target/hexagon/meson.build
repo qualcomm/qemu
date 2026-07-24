@@ -303,6 +303,7 @@ hexagon_ss.add(files(
     'dma/dma_descriptor.c',
     'dma/desc_tracker.c',
     'uarch/queue.c',
+    'hmx_helper.c',
 ))
 
 hexagon_softmmu_ss.add(files(
