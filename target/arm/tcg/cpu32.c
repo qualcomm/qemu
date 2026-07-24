@@ -20,7 +20,7 @@
 
 
 /* CPU models. These are not needed for the AArch64 linux-user build. */
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
 static void arm926_initfn(Object *obj)
 {
@@ -711,18 +711,8 @@ static void sa1110_initfn(Object *obj)
     cpu->reset_sctlr = 0x00000070;
 }
 
-static bool arm_cpu32_is_available(void)
-{
-#ifdef CONFIG_USER_ONLY
-    return target_arm();
-#else
-    return target_base_arm();
-#endif
-}
-
 static const ARMCPUInfo arm_tcg_cpus[] = {
-    { .name = "arm926",      .initfn = arm926_initfn,
-      .is_available = arm_cpu32_is_available },
+    { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
     /*
@@ -757,4 +747,4 @@ static void arm_tcg_cpu_register_types(void)
 
 type_init(arm_tcg_cpu_register_types)
 
-#endif /* !CONFIG_USER_ONLY */
+#endif /* !CONFIG_USER_ONLY || !TARGET_AARCH64 */

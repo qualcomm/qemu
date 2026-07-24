@@ -429,7 +429,7 @@ void list_cpus(void)
     } else {
         GSList *list;
 
-        list = get_cpu_types_available();
+        list = object_class_get_list_sorted(TYPE_CPU, false);
         qemu_printf("Available CPUs:\n");
         g_slist_foreach(list, cpu_list_entry, NULL);
         g_slist_free(list);
