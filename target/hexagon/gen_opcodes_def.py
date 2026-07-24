@@ -41,15 +41,17 @@ def main():
     )
     parser.add_argument("semantics", help="semantics file")
     parser.add_argument("tag_rev_info", help="tag rev info")
-    parser.add_argument("coproc_out", help="output file for coproc")
+    parser.add_argument("hmx_out", help="output file for hmx")
     parser.add_argument("out", help="output file")
     args = parser.parse_args()
     hex_common.read_semantics_file(args.semantics)
 
     introduced, _ = read_tag_rev_info(args.tag_rev_info)
-    coproc_tags = [tag for tag in hex_common.get_all_tags() if hex_common.is_coproc(tag)]
-    coproc_tags.sort() # Alphabetically first
-    coproc_tags.sort(key=lambda tag: introduced.get(tag, 0))
+    hmx_tags = [
+        tag for tag in hex_common.get_all_tags() if hex_common.is_hmx(tag)
+    ]
+    hmx_tags.sort() # Alphabetically first
+    hmx_tags.sort(key=lambda tag: introduced.get(tag, 0))
 
     ##
     ##     Generate a list of all the opcodes
@@ -58,8 +60,8 @@ def main():
         for tag in hex_common.get_all_tags():
             f.write(f"OPCODE({tag}),\n")
 
-    with open(args.coproc_out, "w") as f:
-        for tag in coproc_tags:
+    with open(args.hmx_out, "w") as f:
+        for tag in hmx_tags:
             f.write(f"OPCODE({tag}),\n")
 
 if __name__ == "__main__":

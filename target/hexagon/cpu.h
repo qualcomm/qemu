@@ -399,7 +399,7 @@ typedef struct CPUArchState {
     uint32_t exec_ctr_pkt;
     uint32_t exec_ctr_insn;
     uint32_t exec_ctr_hvx;
-    uint32_t exec_ctr_coproc;
+    uint32_t exec_ctr_hmx;
     uint32_t exec_ctr_tb;
     /* Used by cpu_{ld,st}* calls down in TCG code. Set by top level helpers. */
     hex_memop_pc memop_pc;

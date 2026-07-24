@@ -2473,7 +2473,7 @@ void HELPER(check_vtcm_memcpy)(CPUHexagonState *env, uint32_t dst, uint32_t src,
 /*
  * The external coproc in user mode has no page table
  */
-static bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
+static G_GNUC_UNUSED bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
                                MMUAccessType access_type,
                                hwaddr *PA, int *prot, uint64_t *size,
                                int32_t *excp, int mmu_idx) {

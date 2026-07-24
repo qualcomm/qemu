@@ -47,7 +47,7 @@ typedef struct DisasContext {
     uint32_t num_cycles;
     uint32_t num_insns;
     uint32_t num_hvx_insns;
-    uint32_t num_coproc_insns;
+    uint32_t num_hmx_insns;
 
 #ifndef CONFIG_USER_ONLY
     /* Used for PMU counters. */
@@ -113,7 +113,7 @@ typedef struct DisasContext {
     target_ulong branch_dest;
     bool is_tight_loop;
     bool hvx_check_emitted;
-    bool coproc_check_emitted;
+    bool hmx_check_emitted;
     bool pcycle_enabled;
     bool hvx_coproc_enabled;
     bool hvx_64b_mode;
@@ -391,7 +391,7 @@ extern TCGv_i64 hex_cycle_count;
 extern TCGv_i32 hex_exec_ctr_pkt;
 extern TCGv_i32 hex_exec_ctr_insn;
 extern TCGv_i32 hex_exec_ctr_hvx;
-extern TCGv_i32 hex_exec_ctr_coproc;
+extern TCGv_i32 hex_exec_ctr_hmx;
 extern TCGv_i32 hex_exec_ctr_tb;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];

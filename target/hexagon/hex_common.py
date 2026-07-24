@@ -256,7 +256,7 @@ def need_slot(tag):
     if (
         "A_CVI_SCATTER" not in attribdict[tag]
         and "A_CVI_GATHER" not in attribdict[tag]
-        and "A_COPROC" not in attribdict[tag]
+        and "A_HMX" not in attribdict[tag]
         and ("A_STORE" in attribdict[tag]
              or "A_LOAD" in attribdict[tag])
         and tag != "L4_loadw_phys"
@@ -430,11 +430,11 @@ class Register:
         raise Exception(f"unknown subtype '{subtype}' on generic Register class")
 
 # QUIC SPECIFIC
-def is_coproc_act(tag):
-    return ('A_COPROC' in attribdict[tag] and 'A_PAIR_1OF2' in attribdict[tag]);
+def is_hmx_act(tag):
+    return ('A_HMX' in attribdict[tag] and 'A_PAIR_1OF2' in attribdict[tag]);
 
-def is_coproc(tag):
-    return ('A_COPROC' in attribdict[tag])
+def is_hmx(tag):
+    return ('A_HMX' in attribdict[tag])
 # end QUIC SPECIFIC
 
 
@@ -1463,6 +1463,7 @@ def parse_common_args(desc):
     parser.add_argument("overrides", help="overrides file")
     parser.add_argument("overrides_vec", help="vector overrides file")
     parser.add_argument("overrides_sys", help="system overrides file")
+    parser.add_argument("overrides_hmx", help="HMX overrides file")
     parser.add_argument("out", help="output file")
     parser.add_argument("--idef-parser",
                         help="file of instructions translated by idef-parser")
@@ -1471,6 +1472,7 @@ def parse_common_args(desc):
     read_overrides_file(args.overrides)
     read_overrides_file(args.overrides_vec)
     read_overrides_file(args.overrides_sys)
+    read_overrides_file(args.overrides_hmx)
     if args.idef_parser:
         read_idef_parser_enabled_file(args.idef_parser)
     calculate_attribs()

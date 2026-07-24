@@ -38,6 +38,7 @@
 #endif
 #include "pmu.h"
 #include "reg_fields.h"
+#include "gen_tcg_hmx.h"
 #include "genptr.h"
 
 static void gen_check_reg_write(DisasContext *ctx, int rnum)

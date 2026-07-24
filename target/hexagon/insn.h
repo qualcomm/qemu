@@ -80,7 +80,7 @@ struct Packet {
     Insn *vhist_insn;
     bool pkt_has_hvx;
     bool pkt_has_hvx_vs_3src;
-    bool pkt_has_coproc;
+    bool pkt_has_hmx;
 
     bool pkt_has_write_conflict;
 

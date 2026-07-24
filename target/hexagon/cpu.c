@@ -698,6 +698,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     arch_set_thread_reg(env, HEX_REG_PC,
                         hexagon_globalreg_get_boot_evb(cpu->globalregs));
 #endif
+
+    if (env->hmx_state) {
+        memset(env->hmx_state, 0, sizeof(HmxState));
+    }
 }
 
 static void hexagon_cpu_disas_set_info(const CPUState *cs,
@@ -759,6 +763,13 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    CPUHexagonState *env = cpu_env(cs);
+    /* Allocate HMX state if not provided by a device */
+    if (!HEXAGON_CPU(cs)->hmx) {
+        HEXAGON_CPU(cs)->hmx = g_malloc0(sizeof(HmxState));
+    }
+    env->hmx_state = HEXAGON_CPU(cs)->hmx;
+
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
 #endif
@@ -774,7 +785,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    CPUHexagonState *env = cpu_env(cs);
     env->threadId = cs->cpu_index;
     env->processor_ptr = NULL;
 

@@ -62,7 +62,7 @@ def main():
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
                 continue
-            if "A_COPROC" in hex_common.attribdict[tag]:
+            if "A_HMX" in hex_common.attribdict[tag]:
                 continue
             if "A_MEMSIZE_0B" in hex_common.attribdict[tag]:
                 continue
@@ -115,6 +115,8 @@ def main():
             if tag.startswith("Y"):
                 continue
             if tag.startswith("V6_"):
+                continue
+            if tag.startswith("M8_"):
                 continue
             if ( tag.startswith("F") and
                  tag not in {

@@ -82,7 +82,7 @@ TCGv_i32 hex_pmu_hvx_packets;
 TCGv_i32 hex_exec_ctr_pkt;
 TCGv_i32 hex_exec_ctr_insn;
 TCGv_i32 hex_exec_ctr_hvx;
-TCGv_i32 hex_exec_ctr_coproc;
+TCGv_i32 hex_exec_ctr_hmx;
 TCGv_i32 hex_exec_ctr_tb;
 TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -196,7 +196,7 @@ static void gen_exec_counters(DisasContext *ctx)
     tcg_gen_addi_tl(hex_exec_ctr_pkt, hex_exec_ctr_pkt, ctx->num_packets);
     tcg_gen_addi_tl(hex_exec_ctr_insn, hex_exec_ctr_insn, ctx->num_insns);
     tcg_gen_addi_tl(hex_exec_ctr_hvx, hex_exec_ctr_hvx, ctx->num_hvx_insns);
-    tcg_gen_addi_tl(hex_exec_ctr_coproc, hex_exec_ctr_coproc, ctx->num_coproc_insns);
+    tcg_gen_addi_tl(hex_exec_ctr_hmx, hex_exec_ctr_hmx, ctx->num_hmx_insns);
 
     /*
      * Increment cycle count in order to model PCYCLE (global sreg)
@@ -373,7 +373,7 @@ static bool need_slot_cancelled(Packet *pkt)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void gen_coproc_check(DisasContext *ctx)
+static void gen_hmx_check(DisasContext *ctx)
 {
     TCGv xe = tcg_temp_new();
     TCGLabel *skip_exception = gen_new_label();
@@ -847,6 +847,7 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     }
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
+    ctx->hmx_pkt.act_valid = false;
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         ctx->new_value[i] = NULL;
     }
@@ -996,12 +997,12 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
         ctx->hvx_check_emitted = true;
     }
-    if (pkt->pkt_has_coproc) {
+    if (pkt->pkt_has_hmx) {
         if (!ctx->num_coproc_instance) {
             gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
-        } else if (!ctx->coproc_check_emitted) {
-            gen_coproc_check(ctx);
-            ctx->coproc_check_emitted = true;
+        } else if (!ctx->hmx_check_emitted) {
+            gen_hmx_check(ctx);
+            ctx->hmx_check_emitted = true;
         }
     }
     if (pkt_has_pmu_read(pkt)) {
@@ -1373,7 +1374,7 @@ static void update_exec_counters(DisasContext *ctx)
     int num_insns = pkt->num_insns;
     int num_real_insns = 0;
     int num_hvx_insns = 0;
-    int num_coproc_insns = 0;
+    int num_hmx_insns = 0;
     int max_pkt_cycles = 0;
 
     for (int i = 0; i < num_insns; i++) {
@@ -1385,8 +1386,8 @@ static void update_exec_counters(DisasContext *ctx)
         if (GET_ATTRIB(pkt->insn[i].opcode, A_CVI)) {
             num_hvx_insns++;
         }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_COPROC)) {
-            num_coproc_insns++;
+        if (GET_ATTRIB(pkt->insn[i].opcode, A_HMX)) {
+            num_hmx_insns++;
         }
 
         /* Assume perfect parallelism among pkt instructions. */
@@ -1397,7 +1398,7 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_packets++;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
-    ctx->num_coproc_insns += num_coproc_insns;
+    ctx->num_hmx_insns += num_hmx_insns;
 #ifndef CONFIG_USER_ONLY
     ctx->pmu_num_packets++;
     ctx->pmu_hvx_packets += (num_hvx_insns > 0);
@@ -1519,11 +1520,9 @@ static void gen_commit_packet(DisasContext *ctx)
     if (pkt->pkt_has_hvx) {
         gen_commit_hvx(ctx);
     }
-#if !defined(CONFIG_USER_ONLY)
-    if (pkt->pkt_has_coproc) {
-        gen_helper_commit_coproc(tcg_env);
+    if (pkt->pkt_has_hmx) {
+        gen_helper_hmx_commit_packet(tcg_env);
     }
-#endif
     update_exec_counters(ctx);
 
     if (pkt->vhist_insn != NULL) {
@@ -1628,7 +1627,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->num_cycles = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
-    ctx->num_coproc_insns = 0;
+    ctx->num_hmx_insns = 0;
     ctx->zero = tcg_constant_tl(0);
     ctx->zero64 = tcg_constant_i64(0);
     ctx->ones = tcg_constant_tl(0xff);
@@ -1654,7 +1653,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         gen_cpu_limit_init();
     }
     ctx->hvx_check_emitted = false;
-    ctx->coproc_check_emitted = false;
+    ctx->hmx_check_emitted = false;
     ctx->gen_cacheop_exceptions = hex_cpu->cacheop_exceptions;
     ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
 #endif
@@ -1834,8 +1833,8 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, exec_ctr_insn), "exec_ctr_insn");
     hex_exec_ctr_hvx = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, exec_ctr_hvx), "exec_ctr_hvx");
-    hex_exec_ctr_coproc = tcg_global_mem_new_i32(tcg_env,
-            offsetof(CPUHexagonState, exec_ctr_coproc), "exec_ctr_coproc");
+    hex_exec_ctr_hmx = tcg_global_mem_new_i32(tcg_env,
+            offsetof(CPUHexagonState, exec_ctr_hmx), "exec_ctr_hmx");
     hex_exec_ctr_tb = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, exec_ctr_tb), "exec_ctr_tb");
 

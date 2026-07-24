@@ -74,8 +74,8 @@ def gen_helper_function(f, tag, tagregs, tagimms):
 
     if hex_common.is_scatter_gather(tag):
         gen_decl_insn(f, 1 if hex_common.is_gather(tag) else 0)
-    if hex_common.is_coproc(tag):
-        gen_decl_insn(f, 1 if hex_common.is_coproc_act(tag) else 0)
+    if hex_common.is_hmx(tag):
+        gen_decl_insn(f, 1 if hex_common.is_hmx_act(tag) else 0)
 
     ## Declare the return variable
     if not hex_common.is_predicated(tag):
