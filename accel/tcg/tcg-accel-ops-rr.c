@@ -37,6 +37,38 @@
 #include "tcg-accel-ops-rr.h"
 #include "tcg-accel-ops-icount.h"
 
+#ifndef _WIN32
+#include <signal.h>
+#include <pthread.h>
+#include "exec/cpu-interrupt.h"
+
+/*
+ * Set to true only while the RR CPU thread is inside tcg_cpu_exec()
+ * (i.e., within cpu_exec's sigsetjmp frame).  The SIG_IPI handler
+ * must not siglongjmp unless this is true, because cpu->jmp_env is
+ * only valid inside cpu_exec_setjmp().
+ */
+static __thread bool rr_in_cpu_exec;
+
+static void rr_cpu_sig_ipi(int sig)
+{
+    /*
+     * Break out of self-chained JIT TBs so cpu_handle_interrupt() can
+     * service a pending CPU_INTERRUPT_HARD.  Only longjmp when inside
+     * cpu_exec() (jmp_env valid) and a real interrupt is pending; a
+     * deadline-timer kick with no interrupt needs no longjmp.  Always
+     * clear thread_kicked so a subsequent kick can send a fresh SIG_IPI.
+     */
+    if (current_cpu) {
+        qatomic_set(&current_cpu->thread_kicked, false);
+        if (rr_in_cpu_exec &&
+            (qatomic_read(&current_cpu->interrupt_request) & ~CPU_INTERRUPT_EXITTB)) {
+            siglongjmp(current_cpu->jmp_env, 1);
+        }
+    }
+}
+#endif
+
 #ifdef CONFIG_LIBQEMU
 #include "libqemu/callbacks.h"
 #endif
@@ -195,6 +227,30 @@ static void *rr_cpu_thread_fn(void *arg)
         bql_lock();
     }
 
+#ifndef _WIN32
+    /*
+     * Unblock SIG_IPI (SIGUSR1) in the RR CPU thread and install a
+     * handler that breaks out of self-chained TCG translation blocks
+     * via siglongjmp.  The main thread blocks SIGUSR1 (see
+     * qemu_signal_init) so CPU threads inherit the block; we must
+     * explicitly unblock it here so that qemu_cpu_kick -> cpus_kick_thread
+     * -> pthread_kill(SIG_IPI) can interrupt a spinning JIT loop.
+     */
+    {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = rr_cpu_sig_ipi;
+        sa.sa_flags = SA_RESTART | SA_NODEFER;
+        sigemptyset(&sa.sa_mask);
+        sigaction(SIG_IPI, &sa, NULL);
+
+        sigset_t unblock;
+        sigemptyset(&unblock);
+        sigaddset(&unblock, SIG_IPI);
+        pthread_sigmask(SIG_UNBLOCK, &unblock, NULL);
+    }
+#endif
+
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
@@ -293,7 +349,13 @@ static void *rr_cpu_thread_fn(void *arg)
                 if (icount_enabled()) {
                     icount_prepare_for_run(cpu, cpu_budget);
                 }
+#ifndef _WIN32
+                rr_in_cpu_exec = true;
+#endif
                 r = tcg_cpu_exec(cpu);
+#ifndef _WIN32
+                rr_in_cpu_exec = false;
+#endif
                 if (icount_enabled()) {
                     icount_process_data(cpu);
                 }
