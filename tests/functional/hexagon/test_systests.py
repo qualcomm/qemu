@@ -142,7 +142,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("ciad-siad")
         self.assertTrue(result, "Test ciad-siad failed")
 
-    @skip("Double exception handler needs further investigation")
     def test_double_ex(self) -> None:
         """Tests double exception handling by triggering an exception within
         an exception handler."""
@@ -334,7 +333,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         field."""
         self.run_console_test("start", "PASS")
 
-    @skip("MTTCG interrupt delivery under high GIE cycling load needs work")
     def test_swi2(self) -> None:
         """Tests software interrupt handling under high load with multiple
         threads cycling interrupt enables/disables and task priorities."""
@@ -361,7 +359,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
         result = self.run_individual_test("sys_atomics")
         self.assertTrue(result, "Test sys_atomics failed")
 
-    @skip("System register address computation mismatch, needs investigation")
     def test_sys_reg_mut(self) -> None:
         """Tests system register mutation behavior by writing to various system
         control registers and verifying which bits are writable versus
