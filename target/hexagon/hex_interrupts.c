@@ -343,8 +343,15 @@ bool hex_check_interrupts(CPUHexagonState *env)
          * and delivers as soon as the condition clears (GIE=1).
          * Without this, all threads drop their interrupt_request while
          * GIE=0, causing permanent deadlock.
+         *
+         * A thread stalled on a lock (k0lock/tlblock) is the exception:
+         * it cannot service interrupts and must stay halted until the
+         * lock is released, so re-halt it via restore_state() regardless
+         * of IPEND.  The lock-release path (hex_{k0,tlb}_unlock) re-raises
+         * CPU_INTERRUPT_HARD if the woken thread still has pending
+         * interrupts, so nothing is lost.
          */
-        if (get_ipend(env) == 0) {
+        if (get_ipend(env) == 0 || should_not_exec(env)) {
             restore_state(env, false);
         }
     } else if (!int_handled && ssr_ex) {
