@@ -572,10 +572,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
             f"Test {test_name}: expected non-zero exit code")
 
     def test_unaligned(self) -> None:
-        """Tests that unaligned memory access is handled and the test
-        completes successfully."""
-        result = self.run_individual_test("unaligned")
-        self.assertTrue(result, "Test unaligned failed")
+        """Tests that an unaligned scalar access raises a misaligned-access
+        exception.  The standalone runtime has no recovery handler, so the
+        exception is fatal and QEMU exits non-zero; this is the expected
+        outcome now that hexagon-softmmu delivers the fault to the guest."""
+        self.run_negative_test("unaligned")
 
     def test_vtcm_error(self) -> None:
         """Tests that VTCM access error is handled and the test
