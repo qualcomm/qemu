@@ -1,5 +1,5 @@
 /*
- * Qualcomm Turing QDSP6SS LMH (Local Limit Manager)
+ * QCOM Turing QDSP6SS register block
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -19,8 +19,8 @@ typedef struct TuringLmhState TuringLmhState;
 struct TuringLmhState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-    uint32_t lmh_ctl;     /* LMH_CTL: RW, bit 0 = LLM_DISABLE_REQ */
-    uint32_t lmh_status;  /* LMH_STATUS: R, bit 0 = LLM_DISABLE_ACK */
+    uint32_t reg0;
+    uint32_t reg1;
 };
 
 #endif /* QCOM_TURING_LMH_H */

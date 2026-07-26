@@ -1,11 +1,6 @@
 /*
- * Qualcomm Turing QDSP6SS LMH (Local Limit Manager)
+ * QCOM Turing QDSP6SS register block
  * SPDX-License-Identifier: GPL-2.0-or-later
- *
- * Models the LMH_CTL and LMH_STATUS registers from the
- * TURINGNSP_0_TURING_QDSP6SS block. LMH_CTL generates a software-triggered
- * idle request to the LLM; LMH_STATUS records the acknowledgement.
- * In emulation the ack mirrors the request instantly.
  */
 
 #include "qemu/osdep.h"
@@ -16,19 +11,18 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-/* Register offsets within the device's MMIO region */
-#define REG_LMH_CTL    0x0   /* RW - LLM_DISABLE_REQ (bit 0) */
-#define REG_LMH_STATUS 0x4   /* R  - LLM_DISABLE_ACK (bit 0) */
+#define REG0 0x0
+#define REG1 0x4
 
 static uint64_t turing_lmh_read(void *opaque, hwaddr offset, unsigned size)
 {
     TuringLmhState *s = opaque;
 
     switch (offset) {
-    case REG_LMH_CTL:
-        return s->lmh_ctl;
-    case REG_LMH_STATUS:
-        return s->lmh_status;
+    case REG0:
+        return s->reg0;
+    case REG1:
+        return s->reg1;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "turing-lmh: invalid read at offset 0x%" HWADDR_PRIx "\n",
@@ -43,14 +37,13 @@ static void turing_lmh_write(void *opaque, hwaddr offset, uint64_t val,
     TuringLmhState *s = opaque;
 
     switch (offset) {
-    case REG_LMH_CTL:
-        s->lmh_ctl = (uint32_t)val;
-        /* Instantly acknowledge the idle/non-idle request */
-        s->lmh_status = s->lmh_ctl & BIT(0);
+    case REG0:
+        s->reg0 = (uint32_t)val;
+        s->reg1 = s->reg0 & BIT(0);
         break;
-    case REG_LMH_STATUS:
+    case REG1:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "turing-lmh: write to read-only LMH_STATUS\n");
+                      "turing-lmh: write to read-only reg1\n");
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -74,9 +67,8 @@ static void turing_lmh_reset_hold(Object *obj, ResetType type)
 {
     TuringLmhState *s = TURING_LMH(obj);
 
-    /* Both registers reset to 0x1 (idle requested / acknowledged) */
-    s->lmh_ctl = 0x1;
-    s->lmh_status = 0x1;
+    s->reg0 = 0x1;
+    s->reg1 = 0x1;
 }
 
 static void turing_lmh_realize(DeviceState *dev, Error **errp)
@@ -93,8 +85,8 @@ static const VMStateDescription vmstate_turing_lmh = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(lmh_ctl, TuringLmhState),
-        VMSTATE_UINT32(lmh_status, TuringLmhState),
+        VMSTATE_UINT32(reg0, TuringLmhState),
+        VMSTATE_UINT32(reg1, TuringLmhState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -107,7 +99,7 @@ static void turing_lmh_class_init(ObjectClass *klass, const void *data)
     dc->realize = turing_lmh_realize;
     dc->vmsd = &vmstate_turing_lmh;
     rc->phases.hold = turing_lmh_reset_hold;
-    dc->desc = "QCOM Turing QDSP6SS LMH";
+    dc->desc = "QCOM Turing register block";
 }
 
 static const TypeInfo turing_lmh_info = {
