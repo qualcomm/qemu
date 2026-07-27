@@ -4,159 +4,92 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-from qemu_test import LinuxKernelTest, Asset
-from unittest import skipUnless
+from qemu_test import LinuxKernelTest, Asset, skipBigDataTest
+from qemu_test import exec_command_and_wait_for_pattern
 
 class HexagonLinuxDevsTest(LinuxKernelTest):
-    GUEST_ENTRY = 0xa0000000
+    REPO = 'https://artifacts.codelinaro.org/artifactory' \
+           '/codelinaro-toolchain-for-hexagon/23.1.0-rc1'
+    ASSET_KERNEL = \
+        Asset(f'{REPO}/vmlinux',
+              '620859d3ebe83e6d858adac150701931197038deeb740d31d23c67da1b1e013a')
+    ASSET_ROOTFS = \
+        Asset(f'{REPO}/rootfs.ext2.gz',
+              'c5743106d51fe4fd0693bd8da5c1b6b704ea4824a19f90a1e9324df3f847bd13')
 
-    REPO = 'https://gitlab.qualcomm.com/qqvp/testing/qemu-linux-tests'
-    GIT_REF = 'buildroot-v0.4'
-    ASSET_TARBALL = \
-        Asset(f'{REPO}/-/archive/{GIT_REF}/qemu-linux-tests-{GIT_REF}.tar.gz',
-              'fc4b79fe5bdf07bffefbf6d75e80febe27ea1d498971e33ff726e977a5410a89')
+    def common_boot_to_shell(self, bios=None):
+        """
+        Boot the vmlinux ELF under the H2 hypervisor firmware (either the
+        bundled default, or one selected via -bios), with a virtio-blk root
+        disk and a virtio-net device, then log in and probe the devices from
+        the guest shell.
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
-    def test_linux_devs(self):
+        Note the guest uses two consoles in sequence: the semihosting
+        'angel0' bootconsole, whose output goes to QEMU's stdout, and the
+        PL011 that takes over once its driver probes.  Only the latter is
+        wired to '-serial', so early boot messages never reach the console
+        here -- hence the device checks below run as shell commands rather
+        than matching on boot-time kernel output.
+        """
         self.set_machine('virt')
         self.require_netdev('user')
 
-        kernel_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/vmlinux.bin')
-        booter_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/loadlinux')
-        disk_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/disk.qcow2')
+        kernel_path = self.ASSET_KERNEL.fetch()
+        disk_path = self.uncompress(self.ASSET_ROOTFS)
         self.vm.set_console()
 
-        # Workaround: guest limitation -- linux kernel in use doesn't
-        # consume the generated fdt.  So when we have more devices
-        # available, we have to push extra ones in so that the devices
-        # below appear at the expected address.
-        for i in range(1, 7):
-            self.vm.add_args(
-                '-netdev', f'type=user,id=net{i}',
-                '-device', f'virtio-net-device,netdev=net{i}',
-            )
+        if bios:
+            self.vm.add_args('-bios', bios)
         self.vm.add_args(
-            # The booter is the guest entry point; suppress the default
-            # firmware so it boots directly rather than under loadlinux.
-            '-bios', 'none',
-            '-kernel', booter_path,
-            '-device',
-                f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
+            '-kernel', kernel_path,
+            # console= must name the PL011, so that /dev/console (where
+            # inittab respawns the getty) is the port we are listening on.
+            '-append', 'console=ttyAMA1 root=/dev/vda rw',
             '-m', '4G',
             '-accel', 'tcg,thread=multi',
-            '-drive', f'if=none,file={disk_path},id=hd0',
+            '-drive', f'if=none,file={disk_path},format=raw,id=hd0',
             '-device', 'virtio-blk-device,drive=hd0',
             '-netdev', 'type=user,id=net0',
             '-device', 'virtio-net-device,netdev=net0',
         )
         self.vm.launch()
 
-        # Verify SMP: all 4 CPUs brought up under MTTCG
-        self.wait_for_console_pattern("Brought up 4 CPUs")
+        # Boot all the way to the getty and log in; root has no password.
+        self.wait_for_console_pattern('buildroot login:')
+        exec_command_and_wait_for_pattern(self, 'root', '# ')
 
-        self.wait_for_console_pattern(
-            "clocksource: Switched to clocksource HVM timer")
+        # Verify SMP: all 4 CPUs are up under MTTCG
+        exec_command_and_wait_for_pattern(self, 'nproc', '4')
 
-        # Verify virtio-blk device: guest kernel detects and mounts disk
-        self.wait_for_console_pattern("EXT2-fs (vda)")
+        # Verify the qtimer is driving the guest clocksource
+        exec_command_and_wait_for_pattern(self,
+            'cat /sys/devices/system/clocksource/clocksource0'
+            '/current_clocksource', 'HVM timer')
 
-        # Verify virtio-net device: network init scripts complete
-        self.wait_for_console_pattern("Starting network: OK")
+        # Verify virtio-blk: the disk is present and mounted as the rootfs
+        exec_command_and_wait_for_pattern(self, 'cat /proc/partitions', 'vda')
+        exec_command_and_wait_for_pattern(self, 'mount', 'on / type ext2')
 
-        # Verify full boot to shell prompt
-        self.wait_for_console_pattern("bash-5.2#")
+        # Verify virtio-net: the guest got its lease from the user netdev
+        exec_command_and_wait_for_pattern(self, 'ip -4 addr show eth0',
+                                          '10.0.2.15')
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipBigDataTest()
+    def test_linux_boot(self):
+        """
+        Boot vmlinux with the default firmware: -bios resolves to the
+        bundled hexagon_loadlinux_v81 firmware from pc-bios.
+        """
+        self.common_boot_to_shell()
+
+    @skipBigDataTest()
     def test_linux_bios_boot(self):
         """
-        Test -bios boot path with loader device for kernel.
-
-        Uses -bios to load the bootloader ELF (loadlinux) as firmware,
-        and -device loader for the raw binary kernel.  This exercises:
-        - ELF firmware loading via load_bios (with ELF entry detection)
-        - Dynamic FDT placement (firmware-only path: kernel_load_addr + 256MB)
-        - Boot stub passing FDT address to firmware
+        Test the -bios path explicitly, selecting one of the bundled H2
+        firmware images by name rather than relying on the default
+        resolution.
         """
-        self.set_machine('virt')
-        self.require_netdev('user')
-
-        kernel_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/vmlinux.bin')
-        booter_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/loadlinux')
-        disk_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/disk.qcow2')
-        self.vm.set_console()
-
-        for i in range(1, 7):
-            self.vm.add_args(
-                '-netdev', f'type=user,id=net{i}',
-                '-device', f'virtio-net-device,netdev=net{i}',
-            )
-        self.vm.add_args(
-            '-bios', booter_path,
-            '-device',
-                f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
-            '-m', '4G',
-            '-accel', 'tcg,thread=multi',
-            '-drive', f'if=none,file={disk_path},id=hd0',
-            '-device', 'virtio-blk-device,drive=hd0',
-            '-netdev', 'type=user,id=net0',
-            '-device', 'virtio-net-device,netdev=net0',
-        )
-        self.vm.launch()
-
-        self.wait_for_console_pattern("Brought up 4 CPUs")
-        self.wait_for_console_pattern(
-            "clocksource: Switched to clocksource HVM timer")
-        self.wait_for_console_pattern("EXT2-fs (vda)")
-        self.wait_for_console_pattern("Starting network: OK")
-        self.wait_for_console_pattern("bash-5.2#")
-
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
-    def test_linux_default_bios_boot(self):
-        """
-        Test the default firmware boot path.
-
-        Like test_linux_bios_boot, but without -bios: the machine falls
-        back to the bundled hexagon_loadlinux_v81 firmware from pc-bios.
-        """
-        self.set_machine('virt')
-        self.require_netdev('user')
-
-        kernel_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/vmlinux.bin')
-        disk_path = self.archive_extract(self.ASSET_TARBALL,
-            member=f'qemu-linux-tests-{self.GIT_REF}/disk.qcow2')
-        self.vm.set_console()
-
-        for i in range(1, 7):
-            self.vm.add_args(
-                '-netdev', f'type=user,id=net{i}',
-                '-device', f'virtio-net-device,netdev=net{i}',
-            )
-        self.vm.add_args(
-            '-device',
-                f'loader,addr=0x{self.GUEST_ENTRY:08x},file={kernel_path}',
-            '-m', '4G',
-            '-accel', 'tcg,thread=multi',
-            '-drive', f'if=none,file={disk_path},id=hd0',
-            '-device', 'virtio-blk-device,drive=hd0',
-            '-netdev', 'type=user,id=net0',
-            '-device', 'virtio-net-device,netdev=net0',
-        )
-        self.vm.launch()
-
-        self.wait_for_console_pattern("Brought up 4 CPUs")
-        self.wait_for_console_pattern(
-            "clocksource: Switched to clocksource HVM timer")
-        self.wait_for_console_pattern("EXT2-fs (vda)")
-        self.wait_for_console_pattern("Starting network: OK")
-        self.wait_for_console_pattern("bash-5.2#")
+        self.common_boot_to_shell(bios='hexagon_loadlinux_v81')
 
 
 if __name__ == '__main__':
