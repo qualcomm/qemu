@@ -276,7 +276,8 @@ void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
 uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s)
 {
     g_assert(s);
-    return s->g_pcycle_base;
+    /* Read atomically: hexagon_get_sys_pcycle_count() runs without the BQL. */
+    return qatomic_read(&s->g_pcycle_base);
 }
 
 uint32_t hexagon_globalreg_get_boot_evb(HexagonGlobalRegState *s)
@@ -288,7 +289,7 @@ void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s,
                                        uint64_t value)
 {
     g_assert(s);
-    s->g_pcycle_base = value;
+    qatomic_set(&s->g_pcycle_base, value);
 }
 
 static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
@@ -296,7 +297,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     g_assert(s);
     memset(s->regs, 0, sizeof(target_ulong) * NUM_SREGS);
 
-    s->g_pcycle_base = 0;
+    qatomic_set(&s->g_pcycle_base, 0);
 
     s->regs[HEX_SREG_EVB] = s->boot_evb;
     s->regs[HEX_SREG_CFGBASE] = HEXAGON_CFG_ADDR_BASE(s->config_table_addr);

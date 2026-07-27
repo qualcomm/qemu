@@ -310,14 +310,26 @@ void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
     }
 }
 
+/*
+ * Sum the per-thread cycle counters without taking the BQL.
+ *
+ * The lock would not buy us a coherent snapshot anyway: the counters are
+ * TCG globals bumped straight from generated code (see
+ * gen_pcycle_counters()), which never takes the BQL.  What the relaxed
+ * atomics do give us is well-defined, tear-free reads of each 64-bit
+ * counter while its owning thread is running.
+ *
+ * The result stays monotonic despite the lock-free walk: every counter
+ * only ever increases between explicit resets, so a later sum reads each
+ * term at a value no smaller than an earlier sum did.
+ */
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    BQL_LOCK_GUARD();
     uint64_t cycles = 0;
     CPUState *cs;
     CPU_FOREACH(cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
-        cycles += thread_env->t_cycle_count;
+        cycles += qatomic_read(&thread_env->t_cycle_count);
     }
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = env_archcpu(env);
@@ -369,7 +381,7 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
     CPUState *cs;
     CPU_FOREACH(cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
-        thread_env->t_cycle_count = 0;
+        qatomic_set(&thread_env->t_cycle_count, 0);
     }
 }
 

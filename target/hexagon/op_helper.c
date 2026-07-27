@@ -2020,7 +2020,7 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     /* Changing pcycle enable from 0 to 1 resets the counters */
     if (old_en == 0 && new_en == 1) {
         CPU_FOREACH(cs) {
-            cpu_env(cs)->t_cycle_count = 0;
+            qatomic_set(&cpu_env(cs)->t_cycle_count, 0);
         }
     }
 
@@ -2419,7 +2419,7 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
     if (reg == HEX_REG_UPCYCLELO) {
         /* Pretend SSR[CE] is always set. */
-        return env->t_cycle_count;
+        return qatomic_read(&env->t_cycle_count);
     }
     if (reg == HEX_REG_UTIMERLO) {
         return cpu_get_host_ticks();
