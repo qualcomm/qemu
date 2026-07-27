@@ -205,6 +205,7 @@ ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
 
 
 PrivateInclude('hw/core/qdev.h')
+PrivateInclude('hw/core/qdev-clock.h')
 PrivateInclude('hw/core/qdev-properties.h')
 ExportedType('QemuDevice', 'DeviceState')
 ExportedType('QemuBus', 'BusState')
@@ -218,6 +219,14 @@ ExportedFct('qdev_connect_gpio_out_named', 'void',
 ExportedFct('qdev_get_gpio_in', 'struct IRQState *', [ 'DeviceState *', 'int' ])
 ExportedFct('qdev_get_gpio_in_named', 'struct IRQState *', [ 'DeviceState *', 'const char *', 'int' ])
 ExportedFct('qdev_prop_set_chr', 'void', [ 'DeviceState *', 'const char *', 'Chardev *'])
+ExportedFct('qdev_prop_set_string', 'void', [ 'DeviceState *', 'const char *', 'const char *' ]);
+
+PrivateInclude('hw/core/clock.h')
+ExportedType('QemuClock', 'Clock')
+
+ExportedFct('clock_new', 'Clock *', [ 'Object *', 'const char *' ])
+ExportedFct('clock_set_hz', 'bool', [ 'Clock *', 'unsigned' ])
+ExportedFct('qdev_connect_clock_in', 'void', [ 'DeviceState *', 'const char *', 'Clock *' ])
 
 PrivateInclude('libqemu/wrappers/qdev.h')
 ExportedFct('qdev_prop_set_uint_array', 'void', [ 'DeviceState *', 'const char *', 'unsigned int *', 'int'],
