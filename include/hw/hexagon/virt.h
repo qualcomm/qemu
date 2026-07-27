@@ -30,7 +30,6 @@ struct HexagonVirtMachineState {
     MemoryRegion *sys;
     MemoryRegion cfgtable;
     MemoryRegion ram;
-    MemoryRegion tcm;
     MemoryRegion vtcm;
     MemoryRegion bios;
     DeviceState *l2vic;

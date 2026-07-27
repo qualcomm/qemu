@@ -138,15 +138,6 @@ typedef  union {
 typedef struct {
     /* Base address of config table */
     uint32_t cfgbase;
-    /* Size of L2 TCM */
-    uint32_t l2tcm_size;
-    /* Base address of L2VIC */
-    uint32_t l2vic_base;
-    /* Size of L2VIC region */
-    uint32_t l2vic_size;
-    /* QTimer csr base */
-    uint32_t csr_base;
-    uint32_t qtmr_region;
     uint32_t rev_id;
     hexagon_config_table cfgtable;
 } hexagon_machine_config;

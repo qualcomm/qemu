@@ -143,7 +143,7 @@ static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
                           irq_hvm_ic_phandle);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 0,
-                    m_cfg->l2vic_base);
+                    (m_cfg->cfgtable.subsystem_base << 16) + 0x10000);
     sysbus_mmio_map(SYS_BUS_DEVICE(vms->l2vic), 1,
                     m_cfg->cfgtable.fastl2vic_base << 16);
 }
@@ -281,7 +281,8 @@ static void create_qtimer(HexagonVirtMachineState *vms,
     object_property_set_uint(OBJECT(vms->qtimer), "cnttid_0", 0x111, errp);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(vms->qtimer), errp);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(vms->qtimer), 1, m_cfg->qtmr_region);
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->qtimer), 1,
+                    (m_cfg->cfgtable.subsystem_base << 16) + 0x21000);
 }
 
 static void create_pll(HexagonVirtMachineState *vms)
@@ -528,13 +529,6 @@ static void virt_init(MachineState *ms)
     memory_region_init_ram(&vms->ram, NULL, "ddr.ram", ms->ram_size, errp);
     memory_region_add_subregion(vms->sys, 0x0, &vms->ram);
 
-    if (m_cfg->l2tcm_size) {
-        memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
-                               errp);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.l2tcm_base << 16,
-                                    &vms->tcm);
-    }
-
     memory_region_init_rom(&vms->cfgtable, NULL, "config_table.rom",
                            sizeof(m_cfg->cfgtable), errp);
     memory_region_add_subregion(vms->sys, m_cfg->cfgbase, &vms->cfgtable);
@@ -669,9 +663,6 @@ static void virt_init(MachineState *ms)
 
     hexagon_config_table *config_table =
         (hexagon_config_table *)&m_cfg->cfgtable;
-
-    /* FIXME: can we fix this? */
-    config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
 
     /* Create a copy with little-endian byte order for guest memory */
     hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));

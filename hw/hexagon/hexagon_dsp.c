@@ -320,32 +320,28 @@ static void create_hwkm_prng(hwaddr HWKM_PRNG_BASE)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, HWKM_PRNG_BASE);
 }
 
-static void create_turing_lmh(hexagon_machine_config *cfg)
+static void create_turing_lmh(hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_LMH);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + TURING_LMH_OFFSET);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) + offset);
 }
 
 static void create_cdsp_pll(hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + offset);
-}
-
-static void create_cdsp_core0_pll(hexagon_machine_config *cfg)
-{
-    DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x300000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) + offset);
 }
 
 static void create_cdsp_clkctl(hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_QDSP6SS_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + offset);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) + offset);
 }
 
 static void create_cdsp_gdscr(hwaddr base)
@@ -359,7 +355,8 @@ static void create_cdsp_ccswi(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_CDSP0_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2F8000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) - 0x378000);
 }
 
 static void create_turing_cc(hexagon_machine_config *cfg, hwaddr base)
@@ -389,7 +386,8 @@ static void create_cdsp_turing_dsp_rsc_8480(hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + 0x40000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) + 0x40000);
 
     Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
     if (l2vic_obj) {
@@ -421,7 +419,8 @@ static void create_cdsp_turing_rsc_8480(hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2DC000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) - 0x2DC000);
 
     Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
     if (l2vic_obj) {
@@ -452,7 +451,8 @@ static void create_cdsp_turing_rsc_8775(hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "num-timestamp-units", 6);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x25C000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                    (cfg->cfgtable.subsystem_base << 16) - 0x2DC000);
 
     Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
     if (l2vic_obj) {
@@ -536,16 +536,6 @@ static void hexagon_common_init(MachineState *machine,
     memory_region_init_ram(cpz, NULL, "cpz.ram", 0x10000000, &error_fatal);
     memory_region_add_subregion(address_space, 0x910000000, cpz);
 #endif
-
-    /* Skip if the core doesn't allocate space for TCM */
-    if (m_cfg->l2tcm_size) {
-        MemoryRegion *tcm = g_new(MemoryRegion, 1);
-        memory_region_init_ram(tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
-                               &error_fatal);
-        memory_region_add_subregion(address_space,
-                                    m_cfg->cfgtable.l2tcm_base << 16,
-                                    tcm);
-    }
 
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     Error **errp = NULL;
@@ -635,7 +625,8 @@ static void hexagon_common_init(MachineState *machine,
 
     DeviceState *l2vic_dev = qdev_new(TYPE_L2VIC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic_dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 0,
+                    (m_cfg->cfgtable.subsystem_base << 16) + 0x10000);
 
     /* Link the L2VIC interface to globalreg */
     if (!object_property_set_link(OBJECT(glob_regs_dev), "l2vic",
@@ -682,15 +673,14 @@ static void hexagon_common_init(MachineState *machine,
     pl011_create(0x10000000, qdev_get_gpio_in(l2vic_dev, 15), serial_hd(0));
 
     unsigned QTMR0_IRQ = syscfg_is_linux ? 2 : 3;
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1,
+                    (m_cfg->cfgtable.subsystem_base << 16) + 0x21000);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
                        qdev_get_gpio_in(l2vic_dev, QTMR0_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(l2vic_dev, 4));
 
     hexagon_config_table *config_table = &m_cfg->cfgtable;
-
-    config_table->subsystem_base = HEXAGON_CFG_ADDR_BASE(m_cfg->csr_base);
 
     /* Convert to LE for guest memory */
     hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
@@ -856,12 +846,14 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     DeviceState *dspss_pub = qdev_new(TYPE_DSPSS_PUB);
     object_property_add_child(OBJECT(machine), "dspss-pub", OBJECT(dspss_pub));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dspss_pub), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0, SA8775P_cdsp0.csr_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0,
+                    (SA8775P_cdsp0.cfgtable.subsystem_base << 16) - 0x80000);
 
     /* Create and map the WDOG device at CSR base + 0x84000 */
     DeviceState *wdog = qdev_new(TYPE_WDOG);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0, SA8775P_cdsp0.csr_base + 0x84000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0,
+                    (SA8775P_cdsp0.cfgtable.subsystem_base << 16) + 0x4000);
 
     g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,
                                          "cmd_db_header_8775.bin");
@@ -916,12 +908,12 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     }
 
     create_hwkm_prng(0x010DA000);
-    create_cdsp_pll(&SA8775P_cdsp0, 0x40000);
-    create_cdsp_core0_pll(&SA8775P_cdsp0);
-    create_cdsp_clkctl(&SA8775P_cdsp0, 0x48000);
+    create_cdsp_pll(&SA8775P_cdsp0, -0x40000);
+    create_cdsp_pll(&SA8775P_cdsp0, -0x380000);
+    create_cdsp_clkctl(&SA8775P_cdsp0, -0x38000);
     create_cdsp_gdscr(0x151000);
     create_cdsp_ccswi(&SA8775P_cdsp0);
-    create_turing_lmh(&SA8775P_cdsp0);
+    create_turing_lmh(&SA8775P_cdsp0, TURING_LMH_OFFSET - 0x80000);
     create_cdsp_turing_rsc_8775(&SA8775P_cdsp0);
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
@@ -1221,12 +1213,14 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
     qdev_prop_set_uint32(dspss_pub, "boot-arg-5", 0x10000);
     object_property_add_child(OBJECT(machine), "dspss-pub", OBJECT(dspss_pub));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dspss_pub), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0, sc8480xp_nsp0.csr_base - 0x80000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0,
+                    (sc8480xp_nsp0.cfgtable.subsystem_base << 16) - 0x80000);
 
     /* Create and map the WDOG device at CSR base + 0x84000 */
     DeviceState *wdog = qdev_new(TYPE_WDOG);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0, sc8480xp_nsp0.csr_base + 0x84000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0,
+                    (sc8480xp_nsp0.cfgtable.subsystem_base << 16) + 0x4000);
 
     /* IPCC (Inter-Processor Communication Controller) */
     DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
@@ -1246,7 +1240,7 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
     create_cdsp_clkctl(&sc8480xp_nsp0, -0x3C000);
     create_cdsp_gdscr(0x19d000);
     create_turing_cc(&sc8480xp_nsp0, 0x32008000);
-    create_turing_lmh(&sc8480xp_nsp0);
+    create_turing_lmh(&sc8480xp_nsp0, TURING_LMH_OFFSET - 0x80000);
     create_cdsp_turing_rsc_8480(&sc8480xp_nsp0);
     create_cdsp_turing_dsp_rsc_8480(&sc8480xp_nsp0);
 

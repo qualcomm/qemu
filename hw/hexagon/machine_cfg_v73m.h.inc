@@ -6,16 +6,11 @@
 
 static hexagon_machine_config v73m = {
     .cfgbase =             0xd8380000,
-    .l2tcm_size =          0x00000000,
-    .l2vic_base =          0xd8300000 + 0x90000,
-    .l2vic_size =          0x00001000,
-    .csr_base =            0xd8300000,
-    .qtmr_region =         0xd8300000 + 0xA1000,
     .rev_id =              0xcc73,
     .cfgtable = {
         .l2tcm_base = 0x0000d800,
         .reserved0 = 0x00000000,
-        .subsystem_base = 0x00002000,
+        .subsystem_base = 0x0000d838,
         .etm_base = 0x0000d839,
         .l2cfg_base = 0x0000d83a,
         .reserved1 = 0x00000000,
