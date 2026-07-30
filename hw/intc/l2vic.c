@@ -17,8 +17,6 @@
 #include "hw/intc/l2vic.h"
 #include "trace.h"
 
-#define L2VICA(s, n) (s[(n) >> 2])
-
 static void bitmap32_write_word(uint32_t *bitmap, int word_offset, uint32_t val)
 {
     bitmap[word_offset] = val;
