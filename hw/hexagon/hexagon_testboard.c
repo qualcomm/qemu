@@ -293,70 +293,56 @@ static void do_cpu_reset(void *opaque)
     cpu_reset(cs);
 }
 
-static void create_hwkm_prng(void)
+static void create_hwkm_prng(hwaddr base)
 {
     DeviceState *dev = qdev_new(TYPE_HWKM_PRNG);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, HWKM_PRNG_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 }
 
-static void create_turing_lmh(void)
+static void create_turing_lmh(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_LMH);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + TURING_LMH_OFFSET);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + TURING_LMH_OFFSET);
 }
 
-static void create_cdsp_pll(void)
+static void create_cdsp_pll(hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* Map MMIO at absolute base 0x26340000 */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + 0x40000);
-
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + offset);
 }
 
-static void create_cdsp_core0_pll(void)
+static void create_cdsp_core0_pll(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* Map MMIO at absolute base 0x26340000 */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x26000000);
-
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x300000);
 }
 
-static void create_cdsp_clkctl(void)
+static void create_cdsp_clkctl(hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_QDSP6SS_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* Map MMIO at absolute base 0x26348000 */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA8775P_cdsp0.csr_base + 0x48000);
-
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + offset);
 }
 
-static void create_cdsp_gdscr(void)
+static void create_cdsp_gdscr(hwaddr base)
 {
     DeviceState *dev = qdev_new(TYPE_QCOM_GDSCR);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* Map MMIO at absolute base 0x151000 */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x151000);
-
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 }
 
-static void create_cdsp_ccswi(void)
+static void create_cdsp_ccswi(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_CDSP0_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x26008000);
-
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2F8000);
 }
 
-static void create_cdsp_turing_rsc(void)
+static void create_cdsp_turing_rsc(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
@@ -376,7 +362,7 @@ static void create_cdsp_turing_rsc(void)
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x260A4000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x25C000);
 
     /* Connect IRQ outputs to L2VIC */
     Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
@@ -785,14 +771,14 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
                           qdev_get_gpio_in(l2vic, 30));
     }
 
-    create_hwkm_prng();
-    create_cdsp_pll();
-    create_cdsp_core0_pll();
-    create_cdsp_clkctl();
-    create_cdsp_gdscr();
-    create_cdsp_ccswi();
-    create_turing_lmh();
-    create_cdsp_turing_rsc();
+    create_hwkm_prng(0x010DA000);
+    create_cdsp_pll(&SA8775P_cdsp0, 0x40000);
+    create_cdsp_core0_pll(&SA8775P_cdsp0);
+    create_cdsp_clkctl(&SA8775P_cdsp0, 0x48000);
+    create_cdsp_gdscr(0x151000);
+    create_cdsp_ccswi(&SA8775P_cdsp0);
+    create_turing_lmh(&SA8775P_cdsp0);
+    create_cdsp_turing_rsc(&SA8775P_cdsp0);
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
     uint32_t default_value = 0x20600;
