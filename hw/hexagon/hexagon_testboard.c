@@ -20,6 +20,7 @@
 #include "hw/misc/qcom-qdsp6-cc-regs.h"
 #include "hw/misc/qcom-qdsp6-gdscr.h"
 #include "hw/misc/qcom-qdsp6-cc-swi.h"
+#include "hw/misc/qcom-turing-cc-regs.h"
 #include "hw/misc/qcom-turing-lmh.h"
 #include "hw/misc/qcom-turing-rsc.h"
 #include "hw/timer/qct-qtimer.h"
@@ -53,6 +54,7 @@
 #include "qobject/qlist.h"
 #include "hw/misc/wdog.h"
 #include "hw/misc/unimp.h"
+#include "qemu/datadir.h"
 
 static bool syscfg_is_linux;
 
@@ -342,7 +344,76 @@ static void create_cdsp_ccswi(hexagon_machine_config *cfg)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2F8000);
 }
 
-static void create_cdsp_turing_rsc(hexagon_machine_config *cfg)
+static void create_turing_cc(hexagon_machine_config *cfg, hwaddr base)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_CC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+}
+
+static void create_cdsp_turing_dsp_rsc_8480(hexagon_machine_config *cfg)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_RSC);
+
+    qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00040000);
+    qdev_prop_set_uint32(dev, "solver-config-reset", 0x06010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01600214);
+    qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x20000000);
+    qdev_prop_set_uint32(dev, "cmd-spacing", 0x18);
+    qdev_prop_set_uint32(dev, "tcs-base-offset", 0x20);
+    qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x0110);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x00);
+    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
+    qdev_prop_set_uint32(dev, "num-br-addr", 8);
+    qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base + 0x40000);
+
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                          qdev_get_gpio_in(l2vic, 41));
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1,
+                          qdev_get_gpio_in(l2vic, 61));
+    }
+}
+
+static void create_cdsp_turing_rsc_8480(hexagon_machine_config *cfg)
+{
+    DeviceState *dev = qdev_new(TYPE_TURING_RSC);
+
+    qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00040000);
+    qdev_prop_set_uint32(dev, "solver-config-reset", 0x04010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01300214);
+    qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x8000000A);
+    qdev_prop_set_uint32(dev, "cmd-spacing", 0x18);
+    qdev_prop_set_uint32(dev, "tcs-base-offset", 0x20);
+    qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x0D10);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
+    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
+    qdev_prop_set_uint32(dev, "num-br-addr", 16);
+    qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, cfg->csr_base - 0x2DC000);
+
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                          qdev_get_gpio_in(l2vic, 41));
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1,
+                          qdev_get_gpio_in(l2vic, 61));
+    }
+}
+
+static void create_cdsp_turing_rsc_8775(hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
@@ -778,7 +849,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
     create_cdsp_gdscr(0x151000);
     create_cdsp_ccswi(&SA8775P_cdsp0);
     create_turing_lmh(&SA8775P_cdsp0);
-    create_cdsp_turing_rsc(&SA8775P_cdsp0);
+    create_cdsp_turing_rsc_8775(&SA8775P_cdsp0);
 
     /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
     uint32_t default_value = 0x20600;
@@ -975,6 +1046,182 @@ static void v79m_1_init(ObjectClass *oc, const void *data)
     mc->default_cpus = 4;
 }
 
+#include "sc8480xp_nsp0_smem_entries.inc"
+static void sc8480xp_nsp0_config_init(MachineState *machine)
+{
+    uint32_t default_value;
+    ssize_t size;
+
+    hexagon_common_init(machine, v81_rev, &sc8480xp_nsp0);
+
+    /*
+     * Create and map the TCSR device
+     * These values should be reflected in the boot_params below.
+     */
+    DeviceState *tcsr = qdev_new(TYPE_TCSR);
+    qdev_prop_set_uint8(tcsr, "family-number", 0xa1);
+    qdev_prop_set_uint16(tcsr, "device-number", 0x19);
+    qdev_prop_set_uint8(tcsr, "major-version", 0x2);
+    qdev_prop_set_uint8(tcsr, "minor-version", 0x0);
+    qdev_prop_set_uint8(tcsr, "emulation-type", 0x4);
+
+    /* The device's cust_config.xml tells us this address of the smem pool */
+    const uint32_t smem_base = 0xffe00000;
+    /* Address in smem we find the SMEM_TARG_INFO_IDENTIFIER: 0x49494953 */
+    const uint32_t smem_target_id_addr = smem_base + 0x1ff3b0;
+
+    QList *wonce_init_list = qlist_new();
+    qlist_append_int(wonce_init_list, smem_target_id_addr);
+    qdev_prop_set_array(tcsr, "tz-wonce-init", wonce_init_list);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tcsr), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(tcsr), 0, 0x01fc0000);
+    cpu_physical_memory_write(0x01fc0000 + 0x14000, &smem_base,
+                              sizeof(smem_base));
+
+    cpu_physical_memory_write(smem_base, sc8480xp_nsp0_smem_data,
+        sizeof(sc8480xp_nsp0_smem_data));
+
+    g_autofree char *cmd_db_header = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                         "cmd_db_header_sc8480xp_nsp0.bin");
+    if (!cmd_db_header) {
+        error_report("Failed to find cmd_db_header_sc8480xp_nsp0.bin");
+        exit(1);
+    }
+
+    /*
+     * How we find cmd_db_header_addr:
+     * - Look for the cluster 0x56414c49 in sc8480xp_smem_entries.inc.
+     *   There will be several, this is the value after the 16th entry.
+     */
+    size = load_image_targphys(cmd_db_header, 0x0C30F000,
+                               UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database header: '%s'",
+                     cmd_db_header);
+        exit(1);
+    }
+
+    g_autofree char *cmd_db = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                             "cmd_db_sc8480xp_nsp0.bin");
+    if (!cmd_db) {
+        error_report("Failed to find cmd_db_sc8480xp_nsp0.bin");
+        exit(1);
+    }
+    /*
+     * How we find cmd_db_bin_addr:
+     * - Find sw_aperture.xml and look for CMD_DB
+     */
+    size = load_image_targphys(cmd_db, 0x81C60000, UINT64_MAX, &error_fatal);
+    if (size == -1) {
+        error_report("could not load command database: '%s'", cmd_db);
+        exit(1);
+    }
+
+    /* Create and map the DSPSS-PUB device at CSR base */
+    DeviceState *dspss_pub = qdev_new(TYPE_DSPSS_PUB);
+    /*
+     * Arg 1: Device Tree base address
+     * Args 2 and 3 are platform and chip info
+     * Refer to the TCSR settings above to match the values.
+     */
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-0", 0x91900000);
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-1", 0x0);
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-2", 0x00A10019);
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-3", 0x200);
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-4", 0x0);
+    qdev_prop_set_uint32(dspss_pub, "boot-arg-5", 0x10000);
+    object_property_add_child(OBJECT(machine), "dspss-pub", OBJECT(dspss_pub));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dspss_pub), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dspss_pub), 0,
+                    sc8480xp_nsp0.csr_base - 0x80000);
+
+    /* Create and map the WDOG device at CSR base + 0x84000 */
+    DeviceState *wdog = qdev_new(TYPE_WDOG);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(wdog), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(wdog), 0,
+                    sc8480xp_nsp0.csr_base + 0x84000);
+
+    /* IPCC (Inter-Processor Communication Controller) */
+    DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
+    object_property_add_child(OBJECT(machine), "ipcc", OBJECT(ipcc));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipcc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ipcc), 0, 0x03e00000);
+
+    Object *l2vic_obj = object_resolve_path_type("", TYPE_L2VIC, NULL);
+    if (l2vic_obj) {
+        DeviceState *l2vic = DEVICE(l2vic_obj);
+        sysbus_connect_irq(SYS_BUS_DEVICE(ipcc), 6,
+                          qdev_get_gpio_in(l2vic, 30));
+    }
+
+    create_hwkm_prng(0x010CA000);
+    create_cdsp_pll(&sc8480xp_nsp0, -0x40000);
+    create_cdsp_clkctl(&sc8480xp_nsp0, -0x3C000);
+    create_cdsp_gdscr(0x19d000);
+    create_turing_cc(&sc8480xp_nsp0, 0x32008000);
+    create_turing_lmh(&sc8480xp_nsp0);
+    create_cdsp_turing_rsc_8480(&sc8480xp_nsp0);
+    create_cdsp_turing_dsp_rsc_8480(&sc8480xp_nsp0);
+
+    /* Set Default values for some Read-Only RPMH_PDC_COMPUTE registers. */
+    default_value = 0x30800;
+    cpu_physical_memory_write(0xB2B1000, &default_value, sizeof(uint32_t));
+    default_value = 0x56e1;
+    cpu_physical_memory_write(0xB2B1004, &default_value, sizeof(uint32_t));
+    default_value = 0x242104;
+    cpu_physical_memory_write(0xB2B1008, &default_value, sizeof(uint32_t));
+    default_value = 0xa600a;
+    cpu_physical_memory_write(0xB2B100c, &default_value, sizeof(uint32_t));
+
+    /* Set Default values for some DDR_SLICE_0_MACH9_0_LLCC_COMMON registers. */
+    default_value = 0x6000000;
+    cpu_physical_memory_write(0x21864000, &default_value, sizeof(uint32_t));
+    default_value = 0xF0;
+    cpu_physical_memory_write(0x21864004, &default_value, sizeof(uint32_t));
+    default_value = 0xC04004C1;
+    cpu_physical_memory_write(0x2186400c, &default_value, sizeof(uint32_t));
+
+    /* Set sane value for DDR_REG_GLB_AND_BCAST registers. */
+    default_value = 0x50000;
+    cpu_physical_memory_write(0x20280000, &default_value, sizeof(uint32_t));
+    default_value = 0x10;
+    cpu_physical_memory_write(0x20280080, &default_value, sizeof(uint32_t));
+    default_value = 0x401;
+    cpu_physical_memory_write(0x202800A0, &default_value, sizeof(uint32_t));
+    default_value = 0x182140;
+    cpu_physical_memory_write(0x202800A4, &default_value, sizeof(uint32_t));
+    default_value = 0x1800;
+    cpu_physical_memory_write(0x202800A8, &default_value, sizeof(uint32_t));
+    default_value = 0x18;
+    cpu_physical_memory_write(0x202800AC, &default_value, sizeof(uint32_t));
+    default_value = 0x100000;
+    cpu_physical_memory_write(0x2028012C, &default_value, sizeof(uint32_t));
+    default_value = 0x30;
+    cpu_physical_memory_write(0x20280150, &default_value, sizeof(uint32_t));
+    default_value = 0x10;
+    cpu_physical_memory_write(0x20280158, &default_value, sizeof(uint32_t));
+    default_value = 0xF0F0F03;
+    cpu_physical_memory_write(0x20280290, &default_value, sizeof(uint32_t));
+    /* TURING_VAPSS_HCP_SREGR */
+    default_value = 0x2110001;
+    cpu_physical_memory_write(0x3200813C, &default_value, sizeof(uint32_t));
+}
+
+static void sc8480xp_nsp0_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon SC8480XP NSP0";
+    mc->init = sc8480xp_nsp0_config_init;
+    init_mc(mc);
+    mc->is_default = false;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
+    mc->default_cpus = 12;
+    mc->max_cpus = THREADS_MAX;
+    mc->default_ram_size = 4 * GiB;
+}
+
 static void v81qa_1_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v81_rev, &v81qa_1);
@@ -1134,6 +1381,10 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("SA8797P_NSP0"),
         .parent = TYPE_MACHINE,
         .class_init = SA8797P_nsp0_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("SC8480XP_NSP0"),
+        .parent = TYPE_MACHINE,
+        .class_init = sc8480xp_nsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("sim"),
         .parent = TYPE_MACHINE,
