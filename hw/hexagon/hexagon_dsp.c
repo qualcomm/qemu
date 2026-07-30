@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "system/address-spaces.h"
+#include "system/dma.h"
 #include "hw/core/hw-error.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"

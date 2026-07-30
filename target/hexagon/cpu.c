@@ -10,6 +10,7 @@
 #include "internal.h"
 #include "system/memory.h"
 #include "exec/page-protection.h"
+#include "exec/cputlb.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
@@ -22,7 +23,7 @@
 #include "macros.h"
 #include "accel/tcg/cpu-ops.h"
 
-#if !defined(CONFIG_USER_ONLY)
+#ifndef CONFIG_USER_ONLY
 #include "migration/vmstate.h"
 #include "macros.h"
 #include "sys_macros.h"
@@ -31,10 +32,12 @@
 #include "qemu/main-loop.h"
 #include "system/cpus.h"
 #include "hex_interrupts.h"
-#include "qemu/cutils.h"
 #include "hexswi.h"
+#include "exec/cpu-interrupt.h"
+#include "qemu/cutils.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "exec/target_page.h"
 #endif
 #include "opcodes.h"
 #include "coproc.h"
@@ -144,8 +147,6 @@ const char * const hexagon_sregnames[] = {
     "brkptinfo1",
 };
 
-
-
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
 
 const char * const hexagon_gregnames[] = {
@@ -158,7 +159,6 @@ const char * const hexagon_gregnames[] = {
     "g30",        "g31",
 };
 #endif
-
 /*
  * One of the main debugging techniques is to use "-d cpu" and compare against
  * LLDB output when single stepping.  However, the target and qemu put the
@@ -569,6 +569,10 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hexagon_raise_exception_err(env, HEX_EVENT_PRECISE, (uint32_t)pc);
     }
 
+#ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
+#endif
+
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
 
@@ -603,9 +607,6 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 }
 #endif
 
-#define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
-
-
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -626,7 +627,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 #ifndef CONFIG_USER_ONLY
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+    env->wait_next_pc = 0;
+    env->next_PC = 0;
 #endif
+    env->cause_code = HEX_EVENT_NONE;
     memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
     memset(env->pred, 0, sizeof(target_ulong) * NUM_PREGS);
     memset(env->VRegs, 0, sizeof(MMVector) * NUM_VREGS);
@@ -898,7 +902,7 @@ static void hexagon_cpu_set_irq(void *opaque, int irq, int level)
 
 static void hexagon_cpu_init(Object *obj)
 {
-#if !defined(CONFIG_USER_ONLY)
+#ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(obj);
     qdev_init_gpio_in(DEVICE(cpu), hexagon_cpu_set_irq, 8);
 #endif
@@ -943,10 +947,10 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     uint64_t page_size = 0;
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
-    vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
 
     if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
                              addr, 0, mmu_idx)) {
+        vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
         find_qemu_subpage(&addr, &phys_addr, page_size);
         phys_addr += hexagon_cpu_mmu_enabled(env) ? page_offset : 0;
         return phys_addr;

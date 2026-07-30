@@ -10,5 +10,4 @@ hexagon_k0_lock(int htid, unsigned int pc, int k0lock) "tid: %d: pc: 0x%x, k0_lo
 hexagon_k0_lock_info(int htid, const char *info) "tid: %d: %s"
 hexagon_tlb_lock(int htid, unsigned int pc, int k0lock) "tid: %d: pc: 0x%x, k0_lock_count %d"
 hexagon_tlb_lock_info(int htid, const char *info) "tid: %d: %s"
-hexagon_tlbw(int htid, int tlbidx, unsigned int va, uint64_t pa) "tid: %d: idx: %d, va: 0x%x, pa: 0x%" PRIx64
 hexagon_critical(const char *msg, int htid, unsigned int pc, unsigned int lr, unsigned int ssr, unsigned int badva, unsigned int elr, unsigned int diag) "%s HTID: %d: PC: 0x%08x, LR: 0x%08x, SSR: 0x%08x, BADVA: 0x%08x ELR: 0x%08x DIAG: 0x%08x"

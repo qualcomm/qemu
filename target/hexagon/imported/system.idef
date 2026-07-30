@@ -51,7 +51,7 @@ Q6INSN(J2_trap1,"trap1(Rx32,#u8)",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPAC
 	if (!fTRAP1_VIRTINSN(uiV)) {
 		fTRAP(1,uiV);
 	} else if (uiV == 1) {
-		fVIRTINSN_RTE(uiV,RxV);
+		fVIRTINSN_RTE(uiV);
 	} else if (uiV == 3) {
 		fVIRTINSN_SETIE(uiV,RxV);
 	} else if (uiV == 4) {

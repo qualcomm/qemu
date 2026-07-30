@@ -614,10 +614,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
                  "Illegal Execution of Secondary Coprocessor Instruction",
                  HEX_CAUSE_NO_COPROC2_ENABLE);
           break;
-      case HEX_CAUSE_UNSUPORTED_HVX_64B:
+      case HEX_CAUSE_UNSUPPORTED_HVX_64B:
           printf("0x%x, "
                  "Unsuported Execution of Coprocessor Instruction with 64bits Mode On",
-                 HEX_CAUSE_UNSUPORTED_HVX_64B);
+                 HEX_CAUSE_UNSUPPORTED_HVX_64B);
           break;
       case HEX_CAUSE_VWCTRL_WINDOW_MISS:
           printf("0x%x, "
@@ -1030,7 +1030,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_INVALID_OPCODE:
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
-        case HEX_CAUSE_UNSUPORTED_HVX_64B:
+        case HEX_CAUSE_UNSUPPORTED_HVX_64B:
         case HEX_CAUSE_PRIV_USER_NO_GINSN:
         case HEX_CAUSE_PRIV_USER_NO_SINSN:
         case HEX_CAUSE_REG_WRITE_CONFLICT:

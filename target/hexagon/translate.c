@@ -1017,7 +1017,7 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
          * generate an exception if there's any attempt to use
          * HVX while in this mode.
          */
-        gen_precise_exception(HEX_CAUSE_UNSUPORTED_HVX_64B, ctx->pkt.pc);
+        gen_precise_exception(HEX_CAUSE_UNSUPPORTED_HVX_64B, ctx->pkt.pc);
     }
 }
 
