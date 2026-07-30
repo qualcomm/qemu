@@ -24,7 +24,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 #define NUM_TIME_UPDATE_PER_SEC 10
 #define NSEC_IN_ONE_SEC (1000 * 1000 * 1000)
 
-static GMutex global_state_lock;
+static GMutex global_time_lock;
 
 static uint64_t max_insn_per_second = 1000 * 1000 * 1000; /* ips per core, per second */
 static uint64_t max_insn_per_quantum; /* trap every N instructions */
@@ -32,10 +32,16 @@ static int64_t virtual_time_ns; /* last set virtual time */
 
 static const void *time_handle;
 
+static GThread *tickthread;
+static gint tickthread_exit;
+
 typedef struct {
     uint64_t total_insn;
     uint64_t quantum_insn; /* insn in last quantum */
     int64_t last_quantum_time; /* time when last quantum started */
+    GMutex budget_lock;
+    GCond budget_cond; /* signaled when budget_insn is replenished */
+    uint64_t budget_insn; /* insn this vcpu is allowed to execute */
 } vCPUTime;
 
 struct qemu_plugin_scoreboard *vcpus;
@@ -46,12 +52,6 @@ static int64_t now_ns(void)
     return g_get_real_time() * 1000;
 }
 
-static uint64_t num_insn_during(int64_t elapsed_ns)
-{
-    double num_secs = elapsed_ns / (double) NSEC_IN_ONE_SEC;
-    return num_secs * (double) max_insn_per_second;
-}
-
 static int64_t time_for_insn(uint64_t num_insn)
 {
     double num_secs = (double) num_insn / (double) max_insn_per_second;
@@ -60,33 +60,59 @@ static int64_t time_for_insn(uint64_t num_insn)
 
 static void update_system_time(vCPUTime *vcpu)
 {
-    int64_t elapsed_ns = now_ns() - vcpu->last_quantum_time;
-    uint64_t max_insn = num_insn_during(elapsed_ns);
-
-    if (vcpu->quantum_insn >= max_insn) {
-        /* this vcpu ran faster than expected, so it has to sleep */
-        uint64_t insn_advance = vcpu->quantum_insn - max_insn;
-        uint64_t time_advance_ns = time_for_insn(insn_advance);
-        int64_t sleep_us = time_advance_ns / 1000;
-        g_usleep(sleep_us);
-    }
-
     vcpu->total_insn += vcpu->quantum_insn;
-    vcpu->quantum_insn = 0;
     vcpu->last_quantum_time = now_ns();
 
     /* based on total number of instructions, what should be the new time? */
     int64_t new_virtual_time = time_for_insn(vcpu->total_insn);
 
-    g_mutex_lock(&global_state_lock);
+    g_mutex_lock(&global_time_lock);
 
     /* Time only moves forward. Another vcpu might have updated it already. */
     if (new_virtual_time > virtual_time_ns) {
-        qemu_plugin_update_ns(time_handle, new_virtual_time);
+        if (time_handle) {
+            qemu_plugin_update_ns(time_handle, new_virtual_time);
+        }
         virtual_time_ns = new_virtual_time;
     }
 
-    g_mutex_unlock(&global_state_lock);
+    g_mutex_unlock(&global_time_lock);
+}
+
+
+static void update_budget(vCPUTime *vcpu)
+{
+    g_mutex_lock(&vcpu->budget_lock);
+
+    if (vcpu->quantum_insn < vcpu->budget_insn) {
+        vcpu->budget_insn -= vcpu->quantum_insn;
+    } else {
+        vcpu->budget_insn = 0;
+    }
+
+    while (!vcpu->budget_insn) {
+        g_cond_wait(&vcpu->budget_cond, &vcpu->budget_lock);
+    }
+
+    g_mutex_unlock(&vcpu->budget_lock);
+}
+
+static void *tickthread_fn(void *userdata)
+{
+    int64_t quantum_us = time_for_insn(max_insn_per_quantum) / 1000;
+
+    while (!g_atomic_int_get(&tickthread_exit)) {
+        for (int i = 0; i < qemu_plugin_num_vcpus(); i++) {
+            vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, i);
+            g_mutex_lock(&vcpu->budget_lock);
+            vcpu->budget_insn = max_insn_per_quantum;
+            g_cond_signal(&vcpu->budget_cond);
+            g_mutex_unlock(&vcpu->budget_lock);
+        }
+        g_usleep(quantum_us);
+    }
+
+    return NULL;
 }
 
 static void vcpu_init(unsigned int cpu_index, void *userdata)
@@ -95,19 +121,17 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
     vcpu->total_insn = 0;
     vcpu->quantum_insn = 0;
     vcpu->last_quantum_time = now_ns();
-}
-
-static void vcpu_exit(unsigned int cpu_index, void *userdata)
-{
-    vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
-    update_system_time(vcpu);
+    g_mutex_init(&vcpu->budget_lock);
+    g_cond_init(&vcpu->budget_cond);
+    vcpu->budget_insn = 0;
 }
 
 static void every_quantum_insn(unsigned int cpu_index, void *udata)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
-    g_assert(vcpu->quantum_insn >= max_insn_per_quantum);
     update_system_time(vcpu);
+    update_budget(vcpu);
+    vcpu->quantum_insn = 0;
 }
 
 static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
@@ -126,6 +150,8 @@ static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 
 static void plugin_exit(void *udata)
 {
+    g_atomic_int_set(&tickthread_exit, 1);
+    g_thread_join(tickthread);
     qemu_plugin_scoreboard_free(vcpus);
 }
 
@@ -204,11 +230,13 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     }
 
     time_handle = qemu_plugin_request_time_control();
-    g_assert(time_handle);
+    g_assert(time_handle || !info->system_emulation);
+
+    tickthread = g_thread_new("tickthread", tickthread_fn, NULL);
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_vcpu_init_cb(id, vcpu_init, NULL);
-    qemu_plugin_register_vcpu_exit_cb(id, vcpu_exit, NULL);
+    qemu_plugin_register_vcpu_exit_cb(id, every_quantum_insn, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
 
     return 0;
