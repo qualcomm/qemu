@@ -38,19 +38,12 @@ static gint tickthread_exit;
 typedef struct {
     uint64_t total_insn;
     uint64_t quantum_insn; /* insn in last quantum */
-    int64_t last_quantum_time; /* time when last quantum started */
     GMutex budget_lock;
     GCond budget_cond; /* signaled when budget_insn is replenished */
     uint64_t budget_insn; /* insn this vcpu is allowed to execute */
 } vCPUTime;
 
 struct qemu_plugin_scoreboard *vcpus;
-
-/* return epoch time in ns */
-static int64_t now_ns(void)
-{
-    return g_get_real_time() * 1000;
-}
 
 static int64_t time_for_insn(uint64_t num_insn)
 {
@@ -61,7 +54,6 @@ static int64_t time_for_insn(uint64_t num_insn)
 static void update_system_time(vCPUTime *vcpu)
 {
     vcpu->total_insn += vcpu->quantum_insn;
-    vcpu->last_quantum_time = now_ns();
 
     /* based on total number of instructions, what should be the new time? */
     int64_t new_virtual_time = time_for_insn(vcpu->total_insn);
@@ -120,7 +112,6 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->total_insn = 0;
     vcpu->quantum_insn = 0;
-    vcpu->last_quantum_time = now_ns();
     g_mutex_init(&vcpu->budget_lock);
     g_cond_init(&vcpu->budget_cond);
     vcpu->budget_insn = 0;
