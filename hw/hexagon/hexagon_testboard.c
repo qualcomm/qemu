@@ -359,6 +359,21 @@ static void create_cdsp_ccswi(void)
 static void create_cdsp_turing_rsc(void)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
+
+    qdev_prop_set_uint32(dev, "rsc-id-reset", 0x00020400);
+    qdev_prop_set_uint32(dev, "solver-config-reset", 0x00010100);
+    qdev_prop_set_uint32(dev, "rsc-config-reset", 0x01300214);
+    qdev_prop_set_uint32(dev, "parentchild-config-reset", 0x8000000AU);
+    qdev_prop_set_uint32(dev, "cmd-spacing", 0x14);
+    qdev_prop_set_uint32(dev, "tcs-base-offset", 0x10);
+    qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
+    qdev_prop_set_uint32(dev, "tcs-timeout-base", 0x3D44);
+    qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x04);
+    qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
+    qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
+    qdev_prop_set_uint32(dev, "num-br-addr", 4);
+    qdev_prop_set_uint32(dev, "num-timestamp-units", 6);
+
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x260A4000);
