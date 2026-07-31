@@ -129,3 +129,33 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
                          RUN_ON_CPU_HOST_ULONG(new_time));
     }
 }
+
+/*
+ * vCPU control
+ */
+static void vcpu_yield__async(CPUState *cpu, run_on_cpu_data data)
+{
+    cpu_pause(cpu);
+}
+
+void qemu_plugin_vcpu_yield(void)
+{
+    /* Need to execute out of cpu_exec, so bql can be locked. */
+    async_run_on_cpu(current_cpu, vcpu_yield__async, RUN_ON_CPU_NULL);
+}
+
+void qemu_plugin_vcpu_resume(unsigned int vcpu_index)
+{
+    CPUState *cpu;
+
+    /*
+     * We can be called from any thread and both walking the cpu list and
+     * resuming a cpu need the bql. The guard is a NOP if we already hold it.
+     */
+    BQL_LOCK_GUARD();
+
+    cpu = qemu_get_cpu(vcpu_index);
+    if (cpu) {
+        cpu_resume(cpu);
+    }
+}

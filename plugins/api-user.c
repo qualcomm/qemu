@@ -55,3 +55,18 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
 {
     qemu_log_mask(LOG_UNIMP, "user-mode can't control time");
 }
+
+/*
+ * vCPU control - user-mode vCPUs are guest threads which are scheduled
+ * by the host kernel so there is no notion of pausing them.
+ */
+
+void qemu_plugin_vcpu_yield(void)
+{
+    qemu_log_mask(LOG_UNIMP, "user-mode can't pause vcpus");
+}
+
+void qemu_plugin_vcpu_resume(unsigned int vcpu_index)
+{
+    qemu_log_mask(LOG_UNIMP, "user-mode can't resume vcpus");
+}

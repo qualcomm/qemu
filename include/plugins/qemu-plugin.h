@@ -84,11 +84,15 @@ typedef uint64_t qemu_plugin_id_t;
  * version 7:
  * - add userdata to all plugin callbacks, allowing maintenance of state
  *   externally, and easing interfacing with other languages.
+ *
+ * version 8:
+ * - added qemu_plugin_vcpu_yield
+ * - added qemu_plugin_vcpu_resume
  */
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 7
+#define QEMU_PLUGIN_VERSION 8
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -825,6 +829,36 @@ const void *qemu_plugin_request_time_control(void);
  */
 QEMU_PLUGIN_API
 void qemu_plugin_update_ns(const void *handle, int64_t time);
+
+/**
+ * qemu_plugin_vcpu_yield() - pause the current vCPU
+ *
+ * This puts the vCPU executing the current callback into the stopped
+ * state, as if it had been paused by the VM. The vCPU stops as soon as
+ * it leaves the execution loop and will only start executing again
+ * once the VM resumes it (i.e. through pause/resume of all vCPUs).
+ *
+ * This is a NOP for user-mode emulation.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_vcpu_yield(void);
+
+/**
+ * qemu_plugin_vcpu_resume() - resume a paused vCPU
+ * @vcpu_index: the vCPU to resume
+ *
+ * This puts @vcpu_index back into the runnable state and kicks it so it
+ * resumes executing. It is the counterpart of qemu_plugin_vcpu_yield()
+ * and can be called from any thread, including another vCPU or a thread
+ * created by the plugin.
+ *
+ * Resuming a vCPU which is not paused, or an out of range @vcpu_index,
+ * is a NOP.
+ *
+ * This is a NOP for user-mode emulation.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_vcpu_resume(unsigned int vcpu_index);
 
 /**
  * typedef qemu_plugin_vcpu_syscall_cb_t - vCPU syscall callback function type
