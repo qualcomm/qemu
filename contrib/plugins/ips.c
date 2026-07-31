@@ -90,17 +90,23 @@ static void update_budget(vCPUTime *vcpu)
 
 static void *tickthread_fn(void *userdata)
 {
-    int64_t quantum_us = time_for_insn(max_insn_per_quantum) / 1000;
+    //int64_t quantum_us = time_for_insn(max_insn_per_quantum) / 1000;
 
     while (!g_atomic_int_get(&tickthread_exit)) {
         for (int i = 0; i < qemu_plugin_num_vcpus(); i++) {
+            bool resume = false;
             vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, i);
             g_mutex_lock(&vcpu->budget_lock);
-            vcpu->budget_insn = max_insn_per_quantum;
+            if (!vcpu->budget_insn) {
+                vcpu->budget_insn = max_insn_per_quantum;
+                resume = true;
+            }
             g_mutex_unlock(&vcpu->budget_lock);
-            qemu_plugin_vcpu_resume(i);
+            if (resume) {
+                qemu_plugin_vcpu_resume(i);
+            }
         }
-        g_usleep(quantum_us);
+        g_usleep(1);
     }
 
     return NULL;
