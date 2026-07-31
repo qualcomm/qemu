@@ -101,12 +101,11 @@ static void *tickthread_fn(void *userdata)
                 vcpu->budget_insn = max_insn_per_quantum;
                 resume = true;
             }
+            g_mutex_unlock(&vcpu->budget_lock);
             if (resume) {
                 qemu_plugin_vcpu_resume(i);
             }
-            g_mutex_unlock(&vcpu->budget_lock);
         }
-        g_usleep(1);
     }
 
     return NULL;
