@@ -62,7 +62,7 @@ static void update_system_time(vCPUTime *vcpu)
     /* Time only moves forward. Another vcpu might have updated it already. */
     if (new_virtual_time > virtual_time_ns) {
         if (time_handle) {
-            qemu_plugin_update_ns(time_handle, new_virtual_time);
+            //qemu_plugin_update_ns(time_handle, new_virtual_time);
         }
         virtual_time_ns = new_virtual_time;
     }
