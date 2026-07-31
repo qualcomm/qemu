@@ -61,7 +61,7 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
  * by the host kernel so there is no notion of pausing them.
  */
 
-void qemu_plugin_vcpu_yield(void)
+void qemu_plugin_vcpu_yield(qemu_plugin_vcpu_udata_cb_t cb, void *userdata)
 {
     qemu_log_mask(LOG_UNIMP, "user-mode can't pause vcpus");
 }

@@ -145,11 +145,18 @@ struct qemu_plugin_tb {
  * @pause_requested: qemu_plugin_vcpu_yield() was called, and the cpu didn't
  *   pause itself yet. Set by the cpu itself, so accessed atomically.
  * @paused: cpu was paused by qemu_plugin_vcpu_yield(). Accessed with the bql.
+ * @pause_cb: callback to run once the cpu paused itself, or NULL.
+ * @pause_cb_udata: user data for @pause_cb.
+ *
+ * @pause_cb and @pause_cb_udata are only accessed by the cpu they belong to,
+ * which requests the pause and honours it, so they need no synchronization.
  */
 struct CPUPluginState {
     DECLARE_BITMAP(event_mask, QEMU_PLUGIN_EV_MAX);
     bool pause_requested;
     bool paused;
+    qemu_plugin_vcpu_udata_cb_t pause_cb;
+    void *pause_cb_udata;
 };
 
 /**

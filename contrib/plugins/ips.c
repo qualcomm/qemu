@@ -40,6 +40,7 @@ typedef struct {
     uint64_t quantum_insn; /* insn in last quantum */
     GMutex budget_lock;
     uint64_t budget_insn; /* insn this vcpu is allowed to execute */
+    gint paused; /* vcpu honoured the pause, set by the vcpu itself */
 } vCPUTime;
 
 struct qemu_plugin_scoreboard *vcpus;
@@ -71,6 +72,13 @@ static void update_system_time(vCPUTime *vcpu)
 }
 
 
+/* the vcpu is now paused, and won't execute anything until we resume it */
+static void vcpu_paused(unsigned int cpu_index, void *userdata)
+{
+    vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
+    g_atomic_int_set(&vcpu->paused, true);
+}
+
 static void update_budget(vCPUTime *vcpu)
 {
     g_mutex_lock(&vcpu->budget_lock);
@@ -82,7 +90,7 @@ static void update_budget(vCPUTime *vcpu)
     }
 
     if (!vcpu->budget_insn) {
-        qemu_plugin_vcpu_yield();
+        qemu_plugin_vcpu_yield(vcpu_paused, NULL);
     }
 
     g_mutex_unlock(&vcpu->budget_lock);
@@ -94,19 +102,26 @@ static void *tickthread_fn(void *userdata)
 
     while (!g_atomic_int_get(&tickthread_exit)) {
         for (int i = 0; i < qemu_plugin_num_vcpus(); i++) {
-            bool resume = false;
             vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, i);
+
+            /*
+             * A vcpu out of budget requested a pause, but only honours it once
+             * it leaves the execution loop, so wait until it tells us it is
+             * effectively paused. Resuming it earlier would cancel a pause
+             * which didn't happen yet, and it would stop right after we gave
+             * it a new budget. A vcpu which doesn't execute, because it is
+             * halted or was never started, simply never shows up here.
+             */
+            if (!g_atomic_int_get(&vcpu->paused)) {
+                continue;
+            }
+            g_atomic_int_set(&vcpu->paused, false);
+
             g_mutex_lock(&vcpu->budget_lock);
-            if (!vcpu->budget_insn) {
-                vcpu->budget_insn = max_insn_per_quantum;
-                resume = true;
-            }
+            vcpu->budget_insn = max_insn_per_quantum;
             g_mutex_unlock(&vcpu->budget_lock);
-            if (resume) {
-                // Add a sleep to wait for cpu to stop
-                g_usleep(1);
-                qemu_plugin_vcpu_resume(i);
-            }
+
+            qemu_plugin_vcpu_resume(i);
         }
     }
 
@@ -120,6 +135,7 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
     vcpu->quantum_insn = 0;
     g_mutex_init(&vcpu->budget_lock);
     vcpu->budget_insn = 0;
+    vcpu->paused = false;
 }
 
 static void every_quantum_insn(unsigned int cpu_index, void *udata)

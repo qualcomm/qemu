@@ -149,10 +149,21 @@ static void vcpu_yield__async(CPUState *cpu, run_on_cpu_data data)
      */
     cpu_pause(cpu);
     cpu->plugin_state->paused = true;
+
+    /*
+     * Tell the plugin the cpu is now paused. Anything resuming it can only run
+     * once we release the bql, so this can't be observed too early.
+     */
+    if (cpu->plugin_state->pause_cb) {
+        cpu->plugin_state->pause_cb(cpu->cpu_index,
+                                    cpu->plugin_state->pause_cb_udata);
+    }
 }
 
-void qemu_plugin_vcpu_yield(void)
+void qemu_plugin_vcpu_yield(qemu_plugin_vcpu_udata_cb_t cb, void *userdata)
 {
+    current_cpu->plugin_state->pause_cb = cb;
+    current_cpu->plugin_state->pause_cb_udata = userdata;
     qatomic_set(&current_cpu->plugin_state->pause_requested, true);
     /*
      * Need to execute out of cpu_exec: cpu_pause() publishes cpu->stopped,

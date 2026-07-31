@@ -832,16 +832,25 @@ void qemu_plugin_update_ns(const void *handle, int64_t time);
 
 /**
  * qemu_plugin_vcpu_yield() - pause the current vCPU
+ * @cb: callback to run once the vCPU is paused, or NULL
+ * @userdata: user data passed to @cb
  *
  * This puts the vCPU executing the current callback into the stopped
  * state, as if it had been paused by the VM. The vCPU stops as soon as
  * it leaves the execution loop and will only start executing again
  * once the VM resumes it (i.e. through pause/resume of all vCPUs).
  *
+ * @cb runs on the vCPU thread, once the vCPU is paused and before it
+ * stops executing, so it is the earliest point from which the vCPU can
+ * safely be handed to a resumer. It does not run if the pause was
+ * cancelled by qemu_plugin_vcpu_resume() before taking effect. QEMU
+ * still holds internal locks while it runs, so it should only signal the
+ * pause, and not wait on anything.
+ *
  * This is a NOP for user-mode emulation.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_vcpu_yield(void);
+void qemu_plugin_vcpu_yield(qemu_plugin_vcpu_udata_cb_t cb, void *userdata);
 
 /**
  * qemu_plugin_vcpu_resume() - resume a paused vCPU
