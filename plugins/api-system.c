@@ -17,6 +17,7 @@
 #include "hw/core/boards.h"
 #include "qemu/plugin-memory.h"
 #include "qemu/plugin.h"
+#include "system/cpus.h"
 
 /*
  * In system mode we cannot trace the binary being executed so the
@@ -155,7 +156,8 @@ void qemu_plugin_vcpu_resume(unsigned int vcpu_index)
     BQL_LOCK_GUARD();
 
     cpu = qemu_get_cpu(vcpu_index);
-    if (cpu) {
+    g_assert(cpu);
+    if (cpu_thread_is_idle(cpu)) {
         cpu_resume(cpu);
     }
 }
