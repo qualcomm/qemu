@@ -39,7 +39,6 @@ typedef struct {
     uint64_t total_insn;
     uint64_t quantum_insn; /* insn in last quantum */
     GMutex budget_lock;
-    GCond budget_cond; /* signaled when budget_insn is replenished */
     uint64_t budget_insn; /* insn this vcpu is allowed to execute */
 } vCPUTime;
 
@@ -82,8 +81,8 @@ static void update_budget(vCPUTime *vcpu)
         vcpu->budget_insn = 0;
     }
 
-    while (!vcpu->budget_insn) {
-        g_cond_wait(&vcpu->budget_cond, &vcpu->budget_lock);
+    if (!vcpu->budget_insn) {
+        qemu_plugin_vcpu_yield();
     }
 
     g_mutex_unlock(&vcpu->budget_lock);
@@ -98,8 +97,8 @@ static void *tickthread_fn(void *userdata)
             vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, i);
             g_mutex_lock(&vcpu->budget_lock);
             vcpu->budget_insn = max_insn_per_quantum;
-            g_cond_signal(&vcpu->budget_cond);
             g_mutex_unlock(&vcpu->budget_lock);
+            qemu_plugin_vcpu_resume(i);
         }
         g_usleep(quantum_us);
     }
@@ -113,7 +112,6 @@ static void vcpu_init(unsigned int cpu_index, void *userdata)
     vcpu->total_insn = 0;
     vcpu->quantum_insn = 0;
     g_mutex_init(&vcpu->budget_lock);
-    g_cond_init(&vcpu->budget_cond);
     vcpu->budget_insn = 0;
 }
 
