@@ -136,11 +136,24 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
  */
 static void vcpu_yield__async(CPUState *cpu, run_on_cpu_data data)
 {
+    if (!qatomic_read(&cpu->plugin_state->pause_requested)) {
+        /* we were resumed before we had a chance to pause */
+        return;
+    }
+    qatomic_set(&cpu->plugin_state->pause_requested, false);
+
+    /*
+     * Remember we are the one pausing this cpu, so we never resume a cpu
+     * paused by qemu itself. We hold the bql for both, so the pause and the
+     * flag can't be observed out of sync.
+     */
     cpu_pause(cpu);
+    cpu->plugin_state->paused = true;
 }
 
 void qemu_plugin_vcpu_yield(void)
 {
+    qatomic_set(&current_cpu->plugin_state->pause_requested, true);
     /* Need to execute out of cpu_exec, so bql can be locked. */
     async_run_on_cpu(current_cpu, vcpu_yield__async, RUN_ON_CPU_NULL);
 }
@@ -157,7 +170,19 @@ void qemu_plugin_vcpu_resume(unsigned int vcpu_index)
 
     cpu = qemu_get_cpu(vcpu_index);
     g_assert(cpu);
-    if (cpu_thread_is_idle(cpu)) {
+
+    /*
+     * Cancel a pause the cpu didn't honour yet, else it would pause after we
+     * resumed it, and the resume would be lost.
+     */
+    qatomic_set(&cpu->plugin_state->pause_requested, false);
+
+    if (!cpu->plugin_state->paused) {
+        /* not ours to resume: it either runs, or qemu stopped it */
+        return;
+    }
+    if (cpu->stopped) {
         cpu_resume(cpu);
     }
+    cpu->plugin_state->paused = false;
 }

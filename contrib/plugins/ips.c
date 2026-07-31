@@ -90,7 +90,7 @@ static void update_budget(vCPUTime *vcpu)
 
 static void *tickthread_fn(void *userdata)
 {
-    //int64_t quantum_us = time_for_insn(max_insn_per_quantum) / 1000;
+    /* int64_t quantum_us = time_for_insn(max_insn_per_quantum) / 1000; */
 
     while (!g_atomic_int_get(&tickthread_exit)) {
         for (int i = 0; i < qemu_plugin_num_vcpus(); i++) {

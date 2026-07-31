@@ -852,8 +852,9 @@ void qemu_plugin_vcpu_yield(void);
  * and can be called from any thread, including another vCPU or a thread
  * created by the plugin.
  *
- * Resuming a vCPU which is not paused, or an out of range @vcpu_index,
- * is a NOP.
+ * Only a vCPU paused by qemu_plugin_vcpu_yield() is resumed, so it is
+ * safe to call this for every vCPU: one which was not paused by the
+ * plugin, or which the VM has resumed in the meantime, is left alone.
  *
  * This is a NOP for user-mode emulation.
  */

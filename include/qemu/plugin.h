@@ -142,9 +142,14 @@ struct qemu_plugin_tb {
 /**
  * struct CPUPluginState - per-CPU state for plugins
  * @event_mask: plugin event bitmap. Modified only via async work.
+ * @pause_requested: qemu_plugin_vcpu_yield() was called, and the cpu didn't
+ *   pause itself yet. Set by the cpu itself, so accessed atomically.
+ * @paused: cpu was paused by qemu_plugin_vcpu_yield(). Accessed with the bql.
  */
 struct CPUPluginState {
     DECLARE_BITMAP(event_mask, QEMU_PLUGIN_EV_MAX);
+    bool pause_requested;
+    bool paused;
 };
 
 /**
