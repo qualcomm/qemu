@@ -103,6 +103,8 @@ static void *tickthread_fn(void *userdata)
             }
             g_mutex_unlock(&vcpu->budget_lock);
             if (resume) {
+                // Add a sleep to wait for cpu to stop
+                g_usleep(1);
                 qemu_plugin_vcpu_resume(i);
             }
         }
