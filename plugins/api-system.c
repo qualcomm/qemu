@@ -154,13 +154,26 @@ static void vcpu_yield__async(CPUState *cpu, run_on_cpu_data data)
 void qemu_plugin_vcpu_yield(void)
 {
     qatomic_set(&current_cpu->plugin_state->pause_requested, true);
-    /* Need to execute out of cpu_exec, so bql can be locked. */
+    /*
+     * Need to execute out of cpu_exec: cpu_pause() publishes cpu->stopped,
+     * which must not become visible while we still execute guest code, else
+     * the vm would consider us paused while we finish the current block.
+     */
     async_run_on_cpu(current_cpu, vcpu_yield__async, RUN_ON_CPU_NULL);
 }
 
 void qemu_plugin_vcpu_resume(unsigned int vcpu_index)
 {
     CPUState *cpu;
+
+    /*
+     * An exclusive section is always entered without the bql (see
+     * process_queued_cpu_work()), so taking it here would invert the lock
+     * order. Note that instrumentation of an instruction qemu emulates
+     * serially, such as an atomic operation it can't inline, does run in an
+     * exclusive context (see cpu_exec_step_atomic()).
+     */
+    g_assert(!current_cpu || !cpu_in_exclusive_context(current_cpu));
 
     /*
      * We can be called from any thread and both walking the cpu list and

@@ -856,6 +856,14 @@ void qemu_plugin_vcpu_yield(void);
  * safe to call this for every vCPU: one which was not paused by the
  * plugin, or which the VM has resumed in the meantime, is left alone.
  *
+ * Resuming a vCPU needs the QEMU global lock, which a vCPU cannot take
+ * while it runs with all other vCPUs stopped. QEMU emulates some
+ * instructions that way (an atomic operation it cannot inline, for
+ * instance), and the callbacks instrumenting such an instruction run in
+ * that context, so calling this from a vCPU aborts if it happens there.
+ * A thread created by the plugin is never affected, and is the safest
+ * place to resume from.
+ *
  * This is a NOP for user-mode emulation.
  */
 QEMU_PLUGIN_API
