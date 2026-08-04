@@ -4499,6 +4499,7 @@ single_binary_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
 supported_targets = [
   'aarch64-softmmu',
   'arm-softmmu',
+  'microblaze-softmmu',
 ]
 unsupported_targets = []
 foreach target : target_dirs
