@@ -156,14 +156,14 @@ uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
     return 0;
 }
 
-ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(const CPUARMState *env, bool secstate)
 {
     return ARMMMUIdx_MUser;
 }
 
 #else /* !CONFIG_USER_ONLY */
 
-static ARMMMUIdx arm_v7m_mmu_idx_all(CPUARMState *env,
+static ARMMMUIdx arm_v7m_mmu_idx_all(const CPUARMState *env,
                                      bool secstate, bool priv, bool negpri)
 {
     ARMMMUIdx mmu_idx = ARM_MMU_IDX_M;
@@ -183,7 +183,7 @@ static ARMMMUIdx arm_v7m_mmu_idx_all(CPUARMState *env,
     return mmu_idx;
 }
 
-static ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
+static ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(const CPUARMState *env,
                                                        bool secstate, bool priv)
 {
     bool negpri = armv7m_nvic_neg_prio_requested(env->nvic, secstate);
@@ -192,7 +192,7 @@ static ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
 }
 
 /* Return the MMU index for a v7M CPU in the specified security state */
-ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(const CPUARMState *env, bool secstate)
 {
     bool priv = arm_v7m_is_handler_mode(env) ||
         !(env->v7m.control[secstate] & 1);

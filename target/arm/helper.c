@@ -283,7 +283,7 @@ void arm_init_cpreg_list(ARMCPU *cpu)
     }
 }
 
-bool arm_pan_enabled(CPUARMState *env)
+bool arm_pan_enabled(const CPUARMState *env)
 {
     if (is_a64(env)) {
         if ((arm_hcr_el2_eff(env) & (HCR_NV | HCR_NV1)) == (HCR_NV | HCR_NV1)) {
@@ -3916,7 +3916,8 @@ static void hcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
  * Bits that are not included here:
  * RW       (read from SCR_EL3.RW as needed)
  */
-uint64_t arm_hcr_el2_eff_secstate(CPUARMState *env, ARMSecuritySpace space)
+uint64_t arm_hcr_el2_eff_secstate(const CPUARMState *env,
+                                  ARMSecuritySpace space)
 {
     uint64_t ret = env->cp15.hcr_el2;
 
@@ -3981,7 +3982,7 @@ uint64_t arm_hcr_el2_eff_secstate(CPUARMState *env, ARMSecuritySpace space)
     return ret;
 }
 
-uint64_t arm_hcr_el2_eff(CPUARMState *env)
+uint64_t arm_hcr_el2_eff(const CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
         return 0;
@@ -3989,7 +3990,7 @@ uint64_t arm_hcr_el2_eff(CPUARMState *env)
     return arm_hcr_el2_eff_secstate(env, arm_security_space_below_el3(env));
 }
 
-uint64_t arm_hcr_el2_nvx_eff(CPUARMState *env)
+uint64_t arm_hcr_el2_nvx_eff(const CPUARMState *env)
 {
     uint64_t hcr = arm_hcr_el2_eff(env);
 
@@ -4002,7 +4003,7 @@ uint64_t arm_hcr_el2_nvx_eff(CPUARMState *env)
 /*
  * Corresponds to ARM pseudocode function ELIsInHost().
  */
-bool el_is_in_host(CPUARMState *env, int el)
+bool el_is_in_host(const CPUARMState *env, int el)
 {
     uint64_t mask;
 
@@ -4100,7 +4101,7 @@ static const ARMCPRegInfo hcrx_el2_reginfo = {
 };
 
 /* Return the effective value of HCRX_EL2.  */
-uint64_t arm_hcrx_el2_eff(CPUARMState *env)
+uint64_t arm_hcrx_el2_eff(const CPUARMState *env)
 {
     /*
      * The bits in this register behave as 0 for all purposes other than
@@ -4114,7 +4115,7 @@ uint64_t arm_hcrx_el2_eff(CPUARMState *env)
      * This may need to be revisited for future bits.
      */
     if (!arm_is_el2_enabled(env)) {
-        ARMCPU *cpu = env_archcpu(env);
+        const ARMCPU *cpu = env_archcpu(env);
         uint64_t hcrx = 0;
 
         /* Bits which whose effective value is 1 if el2 not enabled. */
@@ -4722,7 +4723,7 @@ static const ARMCPRegInfo minimal_ras_reginfo[] = {
  * pseudocode does *not* separate out the FP trap checks, but has them
  * all in one function.
  */
-int sve_exception_el(CPUARMState *env, int el)
+int sve_exception_el(const CPUARMState *env, int el)
 {
 #ifndef CONFIG_USER_ONLY
     if (el <= 1 && !el_is_in_host(env, el)) {
@@ -4771,7 +4772,7 @@ int sve_exception_el(CPUARMState *env, int el)
  * Return the exception level to which exceptions should be taken for SME.
  * C.f. the ARM pseudocode function CheckSMEAccess.
  */
-int sme_exception_el(CPUARMState *env, int el)
+int sme_exception_el(const CPUARMState *env, int el)
 {
 #ifndef CONFIG_USER_ONLY
     if (el <= 1 && !el_is_in_host(env, el)) {
@@ -4819,10 +4820,10 @@ int sme_exception_el(CPUARMState *env, int el)
 /*
  * Given that SVE or SME is enabled, return the vector length for EL.
  */
-uint32_t sve_vqm1_for_el_sm(CPUARMState *env, int el, bool sm)
+uint32_t sve_vqm1_for_el_sm(const CPUARMState *env, int el, bool sm)
 {
-    ARMCPU *cpu = env_archcpu(env);
-    uint64_t *cr = env->vfp.zcr_el;
+    const ARMCPU *cpu = env_archcpu(env);
+    const uint64_t *cr = env->vfp.zcr_el;
     uint32_t map = cpu->sve_vq.map;
     uint32_t len = ARM_MAX_VQ - 1;
 
@@ -4857,7 +4858,7 @@ uint32_t sve_vqm1_for_el_sm(CPUARMState *env, int el, bool sm)
     return ctz32(cpu->sme_vq.map);
 }
 
-uint32_t sve_vqm1_for_el(CPUARMState *env, int el)
+uint32_t sve_vqm1_for_el(const CPUARMState *env, int el)
 {
     return sve_vqm1_for_el_sm(env, el, FIELD_EX64(env->svcr, SVCR, SM));
 }
@@ -9771,7 +9772,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-uint64_t arm_sctlr(CPUARMState *env, int el)
+uint64_t arm_sctlr(const CPUARMState *env, int el)
 {
     /* Only EL0 needs to be adjusted for EL1&0 or EL2&0 or EL3&0 */
     if (el == 0) {
@@ -10095,7 +10096,7 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
  * Return the exception level to which FP-disabled exceptions should
  * be taken, or 0 if FP is enabled.
  */
-int fp_exception_el(CPUARMState *env, int cur_el)
+int fp_exception_el(const CPUARMState *env, int cur_el)
 {
 #ifndef CONFIG_USER_ONLY
     uint64_t hcr_el2;
@@ -10202,13 +10203,13 @@ int fp_exception_el(CPUARMState *env, int cur_el)
 }
 
 #ifndef CONFIG_TCG
-ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(const CPUARMState *env, bool secstate)
 {
     g_assert_not_reached();
 }
 #endif
 
-ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
+ARMMMUIdx arm_mmu_idx_el(const CPUARMState *env, int el)
 {
     ARMMMUIdx idx;
     uint64_t hcr;
@@ -10261,7 +10262,7 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
     return idx;
 }
 
-ARMMMUIdx arm_mmu_idx(CPUARMState *env)
+ARMMMUIdx arm_mmu_idx(const CPUARMState *env)
 {
     return arm_mmu_idx_el(env, arm_current_el(env));
 }
@@ -10382,7 +10383,7 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el,
 }
 
 #ifndef CONFIG_USER_ONLY
-ARMSecuritySpace arm_security_space(CPUARMState *env)
+ARMSecuritySpace arm_security_space(const CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
         return arm_secure_to_space(env->v7m.secure);
@@ -10414,7 +10415,7 @@ ARMSecuritySpace arm_security_space(CPUARMState *env)
     return arm_security_space_below_el3(env);
 }
 
-ARMSecuritySpace arm_security_space_below_el3(CPUARMState *env)
+ARMSecuritySpace arm_security_space_below_el3(const CPUARMState *env)
 {
     assert(!arm_feature(env, ARM_FEATURE_M));
 

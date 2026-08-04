@@ -16,7 +16,7 @@
 #include "system/tcg.h"
 
 /* Return the Exception Level targeted by debug exceptions. */
-static int arm_debug_target_el(CPUARMState *env)
+static int arm_debug_target_el(const CPUARMState *env)
 {
     bool secure = arm_is_secure(env);
     bool route_to_el2 = false;
@@ -61,7 +61,7 @@ raise_exception_debug(CPUARMState *env, uint32_t excp, uint32_t syndrome)
 }
 
 /* See AArch64.GenerateDebugExceptionsFrom() in ARM ARM pseudocode */
-static bool aa64_generate_debug_exceptions(CPUARMState *env)
+static bool aa64_generate_debug_exceptions(const CPUARMState *env)
 {
     int cur_el = arm_current_el(env);
     int debug_el;
@@ -91,7 +91,7 @@ static bool aa64_generate_debug_exceptions(CPUARMState *env)
     return debug_el > cur_el;
 }
 
-static bool aa32_generate_debug_exceptions(CPUARMState *env)
+static bool aa32_generate_debug_exceptions(const CPUARMState *env)
 {
     int el = arm_current_el(env);
 
@@ -145,7 +145,7 @@ static bool aa32_generate_debug_exceptions(CPUARMState *env)
  * CheckSoftwareStep(), where it is elided because both branches would
  * always return the same value.
  */
-bool arm_generate_debug_exceptions(CPUARMState *env)
+bool arm_generate_debug_exceptions(const CPUARMState *env)
 {
     if ((env->cp15.oslsr_el1 & 1) || (env->cp15.osdlr_el1 & 1)) {
         return false;
@@ -161,7 +161,7 @@ bool arm_generate_debug_exceptions(CPUARMState *env)
  * Is single-stepping active? (Note that the "is EL_D AArch64?" check
  * implicitly means this always returns false in pre-v8 CPUs.)
  */
-bool arm_singlestep_active(CPUARMState *env)
+bool arm_singlestep_active(const CPUARMState *env)
 {
     return extract32(env->cp15.mdscr_el1, 0, 1)
         && arm_el_is_aa64(env, arm_debug_target_el(env))
@@ -169,9 +169,9 @@ bool arm_singlestep_active(CPUARMState *env)
 }
 
 /* Return true if the linked breakpoint entry lbn passes its checks */
-static bool linked_bp_matches(ARMCPU *cpu, int lbn)
+static bool linked_bp_matches(const ARMCPU *cpu, int lbn)
 {
-    CPUARMState *env = &cpu->env;
+    const CPUARMState *env = &cpu->env;
     uint64_t bcr = env->cp15.dbgbcr[lbn];
     int brps = arm_num_brps(cpu);
     int ctx_cmps = arm_num_ctx_cmps(cpu);
@@ -252,9 +252,9 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
     return contextidr == (uint32_t)env->cp15.dbgbvr[lbn];
 }
 
-static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
+static bool bp_wp_matches(const ARMCPU *cpu, int n, bool is_wp)
 {
-    CPUARMState *env = &cpu->env;
+    const CPUARMState *env = &cpu->env;
     uint64_t cr;
     int pac, hmc, ssc, wt, lbn;
     /*

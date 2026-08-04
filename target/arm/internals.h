@@ -50,7 +50,7 @@
 #define BANK_HYP    6
 #define BANK_MON    7
 
-static inline MemOp mo_endian(CPUARMState *env)
+static inline MemOp mo_endian(const CPUARMState *env)
 {
     return EX_TBFLAG_ANY(env->hflags, BE_DATA) ? MO_BE : MO_LE;
 }
@@ -452,14 +452,14 @@ static inline FloatRoundMode arm_rmode_to_sf(ARMFPRounding rmode)
 }
 
 /* Return the effective value of SCR_EL3.RW */
-static inline bool arm_scr_rw_eff(CPUARMState *env)
+static inline bool arm_scr_rw_eff(const CPUARMState *env)
 {
     /*
      * SCR_EL3.RW has an effective value of 1 if:
      *  - we are NS and EL2 is implemented but doesn't support AArch32
      *  - we are S and EL2 is enabled (in which case it must be AArch64)
      */
-    ARMCPU *cpu = env_archcpu(env);
+    const ARMCPU *cpu = env_archcpu(env);
 
     if (env->cp15.scr_el3 & SCR_RW) {
         return true;
@@ -473,7 +473,7 @@ static inline bool arm_scr_rw_eff(CPUARMState *env)
 }
 
 /* Return true if the specified exception level is running in AArch64 state. */
-static inline bool arm_el_is_aa64(CPUARMState *env, int el)
+static inline bool arm_el_is_aa64(const CPUARMState *env, int el)
 {
     /*
      * This isn't valid for EL0 (if we're in EL0, is_a64() is what you want,
@@ -510,7 +510,7 @@ static inline bool arm_el_is_aa64(CPUARMState *env, int el)
  * Return the current Exception Level (as per ARMv8; note that this differs
  * from the ARMv7 Privilege Level).
  */
-static inline int arm_current_el(CPUARMState *env)
+static inline int arm_current_el(const CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
         return arm_v7m_is_handler_mode(env) ||
@@ -538,7 +538,7 @@ static inline int arm_current_el(CPUARMState *env)
     }
 }
 
-static inline bool arm_cpu_data_is_big_endian_a32(CPUARMState *env,
+static inline bool arm_cpu_data_is_big_endian_a32(const CPUARMState *env,
                                                   bool sctlr_b)
 {
 #ifdef CONFIG_USER_ONLY
@@ -568,7 +568,7 @@ static inline bool arm_cpu_data_is_big_endian_a64(int el, uint64_t sctlr)
 }
 
 /* Return true if the processor is in big-endian mode. */
-static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
+static inline bool arm_cpu_data_is_big_endian(const CPUARMState *env)
 {
     if (!is_a64(env)) {
         return arm_cpu_data_is_big_endian_a32(env, arm_sctlr_b(env));
@@ -580,7 +580,7 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 }
 
 #ifdef CONFIG_USER_ONLY
-static inline bool arm_cpu_bswap_data(CPUARMState *env)
+static inline bool arm_cpu_bswap_data(const CPUARMState *env)
 {
     return TARGET_BIG_ENDIAN ^ arm_cpu_data_is_big_endian(env);
 }
@@ -1036,7 +1036,7 @@ static inline ARMMMUIdx core_to_aa64_mmu_idx(int mmu_idx)
 }
 
 /* Return the MMU index for a v7M CPU in the specified security state */
-ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate);
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(const CPUARMState *env, bool secstate);
 
 /*
  * Return true if the stage 1 translation regime is using LPAE
@@ -1078,7 +1078,7 @@ static inline void arm_call_el_change_hook(ARMCPU *cpu)
 }
 
 /* Return the SCTLR value which controls this address translation regime */
-static inline uint64_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
+static inline uint64_t regime_sctlr(const CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     return env->cp15.sctlr_el[regime_el(mmu_idx)];
 }
@@ -1094,7 +1094,7 @@ static inline uint64_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
      R_VTCR_DS_MASK)
 
 /* Return the value of the TCR controlling this translation regime */
-static inline uint64_t regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
+static inline uint64_t regime_tcr(const CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     if (mmu_idx == ARMMMUIdx_Stage2) {
         return env->cp15.vtcr_el2;
@@ -1116,7 +1116,8 @@ static inline uint64_t regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
 }
 
 /* Return true if the translation regime is using LPAE format page tables */
-static inline bool regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
+static inline bool regime_using_lpae_format(const CPUARMState *env,
+                                            ARMMMUIdx mmu_idx)
 {
     int el = regime_el(mmu_idx);
     if (el == 2 || arm_el_is_aa64(env, el)) {
@@ -1138,7 +1139,7 @@ static inline bool regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
  * Note that the ID register BRPS field is "number of bps - 1",
  * and we return the actual number of breakpoints.
  */
-static inline int arm_num_brps(ARMCPU *cpu)
+static inline int arm_num_brps(const ARMCPU *cpu)
 {
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64_IDREG(&cpu->isar, ID_AA64DFR0, BRPS) + 1;
@@ -1152,7 +1153,7 @@ static inline int arm_num_brps(ARMCPU *cpu)
  * Note that the ID register WRPS field is "number of wps - 1",
  * and we return the actual number of watchpoints.
  */
-static inline int arm_num_wrps(ARMCPU *cpu)
+static inline int arm_num_wrps(const ARMCPU *cpu)
 {
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64_IDREG(&cpu->isar, ID_AA64DFR0, WRPS) + 1;
@@ -1166,7 +1167,7 @@ static inline int arm_num_wrps(ARMCPU *cpu)
  * Note that the ID register CTX_CMPS field is "number of cmps - 1",
  * and we return the actual number of comparators.
  */
-static inline int arm_num_ctx_cmps(ARMCPU *cpu)
+static inline int arm_num_ctx_cmps(const ARMCPU *cpu)
 {
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64_IDREG(&cpu->isar, ID_AA64DFR0, CTX_CMPS) + 1;
@@ -1180,7 +1181,7 @@ static inline int arm_num_ctx_cmps(ARMCPU *cpu)
  * Return true if the CPU is currently using the process stack
  * pointer, or false if it is using the main stack pointer.
  */
-static inline bool v7m_using_psp(CPUARMState *env)
+static inline bool v7m_using_psp(const CPUARMState *env)
 {
     /* Handler mode always uses the main stack; for thread mode
      * the CONTROL.SPSEL bit determines the answer.
@@ -1196,7 +1197,7 @@ static inline bool v7m_using_psp(CPUARMState *env)
  * Return the SP limit value for the current CPU security state
  * and stack pointer.
  */
-static inline uint32_t v7m_sp_limit(CPUARMState *env)
+static inline uint32_t v7m_sp_limit(const CPUARMState *env)
 {
     if (v7m_using_psp(env)) {
         return env->v7m.psplim[env->v7m.secure];
@@ -1210,7 +1211,7 @@ static inline uint32_t v7m_sp_limit(CPUARMState *env)
  * Return true if the v7M CPACR permits access to the FPU for the specified
  * security state and privilege level.
  */
-static inline bool v7m_cpacr_pass(CPUARMState *env,
+static inline bool v7m_cpacr_pass(const CPUARMState *env,
                                   bool is_secure, bool is_priv)
 {
     switch (extract32(env->v7m.cpacr[is_secure], 20, 2)) {
@@ -1300,7 +1301,7 @@ void arm_cpu_update_vserr(ARMCPU *cpu);
  *
  * Return the full ARMMMUIdx for the translation regime for EL.
  */
-ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el);
+ARMMMUIdx arm_mmu_idx_el(const CPUARMState *env, int el);
 
 /**
  * arm_mmu_idx:
@@ -1308,7 +1309,7 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el);
  *
  * Return the full ARMMMUIdx for the current translation regime.
  */
-ARMMMUIdx arm_mmu_idx(CPUARMState *env);
+ARMMMUIdx arm_mmu_idx(const CPUARMState *env);
 
 /**
  * arm_stage1_mmu_idx:
@@ -1463,7 +1464,7 @@ int aa64_va_parameter_tbid(uint64_t tcr, ARMMMUIdx mmu_idx);
 int aa64_va_parameter_tcma(uint64_t tcr, ARMMMUIdx mmu_idx);
 
 /* Determine if allocation tags are available.  */
-static inline bool allocation_tag_access_enabled(CPUARMState *env, int el,
+static inline bool allocation_tag_access_enabled(const CPUARMState *env, int el,
                                                  uint64_t sctlr)
 {
     if (el < 3
@@ -1772,9 +1773,9 @@ enum MVEECIState {
 #define PMCCFILTR_M           PMXEVTYPER_M
 #define PMCCFILTR_EL0         (PMCCFILTR | PMCCFILTR_M)
 
-static inline uint32_t pmu_num_counters(CPUARMState *env)
+static inline uint32_t pmu_num_counters(const CPUARMState *env)
 {
-    ARMCPU *cpu = env_archcpu(env);
+    const ARMCPU *cpu = env_archcpu(env);
 
     return (cpu->isar.reset_pmcr_el0 & PMCRN_MASK) >> PMCRN_SHIFT;
 }
@@ -1815,7 +1816,7 @@ void aarch64_aa32_a57_init(ARMCPU *cpu, bool aa64_enabled);
 void aarch64_host_initfn(Object *obj);
 
 /* Return true if the gdbstub is presenting an AArch64 CPU */
-static inline bool arm_gdbstub_is_aarch64(ARMCPU *cpu)
+static inline bool arm_gdbstub_is_aarch64(const ARMCPU *cpu)
 {
     return arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
 }
@@ -1833,13 +1834,13 @@ uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure);
 uint32_t *arm_v7m_get_sp_ptr(CPUARMState *env, bool secure,
                              bool threadmode, bool spsel);
 
-bool el_is_in_host(CPUARMState *env, int el);
+bool el_is_in_host(const CPUARMState *env, int el);
 
 void aa32_max_features(ARMCPU *cpu);
 void aarch32_max_v8_tcg_initfn(Object *obj);
-int exception_target_el(CPUARMState *env);
-bool arm_singlestep_active(CPUARMState *env);
-bool arm_generate_debug_exceptions(CPUARMState *env);
+int exception_target_el(const CPUARMState *env);
+bool arm_singlestep_active(const CPUARMState *env);
+bool arm_generate_debug_exceptions(const CPUARMState *env);
 
 /**
  * pauth_ptr_mask:
@@ -1848,7 +1849,7 @@ bool arm_generate_debug_exceptions(CPUARMState *env);
  * Return a mask of the address bits that contain the authentication code,
  * given the MMU config defined by @param.
  */
-static inline uint64_t pauth_ptr_mask(ARMVAParameters param)
+static inline uint64_t pauth_ptr_mask(const ARMVAParameters param)
 {
     int bot_pac_bit = 64 - param.tsz;
     int top_pac_bit = 64 - 8 * param.tbi;
@@ -1904,7 +1905,7 @@ static inline uint64_t arm_mdcr_el2_eff(CPUARMState *env)
  * Return the maximum SVE/SME VQ for this CPU. This defines
  * the maximum possible size of the Zn vector registers.
  */
-static inline int arm_max_vq(ARMCPU *cpu)
+static inline int arm_max_vq(const ARMCPU *cpu)
 {
     return MAX(cpu->sve_max_vq, cpu->sme_max_vq);
 }
@@ -1912,7 +1913,7 @@ static inline int arm_max_vq(ARMCPU *cpu)
 /*
  * Return true if it is possible to take a fine-grained-trap to EL2.
  */
-static inline bool arm_fgt_active(CPUARMState *env, int el)
+static inline bool arm_fgt_active(const CPUARMState *env, int el)
 {
     /*
      * The Arm ARM only requires the "{E2H,TGE} != {1,1}" test for traps
@@ -2012,7 +2013,7 @@ void vfp_clear_float_status_exc_flags(CPUARMState *env);
  * specified by mask changing to the values in val.
  */
 void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val, uint32_t mask);
-bool arm_pan_enabled(CPUARMState *env);
+bool arm_pan_enabled(const CPUARMState *env);
 uint32_t cpsr_read_for_spsr_elx(CPUARMState *env);
 void cpsr_write_from_spsr_elx(CPUARMState *env, uint32_t val);
 

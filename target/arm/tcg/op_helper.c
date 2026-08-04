@@ -30,7 +30,7 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-int exception_target_el(CPUARMState *env)
+int exception_target_el(const CPUARMState *env)
 {
     int target_el = MAX(1, arm_current_el(env));
 
