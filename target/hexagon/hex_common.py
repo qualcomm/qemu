@@ -394,6 +394,8 @@ class Register:
         """))
     def idef_arg(self, declared):
         declared.append(self.reg_tcg())
+    def may_alias_gpr(self):
+        return False
     def helper_arg(self):
         return HelperArg(
             self.helper_proto_type(),
@@ -501,6 +503,8 @@ class ReadWrite:
         return False
 
 class GprDest(Register, Single, Dest):
+    def may_alias_gpr(self):
+        return True
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -518,6 +522,8 @@ class GprDest(Register, Single, Dest):
         """))
 
 class GprSource(Register, Single, OldSource):
+    def may_alias_gpr(self):
+        return True
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -539,6 +545,8 @@ class GprNewSource(Register, Single, NewSource):
         """))
 
 class GprReadWrite(Register, Single, ReadWrite):
+    def may_alias_gpr(self):
+        return True
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -567,6 +575,8 @@ class GprReadWrite(Register, Single, ReadWrite):
         """))
 
 class ControlDest(Register, Single, Dest):
+    def may_alias_gpr(self):
+        return True
     def decl_reg_num(self, f, regno):
         f.write(code_fmt(f"""\
             const int {self.reg_num} = insn->regno[{regno}]  + HEX_REG_SA0;
@@ -603,6 +613,8 @@ class ControlSource(Register, Single, OldSource):
         """))
 
 class ModifierSource(Register, Single, OldSource):
+    def may_alias_gpr(self):
+        return True
     def decl_reg_num(self, f, regno):
         f.write(code_fmt(f"""\
             const int {self.reg_num} = insn->regno[{regno}] + HEX_REG_M0;
