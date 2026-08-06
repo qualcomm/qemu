@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   build-libqemu:
     strategy:
@@ -53,6 +56,19 @@ jobs:
       - name: Build
         run: ./quic/build.sh build
 
+      - name: Pack build tree
+        if: matrix.os == 'ubuntu-24.04'
+        run: tar czf build.tar.gz build
+
+      - name: Upload build tree
+        if: matrix.os == 'ubuntu-24.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-ubuntu-24.04-hexagon
+          path: build.tar.gz
+          retention-days: 1
+          compression-level: 0
+
   build-qemu-aarch64:
     strategy:
       fail-fast: false
@@ -72,3 +88,10 @@ jobs:
 
       - name: Build
         run: ./quic/build.sh build
+
+  functional-tests:
+    needs: build-qemu-hexagon
+    uses: ./.github/workflows/functional-tests.yml
+    with:
+      runs-on: ubuntu-24.04
+      artifact-name: build-ubuntu-24.04-hexagon
