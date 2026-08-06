@@ -1,0 +1,61 @@
+# Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Functional Tests
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "Runner label for the test job"
+        required: true
+        type: string
+      artifact-name:
+        description: "Name of the build artifact to download (must match the upload)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  functional-test:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: systests
+            script: ./quic/run-functional-test.sh func-hexagon-systests
+          - name: minivm
+            script: ./quic/run-functional-test.sh func-hexagon-minivm
+          - name: sa8775p
+            script: ./quic/run-functional-test.sh func-hexagon-sa8775p_cdsp0
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            quic/install-deps.sh
+          else
+            sudo quic/install-deps.sh
+          fi
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+
+      - name: Unpack build tree
+        run: tar xzf build.tar.gz
+
+      - name: Run functional test
+        run: ${{ matrix.script }}

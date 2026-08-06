@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -32,3 +35,48 @@ jobs:
 
       - name: Build
         run: cmake --build --preset "${{ matrix.preset }}" --parallel $(sysctl -n hw.logicalcpu)
+
+  build-qemu-hexagon-mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macOS-15, macOS-26 ]
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: quic/install-deps.sh
+
+      - name: Configure
+        run: ./quic/build.sh configure hexagon_mac
+
+      - name: Build
+        run: ./quic/build.sh build
+
+      - name: Sign emulator binary
+        run: build/pyvenv/bin/meson compile -C build qemu-system-hexagon
+
+      - name: Pack build tree
+        if: matrix.os == 'macOS-26'
+        run: tar czf build.tar.gz build
+
+      - name: Upload build tree
+        if: matrix.os == 'macOS-26'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-macos-26-hexagon
+          path: build.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  functional-tests:
+    needs: build-qemu-hexagon-mac
+    uses: ./.github/workflows/functional-tests.yml
+    with:
+      runs-on: macOS-26
+      artifact-name: build-macos-26-hexagon
