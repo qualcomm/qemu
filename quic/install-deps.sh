@@ -24,7 +24,7 @@ if { [ -e /etc/os-release ] && OS_RELEASE="/etc/os-release"; } || \
             bison build-essential cmake expect flex \
             libasio-dev libc++1 libc++abi1 libcap-ng-dev libcbor-dev libepoxy-dev \
             libgcrypt20-dev libglib2.0-dev libgtk-3-dev libgnutls28-dev libpng-dev \
-            libpixman-1-dev libpulse-dev libseccomp-dev libssh-dev \
+            libpixman-1-dev libpulse-dev libseccomp-dev libslirp-dev libssh-dev \
             libudev-dev liburing-dev libunwind8 libvirglrenderer-dev \
             libsdl2-dev libsdl2-image-dev \
             ninja-build pkg-config python3 python3-venv
