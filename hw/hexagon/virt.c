@@ -32,7 +32,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
 #include "elf.h"
-#include "machine_cfg_v68n_1024.h.inc"
+#include "machine_cfg_v81dgb_1.h.inc"
 #include "system/address-spaces.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
@@ -80,7 +80,7 @@ static void create_fdt(HexagonVirtMachineState *vms)
     qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x1);
     qemu_fdt_setprop_string(fdt, "/", "model", "hexagon-virt,qemu");
-    static const char root_compat[] = "qemu,hexagon-virt\0qcom,sm8150";
+    static const char root_compat[] = "qemu,hexagon-virt";
     qemu_fdt_setprop(fdt, "/", "compatible", root_compat, sizeof(root_compat));
 
     qemu_fdt_add_subnode(fdt, "/soc");
@@ -125,6 +125,22 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
         qemu_fdt_setprop_cells(ms->fdt, "/soc/hvx", "qcom,hvx-vlength",
                                m_cfg->cfgtable.hvx_vec_log_length);
     }
+}
+
+static void fdt_add_hmx(HexagonVirtMachineState *vms,
+                        const hexagon_machine_config *m_cfg, Error **errp)
+{
+    const MachineState *ms = MACHINE(vms);
+
+    if (!(m_cfg->cfgtable.coproc_present & HEXAGON_COPROC_PRESENT_HMX)) {
+        return;
+    }
+
+    qemu_fdt_add_subnode(ms->fdt, "/soc/hmx");
+    qemu_fdt_setprop_string(ms->fdt, "/soc/hmx", "compatible",
+                            "qcom,hexagon-hmx");
+    qemu_fdt_setprop_cells(ms->fdt, "/soc/hmx", "qcom,hmx-max-ctxts",
+                           m_cfg->cfgtable.ext_contexts);
 }
 
 static int32_t irq_hvm_ic_phandle = -1;
@@ -665,7 +681,7 @@ static void do_cpu_reset(void *opaque)
 static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
-    const hexagon_machine_config *m_cfg = &v68n_1024;
+    const hexagon_machine_config *m_cfg = &v81dgb_1;
 
     /*
      * If an external DTB is specified, load it instead of generating one.
@@ -718,6 +734,7 @@ static void virt_init(MachineState *ms)
     /* Only add dynamic device tree nodes if using generated FDT */
     if (ms->dtb == NULL) {
         fdt_add_hvx(vms, m_cfg, &error_fatal);
+        fdt_add_hmx(vms, m_cfg, &error_fatal);
     }
 
     const char *cpu_model = ms->cpu_type;
@@ -740,6 +757,8 @@ static void virt_init(MachineState *ms)
 
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
         qdev_prop_set_uint32(DEVICE(cpu), "hvx-contexts",
+                             m_cfg->cfgtable.ext_contexts);
+        qdev_prop_set_uint32(DEVICE(cpu), "hmx-contexts",
                              m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "dsp-rev", v68_rev);
 
