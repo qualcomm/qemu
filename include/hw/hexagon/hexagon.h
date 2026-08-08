@@ -40,6 +40,10 @@ typedef enum {
 
 #define HEXAGON_CFGSPACE_ENTRIES (128)
 
+/* Bits of the coproc_present cfgtable field. */
+#define HEXAGON_COPROC_PRESENT_HVX (1 << 0)
+#define HEXAGON_COPROC_PRESENT_HMX (1 << 2)
+
 typedef  union {
   struct {
     /* Base address of L2TCM space */

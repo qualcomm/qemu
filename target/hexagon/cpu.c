@@ -91,6 +91,7 @@ static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("jtlb-entries", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
+    DEFINE_PROP_UINT32("hmx-contexts", HexagonCPU, hmx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
     DEFINE_PROP_LINK("l2vic", HexagonCPU, l2vic,
                      TYPE_L2VIC_INTERFACE, L2VicInterface *),
@@ -402,6 +403,7 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     target_ulong ssr;
     bool pcycle_enabled;
     bool hvx_enabled;
+    bool hmx_enabled;
     bool ss_active;
     bool pmu_enabled;
 
@@ -425,6 +427,11 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     hex_flags =
         FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, hvx_enabled);
 
+    hmx_enabled = extract32(ssr, reg_field_info[SSR_XE2].offset,
+                            reg_field_info[SSR_XE2].width);
+    hex_flags =
+        FIELD_DP32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED, hmx_enabled);
+
     if (rev_requires_v2x_for_128b_hvx(env)) {
         int v2x = extract32(syscfg, reg_field_info[SYSCFG_V2X].offset,
                             reg_field_info[SYSCFG_V2X].width);
@@ -442,6 +449,7 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, true);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED, true);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED, true);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_64B_MODE,
                            rev_requires_v2x_for_128b_hvx(env) &&

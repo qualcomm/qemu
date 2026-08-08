@@ -101,6 +101,7 @@ typedef struct DisasContext {
     TCGv mult_reg_written;
     bool pcycle_enabled;
     bool hvx_coproc_enabled;
+    bool hmx_coproc_enabled;
     bool hvx_64b_mode;
     bool ss_active;
     bool ss_pending;

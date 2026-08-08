@@ -893,6 +893,9 @@ static void gen_start_packet(DisasContext *ctx)
     if (ctx->pkt.pkt_has_hvx && !ctx->hvx_coproc_enabled) {
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
     }
+    if (ctx->pkt.pkt_has_coproc && !ctx->hmx_coproc_enabled) {
+        gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
+    }
 #endif
     if (ctx->pkt.pkt_has_hvx && ctx->hvx_coproc_enabled && ctx->hvx_64b_mode) {
 #ifndef CONFIG_USER_ONLY
@@ -1449,6 +1452,8 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
+    ctx->hmx_coproc_enabled =
+        FIELD_EX32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
     ctx->hvx_64b_mode = FIELD_EX32(hex_flags, TB_FLAGS, HVX_64B_MODE);
     ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
 #ifndef CONFIG_USER_ONLY

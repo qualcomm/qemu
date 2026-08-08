@@ -244,6 +244,7 @@ struct ArchCPU {
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
     uint32_t hvx_contexts;
+    uint32_t hmx_contexts;
     uint32_t boot_addr;
     HexagonGlobalRegState *globalregs;
     L2VicInterface *l2vic;
@@ -264,6 +265,7 @@ FIELD(TB_FLAGS, HVX_64B_MODE, 6, 1)
 FIELD(TB_FLAGS, PMU_ENABLED, 7, 1)
 FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
 FIELD(TB_FLAGS, SS_PENDING, 9, 1)
+FIELD(TB_FLAGS, HMX_COPROC_ENABLED, 10, 1)
 
 bool rev_requires_v2x_for_128b_hvx(CPUHexagonState *env);
 
