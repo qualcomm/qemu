@@ -375,8 +375,13 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
     lu->scsi_dev = SCSI_DEVICE(scsi_dev);
 }
 
-void ufs_lu_realize_common(UfsLu *lu, BlockBackend *blk, UfsHc *u, Error **errp)
+static void ufs_lu_realize(DeviceState *dev, Error **errp)
 {
+    UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
+    BusState *s = qdev_get_parent_bus(dev);
+    UfsHc *u = UFS(s->parent);
+    BlockBackend *blk = lu->conf.blk;
+
     if (!ufs_lu_check_constraints(lu, errp)) {
         return;
     }
@@ -403,17 +408,7 @@ void ufs_lu_realize_common(UfsLu *lu, BlockBackend *blk, UfsHc *u, Error **errp)
     ufs_init_scsi_device(lu, blk, errp);
 }
 
-static void ufs_lu_realize(DeviceState *dev, Error **errp)
-{
-    UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
-    BusState *s = qdev_get_parent_bus(dev);
-    UfsHc *u = UFS_SYSBUS(s->parent);
-    BlockBackend *blk = lu->conf.blk;
-
-    ufs_lu_realize_common(lu, blk, u, errp);
-}
-
-void ufs_lu_unrealize(DeviceState *dev)
+static void ufs_lu_unrealize(DeviceState *dev)
 {
     UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
 
@@ -423,24 +418,19 @@ void ufs_lu_unrealize(DeviceState *dev)
     }
 }
 
-void ufs_lu_class_init_common(DeviceClass *dc)
-{
-    dc->unrealize = ufs_lu_unrealize;
-    device_class_set_props(dc, ufs_lu_props);
-    dc->desc = "Virtual UFS logical unit";
-}
-
 static void ufs_lu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ufs_lu_realize;
-    dc->bus_type = TYPE_UFS_SYSBUS_BUS;
-    ufs_lu_class_init_common(dc);
+    dc->unrealize = ufs_lu_unrealize;
+    dc->bus_type = TYPE_UFS_BUS;
+    device_class_set_props(dc, ufs_lu_props);
+    dc->desc = "Virtual UFS logical unit";
 }
 
 static const TypeInfo ufs_lu_info = {
-    .name = TYPE_UFS_SYSBUS_LU,
+    .name = TYPE_UFS_LU,
     .parent = TYPE_DEVICE,
     .class_init = ufs_lu_class_init,
     .instance_size = sizeof(UfsLu),

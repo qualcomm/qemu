@@ -11,11 +11,9 @@
 #ifndef HW_UFS_UFS_H
 #define HW_UFS_UFS_H
 
-#include "block/ufs.h"
 #include "hw/pci/pci_device.h"
 #include "hw/scsi/scsi.h"
-#include "hw/core/sysbus.h"
-#include "system/dma.h"
+#include "block/ufs.h"
 
 #define UFS_MAX_LUS 32
 #define UFS_MAX_MCQ_QNUM 32
@@ -33,9 +31,6 @@ typedef struct UfsBus {
 
 #define TYPE_UFS_BUS "ufs-bus"
 DECLARE_OBJ_CHECKERS(UfsBus, UfsBusClass, UFS_BUS, TYPE_UFS_BUS)
-
-#define TYPE_UFS_SYSBUS_BUS "ufs-sysbus-bus"
-DECLARE_OBJ_CHECKERS(UfsBus, UfsBusClass, UFS_SYSBUS_BUS, TYPE_UFS_SYSBUS_BUS)
 
 typedef enum UfsRequestState {
     UFS_REQUEST_IDLE = 0,
@@ -124,10 +119,7 @@ typedef struct UfsCq {
 } UfsCq;
 
 typedef struct UfsHc {
-    union {
-        PCIDevice parent_obj;
-        SysBusDevice busdev;
-    };
+    PCIDevice parent_obj;
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
@@ -156,16 +148,6 @@ typedef struct UfsHc {
     UfsCq *cq[UFS_MAX_MCQ_QNUM];
 
     uint8_t temperature;
-    MemTxResult (*dma_read)(struct UfsHc *u, dma_addr_t addr, void *buf,
-                            dma_addr_t len);
-    MemTxResult (*dma_write)(struct UfsHc *u, dma_addr_t addr, const void *buf,
-                             dma_addr_t len);
-    void (*dma_sglist_init)(struct UfsHc *u, QEMUSGList *qsg, int alloc_hint);
-    void (*irq_raise)(struct UfsHc *u);
-    void (*irq_lower)(struct UfsHc *u);
-    /* Memory region that DMA operation access in sysbus device*/
-    MemoryRegion *mem_mr;
-    AddressSpace *mem_as;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
@@ -230,14 +212,8 @@ static inline bool ufs_mcq_cq_full(UfsHc *u, uint32_t qid)
 #define TYPE_UFS "ufs"
 #define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
 
-#define TYPE_SYSBUS_UFS "ufs-sysbus"
-#define UFS_SYSBUS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_SYSBUS_UFS)
-
 #define TYPE_UFS_LU "ufs-lu"
 #define UFSLU(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_LU)
-
-#define TYPE_UFS_SYSBUS_LU "ufs-sysbus-lu"
-#define UFSLU_SYSBUS(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_SYSBUS_LU)
 
 typedef enum UfsQueryFlagPerm {
     UFS_QUERY_FLAG_NONE = 0x0,
@@ -266,17 +242,4 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
-uint64_t ufs_mmio_read(void *opaque, hwaddr addr, unsigned size);
-void ufs_mmio_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
-bool ufs_check_constraints(UfsHc *u, Error **errp);
-void ufs_init_state(UfsHc *u);
-void ufs_init_hc(UfsHc *u);
-void ufs_exit_common(UfsHc *u);
-void mem_reg_init_io(UfsHc *u, const char *name);
-void ufs_class_init_common(DeviceClass *dc);
-char *ufs_bus_get_dev_path(DeviceState *dev);
-void ufs_lu_realize_common(UfsLu *lu, BlockBackend *blk, UfsHc *u,
-                           Error **errp);
-void ufs_lu_unrealize(DeviceState *dev);
-void ufs_lu_class_init_common(DeviceClass *dc);
 #endif /* HW_UFS_UFS_H */
