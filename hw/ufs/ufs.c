@@ -1735,16 +1735,6 @@ static void ufs_init_sysbus(DeviceState *dev)
 
     u->mem_as = &address_space_memory;
     u->mem_mr = get_system_memory();
-/**
- * FIXME: disbale io memory reentrancy guard for now to prevent this sporadic
- * warning "libqbox: warning: Blocked re-entrant IO on MemoryRegion: ufs-sysbus
- * at addr:%d" as it might be caused by the way irq is currently handled in
- * qbox, or may be it is an inherent problem in scsi as shown here:
- * https://github.com/qemu/qemu/commit/d139fe9ad8a27bcc50b4ead77d2f97d191a0e95e
- */
-#ifdef CONFIG_LIBQEMU
-    u->iomem.disable_reentrancy_guard = true;
-#endif
 }
 
 void ufs_init_state(UfsHc *u)
