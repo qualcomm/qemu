@@ -1972,14 +1972,6 @@ char *ufs_bus_get_dev_path(DeviceState *dev)
 {
     BusState *bus = qdev_get_parent_bus(dev);
 
-#ifdef CONFIG_LIBQEMU
-    /**
-     * let's give each ufs instance a unique path for the scsibus_get_dev_path()
-     * in hw/scsi/scsi-bus.c to return unique scsi device path so that multiple
-     * ufs instances can be instantiated successfully.
-     */
-    return g_strdup(bus->parent->id);
-#endif
     return qdev_get_dev_path(bus->parent);
 }
 
