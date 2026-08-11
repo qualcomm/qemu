@@ -30,10 +30,53 @@ static inline const HmxConfig *hmx_cfg_from_env(CPUHexagonState *env)
     return &env_archcpu(env)->hmx_cfg;
 }
 
-/* Forward declaration (hmx_fp_convert called before its definition) */
-static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx, int acc_set,
+/* Forward declaration (hmx_fp_convert_dbl called before its definition) */
+static void hmx_fp_convert_dbl(CPUHexagonState *env, HmxState *hmx, int acc_set,
                             int is_f8, int relu, int bias_sel, int maxnorm,
                             int fp8_odd_sel, int is_bf16_out);
+
+/* Forward declaration (hmx_fp_convert_xfp called before its definition) */
+static void hmx_fp_convert_xfp(CPUHexagonState *env, HmxState *hmx, int acc_set,
+                            int is_f8, int relu, int bias_sel, int maxnorm,
+                            int fp8_odd_sel, int is_bf16_out,
+                            int fb_dst, int fb_limit, int fp_rnd);
+
+/*
+ * Initialize one FP accumulator array to XFP true-zero.
+ *
+ * All-zero memory is not the reference XFP true-zero: a true zero has
+ * sig=0, status.zero=1, exp=-(1<<(EXP-1)), and the shape fields filled.
+ * Every FP accumulator reset site on the XFP path must use this rather
+ * than memset(0). The double path's accumulators are plain IEEE double
+ * bit patterns, for which memset(0) already is zero, so it keeps using
+ * plain memset. Only ever called when hmx_cfg->hmx_fp_uses_xfp, so
+ * hmx_xfp_zero()'s fixed accumulator shape (int=8 frac=22 exp=9) is
+ * always the right one.
+ */
+static void hmx_fp_acc_zero(const HmxConfig *hmx_cfg, HmxAccFp *acc)
+{
+    HmxXfp z = hmx_xfp_zero();
+    for (int s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
+        for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            acc->xfp_data[s][o] = z;
+        }
+    }
+}
+
+/*
+ * Initialize all FP accumulators of a fresh
+ * (memset/g_malloc0'd) HmxState to XFP true-zero.  Called from CPU
+ * reset/allocation in cpu.c, gated on hmx_cfg->hmx_fp_uses_xfp (the double
+ * path's plain memset/g_malloc0 zero is already correct for it).
+ */
+void hmx_init_fp_state(const HmxConfig *hmx_cfg, void *hmx_state)
+{
+    HmxState *hmx = hmx_state;
+    for (int a = 0; a < HMX_NUM_ACC_SETS; a++) {
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[a].fp_primary);
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[a].fp_secondary);
+    }
+}
 
 /*
  * Flush pending FXP CVT pipeline commit.
@@ -59,11 +102,42 @@ static void hmx_flush_cvt_fxp(HmxState *hmx)
 }
 
 /*
+ * Set up the deferred CVT pipeline aging for a convert that fills the
+ * cvt_fxp buffer (FXP converts, and FP converts which alias their split
+ * result into the same buffer -- see hmx_fp_split_to_fxp).  fb_dst==0
+ * starts a new cycle that ages on commit; a feedback pass (fb_dst!=0) in
+ * the same packet suppresses that aging.  Mirrors hmx_fxp_convert's
+ * original inline logic so both convert kinds share one pipeline.
+ *
+ * Only used by the XFP FP-convert path (HMX_CVT_RS_HF dispatch); the
+ * double path's hmx_fp_convert_dbl() does not alias into cvt_fxp.
+ */
+static void hmx_cvt_pipeline_begin(HmxState *hmx, int fb_dst, uint32_t cur_pc)
+{
+    if (fb_dst == 0) {
+        hmx_flush_cvt_fxp(hmx);
+        hmx->cvt_fxp_pending = 1;
+        hmx->cvt_fxp_pending_age = 1;
+        hmx->cvt_fxp_pending_pc = cur_pc;
+    } else {
+        if (hmx->cvt_fxp_pending &&
+            cur_pc == hmx->cvt_fxp_pending_pc) {
+            hmx->cvt_fxp_pending_age = 0;
+        } else {
+            hmx_flush_cvt_fxp(hmx);
+            hmx->cvt_fxp_pending = 1;
+            hmx->cvt_fxp_pending_age = 0;
+            hmx->cvt_fxp_pending_pc = cur_pc;
+        }
+    }
+}
+
+/*
  * Apply any deferred accumulator clear+flip from a previous packet.
  * Called at the start of operations that begin a new packet context:
  * CVT store and legacy CVT transfer.
  */
-static void hmx_flush_acc_clear(HmxState *hmx)
+static void hmx_flush_acc_clear(CPUHexagonState *env, HmxState *hmx)
 {
     HmxAccFxp *acc;
 
@@ -72,6 +146,22 @@ static void hmx_flush_acc_clear(HmxState *hmx)
     }
     acc = &hmx->acc[hmx->cvt_acc_clear_set].fxp_primary;
     memset(acc, 0, sizeof(HmxAccFxp));
+    /*
+     * Also clear the FP accumulator here, not just FXP. Clearing only the
+     * FXP set left stale FP sums to accumulate across layers. Dispatch
+     * by CPU revision (see hmx_config.c's hmx_fp_uses_xfp): the
+     * double-based FP path's true-zero is a plain memset (all-zero bits
+     * *is* IEEE +0.0); the XFP path needs hmx_fp_acc_zero()'s
+     * non-trivial canonical-zero builder, since all-zero bits are not
+     * XFP's true-zero encoding.
+     */
+    if (hmx_cfg_from_env(env)->hmx_fp_uses_xfp) {
+        hmx_fp_acc_zero(hmx_cfg_from_env(env),
+                        &hmx->acc[hmx->cvt_acc_clear_set].fp_primary);
+    } else {
+        memset(&hmx->acc[hmx->cvt_acc_clear_set].fp_primary, 0,
+               sizeof(HmxAccFp));
+    }
     hmx->current_acc_set = hmx->cvt_acc_clear_set ^ 1;
     hmx->cvt_acc_clear_pending = 0;
 }
@@ -91,7 +181,7 @@ void HELPER(hmx_commit_packet)(CPUHexagonState *env)
 {
     HmxState *hmx = env->hmx_state;
     hmx_flush_cvt_fxp(hmx);
-    hmx_flush_acc_clear(hmx);
+    hmx_flush_acc_clear(env, hmx);
 }
 
 /*
@@ -270,6 +360,14 @@ void HELPER(hmx_clracc)(CPUHexagonState *env)
 void HELPER(hmx_clracc_hf)(CPUHexagonState *env)
 {
     HmxState *hmx = env->hmx_state;
+    if (hmx_cfg_from_env(env)->hmx_fp_uses_xfp) {
+        const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[0].fp_primary);
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[0].fp_secondary);
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[1].fp_primary);
+        hmx_fp_acc_zero(hmx_cfg, &hmx->acc[1].fp_secondary);
+        return;
+    }
     memset(&hmx->acc[0].fp_primary, 0, sizeof(HmxAccFp));
     memset(&hmx->acc[0].fp_secondary, 0, sizeof(HmxAccFp));
     memset(&hmx->acc[1].fp_primary, 0, sizeof(HmxAccFp));
@@ -769,7 +867,7 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     HmxState *hmx = env->hmx_state;
 
     /* Apply deferred acc clear from a previous CVT packet */
-    hmx_flush_acc_clear(hmx);
+    hmx_flush_acc_clear(env, hmx);
 
     int wei_type = HMX_UNPACK_WEI_TYPE(params);
     int wei_mod = HMX_UNPACK_MOD(params);
@@ -1079,7 +1177,7 @@ static inline double hmx_bf16_to_double(uint16_t bf16)
     return (double)u.f;
 }
 
-static void hmx_fp_extract_weights(
+static void hmx_fp_extract_weights_dbl(
     const uint32_t *wei_words, int sub_idx, int wei_type,
     int wei_negate, int is_bf16, double *wei_dbl)
 {
@@ -1113,7 +1211,7 @@ static void hmx_fp_extract_weights(
     }
 }
 
-static void hmx_fp_spatial_mac(
+static void hmx_fp_spatial_mac_dbl(
     const HmxConfig *hmx_cfg,
     HmxState *hmx, const double *wei_dbl,
     const uint16_t *act_fp,
@@ -1122,8 +1220,33 @@ static void hmx_fp_spatial_mac(
     int y_tap, int x_tap,
     int32_t tile_x_mask, int32_t tile_y_mask,
     int ch_addr, int drop, int deep,
-    int current_acc, int format_mask)
+    int current_acc, int format_mask,
+    int group_idx, int group_size, int out_start, int out_end,
+    int input_channel_raw)
 {
+    /*
+     * QDSP6_MX_FP_RATE: fixed at 8 for v75/v79/v81 (not configurable,
+     * see the historical hmx_config.c comment this mirrors).
+     */
+    const int rate = 8;
+    int parallel_group_size = hmx_cfg->mx_fp_cols / hmx_cfg->mx_parallel_grps;
+
+    /*
+     * Channel-based zero insert for rate-8 small groups: when
+     * group_size<=4, a weight is only valid for the MAC if the raw
+     * input channel's own group (input_channel_raw/group_size) equals
+     * this group_idx. Ported from the reference control semantics that
+     * the pre-XFP double path never modeled (see
+     * ../../.plans/revert-hmx-fp-to-double.md and the v81 grouped-conv
+     * regression it left): without this, a grouped/depthwise FP conv's
+     * output columns get contributions from every group's weight
+     * instead of only their own, and the accumulator never receives a
+     * correct value.
+     */
+    int chan_insert_zero =
+        (rate == 8) && (group_size <= 4) &&
+        ((input_channel_raw / group_size) != group_idx);
+
     for (int iy = 0; iy < y_count; iy++) {
         int intra_y = intra_y_array[iy];
         int32_t y_ovf = 0;
@@ -1167,8 +1290,37 @@ static void hmx_fp_spatial_mac(
             HmxAccFp *acc =
                 &hmx->acc[acc_sel].fp_primary;
 
-            for (int o = 0; o < hmx_cfg->mx_fp_cols; o++) {
-                double d_prod = d_act * wei_dbl[o];
+            /*
+             * FP group-convolution column gating.  Zeroes the weight
+             * (does not skip: the double accumulator has no rate-8
+             * reduction stage requiring every slot written, unlike the
+             * XFP model this is ported from, so there is nothing to
+             * preserve by writing an explicit zero product here beyond
+             * not adding anything) for output columns whose
+             * group_size-column subgroup does not belong to this
+             * input-channel group.
+             */
+            for (int o = out_start; o < out_end; o++) {
+                int mod_col = o & (parallel_group_size - 1);
+                double w = wei_dbl[o];
+                if (chan_insert_zero) {
+                    w = 0.0;
+                }
+                if (parallel_group_size > 8) {
+                    if (group_size <= 8 &&
+                        mod_col / group_size !=
+                            group_idx % (parallel_group_size / group_size)) {
+                        w = 0.0;
+                    }
+                } else {
+                    if (group_size <= 4 &&
+                        mod_col / group_size !=
+                            group_idx % (parallel_group_size / group_size)) {
+                        w = 0.0;
+                    }
+                }
+
+                double d_prod = d_act * w;
 
                 union { uint64_t u; double d; } prev_u;
                 prev_u.u = acc->data[fp_spatial][o];
@@ -1179,13 +1331,13 @@ static void hmx_fp_spatial_mac(
     }
 }
 
-void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
+static void hmx_matmul_fp_dbl(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                             uint32_t params)
 {
     HmxState *hmx = env->hmx_state;
 
     /* Apply deferred acc clear from a previous CVT packet */
-    hmx_flush_acc_clear(hmx);
+    hmx_flush_acc_clear(env, hmx);
 
     int wei_type = HMX_UNPACK_WEI_TYPE(params);
     int wei_mod = HMX_UNPACK_MOD(params);
@@ -1193,18 +1345,11 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     uintptr_t ra = GETPC();
     const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
-    /*
-     * Weight negate: Rs[5] flips sign of all weights for FP matmul.
-     * wgt_negate = (Rs[5]) << 15
-     * which is XORed with each FP16 weight's sign bit.
-     */
+    /* Weight negate: Rs[5] flips sign of all weights. */
     int wei_negate = (rs >> 5) & 1;
     /* FXP and FP use the same mx_cols-sized VTCM weight mapping. */
     uint32_t wei_base = rs & ~(hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES - 1);
-    /*
-     * Each weight vector occupies hmx_cfg->mx_cols * 4 bytes in VTCM.
-     * Reduces to (Rt >> 7) on v75 (mx_cols=32) by construction.
-     */
+    /* Each weight vector occupies hmx_cfg->mx_cols * 4 bytes in VTCM. */
     int max_valid_vec = rt / (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
 
     /* Rs[6] selects BF16 for HF matmul on supported CPUs. */
@@ -1314,6 +1459,36 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int num_croutons = hmx->blocks;
     uint32_t act_base = hmx->act_rs & 0xFFFFF800;
 
+    /*
+     * Group/weight-stream dispatch.
+     *
+     * HMX group convolution (archdoc/hmx_spec/ch5_group_convolution.adoc):
+     * a grouped FP matmul instruction's weight vector still spans all
+     * hmx_cfg->mx_fp_cols output columns in VTCM (the reference decompresses
+     * away the invalid/gray cells, but our C model reads the full
+     * 32-wide vector regardless of group_size), so every group_idx below
+     * reads from the *same* wei_base/vec_idx sequence.  What
+     * distinguishes one group's real contribution from another's is the
+     * column gating inside hmx_fp_spatial_mac_dbl(): group_idx sweeps
+     * [0, group_count) once per activation-channel batch, each iteration
+     * zeroing every output column that is not this group's own
+     * group_size-wide slice before accumulating.
+     *
+     * QDSP6_MX_FP_RATE is fixed at 8 for v75/v79/v81.
+     */
+    const int rate = 8;
+    int group_count = hmx->group_count;
+    int group_size = hmx->group_size;
+    int parallel_group_size = hmx_cfg->mx_fp_cols / hmx_cfg->mx_parallel_grps;
+    int input_ch_stride = 1 << format_offset;
+    int input_channels = (hmx_cfg->mx_fp_cols << format_offset) / group_count;
+
+    /*
+     * FP rate-8 input-channel batch stride: the outer channel loop
+     * advances a whole rate-8 batch of raw input channels at a time.
+     */
+    int input_ch_fp_rate_stride = rate * input_ch_stride;
+
     for (int crouton_idx = 0; crouton_idx < num_croutons; crouton_idx++) {
         if (num_croutons > 1) {
             hmx_reload_act_crouton(env, hmx, act_base,
@@ -1327,6 +1502,26 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                              &crouton_ch_start,
                              &crouton_ch_stop);
 
+        /*
+         * Raw byte-offset input-channel range for this crouton.  For a
+         * single crouton the range is the full [start_first, end_last];
+         * for deep croutons the first/middle/last blocks span
+         * [start_first, channels], [0, channels], [0, end_last]
+         * respectively.
+         */
+        int input_ch_start = crouton_ch_start << format_offset;
+        int input_ch_end = crouton_ch_stop << format_offset;
+        if (num_croutons > 1 && crouton_idx != num_croutons - 1) {
+            input_ch_end = input_channels;
+        }
+
+        /* FP rate-8 channel-range alignment. */
+        int align_mask = 0xfff8 << format_offset;
+        input_ch_start &= align_mask;
+        input_ch_end = (input_ch_end & 0x1f)
+            ? ((input_ch_end + 32) & align_mask)
+            : (input_ch_end & align_mask);
+
         for (int ytd = 0; ytd < y_tap_count; ytd++) {
             int y_tap = y_tap_array[ytd];
 
@@ -1335,39 +1530,116 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                 for (int xtd = 0; xtd < x_tap_count; xtd++) {
                     int x_tap = x_tap_array[xtd];
 
-                    for (int ch = crouton_ch_start;
-                         ch < crouton_ch_stop; ch++) {
-                        int vec_idx = wgt_stream_idx / cpv;
-                        if (vec_idx > max_valid_vec) {
-                            wgt_stream_idx++;
-                            continue;
+                    for (int input_ch_idx = input_ch_start;
+                         input_ch_idx < input_ch_end;
+                         input_ch_idx += input_ch_fp_rate_stride) {
+                        int saved_wgt_stream_idx = wgt_stream_idx;
+
+                        for (int group_idx = 0;
+                             group_idx < group_count; group_idx++) {
+                            wgt_stream_idx = saved_wgt_stream_idx;
+
+                            /*
+                             * Per-group raw byte-offset input-channel
+                             * range for this rate-8 batch.
+                             */
+                            int input_ch_start_group = input_ch_idx +
+                                (group_idx << format_offset) * group_size;
+                            int input_ch_stop_group;
+                            if (group_size > 4) {
+                                input_ch_stop_group = input_ch_start_group +
+                                    rate * input_ch_stride;
+                            } else {
+                                input_ch_stop_group =
+                                    (group_idx << format_offset) * group_size +
+                                    MIN(group_size << format_offset,
+                                        input_ch_end);
+                            }
+
+                            /*
+                             * Coarse output-channel range for this group.
+                             * For small groups the reference widens to a
+                             * parallel-group span and the column gating
+                             * in hmx_fp_spatial_mac_dbl() selects the active
+                             * subgroup columns.
+                             */
+                            int out_start = group_idx * group_size;
+                            int out_end = out_start + group_size;
+                            if (group_size <= parallel_group_size / 2) {
+                                out_start =
+                                    (group_idx /
+                                     (parallel_group_size / group_size)) *
+                                    parallel_group_size;
+                                out_end = out_start + parallel_group_size;
+                            }
+                            out_start = MAX(out_start, 0);
+                            out_end = MIN(out_end, (int)hmx_cfg->mx_fp_cols);
+
+                            for (int input_ch_idx2 = input_ch_start_group;
+                                 input_ch_idx2 < input_ch_stop_group;
+                                 input_ch_idx2 += input_ch_stride) {
+                                int input_channel_raw =
+                                    input_ch_idx2 >> format_offset;
+                                int vec_idx = wgt_stream_idx / cpv;
+
+                                /*
+                                 * Weight vector out of the loaded range:
+                                 * skip.  Unlike the XFP model this is
+                                 * ported from, the double accumulator has
+                                 * no rate-8 reduction stage that needs
+                                 * every slot written to fire, so there is
+                                 * no zero-weight-completion case to
+                                 * preserve here -- a skipped term simply
+                                 * never gets added, which is exactly
+                                 * correct for a running double sum.
+                                 */
+                                if (vec_idx > max_valid_vec) {
+                                    goto fp_wgt_advance;
+                                }
+
+                                int ch_addr = input_ch_idx2;
+
+                                if (vec_idx != prev_vec_idx) {
+                                    hmx_preload_weight_vec(
+                                        hmx_cfg, env, wei_base, vec_idx,
+                                        wei_words, ra);
+                                    prev_vec_idx = vec_idx;
+                                }
+
+                                double wei_dbl[HMX_OUTPUT_CHANNELS];
+                                int sub_idx = wgt_stream_idx % cpv;
+                                hmx_fp_extract_weights_dbl(
+                                    wei_words, sub_idx, wei_type,
+                                    wei_negate, hmx->is_bf16, wei_dbl);
+
+                                hmx_fp_spatial_mac_dbl(
+                                    hmx_cfg, hmx, wei_dbl, act_fp,
+                                    y_count, x_count,
+                                    intra_y_array, intra_x_array,
+                                    y_tap, x_tap,
+                                    tile_x_mask, tile_y_mask,
+                                    ch_addr, drop, deep,
+                                    current_acc, format_mask,
+                                    group_idx, group_size,
+                                    out_start, out_end,
+                                    input_channel_raw);
+
+fp_wgt_advance:
+                                /*
+                                 * Advance the weight stream; skipped only
+                                 * for rate-8 large groups past the
+                                 * channel range.
+                                 */
+                                if (group_size > 4 &&
+                                    (input_channel_raw -
+                                     group_idx * group_size) >=
+                                        (input_ch_end >> format_offset)) {
+                                    /* no increment */
+                                } else {
+                                    wgt_stream_idx++;
+                                }
+                            }
                         }
-
-                        int ch_addr = ch << format_offset;
-
-                        if (vec_idx != prev_vec_idx) {
-                            hmx_preload_weight_vec(
-                                hmx_cfg, env, wei_base, vec_idx,
-                                wei_words, ra);
-                            prev_vec_idx = vec_idx;
-                        }
-
-                        double wei_dbl[HMX_OUTPUT_CHANNELS];
-                        int sub_idx = wgt_stream_idx % cpv;
-                        hmx_fp_extract_weights(
-                            wei_words, sub_idx, wei_type,
-                            wei_negate, hmx->is_bf16, wei_dbl);
-
-                        hmx_fp_spatial_mac(
-                            hmx_cfg, hmx, wei_dbl, act_fp,
-                            y_count, x_count,
-                            intra_y_array, intra_x_array,
-                            y_tap, x_tap,
-                            tile_x_mask, tile_y_mask,
-                            ch_addr, drop, deep,
-                            current_acc, format_mask);
-
-                        wgt_stream_idx++;
                     }
                 }
                 if (deep) {
@@ -1376,6 +1648,17 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
             }
         }
     }
+}
+
+/*
+ * FP matrix multiply. Both revisions use the native double MAC: the
+ * XFP model covers the convert path only so far, so hmx_fp_uses_xfp
+ * does not select a MAC implementation here yet.
+ */
+void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
+                           uint32_t params)
+{
+    hmx_matmul_fp_dbl(env, rs, rt, params);
 }
 
 /*
@@ -2330,7 +2613,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
      * leave stale state that causes double-aging later.
      */
     hmx_flush_cvt_fxp(hmx);
-    hmx_flush_acc_clear(hmx);
+    hmx_flush_acc_clear(env, hmx);
 
     /* Legacy: always use bias set 0, no control bits from Rs */
     uint32_t bias_set = 0;
@@ -2343,9 +2626,16 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         /* FP16 path: always age and convert */
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
-        hmx_fp_convert(env, hmx, hmx->current_acc_set, 0, relu,
-                       bias_set, /* maxnorm */ 0, /* fp8_odd_sel */ 0,
-                       /* is_bf16_out */ 0);
+        if (hmx_cfg->hmx_fp_uses_xfp) {
+            hmx_fp_convert_xfp(env, hmx, hmx->current_acc_set, 0, relu,
+                           bias_set, /* maxnorm */ 0, /* fp8_odd_sel */ 0,
+                           /* is_bf16_out */ 0, /* fb_dst */ 0,
+                           /* fb_limit */ 0, /* fp_rnd */ 0);
+        } else {
+            hmx_fp_convert_dbl(env, hmx, hmx->current_acc_set, 0, relu,
+                           bias_set, /* maxnorm */ 0, /* fp8_odd_sel */ 0,
+                           /* is_bf16_out */ 0);
+        }
 
         /* Store FP16 values to VTCM in crouton SM layout (2 bytes each) */
         HmxCvtStateFp *cvt_fp = &hmx->cvt_fp[0];
@@ -2362,7 +2652,11 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         if (!retain) {
             HmxAccFp *acc_fp =
                 &hmx->acc[hmx->current_acc_set].fp_primary;
-            memset(acc_fp, 0, sizeof(HmxAccFp));
+            if (hmx_cfg->hmx_fp_uses_xfp) {
+                hmx_fp_acc_zero(hmx_cfg, acc_fp);
+            } else {
+                memset(acc_fp, 0, sizeof(HmxAccFp));
+            }
             hmx->current_acc_set ^= 1;
         }
         return;
@@ -2792,6 +3086,10 @@ static uint16_t hmx_fp16_fixup(uint16_t fp16, int inf_prop,
     uint16_t sign = fp16 & 0x8000;
     int is_nan = ((fp16 & 0x7C00) == 0x7C00) && (fp16 & 0x03FF);
 
+    if ((fp16 & 0x7C00) != 0x7C00) {
+        return fp16;            /* Finite: no fixup */
+    }
+
     if (is_nan) {
         if (!inf_prop) {
             return 0xFBFF;      /* Mode 0: -max_finite */
@@ -2822,6 +3120,10 @@ static uint16_t hmx_bf16_fixup(uint16_t bf16, int inf_prop,
     uint16_t sign = bf16 & HMX_BF16_SIGN_MASK;
     int is_nan = ((bf16 & HMX_BF16_EXP_MASK) == HMX_BF16_EXP_MASK) &&
         (bf16 & HMX_BF16_FRAC_MASK);
+
+    if ((bf16 & 0x7F80) != 0x7F80) {
+        return bf16;            /* Finite: no fixup */
+    }
 
     if (is_nan) {
         if (!inf_prop) {
@@ -2879,7 +3181,139 @@ static uint8_t hmx_f8_fixup(double val, int inf_prop,
     return sign | 0x77;         /* Mode 2/3: ±max(emax-1) */
 }
 
-static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx,
+static inline void hmx_fp_split_to_fxp(HmxState *hmx, int fp_s, int o,
+                                       uint32_t result20)
+{
+    int lo_s = fp_s * 2;
+    int hi_s = fp_s * 2 + 1;
+    hmx->cvt_future_fxp.data[lo_s][o] = hexagon_xfp_cvt_out_lo(result20);
+    hmx->cvt_future_fxp.data[hi_s][o] = hexagon_xfp_cvt_out_hi(result20);
+}
+
+/*
+ * XFP FP convert path, used when hmx_cfg->hmx_fp_uses_xfp. Restored
+ * verbatim from the pre-double-port implementation; only the function
+ * name and the HmxAccFp union member (data -> xfp_data) were
+ * adjusted.
+ */
+static void hmx_fp_convert_xfp(CPUHexagonState *env, HmxState *hmx,
+                            int acc_set, int is_f8,
+                            int relu, int bias_sel, int maxnorm,
+                            int fp8_odd_sel, int is_bf16_out,
+                            int fb_dst, int fb_limit, int fp_rnd)
+{
+    uint32_t usr_raw = env->gpr[HEX_REG_USR];
+    HmxAccFp *acc_fp = &hmx->acc[acc_set].fp_primary;
+    HmxCvtStateFp *cvt = &hmx->cvt_fp[0];
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+
+    /*
+     * Final-output USR (the convert internally overrides inf/nan for the
+     * bias/scale/add arithmetic; hexagon_xfp_convert handles that).
+     */
+    HexagonXfpUsr usr = {
+        .inf_nan_enable = (usr_raw >> 20) & 1,
+        .nan_propagate = (usr_raw >> 21) & 1,
+    };
+
+    /*
+     * Map QEMU instruction semantics to the reference rs fields.  QEMU's
+     * local `relu` means "clip negatives" (1=clip); the reference clips
+     * when !rs.relu, so rs.relu = !relu.  maxnorm is rs.fp_maxnorm; the
+     * convert output rounding bit (rs.fp_rnd) follows the reference
+     * default of rounded 16-bit output (fp_rnd=1) -- QEMU stores a 16-bit
+     * value, matching hmx_xfp_fp's rs.fp_rnd path.
+     */
+    HexagonXfpCvtRs rs = {
+        .relu = !relu,
+        .fp_rnd = fp_rnd,
+        .fp_maxnorm = maxnorm,
+        .fb_dst = fb_dst,
+        .fb_limit = fb_limit,
+        .is_bf16 = is_bf16_out,
+    };
+
+    for (int o = 0; o < hmx_cfg->mx_fp_cols; o++) {
+        uint64_t raw = hmx->bias_raw[bias_sel][o];
+
+        HexagonXfpBias bias = {
+            .scale = raw & 0xFFFF,
+            .out_bias = (raw >> 16) & 0xFFFF,
+            .scale_extra = (raw >> 32) & 0xF,
+            .out_bias_extra = (raw >> 36) & 0xF,
+            .shape = (raw >> 40) & 0x3,
+            .negate = (raw >> 42) & 0x1,
+            .acc_bias_extra = (raw >> 43) & 0x1F,
+            .acc_bias = (raw >> 48) & 0xFFFF,
+        };
+
+        for (int s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
+            /*
+             * acc->xfp_data is flat-typed (HmxXfp, hmx_state.h); widen
+             * to the generic shape here, once per cell, for the convert
+             * primitives below.
+             */
+            HexagonXfp acc = hmx_xfp_to_xfp(acc_fp->xfp_data[s][o],
+                                             8, 22, 9);
+
+            /*
+             * Recombine the 20-bit convert feedback from the split low/high
+             * cells written by a previous convert pass (reference
+             * convert feedback combine).
+             */
+            uint32_t cvt_feedback = 0;
+            if (fb_dst != 0) {
+                uint16_t lo = hmx->cvt_future_fxp.data[s * 2][o];
+                uint16_t hi = hmx->cvt_future_fxp.data[s * 2 + 1][o];
+                cvt_feedback = hexagon_xfp_cvt_combine_feedback(hi, lo);
+            }
+
+            uint32_t result =
+                hexagon_xfp_convert(hmx_cfg, is_f8, usr, acc, bias,
+                                    cvt_feedback, rs);
+
+            if (is_f8) {
+                /*
+                 * The QEMU F8 store (HELPER(hmx_cvt_store) fmt==F8) reads
+                 * cvt_fp as packed raw F8 bytes: low byte = even spatial,
+                 * high byte = odd spatial.  Store the raw 8-bit result in
+                 * the selected half, preserving the other.
+                 */
+                uint8_t f8 = (uint8_t)(result & 0xFF);
+                uint16_t prev = cvt->data[s][o];
+                if (fp8_odd_sel) {
+                    cvt->data[s][o] = (prev & 0x00FF) | ((uint16_t)f8 << 8);
+                } else {
+                    cvt->data[s][o] = (prev & 0xFF00) | (uint16_t)f8;
+                }
+                /*
+                 * The convert-future half (feedback source) holds the
+                 * result <<4 so the store/feedback >>4 recovers the byte;
+                 * the un-selected half is preserved (reference
+                 * fp8 convert path).
+                 */
+                uint16_t result16 = (uint16_t)((result & 0xFF) << 4);
+                if (fp8_odd_sel) {
+                    hmx->cvt_future_fxp.data[s * 2 + 1][o] = result16;
+                } else {
+                    hmx->cvt_future_fxp.data[s * 2][o] = result16;
+                }
+            } else {
+                /* Top 16-bit FP value for the legacy HF store path. */
+                uint16_t fp = (uint16_t)((result >> 4) & 0xFFFF);
+                int inf_prop = (usr_raw >> 20) & 1;
+                int nan_prop = (usr_raw >> 21) & 1;
+                fp = is_bf16_out
+                    ? hmx_bf16_fixup(fp, inf_prop, nan_prop, maxnorm)
+                    : hmx_fp16_fixup(fp, inf_prop, nan_prop, maxnorm);
+                cvt->data[s][o] = fp;
+                hmx_fp_split_to_fxp(hmx, s, o, result);
+            }
+        }
+    }
+}
+
+static void hmx_fp_convert_dbl(CPUHexagonState *env, HmxState *hmx,
                             int acc_set, int is_f8,
                             int relu, int bias_sel, int maxnorm,
                             int fp8_odd_sel, int is_bf16_out)
@@ -3089,9 +3523,25 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
         /* Trigger FP convert: acc to cvt_fp (FP16 mode) */
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
-        hmx_fp_convert(env, hmx, hmx->current_acc_set, 0,
-                        relu, bias_sel, maxnorm, /* fp8_odd_sel */ 0,
-                        is_bf16_out);
+        if (hmx_cfg->hmx_fp_uses_xfp) {
+            /*
+             * Drive the shared cvt_fxp pipeline so the single
+             * convert-store op (which reads cvt_fxp) picks up this FP
+             * result; the convert writes its split bytes into
+             * cvt_future_fxp. Only the HF case does this (not F8, not
+             * the legacy hmx_cvt_transfer path).
+             */
+            hmx_cvt_pipeline_begin(hmx, fb_dst, cur_pc);
+            hmx_fp_convert_xfp(env, hmx, hmx->current_acc_set, 0,
+                            relu, bias_sel, maxnorm, /* fp8_odd_sel */ 0,
+                            is_bf16_out, fb_dst, fb_limit,
+                            /* cvt Rs[8]: FP convert round bit */
+                            (rs >> 8) & 1);
+        } else {
+            hmx_fp_convert_dbl(env, hmx, hmx->current_acc_set, 0,
+                            relu, bias_sel, maxnorm, /* fp8_odd_sel */ 0,
+                            is_bf16_out);
+        }
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
             hmx->cvt_acc_clear_set = hmx->current_acc_set;
@@ -3102,9 +3552,16 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
         /* Trigger FP convert: acc to cvt_fp (F8 mode) */
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
-        hmx_fp_convert(env, hmx, hmx->current_acc_set, 1,
-                        relu, bias_sel, maxnorm, fp8_odd_sel,
-                        /* is_bf16_out */ 0);
+        if (hmx_cfg->hmx_fp_uses_xfp) {
+            hmx_fp_convert_xfp(env, hmx, hmx->current_acc_set, 1,
+                            relu, bias_sel, maxnorm, fp8_odd_sel,
+                            /* is_bf16_out */ 0, fb_dst, fb_limit,
+                            (rs >> 8) & 1);
+        } else {
+            hmx_fp_convert_dbl(env, hmx, hmx->current_acc_set, 1,
+                            relu, bias_sel, maxnorm, fp8_odd_sel,
+                            /* is_bf16_out */ 0);
+        }
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
             hmx->cvt_acc_clear_set = hmx->current_acc_set;
@@ -3251,7 +3708,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     hmx_flush_cvt_fxp(hmx);
 
     /* Apply deferred acc clear from the convert packet */
-    hmx_flush_acc_clear(hmx);
+    hmx_flush_acc_clear(env, hmx);
 
     if (fmt == HMX_CVTST_F8) {
         /*

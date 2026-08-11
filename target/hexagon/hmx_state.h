@@ -11,6 +11,7 @@
 #define HEXAGON_HMX_STATE_H
 
 #include <stdint.h>
+#include "hmx_xfp.h"
 
 /*
  * HMX Architecture Constants
@@ -50,8 +51,23 @@ typedef struct HmxAccFxp {
     int32_t data[HMX_SPATIAL_DIM_FXP][HMX_OUTPUT_CHANNELS];
 } HmxAccFxp;
 
+/*
+ * FP accumulator cell storage, shared by both FP arithmetic models
+ * (see hmx_config.c's hmx_fp_uses_xfp): v75/v79 read/write `.data` as
+ * an IEEE double bit pattern; v81 reads/writes `.xfp_data` as the
+ * bit-exact XFP integer model, flat-typed (HmxXfp, hmx_xfp.h)
+ * rather than the generic HexagonXfp.
+ *
+ * A CPU only ever uses one union member, selected once at realize time
+ * by its own hmx_fp_uses_xfp, so the union never mixes representations
+ * for a single accumulator cell. The anonymous union keeps
+ * `acc->data[s][o]` working unchanged for the double path.
+ */
 typedef struct HmxAccFp {
-    uint64_t data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
+    union {
+        uint64_t data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
+        HmxXfp xfp_data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
+    };
 } HmxAccFp;
 
 typedef struct HmxAccSet {
@@ -173,6 +189,7 @@ typedef struct HmxState {
     uint32_t cvt_acc_clear_pending;
     uint32_t cvt_acc_clear_set;    /* Which acc set to clear */
     uint32_t cvt_acc_clear_pc;     /* PC of the packet that requested it */
+
 } HmxState;
 
 /*

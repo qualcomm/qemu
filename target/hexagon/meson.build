@@ -307,6 +307,7 @@ hexagon_ss.add(files(
     'uarch/queue.c',
     'hmx_helper.c',
     'hmx_config.c',
+    'hmx_xfp.c',
 ))
 
 hexagon_softmmu_ss.add(files(

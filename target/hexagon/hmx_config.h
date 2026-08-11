@@ -8,6 +8,9 @@
 
 #include "cpu-qom.h"
 
+/*
+ * mx_fp_rate: FP MAC reduction-group size.
+ */
 typedef struct HmxConfig {
     uint32_t mx_rows;
     uint32_t mx_cols;
@@ -19,14 +22,21 @@ typedef struct HmxConfig {
     uint32_t mx_parallel_grps;
     uint32_t mx_cvt_width;
     uint32_t mx_rate;
+    uint32_t mx_fp_rate;
     uint32_t mx_fp_acc_exp;
     uint32_t mx_fp_acc_frac;
     uint32_t mx_fp_acc_int;
     uint32_t mx_fp_acc_norm;
+    uint32_t xfp_cvt_int;
+    uint32_t xfp_cvt_frac;
+    uint32_t xfp_cvt_exp;
+    uint32_t xfp_inexact_enable;
     bool mx_fp_present;
     bool mx_fp8_en;
     bool mx_bthenc;
     bool hmx_present;
+    bool hmx_fp_uses_xfp;
+
 } HmxConfig;
 
 void hmx_init_config(HexagonCPU *cpu);

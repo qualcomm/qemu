@@ -692,6 +692,15 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     if (env->hmx_state) {
         memset(env->hmx_state, 0, sizeof(HmxState));
+        /*
+         * memset leaves non-canonical all-zero XFP cells; only matters
+         * for the (currently v81-only) XFP FP path -- the double FP
+         * path's true-zero is a plain memset. See hmx_config.c's
+         * hmx_fp_uses_xfp comment.
+         */
+        if (HEXAGON_CPU(cs)->hmx_cfg.hmx_fp_uses_xfp) {
+            hmx_init_fp_state(&HEXAGON_CPU(cs)->hmx_cfg, env->hmx_state);
+        }
     }
 }
 
@@ -761,6 +770,14 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         HEXAGON_CPU(cs)->hmx = g_malloc0(sizeof(HmxState));
     }
     env->hmx_state = HEXAGON_CPU(cs)->hmx;
+    /*
+     * g_malloc0 leaves non-canonical all-zero XFP cells; only matters
+     * for the (currently v81-only) XFP FP path. See hmx_config.c's
+     * hmx_fp_uses_xfp comment.
+     */
+    if (HEXAGON_CPU(cs)->hmx_cfg.hmx_fp_uses_xfp) {
+        hmx_init_fp_state(&HEXAGON_CPU(cs)->hmx_cfg, env->hmx_state);
+    }
 
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
