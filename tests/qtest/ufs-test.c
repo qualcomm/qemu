@@ -1247,16 +1247,7 @@ static void ufs_register_nodes(void)
                                           .edge.extra_device_opts =
                                               "mcq=true,mcq-maxq=1" };
 
-<<<<<<< HEAD
-=======
-    QOSGraphTestOptions wb_test_opts = { .before = ufs_blk_test_setup,
-                                         .edge.extra_device_opts =
-                                             "mcq=false,nutrs=32,nutmrs=8,"
-                                             "wb-max-size=1024,"
-                                             "wb-min-size=256" };
     QOSGraphTestOptions acpi_eject_test_opts = { .subprocess = true };
-
->>>>>>> 90aacd5bc40 (hw/ufs: avoid double unref of wrapped scsi-hd)
     add_qpci_address(&edge_opts, &(QPCIAddress){ .devfn = QPCI_DEVFN(4, 0) });
 
     qos_node_create_driver("ufs", ufs_create);
