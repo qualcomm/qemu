@@ -755,6 +755,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     CPUHexagonState *env = cpu_env(cs);
+    hmx_init_config(HEXAGON_CPU(cs));
     /* Allocate HMX state if not provided by a device */
     if (!HEXAGON_CPU(cs)->hmx) {
         HEXAGON_CPU(cs)->hmx = g_malloc0(sizeof(HmxState));

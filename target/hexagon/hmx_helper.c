@@ -25,6 +25,11 @@ static inline HexagonVersion hmx_cpu_version(CPUHexagonState *env)
     return HEXAGON_CPU_GET_CLASS(env_archcpu(env))->hex_def->hex_version;
 }
 
+static inline const HmxConfig *hmx_cfg_from_env(CPUHexagonState *env)
+{
+    return &env_archcpu(env)->hmx_cfg;
+}
+
 /* Forward declaration (hmx_fp_convert called before its definition) */
 static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx, int acc_set,
                             int is_f8, int relu, int bias_sel, int maxnorm,
@@ -999,6 +1004,7 @@ static void hmx_fp_extract_weights(
 }
 
 static void hmx_fp_spatial_mac(
+    const HmxConfig *hmx_cfg,
     HmxState *hmx, const double *wei_dbl,
     const uint16_t *act_fp,
     int y_count, int x_count,
@@ -1050,7 +1056,7 @@ static void hmx_fp_spatial_mac(
             HmxAccFp *acc =
                 &hmx->acc[acc_sel].fp_primary;
 
-            for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            for (int o = 0; o < hmx_cfg->mx_fp_cols; o++) {
                 double d_prod = d_act * wei_dbl[o];
 
                 union { uint64_t u; double d; } prev_u;
@@ -1074,6 +1080,7 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int wei_mod = HMX_UNPACK_MOD(params);
     int current_acc = hmx->current_acc_set;
     uintptr_t ra = GETPC();
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
     /*
      * Weight negate: Rs[5] flips sign of all weights for FP matmul.
@@ -1231,7 +1238,7 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                             wei_negate, wei_dbl);
 
                         hmx_fp_spatial_mac(
-                            hmx, wei_dbl, act_fp,
+                            hmx_cfg, hmx, wei_dbl, act_fp,
                             y_count, x_count,
                             intra_y_array, intra_x_array,
                             y_tap, x_tap,
@@ -1815,7 +1822,8 @@ static inline uint16_t hmx_cvt_out_hi(uint32_t result)
  * Accumulator convert path
  * implementation notes
  */
-static void hmx_fxp_convert(HmxState *hmx, int acc_set, int relu,
+static void hmx_fxp_convert(const HmxConfig *hmx_cfg, HmxState *hmx,
+                             int acc_set, int relu,
                              int bias_set, int fb_dst, int fb_limit,
                              uint32_t cur_pc)
 {
@@ -1867,7 +1875,7 @@ static void hmx_fxp_convert(HmxState *hmx, int acc_set, int relu,
     uint16_t bias_out[HMX_OUTPUT_CHANNELS];
     int o;
 
-    for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+    for (o = 0; o < hmx_cfg->mx_cols; o++) {
         uint64_t raw = hmx->bias_raw[bias_set][o];
         bias_input[o] = hmx_bias_input_bias(raw);
         bias_exp[o]   = (int16_t)hmx_bias_exponent(raw);
@@ -1880,7 +1888,7 @@ static void hmx_fxp_convert(HmxState *hmx, int acc_set, int relu,
     HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
 
     for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s++) {
-        for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+        for (o = 0; o < hmx_cfg->mx_cols; o++) {
             int64_t acc_combined = (int64_t)acc->data[s][o];
 
             int16_t scale = bias_scale[o];
@@ -1930,7 +1938,8 @@ static void hmx_fxp_convert(HmxState *hmx, int acc_set, int relu,
  * Accumulator convert path
  * implementation notes
  */
-static void hmx_fxp_convert_2x1(HmxState *hmx, int acc_set, int relu,
+static void hmx_fxp_convert_2x1(const HmxConfig *hmx_cfg, HmxState *hmx,
+                                  int acc_set, int relu,
                                   int bias_set, int fb_dst, int extra_8bit,
                                   uint32_t cur_pc)
 {
@@ -1963,7 +1972,7 @@ static void hmx_fxp_convert_2x1(HmxState *hmx, int acc_set, int relu,
     uint16_t bias_rnd[HMX_OUTPUT_CHANNELS];
     int o;
 
-    for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+    for (o = 0; o < hmx_cfg->mx_cols; o++) {
         uint64_t raw = hmx->bias_raw[bias_set][o];
         bias_input[o] = hmx_bias_input_bias(raw);
         bias_exp[o]   = (int16_t)hmx_bias_exponent(raw);
@@ -1981,7 +1990,7 @@ static void hmx_fxp_convert_2x1(HmxState *hmx, int acc_set, int relu,
 
     /* Spatial stride = 2: process adjacent pairs */
     for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s += 2) {
-        for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+        for (o = 0; o < hmx_cfg->mx_cols; o++) {
             int64_t acc_ll = (int64_t)acc->data[s][o];
             int64_t acc_hl = (int64_t)acc->data[s + 1][o];
             uint32_t poly_scale = ((uint32_t)bias_scale[o] << 8) | bias1[o];
@@ -2012,7 +2021,8 @@ static void hmx_fxp_convert_2x1(HmxState *hmx, int acc_set, int relu,
  * Accumulator convert path
  * implementation notes
  */
-static void hmx_fxp_convert_2x2(HmxState *hmx, int acc_set, int relu,
+static void hmx_fxp_convert_2x2(const HmxConfig *hmx_cfg, HmxState *hmx,
+                                  int acc_set, int relu,
                                   int bias_set, int fb_dst, int ch_sel,
                                   uint32_t cur_pc)
 {
@@ -2059,7 +2069,7 @@ static void hmx_fxp_convert_2x2(HmxState *hmx, int acc_set, int relu,
 
     /* Spatial stride = 2, output stride = 2 */
     for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s += 2) {
-        for (int o = 0; o < HMX_OUTPUT_CHANNELS; o += 2) {
+        for (int o = 0; o < hmx_cfg->mx_cols; o += 2) {
             uint64_t raw_lo = hmx->bias_raw[bias_set][o];
             uint64_t raw_hi = hmx->bias_raw[bias_set][o + 1];
 
@@ -2153,6 +2163,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                                uint32_t params)
 {
     HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
     int dir = HMX_UNPACK_CVT_DIR(params);
     int fmt = HMX_UNPACK_CVT_FMT(params);
     int relu = HMX_UNPACK_CVT_RELU(params);
@@ -2184,7 +2195,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         /* Store FP16 values to VTCM in crouton SM layout (2 bytes each) */
         HmxCvtStateFp *cvt_fp = &hmx->cvt_fp[0];
         for (int s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
-            for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            for (int o = 0; o < hmx_cfg->mx_fp_cols; o++) {
                 uint16_t fp16 = cvt_fp->data[s][o];
                 int crouton_s = s * 2;
                 int offset = hmx_act_offset_sm(crouton_s, o);
@@ -2248,7 +2259,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int16_t  bias_scale[HMX_OUTPUT_CHANNELS];
     uint16_t bias_out[HMX_OUTPUT_CHANNELS];
 
-    for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+    for (int o = 0; o < hmx_cfg->mx_cols; o++) {
         uint64_t raw = hmx->bias_raw[bias_set][o];
         bias_input[o] = hmx_bias_input_bias(raw);
         bias_exp[o]   = (int16_t)hmx_bias_exponent(raw);
@@ -2264,7 +2275,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
          * 16x8 convert body
          */
         for (int s = s_start; s < s_end; s += 2) {
-            for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            for (int o = 0; o < hmx_cfg->mx_cols; o++) {
                 int64_t acc_ll = (int64_t)acc->data[s][o];
                 int64_t acc_hl = (int64_t)acc->data[s + 1][o];
                 uint64_t raw = hmx->bias_raw[bias_set][o];
@@ -2292,7 +2303,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
          * 16x16 convert body
          */
         for (int s = s_start; s < s_end; s += 2) {
-            for (int o = 0; o < HMX_OUTPUT_CHANNELS; o += 2) {
+            for (int o = 0; o < hmx_cfg->mx_cols; o += 2) {
                 uint64_t raw_lo = hmx->bias_raw[bias_set][o];
                 uint64_t raw_hi = hmx->bias_raw[bias_set][o + 1];
 
@@ -2334,7 +2345,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     } else {
         /* UB convert (8x8 byte) */
         for (int s = s_start; s < s_end; s++) {
-            for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            for (int o = 0; o < hmx_cfg->mx_cols; o++) {
                 int64_t acc_combined = (int64_t)acc->data[s][o];
 
                 /*
@@ -2400,7 +2411,7 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
             }
         }
 
-        for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+        for (int o = 0; o < hmx_cfg->mx_cols; o++) {
             int offset;
             if (is_cm) {
                 offset = hmx_act_offset_cm(s, o);
@@ -2682,8 +2693,9 @@ static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx,
 
     HmxAccFp *acc_fp = &hmx->acc[acc_set].fp_primary;
     HmxCvtStateFp *cvt = &hmx->cvt_fp[0];
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
-    for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+    for (int o = 0; o < hmx_cfg->mx_fp_cols; o++) {
         uint64_t raw = hmx->bias_raw[bias_sel][o];
 
         /* Extract FP bias fields */
@@ -2822,6 +2834,7 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
      */
     int acc_clear = !(rs & 1);
     uint32_t cur_pc = env->gpr[HEX_REG_PC];
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
     switch (type) {
     case HMX_CVT_RS_UB:
@@ -2829,7 +2842,7 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
     case HMX_CVT_RS_UB_SC1:
     {
         /* Trigger full FXP convert: acc to cvt_fxp (8x8 byte) */
-        hmx_fxp_convert(hmx, hmx->current_acc_set, relu, bias_sel,
+        hmx_fxp_convert(hmx_cfg, hmx, hmx->current_acc_set, relu, bias_sel,
                          fb_dst, fb_limit, cur_pc);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
@@ -2841,7 +2854,7 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
     case HMX_CVT_RS_UH_2X1:
     {
         /* Trigger 16x8 (2x1) FXP convert */
-        hmx_fxp_convert_2x1(hmx, hmx->current_acc_set, relu,
+        hmx_fxp_convert_2x1(hmx_cfg, hmx, hmx->current_acc_set, relu,
                               bias_sel, fb_dst, (rs >> 5) & 1, cur_pc);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
@@ -2854,7 +2867,7 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
     {
         /* Trigger 16x16 (2x2) FXP convert */
         int ch_sel = (rs >> 9) & 0x3;
-        hmx_fxp_convert_2x2(hmx, hmx->current_acc_set, relu,
+        hmx_fxp_convert_2x2(hmx_cfg, hmx, hmx->current_acc_set, relu,
                               bias_sel, fb_dst, ch_sel, cur_pc);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
@@ -3007,6 +3020,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                             uint32_t params)
 {
     HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
     int fmt = HMX_UNPACK_CVTST_FMT(params);
     int age = HMX_UNPACK_CVTST_AGE(params);
     uintptr_t ra = GETPC();
@@ -3040,7 +3054,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         int s, o;
 
         for (s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
-            for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+            for (o = 0; o < hmx_cfg->mx_fp_cols; o++) {
                 uint16_t packed = cvt->data[s][o];
                 uint8_t f8_even = packed & 0xFF;
                 uint8_t f8_odd = (packed >> 8) & 0xFF;

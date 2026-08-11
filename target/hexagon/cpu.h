@@ -21,6 +21,7 @@ typedef struct ProcessorState processor_t;
 #include "mmvec/mmvec.h"
 #include "dma/dma.h"
 #include "hmx_state.h"
+#include "hmx_config.h"
 #include "hw/core/registerfields.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/intc/l2vic.h"
@@ -475,6 +476,7 @@ struct ArchCPU {
     CPUHexagonState env;
 
     HmxState *hmx;  /* HMX state (self-alloc or from device) */
+    HmxConfig hmx_cfg;  /* Immutable per-rev HMX feature/shape config */
 
 #if !defined(CONFIG_USER_ONLY)
     bool count_gcycle_xt;
