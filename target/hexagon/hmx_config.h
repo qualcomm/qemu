@@ -10,6 +10,8 @@
 
 /*
  * mx_fp_rate: FP MAC reduction-group size.
+ * hmx_fp_uses_xfp: the native-double model is ~18x faster than XFP;
+ *     hmx_init_config() has the per-revision rationale.
  */
 typedef struct HmxConfig {
     uint32_t mx_rows;

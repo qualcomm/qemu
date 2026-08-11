@@ -4,9 +4,25 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Integer-only implementation of the hardware XFP arithmetic helpers
- * used by the HMX FP MAC and convert path.
- * No <math.h> dependency.
+ * Hexagon HMX XFP arithmetic: generic width-carrying HexagonXfp
+ * primitives (FP convert path) plus flat v81-fixed HmxXfp
+ * primitives (v81 FP MAC path). No <math.h> dependency.
+ *
+ * v75/v79 never use this file's MAC-shaped functions at all
+ * (hmx_matmul_fp_dbl(), native double); they do use the generic
+ * convert-path functions via hmx_fp_convert_dbl(), same as v81.
+ *
+ * IMPORTANT -- the pre-flat reference normalize step had a
+ * load-bearing bug: an `ovf` flag read its output exponent before
+ * that exponent was ever assigned, so `ovf` was unconditionally
+ * false. The real overflow catch was a separate, correctly-computed
+ * post-shift `out.exp > out_exp_range.max` check a few lines later.
+ * hmx_xfp_batch8() below replicates that: no `ovf` variable
+ * exists there at all, only the correct post-shift check. Do not
+ * "fix" this by adding an overflow flag computed from the pre-shift
+ * exponent -- that changes behavior at in.exp==254 && lza==0 and
+ * other exponent/LZA edges. Random fuzzing does not reach those
+ * edges; a directed exponent x LZA sweep does.
  */
 
 #include "qemu/osdep.h"
@@ -306,7 +322,6 @@ static int64_t right_shift_with_inexact(const HmxConfig *hmx_cfg,
     return (in >> shift) | inexact;
 }
 
-/* normalize */
 /* convert normalize */
 HexagonXfp hexagon_xfp_cvt_normalize(const HmxConfig *hmx_cfg,
                                      HexagonXfpUsr usr, HexagonXfp in,
@@ -421,8 +436,6 @@ HexagonXfp hexagon_xfp_add(const HmxConfig *hmx_cfg, HexagonXfpUsr usr,
     return out;
 }
 
-/* 8-way 2-stage add */
-/* multiply */
 HexagonXfp hexagon_xfp_mult(const HmxConfig *hmx_cfg, HexagonXfpUsr usr,
                             HexagonXfp in_a, HexagonXfp in_b, uint32_t exp_out)
 {
@@ -472,9 +485,6 @@ HexagonXfp hexagon_xfp_mult(const HmxConfig *hmx_cfg, HexagonXfpUsr usr,
     return out;
 }
 
-/* FP16/BF16 product */
-/* MAC reduction */
-/* compare */
 HexagonXfp hexagon_xfp_cmp(const HmxConfig *hmx_cfg, HexagonXfpUsr usr,
                            HexagonXfp a, HexagonXfp b, int32_t min_max)
 {
@@ -645,6 +655,449 @@ uint32_t hexagon_xfp_convert(const HmxConfig *hmx_cfg, int is_f8,
     return hmx_xfp_fp_cvt(hmx_cfg, is_f8, usr, acc, bias, cvt_feedback, rs,
                           mantissa_bits, exp_bits);
 }
+/*
+ * The XFP_ST_* masks used below (and by
+ * hmx_xfp_mult_zero_weight() in hmx_xfp.h) live in hmx_xfp.h,
+ * shared by both -- see the comment there for why (packed status word
+ * measurement) and xfp_status_layout_assert() immediately below
+ * for the compile-time layout check that pins them to
+ * HexagonXfpStatus's real bitfield order.
+ */
+static inline void xfp_status_layout_assert(void)
+{
+    qemu_build_assert(((HexagonXfpStatus){ .zero = 1 }).val ==
+                      XFP_ST_ZERO);
+    qemu_build_assert(((HexagonXfpStatus){ .inf = 3 }).val ==
+                      XFP_ST_INF);
+    qemu_build_assert(((HexagonXfpStatus){ .inf = 1 }).val ==
+                      (1u << XFP_ST_INF_SHIFT));
+    qemu_build_assert(((HexagonXfpStatus){ .negative = 1 }).val ==
+                      XFP_ST_NEG);
+    qemu_build_assert(((HexagonXfpStatus){ .under = 1 }).val ==
+                      XFP_ST_UNDER);
+    qemu_build_assert(((HexagonXfpStatus){ .in0_zero = 1 }).val ==
+                      XFP_ST_IN0_ZERO);
+    qemu_build_assert(((HexagonXfpStatus){ .in1_zero = 1 }).val ==
+                      XFP_ST_IN1_ZERO);
+}
+
+/*
+ * Sticky-bit-into-LSB right shift, matching right_shift_with_inexact()
+ * above with xfp_inexact_enable hardcoded true (hmx_config.c sets
+ * hmx_cfg->xfp_inexact_enable = 1 unconditionally for every revision, so
+ * the hmx_cfg-> read there is always this value).
+ */
+static inline int64_t xfp_shift_inexact(int64_t in, int32_t shift)
+{
+    int64_t inexact_mask = ((int64_t)1 << shift) - 1;
+    int64_t inexact = (inexact_mask & in) != 0;
+    return (in >> shift) | inexact;
+}
+
+static inline uint32_t xfp_compute_shift(int32_t base_exp,
+                                               int32_t relative_exp)
+{
+    int32_t shift = base_exp - relative_exp;
+    if (shift < 0) {
+        shift = -shift;
+    }
+    if (shift > 63) {
+        shift = 63;
+    }
+    return (uint32_t)shift;
+}
+
+/* Leading-zero anticipation, flat-path shape (pure bit-trick, no
+ * width-specialization possible). */
+static uint8_t xfp_compute_lza(int64_t a, int64_t b, int32_t msb_bit)
+{
+    const int64_t p = (a ^ b);
+    const int64_t g = (a & b);
+    const int64_t z = ~(a | b);
+    const int64_t msb = (int64_t)1 << msb_bit;
+    const int64_t zeros = (p ^ ~(z << 1));
+    const int64_t ones = (p ^ ~(g << 1));
+    const int64_t z_msb = (msb & zeros) >> msb_bit;
+    const int64_t o_msb = (msb & ones) >> msb_bit;
+    const int32_t lza_z =
+        COUNT_LEADING_ZEROS_8(z_msb ? ~zeros : zeros) - (64 - msb_bit);
+    const int32_t lza_o =
+        COUNT_LEADING_ZEROS_8(o_msb ? ~ones : ones) - (64 - msb_bit);
+
+    uint8_t lza = 0;
+    if (msb & z) {
+        lza = (uint8_t)lza_z;
+    } else if (msb & g) {
+        lza = (uint8_t)lza_o;
+    } else {
+        lza = (uint8_t)(lza_z > lza_o ? lza_z : lza_o);
+    }
+    return lza;
+}
+
+/*
+ * hexagon_xfp_from_fp(hmx_cfg, usr, in, frac_in=10, exp_in=5, int_out=3,
+ * frac_out=9, exp_out=8, normalize=1), FP16 operand shape.
+ */
+HmxXfp hmx_xfp_decode_fp16(HexagonXfpUsr usr, uint16_t in)
+{
+    HmxXfp out = {0};
+
+    uint32_t in_exp = (in >> 10) & 0x1F;
+    uint32_t in_sign = (in >> 15) & 1;
+    uint32_t in_frac = in & 0x3FF;
+
+    const int32_t in_exp_min = 1;
+    const int32_t in_exp_max = 31;
+    const int32_t input_expo_bias = 16;
+
+    int32_t in_denorm = ((int32_t)in_exp < in_exp_min);
+
+    int32_t exp_unbiased = (int32_t)in_exp - input_expo_bias;
+    int32_t out_exp = exp_unbiased + (in_exp == 0 ? 1 : 0);
+
+    uint64_t int_bit = in_denorm ? 0 : 1;
+    uint64_t mag_out = (int_bit << 10) | in_frac;
+
+    if (in_denorm) {
+        uint64_t tmp = mag_out << (64 - 11);
+        int32_t normalizing_shift = COUNT_LEADING_ZEROS_8(tmp);
+        mag_out <<= normalizing_shift;
+        out_exp -= normalizing_shift;
+    }
+
+    /* shift = int_out+frac_out-2-frac_in = 3+9-2-10 = 0: no sig shift. */
+    out.sig = in_sign ? -(int32_t)mag_out : (int32_t)mag_out;
+    out.exp = out_exp;
+
+    uint8_t inf = ((in_exp == (uint32_t)in_exp_max) && (in_frac == 0))
+                  ? (in_sign ? 2 : 1) : 0;
+    uint8_t nan = ((in_exp == (uint32_t)in_exp_max) && (in_frac != 0))
+                  ? 3 : 0;
+
+    out.status.zero = (in_exp == 0) && (in_frac == 0);
+    out.status.inf = usr.inf_nan_enable ? (inf | nan) : 0;
+    out.status.negative = out.status.zero ? 0 : in_sign;
+    out.exp = out.status.zero ? -(1 << (8 - 1)) : out.exp;
+
+    return out;
+}
+
+/*
+ * hexagon_xfp_from_fp(hmx_cfg, usr, in, frac_in=7, exp_in=8, int_out=3,
+ * frac_out=9, exp_out=8, normalize=0), BF16 operand shape.
+ *
+ * Differs from hmx_xfp_decode_fp16() above in exactly the ways
+ * the generic decode's is_bf16 shape does: 7-bit fraction, 8-bit
+ * exponent with bias 128, sig pre-shifted left by
+ * (int_out+frac_out-2-frac_in = 3+9-2-7 = 3) to land in the same
+ * fixed-point shape as the FP16 decode's unshifted output, and no
+ * denormal renormalize block at all (BF16 denormals keep int_bit=0
+ * and an unnormalized mag -- do not add the FP16 decode's
+ * COUNT_LEADING_ZEROS_8 branch here, that is the one width difference
+ * that changes sig/exp shape, not just widths).
+ */
+HmxXfp hmx_xfp_decode_bf16(HexagonXfpUsr usr, uint16_t in)
+{
+    HmxXfp out = {0};
+
+    uint32_t in_exp = (in >> 7) & 0xFF;
+    uint32_t in_sign = (in >> 15) & 1;
+    uint32_t in_frac = in & 0x7F;
+
+    const int32_t in_exp_min = 1;
+    const int32_t in_exp_max = 255;
+    const int32_t input_expo_bias = 128;
+
+    int32_t in_denorm = ((int32_t)in_exp < in_exp_min);
+
+    int32_t exp_unbiased = (int32_t)in_exp - input_expo_bias;
+    int32_t out_exp = exp_unbiased + (in_exp == 0 ? 1 : 0);
+
+    uint64_t int_bit = in_denorm ? 0 : 1;
+    uint64_t mag_out = (int_bit << 7) | in_frac;
+
+    /* input_norm=0 for BF16: no denormal renormalize block. */
+
+    /* shift = int_out+frac_out-2-frac_in = 3+9-2-7 = 3. */
+    int32_t mag_shifted = (int32_t)(mag_out << 3);
+    out.sig = in_sign ? -mag_shifted : mag_shifted;
+    out.exp = out_exp;
+
+    uint8_t inf = ((in_exp == (uint32_t)in_exp_max) && (in_frac == 0))
+                  ? (in_sign ? 2 : 1) : 0;
+    uint8_t nan = ((in_exp == (uint32_t)in_exp_max) && (in_frac != 0))
+                  ? 3 : 0;
+
+    out.status.zero = (in_exp == 0) && (in_frac == 0);
+    out.status.inf = usr.inf_nan_enable ? (inf | nan) : 0;
+    out.status.negative = out.status.zero ? 0 : in_sign;
+    out.exp = out.status.zero ? -(1 << (8 - 1)) : out.exp;
+
+    return out;
+}
+
+/* hexagon_xfp_mult-equivalent for the flat shape, product shape
+ * (int=5 frac=18 exp=9, implied -- never stored, see hmx_xfp.h).
+ *
+ * Structurally identical to hexagon_xfp_mult() above, with two purely
+ * mechanical transformations (bit-exact for every possible input, not
+ * just reachable ones):
+ *
+ * 1. The status word is built in a plain uint32_t and stored once,
+ *    instead of six separate bitfield read-modify-writes. Sign is
+ *    (sa ^ sb) & NEG, which is the same as the reference's
+ *    (a.neg && !b.neg) || (!a.neg && b.neg).
+ * 2. The whole Inf/NaN/zero-combination if/else chain is guarded by
+ *    one `(sa | sb) & INF` test. Every arm of that chain requires
+ *    a.status.inf != 0 or b.status.inf != 0, so when neither operand
+ *    is Inf/NaN the chain provably leaves out.status.inf at 0 --
+ *    which is what skipping it produces.
+ */
+HmxXfp hmx_xfp_mult(HexagonXfpUsr usr, HmxXfp a, HmxXfp b)
+{
+    xfp_status_layout_assert();
+
+    const uint32_t sa = a.status.val;
+    const uint32_t sb = b.status.val;
+    const uint32_t z_a = (a.sig == 0);
+    const uint32_t z_b = (b.sig == 0);
+
+    uint32_t st = ((sa | sb) & (XFP_ST_ZERO | XFP_ST_UNDER))
+                | ((sa ^ sb) & XFP_ST_NEG)
+                | ((z_a | (sa & XFP_ST_ZERO)) ? XFP_ST_IN0_ZERO : 0)
+                | ((z_b | (sb & XFP_ST_ZERO)) ? XFP_ST_IN1_ZERO : 0);
+
+    HmxXfp out;
+    out.sig = a.sig * b.sig;
+    out.exp = a.exp + b.exp;
+
+    if ((sa | sb) & XFP_ST_INF) {
+        const uint32_t nan = 3u << XFP_ST_INF_SHIFT;
+        const uint32_t pos_inf = 1u << XFP_ST_INF_SHIFT;
+        const uint32_t neg_inf = 2u << XFP_ST_INF_SHIFT;
+        const uint32_t ia = sa & XFP_ST_INF;
+        const uint32_t ib = sb & XFP_ST_INF;
+        /* inf (either sign), i.e. the reference's inf_a/inf_b */
+        const uint32_t inf_a = ia && ia != nan;
+        const uint32_t inf_b = ib && ib != nan;
+        const uint32_t nan_out = usr.nan_propagate ? nan : 0;
+
+        if (ia == nan || ib == nan) {
+            st |= nan_out;
+        } else if ((st & XFP_ST_UNDER) && (inf_a || inf_b)) {
+            st |= nan_out;
+        } else if (inf_a && inf_b) {
+            st |= (st & XFP_ST_NEG) ? neg_inf : pos_inf;
+        } else if ((inf_a && z_b) || (inf_b && z_a)) {
+            st |= nan_out;
+            st = usr.nan_propagate ? (st & ~XFP_ST_ZERO)
+                                   : (st | XFP_ST_ZERO);
+        } else if (inf_a || inf_b) {
+            st |= (st & XFP_ST_NEG) ? neg_inf : pos_inf;
+        }
+    }
+
+    if (st & XFP_ST_ZERO) {
+        out.exp = -(1 << (9 - 1));
+        out.sig = 0;
+    } else if (z_a | z_b) {
+        out.exp = -(1 << (9 - 1));
+        out.sig = 0;
+        st &= ~XFP_ST_NEG;
+    }
+
+    out.status.val = st;
+    return out;
+}
+
+/*
+ * Rate-8 batched reduce, accumulator shape (int=8 frac=22 exp=9),
+ * rate hardcoded to 8 (hmx_cfg->mx_fp_rate, the only value used on
+ * v75/v79/v81 -- see hmx_config.c).
+ *
+ * The 8-way stage walks products[] once: it reduces all five status
+ * flags with two word-level accumulators over status.val (OR for
+ * inf/negative, AND for zero/in0_zero/in1_zero -- same masks as
+ * hmx_xfp_mult(), pinned by xfp_status_layout_assert()),
+ * takes the max exponent, and records which lanes have a nonzero sig
+ * in a bitmask, all in the same pass. The alignment/sum pass then
+ * visits only the nonzero lanes via the bitmask instead of testing
+ * every lane again, and shifts sig by 4 inline instead of
+ * materializing a shifted copy of all 8 products in a scratch array.
+ * Bit-exact: the per-lane &=/|= reductions of the generic path are
+ * the same function as the word-level ones here, and zero-sig lanes
+ * contribute nothing to the sum (xfp_shift_inexact(0, n) == 0
+ * identically, the pre-existing skip documented below). The 2-way
+ * stage and normalize carry their status the same packed way -- see
+ * the comment at the 2-way stage below.
+ */
+HmxXfp hmx_xfp_batch8(const HmxConfig *hmx_cfg,
+                                HexagonXfpUsr usr, HmxXfp *products,
+                                HmxXfp acc)
+{
+    uint32_t or_status = 0;
+    uint32_t and_status = 0xFFFFFFFFu;
+    uint32_t nonzero_lanes = 0;
+    int32_t sum8_exp = -(1 << (9 - 1));
+
+    for (int i = 0; i < 8; i++) {
+        const uint32_t s = products[i].status.val;
+        or_status |= s;
+        and_status &= s;
+        if (products[i].sig != 0) {
+            nonzero_lanes |= 1u << i;
+        }
+        if (sum8_exp < products[i].exp) {
+            sum8_exp = products[i].exp;
+        }
+    }
+
+    if (!usr.inf_nan_enable &&
+        (and_status & (XFP_ST_IN0_ZERO | XFP_ST_IN1_ZERO))) {
+        return acc;
+    }
+
+    /*
+     * 8-way add (no LZA -- not requested for this stage), with all 8
+     * products' frac aligned to the acc's (22) from the product's
+     * native 18: acc_alignment = 22 - 18 = 4.
+     *
+     * Only nonzero_lanes are summed. xfp_shift_inexact(0, delta)
+     * == 0 for every delta (0 shifted is 0; the sticky/inexact OR-bit
+     * is (mask & 0) != 0, always false) -- not an approximation, an
+     * identity. Skipping zero lanes matters because they are common:
+     * grouped/depthwise convolution's column gating
+     * (hmx_fp_spatial_mac_xfp()) produces exact-zero products for
+     * most output columns in small-group layers.
+     */
+    int64_t sum8_sig = 0;
+    for (uint32_t m = nonzero_lanes; m; m &= m - 1) {
+        const int i = __builtin_ctz(m);
+        const uint32_t delta = xfp_compute_shift(sum8_exp,
+                                                      products[i].exp);
+        sum8_sig += xfp_shift_inexact(products[i].sig << 4, delta);
+    }
+
+    /*
+     * The 8-way result's status, and then the whole 2-way stage +
+     * normalize, are carried as one packed status word rather than as
+     * HmxXfp cells with bitfields written one at a time. The
+     * generic path's per-field reductions over its 2-element input
+     * array map exactly onto bitwise ops on the packed words here:
+     *   all_true_zeros2 = a.zero & b.zero   -> (acc_st & sum8_st) & ZERO
+     *   z_sign_or2      = a.neg  | b.neg    -> (acc_st | sum8_st) & NEG
+     *   inf2            = a.inf  | b.inf    -> (acc_st | sum8_st) & INF
+     * and the `inf >> 1` sign-of-Inf extraction becomes a shift of the
+     * INF field's high bit.
+     *
+     * sum8's status only ever has ZERO/INF/NEG set (built from a
+     * zero-initialized cell), so under/in0_zero/in1_zero stay 0 here.
+     */
+    const uint32_t inf8w = or_status & XFP_ST_INF;
+    uint32_t neg8;
+    if (inf8w == 0) {
+        neg8 = ((nonzero_lanes == 0) && (or_status & XFP_ST_NEG)) ||
+               (sum8_sig < 0);
+    } else {
+        neg8 = (inf8w >> (XFP_ST_INF_SHIFT + 1)) & 1;
+    }
+    const uint32_t sum8_st = (and_status & XFP_ST_ZERO) | inf8w |
+                             (neg8 ? XFP_ST_NEG : 0);
+
+    /*
+     * 2-way add: [acc, sum8], with LZA requested. The generic path
+     * seeds out.exp at -(1<<8) before maxing over both inputs;
+     * sum8_exp is itself seeded there and only ever raised, so
+     * max(acc.exp, sum8_exp) >= -256 already and the seed is
+     * redundant.
+     */
+    const uint32_t acc_st = acc.status.val;
+    const uint32_t or2 = acc_st | sum8_st;
+    const uint32_t and2 = acc_st & sum8_st;
+    const uint32_t inf2w = or2 & XFP_ST_INF;
+
+    const int32_t sum2_exp = acc.exp > sum8_exp ? acc.exp : sum8_exp;
+    /*
+     * sig == 0 lanes: same xfp_shift_inexact(0, n) == 0 identity
+     * as the 8-way loop above.
+     */
+    const int64_t aligned0 = acc.sig == 0 ? 0
+        : xfp_shift_inexact(acc.sig,
+                                 xfp_compute_shift(sum2_exp, acc.exp));
+    const int64_t aligned1 = sum8_sig == 0 ? 0
+        : xfp_shift_inexact(sum8_sig,
+                                 xfp_compute_shift(sum2_exp, sum8_exp));
+    const int64_t sum2_sig = aligned0 + aligned1;
+    /* msb_bit = frac_bits(22) + int_bits(acc.bits_int+1=9) - 1 = 30 */
+    const uint8_t lza2 = xfp_compute_lza(aligned0, aligned1, 30);
+
+    uint32_t st;
+    if (inf2w == 0) {
+        st = (and2 & XFP_ST_ZERO) |
+             ((((acc.sig == 0) && (sum8_sig == 0) &&
+                (or2 & XFP_ST_NEG)) || (sum2_sig < 0))
+              ? XFP_ST_NEG : 0);
+    } else {
+        st = (and2 & XFP_ST_ZERO) | inf2w |
+             (((inf2w >> (XFP_ST_INF_SHIFT + 1)) & 1)
+              ? XFP_ST_NEG : 0);
+    }
+
+    /*
+     * Normalize equivalent, int_out=8, frac_out=22, exp_out=9,
+     * use_lza=1. additional_exp = in.bits_int(9) - out.bits_int(8)
+     * = 1, constant for this call shape.
+     */
+    int32_t norm_exp = sum2_exp + 1;
+    int64_t norm_sig = xfp_shift_inexact(sum2_sig, 1);
+
+    /* in_bit_count = out.bits_frac(22) + out.bits_int(8) = 30 */
+    int64_t temp_sig = norm_sig << (64 - 30);
+    /*
+     * The generic normalize inverts temp_sig into temp_sig2 (for a
+     * CLZ-based shift count), then inverts it right back before
+     * using it -- a net no-op whenever use_lza is true, since the
+     * CLZ branch (the only place the first inversion's result is
+     * read) is not even evaluated. use_lza is always true on this
+     * call path, so temp_sig2 == temp_sig always here; skip the
+     * inversion dance entirely.
+     */
+    int32_t normalizing_shift = lza2;
+    int32_t max_shift = hmx_cfg->mx_fp_acc_norm;
+    int32_t normalizing_shift2 =
+        (normalizing_shift > max_shift) ? max_shift : normalizing_shift;
+    normalizing_shift2 = (normalizing_shift2 < 0) ? 0 : normalizing_shift2;
+
+    /* out_exp_range.min for exp_out=9 is -(1<<8) = -256. */
+    int32_t at_min_exp_adjust = (norm_exp - normalizing_shift2) - (-256);
+    if (at_min_exp_adjust < 0) {
+        normalizing_shift2 += at_min_exp_adjust;
+    }
+
+    int64_t normalized_sig = temp_sig << normalizing_shift2;
+    int32_t out_exp = norm_exp - normalizing_shift2;
+
+    /*
+     * out_exp_range.max for exp_out=9 is 255. This is the correct
+     * overflow check; the dead `ovf` variable the pre-flat reference
+     * ORed with it was always false -- see this file's header
+     * comment. Do not add it back.
+     */
+    if (out_exp > 255) {
+        if ((st & XFP_ST_INF) == 0) {
+            st |= (st & XFP_ST_NEG) ? (2u << XFP_ST_INF_SHIFT)
+                                         : (1u << XFP_ST_INF_SHIFT);
+        }
+        out_exp = 255;
+    }
+
+    HmxXfp result;
+    result.sig = normalized_sig >> (64 - 30);
+    result.exp = out_exp;
+    result.status.val = st;
+    return result;
+}
 
 /*
  * Widen a flat product/accumulator cell to the generic HexagonXfp
@@ -665,3 +1118,4 @@ HexagonXfp hmx_xfp_to_xfp(HmxXfp in, uint8_t bits_int,
     out.lza = 0;
     return out;
 }
+

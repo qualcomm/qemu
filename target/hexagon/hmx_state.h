@@ -190,6 +190,20 @@ typedef struct HmxState {
     uint32_t cvt_acc_clear_set;    /* Which acc set to clear */
     uint32_t cvt_acc_clear_pc;     /* PC of the packet that requested it */
 
+    /*
+     * FP MAC product scratch cache, XFP path only (hmx_fp_uses_xfp,
+     * currently v81). The v81 XFP MAC has exactly one implementation
+     * (hmx_matmul_fp_xfp() -> hmx_fp_spatial_mac_xfp()),
+     * which reduces FP products in groups of QDSP6_MX_FP_RATE (8)
+     * with hmx_xfp_batch8() at the group boundary. Indexed as
+     * [acc_sel][fp_spatial][output_col][group_pos]; group_pos is the
+     * raw input channel modulo mx_fp_rate. Kept in HmxState (256 KiB)
+     * rather than on the stack. Flat-typed (HmxXfp, hmx_xfp.h)
+     * rather than the generic HexagonXfp. Reset to XFP true-zero when
+     * the FP accumulators are reset.
+     */
+    HmxXfp fp_mac_cache[HMX_NUM_ACC_SETS][HMX_SPATIAL_DIM_FP]
+                                [HMX_OUTPUT_CHANNELS][8];
 } HmxState;
 
 /*
