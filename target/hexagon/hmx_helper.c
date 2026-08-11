@@ -33,7 +33,7 @@ static inline const HmxConfig *hmx_cfg_from_env(CPUHexagonState *env)
 /* Forward declaration (hmx_fp_convert called before its definition) */
 static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx, int acc_set,
                             int is_f8, int relu, int bias_sel, int maxnorm,
-                            int fp8_odd_sel);
+                            int fp8_odd_sel, int is_bf16_out);
 
 /*
  * Flush pending FXP CVT pipeline commit.
@@ -1071,9 +1071,17 @@ static inline double hmx_fp16_to_double(uint16_t h)
     return u.d;
 }
 
+/* BF16 occupies the high 16 bits of IEEE binary32. */
+static inline double hmx_bf16_to_double(uint16_t bf16)
+{
+    union { uint32_t u; float f; } u;
+    u.u = (uint32_t)bf16 << HMX_BF16_BINARY32_SHIFT;
+    return (double)u.f;
+}
+
 static void hmx_fp_extract_weights(
     const uint32_t *wei_words, int sub_idx, int wei_type,
-    int wei_negate, double *wei_dbl)
+    int wei_negate, int is_bf16, double *wei_dbl)
 {
     for (int o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
         uint16_t f16;
@@ -1096,7 +1104,12 @@ static void hmx_fp_extract_weights(
         if (wei_negate) {
             f16 ^= 0x8000;
         }
-        wei_dbl[o] = hmx_fp16_to_double(f16);
+        /* F8 always uses FP16; HF follows the selected input format. */
+        if (is_bf16 && wei_type == HMX_WEI_HF) {
+            wei_dbl[o] = hmx_bf16_to_double(f16);
+        } else {
+            wei_dbl[o] = hmx_fp16_to_double(f16);
+        }
     }
 }
 
@@ -1147,8 +1160,9 @@ static void hmx_fp_spatial_mac(
 
             int32_t act_idx =
                 (act_y + intra_x + ch_addr) & 0xFFF;
-            double d_act =
-                hmx_fp16_to_double(act_fp[act_idx >> 1]);
+            double d_act = hmx->is_bf16
+                ? hmx_bf16_to_double(act_fp[act_idx >> 1])
+                : hmx_fp16_to_double(act_fp[act_idx >> 1]);
 
             HmxAccFp *acc =
                 &hmx->acc[acc_sel].fp_primary;
@@ -1192,6 +1206,11 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
      * Reduces to (Rt >> 7) on v75 (mx_cols=32) by construction.
      */
     int max_valid_vec = rt / (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
+
+    /* Rs[6] selects BF16 for HF matmul on supported CPUs. */
+    hmx->is_bf16 = ((rs >> HMX_MATMUL_RS_BF16_BIT) & 1)
+                && (wei_type == HMX_WEI_HF)
+                && (hmx_cfg->mx_fp_acc_exp >= HMX_BF16_MIN_ACC_EXP);
 
     /*
      * X-dimension tap parameters (same as FXP matmul).
@@ -1337,7 +1356,7 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                         int sub_idx = wgt_stream_idx % cpv;
                         hmx_fp_extract_weights(
                             wei_words, sub_idx, wei_type,
-                            wei_negate, wei_dbl);
+                            wei_negate, hmx->is_bf16, wei_dbl);
 
                         hmx_fp_spatial_mac(
                             hmx_cfg, hmx, wei_dbl, act_fp,
@@ -2325,7 +2344,8 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
         hmx_fp_convert(env, hmx, hmx->current_acc_set, 0, relu,
-                       bias_set, /* maxnorm */ 0, /* fp8_odd_sel */ 0);
+                       bias_set, /* maxnorm */ 0, /* fp8_odd_sel */ 0,
+                       /* is_bf16_out */ 0);
 
         /* Store FP16 values to VTCM in crouton SM layout (2 bytes each) */
         HmxCvtStateFp *cvt_fp = &hmx->cvt_fp[0];
@@ -2665,6 +2685,17 @@ static uint16_t hmx_double_to_fp16(double val)
     return (sign << 15) | (biased_exp << 10) | (man & 0x3FF);
 }
 
+/* Round a double through binary32, then truncate it to BF16. */
+static uint16_t hmx_double_to_bf16(double d)
+{
+    union { uint32_t u; float f; } u;
+    u.f = (float)d;
+    uint32_t bits = u.u;
+    uint32_t rounding_bias = HMX_BF16_RNE_BIAS +
+        ((bits >> HMX_BF16_BINARY32_SHIFT) & 1);
+    return (uint16_t)((bits + rounding_bias) >> HMX_BF16_BINARY32_SHIFT);
+}
+
 /*
  * Convert a double to e4m3 FP8 format (1 sign + 4 exp + 3 mantissa).
  * Bias = 7. Uses round-to-nearest-even.
@@ -2784,6 +2815,37 @@ static uint16_t hmx_fp16_fixup(uint16_t fp16, int inf_prop,
     return sign | 0x77FF;       /* Mode 2/3: ±max(emax-1) */
 }
 
+/* Apply the FP16 overflow and NaN modes to BF16 encodings. */
+static uint16_t hmx_bf16_fixup(uint16_t bf16, int inf_prop,
+                                int nan_prop, int maxnorm)
+{
+    uint16_t sign = bf16 & HMX_BF16_SIGN_MASK;
+    int is_nan = ((bf16 & HMX_BF16_EXP_MASK) == HMX_BF16_EXP_MASK) &&
+        (bf16 & HMX_BF16_FRAC_MASK);
+
+    if (is_nan) {
+        if (!inf_prop) {
+            return HMX_BF16_NEG_MAX_FINITE;
+        }
+        if (!maxnorm) {
+            return HMX_BF16_CANONICAL_NAN;
+        }
+        if (nan_prop) {
+            return HMX_BF16_NEG_MAX_FINITE;
+        }
+        return HMX_BF16_NEG_MAX_EMAX_MINUS_1;
+    }
+
+    /* Inf (or overflow that became Inf) */
+    if (!inf_prop) {
+        return sign | HMX_BF16_MAX_FINITE;
+    }
+    if (!maxnorm) {
+        return bf16;            /* Mode 1: ±Inf */
+    }
+    return sign | HMX_BF16_MAX_EMAX_MINUS_1;
+}
+
 /*
  * F8 (e4m3) overflow/NaN fixup based on USR[20:21] and Rs[6] modes.
  *
@@ -2820,7 +2882,7 @@ static uint8_t hmx_f8_fixup(double val, int inf_prop,
 static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx,
                             int acc_set, int is_f8,
                             int relu, int bias_sel, int maxnorm,
-                            int fp8_odd_sel)
+                            int fp8_odd_sel, int is_bf16_out)
 {
     uint32_t usr = env->gpr[HEX_REG_USR];
     int inf_prop = (usr >> 20) & 1;
@@ -2912,6 +2974,14 @@ static void hmx_fp_convert(CPUHexagonState *env, HmxState *hmx,
                 } else {
                     cvt->data[s][o] = (prev & 0xFF00) | (uint16_t)f8;
                 }
+            } else if (is_bf16_out) {
+                uint16_t bf16 = hmx_double_to_bf16(d_result);
+
+                if ((bf16 & HMX_BF16_EXP_MASK) == HMX_BF16_EXP_MASK) {
+                    bf16 = hmx_bf16_fixup(bf16, inf_prop,
+                                           nan_prop, maxnorm);
+                }
+                cvt->data[s][o] = bf16;
             } else {
                 uint16_t fp16 = hmx_double_to_fp16(d_result);
 
@@ -2971,6 +3041,10 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
     uint32_t cur_pc = env->gpr[HEX_REG_PC];
     const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
+    /* Rs[7] selects BF16 output on supported CPUs. */
+    int is_bf16_out = ((rs >> HMX_CVT_RS_BF16_BIT) & 1) &&
+        (hmx_cfg->mx_fp_acc_exp >= HMX_BF16_MIN_ACC_EXP);
+
     switch (type) {
     case HMX_CVT_RS_UB:
     case HMX_CVT_RS_UB_SC0:
@@ -3016,7 +3090,8 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
         hmx_fp_convert(env, hmx, hmx->current_acc_set, 0,
-                        relu, bias_sel, maxnorm, /* fp8_odd_sel */ 0);
+                        relu, bias_sel, maxnorm, /* fp8_odd_sel */ 0,
+                        is_bf16_out);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
             hmx->cvt_acc_clear_set = hmx->current_acc_set;
@@ -3028,7 +3103,8 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
         hmx->cvt_fp[2] = hmx->cvt_fp[1];
         hmx->cvt_fp[1] = hmx->cvt_fp[0];
         hmx_fp_convert(env, hmx, hmx->current_acc_set, 1,
-                        relu, bias_sel, maxnorm, fp8_odd_sel);
+                        relu, bias_sel, maxnorm, fp8_odd_sel,
+                        /* is_bf16_out */ 0);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
             hmx->cvt_acc_clear_set = hmx->current_acc_set;
