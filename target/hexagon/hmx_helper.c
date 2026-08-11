@@ -693,6 +693,76 @@ static void hmx_fxp_spatial_mac(
     }
 }
 
+/*
+ * A weight vector at wei_base + vec_idx * (mx_cols * 4) is valid only
+ * while that byte offset stays within the Rt range, the weight
+ * decompression buffer, and the MAC cycle budget.  The N_2X type packs
+ * two output channels per word, so it needs one less weight_count.
+ */
+static int hmx_fxp_max_valid_vec(CPUHexagonState *env, uint32_t rs,
+                                 uint32_t rt, int wei_type)
+{
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+    const uint32_t mx_cols = hmx_cfg->mx_cols;
+    const uint32_t mx_rows = hmx_cfg->mx_rows;
+    const uint32_t last_wgt_mask = mx_cols * HMX_OUTPUT_WORD_BYTES - 1u;
+
+    int cpv = hmx_channels_per_vec[wei_type];
+    int output_ch_scale = (wei_type == HMX_WEI_N_2X) ? 2 : 1;
+    int weight_count = ctz32((uint32_t)cpv) - 2; /* log2(cpv/4) */
+    if (output_ch_scale == 2) {
+        weight_count -= 1;
+    }
+    if (weight_count < 0) {
+        weight_count = 0;
+    }
+
+    /*
+     * Round the VTCM size up to a power-of-two mask.  linux-user has no
+     * VTCM device, so fall back to all ones and leave Rt unclamped.
+     */
+    uint64_t vtcm_size = env->processor_ptr ?
+        env->processor_ptr->arch_proc_options->vtcm_size : 0;
+    uint64_t vtcm_upper_size = vtcm_size ? (vtcm_size - 1) : ~UINT64_C(0);
+    vtcm_upper_size |= vtcm_upper_size >> 1;
+    vtcm_upper_size |= vtcm_upper_size >> 2;
+    vtcm_upper_size |= vtcm_upper_size >> 4;
+    vtcm_upper_size |= vtcm_upper_size >> 8;
+    vtcm_upper_size |= vtcm_upper_size >> 16;
+    vtcm_upper_size |= vtcm_upper_size >> 32;
+
+    /* Weight decompression buffer limit, as a byte offset. */
+    uint64_t limit = (uint64_t)mx_rows * mx_cols;
+    limit = limit * mx_cols;
+    limit = limit * 9 / 8;
+    int wgtc_mode = (rs >> 4) & 1;
+    if (wgtc_mode == 0) {
+        limit >>= weight_count;
+    }
+
+    /* Rt range, rounded up to the end of the vector it lands in. */
+    uint64_t range_off = ((uint64_t)rt & vtcm_upper_size) | last_wgt_mask;
+    uint64_t max_wgt_off = range_off;
+
+    if (range_off >= limit) {
+        max_wgt_off = limit - 1;
+    }
+
+    /* 512 FXP MAC cycles, not applied for compressed weights. */
+    uint32_t mac_cycle_limit = 512;
+    uint32_t fxp_max_wgt = HMX_FXP_WEIGHTS_PER_WORD * mx_cols;
+    uint64_t mac_off =
+        ((uint64_t)mac_cycle_limit * fxp_max_wgt) >> weight_count;
+    if (mac_off >= 1) {
+        mac_off -= 1;
+    }
+    if (wgtc_mode != 1 && mac_off < max_wgt_off) {
+        max_wgt_off = mac_off;
+    }
+
+    return (int)(max_wgt_off / (mx_cols * HMX_OUTPUT_WORD_BYTES));
+}
+
 void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                              uint32_t params)
 {
@@ -729,7 +799,7 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
      * Derive the vector range from the active output geometry. With Rt=0,
      * only one vector at wei_base is valid.
      */
-    int max_valid_vec = rt / (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
+    int max_valid_vec = hmx_fxp_max_valid_vec(env, rs, rt, wei_type);
     /*
      * Weight negate: Rs[5] only applies to FP matmul, not FXP.
      * wgt_negate = 0 when !is_flt.
@@ -878,6 +948,18 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                     for (int ch = crouton_ch_start;
                          ch < crouton_ch_stop; ch++) {
                         /*
+                         * One MAC cycle per cpv channels, i.e. per weight
+                         * vector consumed.  An exhausted budget drops the
+                         * rest of the multiply.
+                         */
+                        if (((ch - crouton_ch_start) % cpv) == 0) {
+                            if (hmx->mac_cycle_limit <= 0) {
+                                hmx->mac_cycle_limit = 0;
+                                goto mac_budget_exhausted;
+                            }
+                            hmx->mac_cycle_limit--;
+                        }
+                        /*
                          * Group convolution: each group resets the
                          * weight stream index and accumulates into
                          * its own output channels.  For non-group
@@ -944,6 +1026,8 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
             }
         }
     }
+mac_budget_exhausted:
+    return;
 }
 
 static inline double hmx_fp16_to_double(uint16_t h)
@@ -1300,6 +1384,12 @@ void HELPER(hmx_act_load)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     hmx->act_rt = rt;
     hmx->act_format = act_fmt;
     hmx->act_type = act_type;
+
+    /* 256 MAC cycles for FP, 512 for FXP. */
+    {
+        int is_flt_act = (act_type == HMX_ACT_HF) || (act_type == HMX_ACT_F8);
+        hmx->mac_cycle_limit = is_flt_act ? 256 : 512;
+    }
 
     /*
      * FP8 odd-byte select: Rs[0] picks the even (0) or odd (1) byte of each
@@ -1932,7 +2022,7 @@ static void hmx_fxp_convert(const HmxConfig *hmx_cfg, HmxState *hmx,
     /* Convert all spatial x channel positions */
     HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
 
-    for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s++) {
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s++) {
         for (o = 0; o < hmx_cfg->mx_cols; o++) {
             int64_t acc_combined = (int64_t)acc->data[s][o];
 
@@ -2034,7 +2124,7 @@ static void hmx_fxp_convert_2x1(const HmxConfig *hmx_cfg, HmxState *hmx,
     HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
 
     /* Spatial stride = 2: process adjacent pairs */
-    for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s += 2) {
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s += 2) {
         for (o = 0; o < hmx_cfg->mx_cols; o++) {
             int64_t acc_ll = (int64_t)acc->data[s][o];
             int64_t acc_hl = (int64_t)acc->data[s + 1][o];
@@ -2113,7 +2203,7 @@ static void hmx_fxp_convert_2x2(const HmxConfig *hmx_cfg, HmxState *hmx,
     HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
 
     /* Spatial stride = 2, output stride = 2 */
-    for (int s = 0; s < HMX_SPATIAL_DIM_FXP; s += 2) {
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s += 2) {
         for (int o = 0; o < hmx_cfg->mx_cols; o += 2) {
             uint64_t raw_lo = hmx->bias_raw[bias_set][o];
             uint64_t raw_hi = hmx->bias_raw[bias_set][o + 1];
@@ -3081,11 +3171,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 
     uint32_t base_addr = rs & 0xFFFFF800;
 
-    /*
-     * Flush any pending CVT commit before reading the pipeline.
-     * This ensures the store sees the correctly committed CVT state,
-     * with proper aging (or lack thereof for same-packet fb=0+fb=2).
-     */
+    /* Flush the pending conversion before reading the aged pipeline. */
     hmx_flush_cvt_fxp(hmx);
 
     /* Apply deferred acc clear from the convert packet */

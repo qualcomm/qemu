@@ -25,6 +25,7 @@
 #define HMX_OUTPUT_WORD_BYTES   ((uint32_t)sizeof(uint32_t))
 #define HMX_BIAS_ENTRY_BYTES    ((uint32_t)sizeof(uint64_t))
 #define HMX_BIAS_HIGH_WORD_OFFSET 128
+#define HMX_FXP_WEIGHTS_PER_WORD 4
 
 #define HMX_ACT_CROUTON_SIZE    2048  /* 2KB crouton */
 /* 4KB: 2 croutons */
@@ -128,6 +129,9 @@ typedef struct HmxState {
     uint32_t group_conv;        /* group conv flag (ch_start > ch_stop) */
     uint32_t group_size;        /* channels per group (32 if no group conv) */
     uint32_t group_count;       /* number of groups (1 if no group conv) */
+
+    /* MAC cycles left, shared by every multiply after an activation load */
+    int32_t  mac_cycle_limit;
 
     /*
      * Deferred CVT pipeline commit state.
