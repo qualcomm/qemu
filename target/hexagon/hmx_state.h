@@ -22,6 +22,9 @@
 #define HMX_NUM_ACC_SETS        2
 #define HMX_NUM_CVT_AGES        3
 #define HMX_NUM_BIAS_SETS       4
+#define HMX_OUTPUT_WORD_BYTES   ((uint32_t)sizeof(uint32_t))
+#define HMX_BIAS_ENTRY_BYTES    ((uint32_t)sizeof(uint64_t))
+#define HMX_BIAS_HIGH_WORD_OFFSET 128
 
 #define HMX_ACT_CROUTON_SIZE    2048  /* 2KB crouton */
 /* 4KB: 2 croutons */

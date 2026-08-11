@@ -101,11 +101,13 @@ void HELPER(hmx_commit_packet)(CPUHexagonState *env)
  * implementation. Called from hmx_act_load to pre-compute
  * tile masks, filter positions, channel ranges, and tap counts.
  */
-static void hmx_compute_act_params(HmxState *hmx, uint32_t rs, uint32_t rt,
+static void hmx_compute_act_params(const HmxConfig *hmx_cfg,
+                                    HmxState *hmx,
+                                    uint32_t rs, uint32_t rt,
                                     int act_fmt, int act_mod, int act_type)
 {
     int format_offset = (act_fmt == HMX_ACT_FMT_SM) ? 2 : 0;
-    uint32_t ch_mask = 0x1F << format_offset;
+    uint32_t ch_mask = (hmx_cfg->mx_cols - 1) << format_offset;
     int is_flt = (act_type == HMX_ACT_HF) || (act_type == HMX_ACT_F8);
 
     hmx->format_offset = format_offset;
@@ -316,24 +318,35 @@ void HELPER(hmx_accshl)(CPUHexagonState *env)
  * Optimized weight preload + vectorized MAC for FXP matmul
  *
  * Instead of calling cpu_ldub_data_ra() per output channel per spatial
- * point, we bulk-load one 128-byte weight vector as 32 int32 words,
- * then extract weights on the host side using shifts.
+ * point, we bulk-load one weight vector as int32 words, then extract
+ * weights on the host side using shifts.
  *
- * Weight vectors are 128 bytes = 32 output channels x 4 bytes each.
- * Each 4-byte word packs multiple stream indices depending on type.
+ * Weight vectors hold mx_cols output channels x 4 bytes each. Each word
+ * packs multiple stream indices depending on type.
  * ================================================================
  */
 
-/* Bulk-load one 128-byte weight vector as 32 little-endian int32 words */
-static inline void hmx_preload_weight_vec(CPUHexagonState *env,
+/*
+ * Bulk-load one weight vector as little-endian int32 words.
+ *
+ * Zero-fill storage past mx_cols so fixed-size downstream loops consume
+ * zero contributions for inactive output channels.
+ */
+static inline void hmx_preload_weight_vec(const HmxConfig *hmx_cfg,
+                                           CPUHexagonState *env,
                                            uint32_t wei_base,
                                            int vec_idx,
                                            uint32_t *wei_words,
                                            uintptr_t ra)
 {
-    uint32_t base = wei_base + vec_idx * 128;
-    for (int i = 0; i < HMX_OUTPUT_CHANNELS; i++) {
-        wei_words[i] = cpu_ldl_le_data_ra(env, base + i * 4, ra);
+    uint32_t base =
+        wei_base + vec_idx * (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
+    for (int i = 0; i < hmx_cfg->mx_cols; i++) {
+        wei_words[i] = cpu_ldl_le_data_ra(env, base + i * HMX_OUTPUT_WORD_BYTES,
+                                          ra);
+    }
+    for (int i = hmx_cfg->mx_cols; i < HMX_OUTPUT_CHANNELS; i++) {
+        wei_words[i] = 0;
     }
 }
 
@@ -692,6 +705,7 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int wei_mod = HMX_UNPACK_MOD(params);
     int current_acc = hmx->current_acc_set;
     uintptr_t ra = GETPC();
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
     /*
      * Weight signedness: byte weights (HMX_WEI_B) are always signed int8_t.
@@ -704,19 +718,18 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
      */
     int wei_unsigned = 0;
 
-    /* Weight address: Rs[31:7] is 128B-aligned */
-    uint32_t wei_base = rs & 0xFFFFFF80;
+    /* Align to one weight vector. */
+    uint32_t wei_base = rs & ~(hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES - 1);
     /*
      * Weight address range from Rt.
      * computes max_weight_pa = (base + (Rt & vtcm_mask)) | 0x7F and
      * only loads weight vectors within that range.  Vectors beyond the
      * range get valid=0 in the cache and are skipped during multiply.
      *
-     * Simplified: max_valid_vec_idx = Rt >> 7 (number of 128B vectors
-     * beyond the first).  With Rt=0, only one vector at wei_base is
-     * valid.
+     * Derive the vector range from the active output geometry. With Rt=0,
+     * only one vector at wei_base is valid.
      */
-    int max_valid_vec = rt >> 7;
+    int max_valid_vec = rt / (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
     /*
      * Weight negate: Rs[5] only applies to FP matmul, not FXP.
      * wgt_negate = 0 when !is_flt.
@@ -894,7 +907,7 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 
                             if (vec_idx != prev_vec_idx) {
                                 hmx_preload_weight_vec(
-                                    env, wei_base,
+                                    hmx_cfg, env, wei_base,
                                     vec_idx, wei_words,
                                     ra);
                                 prev_vec_idx = vec_idx;
@@ -1088,8 +1101,13 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
      * which is XORed with each FP16 weight's sign bit.
      */
     int wei_negate = (rs >> 5) & 1;
-    uint32_t wei_base = rs & 0xFFFFFF80;
-    int max_valid_vec = rt >> 7;
+    /* FXP and FP use the same mx_cols-sized VTCM weight mapping. */
+    uint32_t wei_base = rs & ~(hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES - 1);
+    /*
+     * Each weight vector occupies hmx_cfg->mx_cols * 4 bytes in VTCM.
+     * Reduces to (Rt >> 7) on v75 (mx_cols=32) by construction.
+     */
+    int max_valid_vec = rt / (hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES);
 
     /*
      * X-dimension tap parameters (same as FXP matmul).
@@ -1226,7 +1244,7 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 
                         if (vec_idx != prev_vec_idx) {
                             hmx_preload_weight_vec(
-                                env, wei_base, vec_idx,
+                                hmx_cfg, env, wei_base, vec_idx,
                                 wei_words, ra);
                             prev_vec_idx = vec_idx;
                         }
@@ -1293,7 +1311,8 @@ void HELPER(hmx_act_load)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 
     /* Compute multi-tap convolution parameters */
     int act_mod = HMX_UNPACK_ACT_MOD(params);
-    hmx_compute_act_params(hmx, rs, rt, act_fmt, act_mod, act_type);
+    hmx_compute_act_params(hmx_cfg_from_env(env), hmx, rs, rt, act_fmt,
+                           act_mod, act_type);
 
     /*
      * Load second activation crouton for multi-tap Y convolution.
@@ -1421,8 +1440,14 @@ void HELPER(hmx_bias_load)(CPUHexagonState *env, uint32_t rs,
                            uint32_t is_mxmem2)
 {
     HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
     uintptr_t ra = GETPC();
-    uint32_t addr = rs & 0xFFFFFF80;
+    /* mxmem2 packs two mx_cols-sized bias halves. */
+    uint32_t entry_bytes = is_mxmem2 ? HMX_BIAS_ENTRY_BYTES
+                                     : HMX_OUTPUT_WORD_BYTES;
+    uint32_t bias_bytes = hmx_cfg->mx_cols * entry_bytes;
+    uint32_t align_mask = ~(bias_bytes - 1u);
+    uint32_t addr = rs & align_mask;
     uint32_t set = rs & 0x3;
 
     /* Pre-v75: only one bias group supported, force set=0 */
@@ -1432,19 +1457,28 @@ void HELPER(hmx_bias_load)(CPUHexagonState *env, uint32_t rs,
 
     if (is_mxmem2) {
         /*
-         * mxmem2: load 256 bytes as two 128B HVX vectors
-         * Vec0 (addr+0..127):   lower 32 bits of each channel (control fields)
-         * Vec1 (addr+128..255): upper 32 bits of each channel (input_bias)
+         * mxmem2: load two halves of the bias vector.
+         * Half 0 (addr + 0):   lower 32 bits of each channel (control fields)
+         * Half 1 (addr + 128): upper 32 bits of each channel (input_bias)
+         *
+         * The +128 here is the HVX vector stride between the two halves
+         * (HVX vector length on both v75 and v81), NOT the bias-vector
+         * length.  Keep it literal even though bias_bytes changes with
+         * mx_cols.
          */
-        for (int i = 0; i < HMX_OUTPUT_CHANNELS; i++) {
-            uint32_t lo = cpu_ldl_le_data_ra(env, addr + i * 4, ra);
-            uint32_t hi = cpu_ldl_le_data_ra(env, addr + 128 + i * 4, ra);
+        for (uint32_t i = 0; i < hmx_cfg->mx_cols; i++) {
+            uint32_t lo = cpu_ldl_le_data_ra(
+                env, addr + i * HMX_OUTPUT_WORD_BYTES, ra);
+            uint32_t hi = cpu_ldl_le_data_ra(
+                env, addr + HMX_BIAS_HIGH_WORD_OFFSET
+                     + i * HMX_OUTPUT_WORD_BYTES, ra);
             hmx->bias_raw[set][i] = ((uint64_t)hi << 32) | lo;
         }
     } else {
-        /* mxmem: load 32-bit entries (128 bytes) into lower 32 bits */
-        for (int i = 0; i < HMX_OUTPUT_CHANNELS; i++) {
-            uint32_t lo = cpu_ldl_le_data_ra(env, addr + i * 4, ra);
+        /* mxmem: load 32-bit entries (bias_bytes total) into lower 32 bits */
+        for (uint32_t i = 0; i < hmx_cfg->mx_cols; i++) {
+            uint32_t lo = cpu_ldl_le_data_ra(
+                env, addr + i * HMX_OUTPUT_WORD_BYTES, ra);
             /* Preserve upper 32 bits (input_bias) */
             uint64_t old = hmx->bias_raw[set][i];
             hmx->bias_raw[set][i] = (old & 0xFFFFFFFF00000000ULL) | lo;
@@ -1456,8 +1490,14 @@ void HELPER(hmx_bias_store)(CPUHexagonState *env, uint32_t rs,
                             uint32_t is_mxmem2)
 {
     HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
     uintptr_t ra = GETPC();
-    uint32_t addr = rs & 0xFFFFFF80;
+    /* See hmx_bias_load for alignment rationale. */
+    uint32_t entry_bytes = is_mxmem2 ? HMX_BIAS_ENTRY_BYTES
+                                     : HMX_OUTPUT_WORD_BYTES;
+    uint32_t bias_bytes = hmx_cfg->mx_cols * entry_bytes;
+    uint32_t align_mask = ~(bias_bytes - 1u);
+    uint32_t addr = rs & align_mask;
     uint32_t set = rs & 0x3;
 
     /* Pre-v75: only one bias group supported, force set=0 */
@@ -1467,21 +1507,26 @@ void HELPER(hmx_bias_store)(CPUHexagonState *env, uint32_t rs,
 
     if (is_mxmem2) {
         /*
-         * mxmem2: store 256 bytes as two 128B HVX vectors
-         * Vec0 (addr+0..127):   lower 32 bits of each channel
-         * Vec1 (addr+128..255): upper 32 bits of each channel
+         * mxmem2: store two halves of the bias vector.
+         * Half 0 (addr + 0):   lower 32 bits of each channel
+         * Half 1 (addr + 128): upper 32 bits of each channel
+         *
+         * The +128 is the HVX vector stride, not the bias-vector length.
          */
-        for (int i = 0; i < HMX_OUTPUT_CHANNELS; i++) {
+        for (uint32_t i = 0; i < hmx_cfg->mx_cols; i++) {
             uint64_t raw = hmx->bias_raw[set][i];
-            cpu_stl_le_data_ra(env, addr + i * 4, (uint32_t)raw, ra);
-            cpu_stl_le_data_ra(env, addr + 128 + i * 4,
+            cpu_stl_le_data_ra(env, addr + i * HMX_OUTPUT_WORD_BYTES,
+                               (uint32_t)raw, ra);
+            cpu_stl_le_data_ra(env, addr + HMX_BIAS_HIGH_WORD_OFFSET
+                                    + i * HMX_OUTPUT_WORD_BYTES,
                                (uint32_t)(raw >> 32), ra);
         }
     } else {
-        /* mxmem: store lower 32 bits only (128 bytes) */
-        for (int i = 0; i < HMX_OUTPUT_CHANNELS; i++) {
+        /* mxmem: store lower 32 bits only (bias_bytes total) */
+        for (uint32_t i = 0; i < hmx_cfg->mx_cols; i++) {
             uint64_t raw = hmx->bias_raw[set][i];
-            cpu_stl_le_data_ra(env, addr + i * 4, (uint32_t)raw, ra);
+            cpu_stl_le_data_ra(env, addr + i * HMX_OUTPUT_WORD_BYTES,
+                               (uint32_t)raw, ra);
         }
     }
 }
@@ -2930,11 +2975,16 @@ static inline int hmx_raw_to_linear(int32_t raw, int is_cm)
 }
 
 /*
- * Write one FXP spatial "peg" (32 output channels) to memory.
- * CM: channels at byte stride (32 bytes per peg)
+ * Write one FXP spatial "peg" (mx_cols output channels) to memory.
+ * CM: channels at byte stride (mx_cols bytes per peg)
  * SM: channels at 4-byte stride (interleaved with spatial)
+ *
+ * The convert pipeline only fills active columns. CM requires mx_cols to
+ * be a multiple of four because it packs four bytes per store.
  */
-static void hmx_store_fxp_peg(CPUHexagonState *env, HmxCvtStateFxp *cvt,
+static void hmx_store_fxp_peg(CPUHexagonState *env,
+                               const HmxConfig *hmx_cfg,
+                               HmxCvtStateFxp *cvt,
                                int linear_s, uint32_t base_addr,
                                int32_t mem_spatial, int fmt, uintptr_t ra)
 {
@@ -2942,8 +2992,9 @@ static void hmx_store_fxp_peg(CPUHexagonState *env, HmxCvtStateFxp *cvt,
     int o;
 
     if (fmt == HMX_CVTST_CM) {
-        /* CM: 32 channels at byte stride, pack 4 per word */
-        for (o = 0; o < HMX_OUTPUT_CHANNELS; o += 4) {
+        /* CM: mx_cols channels at byte stride, pack 4 per word */
+        g_assert((hmx_cfg->mx_cols & 3) == 0);
+        for (o = 0; o < (int)hmx_cfg->mx_cols; o += 4) {
             uint32_t w =
                 (((cvt->data[linear_s][o + 0] >> 4) & 0xFF)) |
                 (((cvt->data[linear_s][o + 1] >> 4) & 0xFF) << 8) |
@@ -2952,8 +3003,8 @@ static void hmx_store_fxp_peg(CPUHexagonState *env, HmxCvtStateFxp *cvt,
             cpu_stl_le_data_ra(env, pa + o, w, ra);
         }
     } else {
-        /* SM/2x2: 32 channels at 4-byte stride */
-        for (o = 0; o < HMX_OUTPUT_CHANNELS; o++) {
+        /* SM/2x2: mx_cols channels at 4-byte stride */
+        for (o = 0; o < (int)hmx_cfg->mx_cols; o++) {
             uint8_t val = (cvt->data[linear_s][o] >> 4) & 0xFF;
             cpu_stb_data_ra(env, pa + (o << 2), val, ra);
         }
@@ -2978,6 +3029,7 @@ static void hmx_store_fxp_peg(CPUHexagonState *env, HmxCvtStateFxp *cvt,
  * row-write helper.
  */
 static void hmx_store_x_row(CPUHexagonState *env,
+                              const HmxConfig *hmx_cfg,
                               HmxCvtStateFxp *cvt_ages,
                               uint32_t base_addr, int32_t y_idx,
                               int32_t y_acc_idx, uint32_t x_offset,
@@ -2993,7 +3045,7 @@ static void hmx_store_x_row(CPUHexagonState *env,
     x_acc_idx = x_acc_offset;
     for (; x_idx < (int32_t)x_offset; ) {
         s = hmx_raw_to_linear(x_acc_idx | y_acc_idx, is_cm);
-        hmx_store_fxp_peg(env, &cvt_ages[before_state],
+        hmx_store_fxp_peg(env, hmx_cfg, &cvt_ages[before_state],
                           s, base_addr, x_idx | y_idx, fmt, ra);
         x_idx = hmx_inc_with_spatial_mask(x_idx, tile_x_inc, xm);
         x_acc_idx = hmx_inc_with_spatial_mask(x_acc_idx, tile_x_inc, xm);
@@ -3006,7 +3058,7 @@ static void hmx_store_x_row(CPUHexagonState *env,
     x_acc_idx = 0;
     while (x_idx >= 0) {
         s = hmx_raw_to_linear(x_acc_idx | y_acc_idx, is_cm);
-        hmx_store_fxp_peg(env, &cvt_ages[0],
+        hmx_store_fxp_peg(env, hmx_cfg, &cvt_ages[0],
                           s, base_addr, x_idx | y_idx, fmt, ra);
         x_idx = hmx_inc_with_spatial_mask(x_idx, tile_x_inc, xm);
         x_acc_idx = hmx_inc_with_spatial_mask(x_acc_idx, tile_x_inc, xm);
@@ -3135,7 +3187,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int32_t y_acc_idx = 0;
 
     while (y_idx >= 0) {
-        hmx_store_x_row(env, hmx->cvt_fxp, base_addr, y_idx,
+        hmx_store_x_row(env, hmx_cfg, hmx->cvt_fxp, base_addr, y_idx,
                         y_acc_idx, x_offset, tile_x_inc, xm,
                         is_cm, fmt, before_state,
                         x_acc_offset, ra);
@@ -3158,7 +3210,7 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
             base_addr += dY;
         }
         for (y_idx = 0; y_idx < (int32_t)y_offset; ) {
-            hmx_store_x_row(env, hmx->cvt_fxp, base_addr,
+            hmx_store_x_row(env, hmx_cfg, hmx->cvt_fxp, base_addr,
                             y_idx, y_acc_idx, x_offset,
                             tile_x_inc, xm, is_cm, fmt,
                             before_state, x_acc_offset, ra);
