@@ -436,6 +436,13 @@ static inline void gen_hmx_matmul_fxp(DisasContext *ctx,
                                       TCGv rs, TCGv rt,
                                       int wei_type, int wei_mod)
 {
+    /* The C helper models v81 FP8 and BTHENC semantics. */
+    if (ctx->hex_def->hex_version == HEX_VER_V81) {
+        gen_helper_hmx_matmul_fxp(tcg_env, rs, rt,
+            tcg_constant_i32(HMX_PACK_WEI(wei_type, wei_mod)));
+        return;
+    }
+
     /*
      * The activation instruction normally precedes the weight instruction
      * in the same packet, making its encoding available at translation time.
