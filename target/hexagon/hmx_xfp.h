@@ -130,16 +130,6 @@ HexagonXfp hexagon_xfp_cmp(const struct HmxConfig *hmx_cfg,
                            HexagonXfpUsr usr, HexagonXfp a, HexagonXfp b,
                            int32_t min_max);
 
-/*
- * Full FP16/BF16/F8 convert (hmx_xfp_cvt / hmx_xfp_fp_cvt,
- * Returns the 20-bit (FP16/BF16) or 8-bit
- * (F8) convert result.
- */
-uint32_t hexagon_xfp_convert(const struct HmxConfig *hmx_cfg, int is_f8,
-                             HexagonXfpUsr usr, HexagonXfp acc,
-                             HexagonXfpBias bias, uint32_t cvt_feedback,
-                             HexagonXfpCvtRs rs);
-
 /* 20-bit convert result split/combine. */
 static inline uint16_t hexagon_xfp_cvt_out_lo(uint32_t in)
 {
