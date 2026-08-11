@@ -401,11 +401,46 @@ void qemu_plugin_cpu_request_pause(unsigned int vcpu_index)
     qemu_cpu_kick(cpu);
 }
 
-void qemu_plugin_cpu_resume(unsigned int vcpu_index)
+static void resume_cpu(CPUState *cpu, run_on_cpu_data d)
+{
+    cpu_resume(cpu);
+}
+
+/*
+ * Force a vCPU thread out of qemu_process_cpu_events()'s idle wait and back
+ * through qemu_process_cpu_events_common(), regardless of its current
+ * stop/stopped/halted state. async_run_on_cpu() queues the resume as a work
+ * item and calls cpu_exit(), which kicks the thread AND makes
+ * cpu_work_list_empty() false, so cpu_thread_is_idle() is guaranteed to
+ * re-evaluate to false on the next pass (it is checked first, before the
+ * stop/halted checks) instead of relying on a single kick's condvar broadcast
+ * landing while the thread is actually inside the wait. This is the same
+ * pattern mttcg_force_rcu() uses to reach a vCPU thread from another thread
+ * deadlock-free.
+ */
+void qemu_plugin_cpu_request_resume(unsigned int vcpu_index)
 {
     CPUState *cpu = qemu_get_cpu(vcpu_index);
     g_assert(cpu);
-    cpu_resume(cpu);
+    async_run_on_cpu(cpu, resume_cpu, RUN_ON_CPU_NULL);
+}
+
+bool qemu_plugin_cpu_stop(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->stop;
+}
+
+bool qemu_plugin_cpu_stopped(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->stopped;
+}
+
+bool qemu_plugin_cpu_halted(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->halted;
 }
 
 void qemu_plugin_bql_lock(void)

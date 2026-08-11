@@ -1047,12 +1047,22 @@ QEMU_PLUGIN_API
 void qemu_plugin_cpu_request_pause(unsigned int vcpu_index);
 
 /**
- * Resume execution of a specific virtual CPU.
+ * Force a vCPU thread to leave its idle wait and re-check its run state.
+ * @vcpu_index: Index of the vCPU to nudge.
  *
- * @vcpu_index: Index of the vCPU to resume.
+ * Clears the vCPU's stop via a queued work item, which is guaranteed to make
+ * it re-evaluate whether it may run (unlike a bare kick, which can race a lost
+ * wakeup if it lands between the target checking its wait predicate and
+ * actually blocking).
+ *
+ * Running the resume as work on the target's own thread is what makes this
+ * safe to call from any thread -- another vCPU's thread, or a non-vCPU thread
+ * such as a plugin's own. It forces the target out of its idle wait and back
+ * through its own idle/resume callbacks, where the plugin observes
+ * authoritative state rather than racing the target's run loop.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_cpu_resume(unsigned int vcpu_index);
+void qemu_plugin_cpu_request_resume(unsigned int vcpu_index);
 
 /**
  * Acquire the Big QEMU Lock (BQL).
@@ -1420,6 +1430,27 @@ void qemu_plugin_u64_set(qemu_plugin_u64 entry, unsigned int vcpu_index,
  */
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
+
+/**
+ * qemu_plugin_cpu_stop() - is this vCPU pause-requested (cpu->stop)?
+ * @vcpu_index: the vCPU to query
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_stop(unsigned int vcpu_index);
+
+/**
+ * qemu_plugin_cpu_stopped() - is this vCPU already paused (cpu->stopped)?
+ * @vcpu_index: the vCPU to query
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_stopped(unsigned int vcpu_index);
+
+/**
+ * qemu_plugin_cpu_halted() - is this vCPU halted (cpu->halted, WFI/WFE/off)?
+ * @vcpu_index: the vCPU to query
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_halted(unsigned int vcpu_index);
 
 #ifdef __cplusplus
 } /* extern "C" */
