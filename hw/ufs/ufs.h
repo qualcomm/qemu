@@ -11,9 +11,11 @@
 #ifndef HW_UFS_UFS_H
 #define HW_UFS_UFS_H
 
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci_device.h"
 #include "hw/scsi/scsi.h"
 #include "block/ufs.h"
+#include "scsi/constants.h"
 
 #define UFS_MAX_LUS 32
 #define UFS_MAX_MCQ_QNUM 32
@@ -27,6 +29,7 @@ typedef struct UfsBusClass {
 
 typedef struct UfsBus {
     BusState parent_bus;
+    struct UfsHc *hc;
 } UfsBus;
 
 #define TYPE_UFS_BUS "ufs-bus"
@@ -141,7 +144,6 @@ typedef struct UfsWb {
 } UfsWb;
 
 typedef struct UfsHc {
-    PCIDevice parent_obj;
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
@@ -150,6 +152,8 @@ typedef struct UfsHc {
     UfsParams params;
     uint32_t reg_size;
     UfsRequest *req_list;
+    DeviceState *qdev;
+    AddressSpace *dma_as;
 
     UfsLu *lus[UFS_MAX_LUS];
     UfsLu report_wlu;
@@ -180,6 +184,16 @@ typedef struct UfsHc {
     uint32_t hid_defrag_total; /* Requested units at defrag start */
     uint32_t hid_defrag_remaining; /* Requested units left to move */
 } UfsHc;
+
+typedef struct UfsPciState {
+    PCIDevice parent_obj;
+    UfsHc ufs;
+} UfsPciState;
+
+typedef struct UfsSysBusState {
+    SysBusDevice parent_obj;
+    UfsHc ufs;
+} UfsSysBusState;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
 {
@@ -269,7 +283,11 @@ static inline bool ufs_is_write_req(UfsRequest *req)
 }
 
 #define TYPE_UFS "ufs"
-#define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
+#define UFS_PCI(obj) OBJECT_CHECK(UfsPciState, (obj), TYPE_UFS)
+#define UFS(obj) (&UFS_PCI(obj)->ufs)
+
+#define TYPE_UFS_SYSBUS "ufs-sysbus"
+#define UFS_SYSBUS(obj) OBJECT_CHECK(UfsSysBusState, (obj), TYPE_UFS_SYSBUS)
 
 #define TYPE_UFS_LU "ufs-lu"
 #define UFSLU(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_LU)

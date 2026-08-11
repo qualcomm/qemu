@@ -24,8 +24,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "scsi/constants.h"
 #include "hw/core/irq.h"
+#include "system/dma.h"
 #include "trace.h"
 #include "ufs.h"
 
@@ -102,7 +102,8 @@ static MemTxResult ufs_addr_read(UfsHc *u, hwaddr addr, void *buf, int size)
         return MEMTX_DECODE_ERROR;
     }
 
-    return pci_dma_read(PCI_DEVICE(u), addr, buf, size);
+    return dma_memory_read(u->dma_as, addr, buf, size,
+                           MEMTXATTRS_UNSPECIFIED);
 }
 
 static MemTxResult ufs_addr_write(UfsHc *u, hwaddr addr, const void *buf,
@@ -117,7 +118,8 @@ static MemTxResult ufs_addr_write(UfsHc *u, hwaddr addr, const void *buf,
         return MEMTX_DECODE_ERROR;
     }
 
-    return pci_dma_write(PCI_DEVICE(u), addr, buf, size);
+    return dma_memory_write(u->dma_as, addr, buf, size,
+                            MEMTXATTRS_UNSPECIFIED);
 }
 
 static inline hwaddr ufs_get_utrd_addr(UfsHc *u, uint32_t slot)
@@ -222,7 +224,7 @@ static MemTxResult ufs_dma_read_prdt(UfsRequest *req)
     }
 
     req->sg = g_malloc0(sizeof(QEMUSGList));
-    pci_dma_sglist_init(req->sg, PCI_DEVICE(u), prdt_len);
+    qemu_sglist_init(req->sg, u->qdev, prdt_len, u->dma_as);
     req->data_len = 0;
 
     for (uint16_t i = 0; i < prdt_len; ++i) {
@@ -317,14 +319,12 @@ static MemTxResult ufs_dma_write_upiu(UfsRequest *req)
 
 static void ufs_irq_check(UfsHc *u)
 {
-    PCIDevice *pci = PCI_DEVICE(u);
-
     if ((u->reg.is & UFS_INTR_MASK) & u->reg.ie) {
         trace_ufs_irq_raise();
-        pci_irq_assert(pci);
+        qemu_set_irq(u->irq, 1);
     } else {
         trace_ufs_irq_lower();
-        pci_irq_deassert(pci);
+        qemu_set_irq(u->irq, 0);
     }
 }
 
@@ -573,8 +573,13 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
         return false;
     }
 
+    if (cqid >= u->params.mcq_maxq) {
+        trace_ufs_err_mcq_create_sq_invalid_cqid(cqid);
+        return false;
+    }
+
     if (!u->cq[cqid]) {
-        trace_ufs_err_mcq_create_sq_invalid_cqid(qid);
+        trace_ufs_err_mcq_create_sq_invalid_cqid(cqid);
         return false;
     }
 
@@ -591,7 +596,7 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
     sq->size = qsize;
 
     sq->bh = qemu_bh_new_guarded(ufs_mcq_process_sq, sq,
-                                 &DEVICE(u)->mem_reentrancy_guard);
+                                 &u->qdev->mem_reentrancy_guard);
     sq->req = g_new0(UfsRequest, sq->size);
     QTAILQ_INIT(&sq->req_list);
     for (int i = 0; i < sq->size; i++) {
@@ -685,7 +690,7 @@ static bool ufs_mcq_create_cq(UfsHc *u, uint8_t qid, uint32_t attr)
     cq->size = qsize;
 
     cq->bh = qemu_bh_new_guarded(ufs_mcq_process_cq, cq,
-                                 &DEVICE(u)->mem_reentrancy_guard);
+                                 &u->qdev->mem_reentrancy_guard);
     QTAILQ_INIT(&cq->req_list);
 
     u->cq[qid] = cq;
@@ -876,6 +881,11 @@ static void ufs_mcq_process_db(UfsHc *u, uint8_t qid, uint32_t db)
     }
 
     sq = u->sq[qid];
+    if (!sq) {
+        trace_ufs_err_mcq_db_wr_invalid_sqid(qid);
+        return;
+    }
+
     if (sq->size * sizeof(UfsSqEntry) <= db) {
         trace_ufs_err_mcq_db_wr_invalid_db(qid, db);
         return;
@@ -889,7 +899,14 @@ static void ufs_write_mcq_op_reg(UfsHc *u, hwaddr offset, uint32_t data,
                                  unsigned size)
 {
     int qid = offset / sizeof(UfsMcqOpReg);
-    UfsMcqOpReg *opr = &u->mcq_op_reg[qid];
+    UfsMcqOpReg *opr;
+
+    if (qid >= u->params.mcq_maxq) {
+        trace_ufs_err_invalid_register_offset(offset);
+        return;
+    }
+
+    opr = &u->mcq_op_reg[qid];
 
     switch (offset % sizeof(UfsMcqOpReg)) {
     case offsetof(UfsMcqOpReg, sq.tp):
@@ -2478,10 +2495,17 @@ static void ufs_init_pci(UfsHc *u, PCIDevice *pci_dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1;
     pci_config_set_prog_interface(pci_conf, 0x1);
 
-    memory_region_init_io(&u->iomem, OBJECT(u), &ufs_mmio_ops, u, "ufs",
+    memory_region_init_io(&u->iomem, OBJECT(u->qdev), &ufs_mmio_ops, u, "ufs",
                           u->reg_size);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &u->iomem);
     u->irq = pci_allocate_irq(pci_dev);
+}
+
+static void ufs_init_sysbus(UfsHc *u, SysBusDevice *sysbus)
+{
+    memory_region_init_io(&u->iomem, OBJECT(u->qdev), &ufs_mmio_ops, u,
+                          "ufs", u->reg_size);
+    sysbus_init_mmio(sysbus, &u->iomem);
 }
 
 static void ufs_init_state(UfsHc *u)
@@ -2496,9 +2520,9 @@ static void ufs_init_state(UfsHc *u)
     }
 
     u->doorbell_bh = qemu_bh_new_guarded(ufs_process_req, u,
-                                         &DEVICE(u)->mem_reentrancy_guard);
+                                         &u->qdev->mem_reentrancy_guard);
     u->complete_bh = qemu_bh_new_guarded(ufs_sendback_req, u,
-                                         &DEVICE(u)->mem_reentrancy_guard);
+                                         &u->qdev->mem_reentrancy_guard);
 
     if (u->params.mcq) {
         memset(u->sq, 0, sizeof(u->sq));
@@ -2672,34 +2696,43 @@ static void ufs_init_hc(UfsHc *u)
     timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
 }
 
-static void ufs_realize(PCIDevice *pci_dev, Error **errp)
+static bool ufs_realize_common(UfsHc *u, DeviceState *dev, Error **errp)
 {
-    UfsHc *u = UFS(pci_dev);
-
     if (!ufs_check_constraints(u, errp)) {
-        return;
+        return false;
     }
 
-    qbus_init(&u->bus, sizeof(UfsBus), TYPE_UFS_BUS, &pci_dev->qdev,
-              u->parent_obj.qdev.id);
+    u->qdev = dev;
+    qbus_init(&u->bus, sizeof(UfsBus), TYPE_UFS_BUS, dev, dev->id);
+    u->bus.hc = u;
 
     ufs_init_state(u);
     ufs_init_hc(u);
-    ufs_init_pci(u, pci_dev);
 
     ufs_init_wlu(&u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN);
     ufs_init_wlu(&u->dev_wlu, UFS_UPIU_UFS_DEVICE_WLUN);
     ufs_init_wlu(&u->boot_wlu, UFS_UPIU_BOOT_WLUN);
     ufs_init_wlu(&u->rpmb_wlu, UFS_UPIU_RPMB_WLUN);
+
+    return true;
 }
 
-static void ufs_exit(PCIDevice *pci_dev)
+static void ufs_realize(PCIDevice *pci_dev, Error **errp)
 {
-    UfsHc *u = UFS(pci_dev);
+    UfsPciState *s = UFS_PCI(pci_dev);
+    UfsHc *u = &s->ufs;
 
+    u->dma_as = pci_get_address_space(pci_dev);
+    if (!ufs_realize_common(u, DEVICE(pci_dev), errp)) {
+        return;
+    }
+
+    ufs_init_pci(u, pci_dev);
+}
+
+static void ufs_unrealize_common(UfsHc *u)
+{
     timer_del(&u->idle_timer);
-
-    qemu_free_irq(u->irq);
 
     qemu_bh_delete(u->doorbell_bh);
     qemu_bh_delete(u->complete_bh);
@@ -2723,14 +2756,51 @@ static void ufs_exit(PCIDevice *pci_dev)
     }
 }
 
-static const Property ufs_props[] = {
-    DEFINE_PROP_STRING("serial", UfsHc, params.serial),
-    DEFINE_PROP_UINT8("nutrs", UfsHc, params.nutrs, 32),
-    DEFINE_PROP_UINT8("nutmrs", UfsHc, params.nutmrs, 8),
-    DEFINE_PROP_BOOL("mcq", UfsHc, params.mcq, false),
-    DEFINE_PROP_UINT8("mcq-maxq", UfsHc, params.mcq_maxq, 2),
-    DEFINE_PROP_UINT32("wb-max-size", UfsHc, params.wb_max_size, 0x400),
-    DEFINE_PROP_UINT32("wb-min-size", UfsHc, params.wb_min_size, 0x100),
+static void ufs_exit(PCIDevice *pci_dev)
+{
+    UfsPciState *s = UFS_PCI(pci_dev);
+
+    ufs_unrealize_common(&s->ufs);
+    qemu_free_irq(s->ufs.irq);
+}
+
+static void ufs_sysbus_realize(DeviceState *dev, Error **errp)
+{
+    UfsSysBusState *s = UFS_SYSBUS(dev);
+    UfsHc *u = &s->ufs;
+
+    u->dma_as = &address_space_memory;
+    if (!ufs_realize_common(u, dev, errp)) {
+        return;
+    }
+
+    ufs_init_sysbus(u, SYS_BUS_DEVICE(dev));
+}
+
+static void ufs_sysbus_unrealize(DeviceState *dev)
+{
+    UfsSysBusState *s = UFS_SYSBUS(dev);
+
+    ufs_unrealize_common(&s->ufs);
+}
+
+#define DEFINE_UFS_COMMON_PROPERTIES(_state) \
+    DEFINE_PROP_STRING("serial", _state, ufs.params.serial), \
+    DEFINE_PROP_UINT8("nutrs", _state, ufs.params.nutrs, 32), \
+    DEFINE_PROP_UINT8("nutmrs", _state, ufs.params.nutmrs, 8), \
+    DEFINE_PROP_BOOL("mcq", _state, ufs.params.mcq, false), \
+    DEFINE_PROP_UINT8("mcq-maxq", _state, ufs.params.mcq_maxq, 2), \
+    DEFINE_PROP_UINT32("wb-max-size", _state, ufs.params.wb_max_size, \
+                       0x400), \
+    DEFINE_PROP_UINT32("wb-min-size", _state, ufs.params.wb_min_size, \
+                       0x100)
+
+static const Property ufs_pci_props[] = {
+    DEFINE_UFS_COMMON_PROPERTIES(UfsPciState),
+};
+
+static const Property ufs_sysbus_props[] = {
+    DEFINE_UFS_COMMON_PROPERTIES(UfsSysBusState),
 };
 
 static const VMStateDescription ufs_vmstate = {
@@ -2738,21 +2808,44 @@ static const VMStateDescription ufs_vmstate = {
     .unmigratable = 1,
 };
 
-static void ufs_class_init(ObjectClass *oc, const void *data)
+static void ufs_common_class_init(ObjectClass *oc, const Property *props,
+                                  size_t props_count)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->desc = "Universal Flash Storage";
+    device_class_set_props_n(dc, props, props_count);
+    dc->vmsd = &ufs_vmstate;
+}
+
+static void ufs_pci_class_init(ObjectClass *oc, const void *data)
+{
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
+    ufs_common_class_init(oc, ufs_pci_props, ARRAY_SIZE(ufs_pci_props));
     pc->realize = ufs_realize;
     pc->exit = ufs_exit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_UFS;
     pc->class_id = PCI_CLASS_STORAGE_UFS;
+}
 
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->desc = "Universal Flash Storage";
-    device_class_set_props(dc, ufs_props);
-    dc->vmsd = &ufs_vmstate;
+static void ufs_sysbus_init(Object *obj)
+{
+    UfsSysBusState *s = UFS_SYSBUS(obj);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->ufs.irq);
+}
+
+static void ufs_sysbus_class_init(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    ufs_common_class_init(oc, ufs_sysbus_props,
+                          ARRAY_SIZE(ufs_sysbus_props));
+    dc->realize = ufs_sysbus_realize;
+    dc->unrealize = ufs_sysbus_unrealize;
 }
 
 static bool ufs_bus_check_address(BusState *qbus, DeviceState *qdev,
@@ -2784,9 +2877,17 @@ static void ufs_bus_class_init(ObjectClass *class, const void *data)
 static const TypeInfo ufs_info = {
     .name = TYPE_UFS,
     .parent = TYPE_PCI_DEVICE,
-    .class_init = ufs_class_init,
-    .instance_size = sizeof(UfsHc),
+    .class_init = ufs_pci_class_init,
+    .instance_size = sizeof(UfsPciState),
     .interfaces = (const InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
+};
+
+static const TypeInfo ufs_sysbus_info = {
+    .name = TYPE_UFS_SYSBUS,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .class_init = ufs_sysbus_class_init,
+    .instance_init = ufs_sysbus_init,
+    .instance_size = sizeof(UfsSysBusState),
 };
 
 static const TypeInfo ufs_bus_info = {
@@ -2800,6 +2901,7 @@ static const TypeInfo ufs_bus_info = {
 static void ufs_register_types(void)
 {
     type_register_static(&ufs_info);
+    type_register_static(&ufs_sysbus_info);
     type_register_static(&ufs_bus_info);
 }
 
