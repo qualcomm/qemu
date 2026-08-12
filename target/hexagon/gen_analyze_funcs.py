@@ -48,8 +48,7 @@ def gen_analyze_func(f, tag, regs, imms):
         f.write("}\n\n")
         return
 
-    if ("A_PRIV" in hex_common.attribdict[tag] or
-        "A_GUEST" in hex_common.attribdict[tag]):
+    if hex_common.is_sysemu_tag(tag):
         f.write("#ifndef CONFIG_USER_ONLY\n")
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
@@ -89,8 +88,7 @@ def gen_analyze_func(f, tag, regs, imms):
 
     f.write("    mark_implicit_writes(ctx);\n")
 
-    if ("A_PRIV" in hex_common.attribdict[tag] or
-        "A_GUEST" in hex_common.attribdict[tag]):
+    if hex_common.is_sysemu_tag(tag):
         f.write("#endif /* !CONFIG_USER_ONLY */\n")
 
     f.write("}\n\n")
