@@ -62,12 +62,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
                     )
 
     def run_individual_test(self, test_name: str,
-        machine: str = "sim",
+        cpu: str | None = None,
         expected_output: list[str] | None = None) -> bool:
         """
         Run a single systests_standalone test case
         """
-        self.set_machine(machine)
+        self.set_machine("sim")
+        if cpu is not None:
+            self.vm.add_args('-cpu', cpu)
 
         self.archive_extract(self.ASSET_TARBALL)
 
@@ -393,14 +395,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_invalid_insn_for_rev_v66(self) -> None:
         """Tests that instructions invalid for V66 architecture revision
         properly trigger invalid instruction exceptions."""
-        result = self.run_individual_test("invalid_insn_for_rev", "V66G_1024")
-        self.assertTrue(result, "Test invalid_insn_for_rev on V66G_1024 failed")
+        result = self.run_individual_test("invalid_insn_for_rev", "v66")
+        self.assertTrue(result, "Test invalid_insn_for_rev on v66 failed")
 
     def test_invalid_insn_for_rev_v68(self) -> None:
         """Tests that instructions invalid for V68 architecture revision
         properly trigger invalid instruction exceptions."""
-        result = self.run_individual_test("invalid_insn_for_rev", "V68N_1024")
-        self.assertTrue(result, "Test invalid_insn_for_rev on V68N_1024 failed")
+        result = self.run_individual_test("invalid_insn_for_rev", "v68")
+        self.assertTrue(result, "Test invalid_insn_for_rev on v68 failed")
 
     def test_semi_getcwd(self) -> None:
         """Tests that the SYS_GETCWD semihosting command works as expected.
