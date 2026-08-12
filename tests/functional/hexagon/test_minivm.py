@@ -41,7 +41,7 @@ class MiniVMTest(QemuSystemTest):
         Common code to launch a basic machine with minivm and a guest
         test case.
         """
-        self.set_machine('SA8775P_CDSP0')
+        self.set_machine('sim')
         self.archive_extract(self.ASSET_TARBALL)
         rootfs_path = f'{self.workdir}/hexagon-unknown-linux-musl-rootfs'
         kernel_path = f'{rootfs_path}/boot/minivm'
@@ -49,6 +49,7 @@ class MiniVMTest(QemuSystemTest):
         assert(os.path.exists(kernel_path))
         test_bin_path = join(f'{rootfs_path}/boot', test_case)
         vm = self.get_vm()
+        vm.add_args('-cpu', 'v73')
         vm.add_args('-kernel', kernel_path, '-device',
               f'loader,addr={hex(self.GUEST_ENTRY)},file={test_bin_path}')
         vm.launch()

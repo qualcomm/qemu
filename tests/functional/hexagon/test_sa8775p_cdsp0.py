@@ -25,6 +25,7 @@ class SA8775PCdsp0BootTest(QemuSystemTest):
         self.set_machine('SA8775P_CDSP0')
         self.vm.set_console(semihosting=True)
         self.vm.add_args('-kernel', kernel_path)
+        self.vm.add_args('-cpu', 'any,virtual-platform-mode=true,coproc=')
         self.vm.launch()
         wait_for_console_pattern(self, self.BOOT_STRING)
         self.vm.kill()
