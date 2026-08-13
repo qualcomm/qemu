@@ -1,12 +1,12 @@
 /*
- * Hexagon TLB QOM Object
+ * Hexagon TLB QOM Device
  *
- * Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HEXAGON_TLB_H
-#define HEXAGON_TLB_H
+#ifndef HW_HEXAGON_TLB_H
+#define HW_HEXAGON_TLB_H
 
 #include "hw/core/qdev.h"
 #include "hw/core/sysbus.h"
@@ -61,4 +61,4 @@ uint32_t hexagon_tlb_get_num_entries(HexagonTLBState *tlb);
 uint32_t hexagon_tlb_get_dma_entries(HexagonTLBState *tlb);
 uint32_t hexagon_tlb_get_total_entries(HexagonTLBState *tlb);
 
-#endif /* HEXAGON_TLB_H */
+#endif /* HW_HEXAGON_TLB_H */

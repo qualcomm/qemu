@@ -81,6 +81,33 @@ typedef struct ProcessorState processor_t;
 #endif
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
+#ifndef CONFIG_USER_ONLY
+#define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0
+#define CPU_INTERRUPT_K0_UNLOCK CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_TLB_UNLOCK CPU_INTERRUPT_TGT_INT_2
+
+#define HEX_CPU_MODE_USER    1
+#define HEX_CPU_MODE_GUEST   2
+#define HEX_CPU_MODE_MONITOR 3
+
+#define HEX_EXE_MODE_OFF     1
+#define HEX_EXE_MODE_RUN     2
+#define HEX_EXE_MODE_WAIT    3
+#define HEX_EXE_MODE_DEBUG   4
+#endif
+
+#define MMU_USER_IDX         0
+#ifndef CONFIG_USER_ONLY
+#define MMU_GUEST_IDX        1
+#define MMU_KERNEL_IDX       2
+
+typedef enum {
+    HEX_LOCK_UNLOCKED       = 0,
+    HEX_LOCK_WAITING        = 1,
+    HEX_LOCK_OWNER          = 2,
+    HEX_LOCK_QUEUED        = 3
+} hex_lock_state_t;
+#endif
 
 typedef struct {
   int unused;
@@ -288,13 +315,6 @@ typedef struct {
 #define HEXAGON_CPU_IRQ_5 5
 #define HEXAGON_CPU_IRQ_6 6
 #define HEXAGON_CPU_IRQ_7 7
-
-typedef enum {
-    HEX_LOCK_UNLOCKED       = 0,
-    HEX_LOCK_WAITING        = 1,
-    HEX_LOCK_OWNER          = 2,
-    HEX_LOCK_QUEUED        = 3
-} hex_lock_state_t;
 
 typedef struct PMUState {
     uint32_t vmstate_num_ctrs;

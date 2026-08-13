@@ -21,6 +21,7 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/page-protection.h"
@@ -41,6 +42,7 @@
 #include "arch_options_calc.h"
 #include "system.h"
 #include "dma_adapter.h"
+#include "cpu_helper.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/cpus.h"
 #include "hw/core/boards.h"
@@ -1895,8 +1897,8 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
     if (reg == HEX_SREG_PCYCLELO) {
         return hexagon_get_sys_pcycle_count(env);
     }
-    return   (uint64_t)sreg_read(env, reg) |
-           (((uint64_t)sreg_read(env, reg + 1)) << 32);
+    return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
+        sreg_read(env, reg + 1));
 }
 
 #define DECL_PMU_EVENT(name, val) case name:

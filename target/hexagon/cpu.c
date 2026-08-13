@@ -625,6 +625,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->wait_next_pc = 0;
+    env->next_PC = 0;
 #endif
     env->cause_code = HEX_EVENT_NONE;
     memset(env->gpr, 0, sizeof(target_ulong) * TOTAL_PER_THREAD_REGS);
@@ -771,6 +772,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
                              hexagon_sys_gdb_write_register,
                              gdb_find_static_feature("hexagon-sys.xml"));
+
+    if (!HEXAGON_CPU(dev)->tlb) {
+        error_setg(errp, "hexagon cpu requires 'tlb' link property to be set");
+        return;
+    }
 #endif
 
     qemu_init_vcpu(cs);

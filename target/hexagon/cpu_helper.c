@@ -1,18 +1,7 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -50,24 +39,24 @@
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    uint64_t cycles = 0;
+    HexagonCPU *cpu = env_archcpu(env);
+    uint64_t total = hexagon_globalreg_get_pcycle_base(cpu->globalregs);
     CPUState *cs;
     CPU_FOREACH(cs) {
         CPUHexagonState *thread_env = cpu_env(cs);
-        cycles += thread_env->t_cycle_count;
+        total += thread_env->t_cycle_count;
     }
-    HexagonCPU *cpu = env_archcpu(env);
-    return hexagon_globalreg_get_pcycle_base(cpu->globalregs) + cycles;
+    return total;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
 {
-    return hexagon_get_sys_pcycle_count(env) >> 32;
+    return (uint32_t)(hexagon_get_sys_pcycle_count(env) >> 32);
 }
 
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 {
-    return extract64(hexagon_get_sys_pcycle_count(env), 0, 32);
+    return (uint32_t)(hexagon_get_sys_pcycle_count(env));
 }
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
@@ -351,10 +340,17 @@ void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
 static void set_enable_mask(CPUHexagonState *env)
 
 {
+    HexagonCPU *cpu;
+    uint32_t modectl, thread_enabled_mask;
+
     g_assert(bql_locked());
 
-    const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
-    uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    cpu = env_archcpu(env);
+    if (!cpu->globalregs) {
+        return;
+    }
+    modectl = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL);
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask |= 0x1 << env->threadId;
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
 }
@@ -414,7 +410,6 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
 }
 
 static void hexagon_resume_thread(CPUHexagonState *env)
-
 {
     CPUState *cs = env_cpu(env);
     clear_wait_mode(env);
@@ -512,19 +507,22 @@ void hexagon_stop_thread(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     if (!thread_enabled_mask) {
-        /* All threads are stopped, exit */
+        /* All threads are stopped, request shutdown */
         if (cpu->dump_json_file) {
             hexagon_dump_json(env);
         }
-        exit(get_thread0_r2());
+        qemu_system_shutdown_request_with_code(
+            SHUTDOWN_CAUSE_GUEST_SHUTDOWN, get_thread0_r2());
     }
 }
 
 static int sys_in_monitor_mode_ssr(uint32_t ssr)
 {
     if ((GET_SSR_FIELD(SSR_EX, ssr) != 0) ||
-       ((GET_SSR_FIELD(SSR_EX, ssr) == 0) && (GET_SSR_FIELD(SSR_UM, ssr) == 0)))
+        ((GET_SSR_FIELD(SSR_EX, ssr) == 0) &&
+         (GET_SSR_FIELD(SSR_UM, ssr) == 0))) {
         return 1;
+    }
     return 0;
 }
 
@@ -534,12 +532,14 @@ int sys_in_monitor_mode(CPUHexagonState *env)
     return sys_in_monitor_mode_ssr(ssr);
 }
 
+
 static int sys_in_guest_mode_ssr(uint32_t ssr)
 {
     if ((GET_SSR_FIELD(SSR_EX, ssr) == 0) &&
         (GET_SSR_FIELD(SSR_UM, ssr) != 0) &&
-        (GET_SSR_FIELD(SSR_GM, ssr) != 0))
+        (GET_SSR_FIELD(SSR_GM, ssr) != 0)) {
         return 1;
+    }
     return 0;
 }
 
@@ -628,12 +628,14 @@ void clear_wait_mode(CPUHexagonState *env)
 
 void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause)
 {
+    uint32_t old, new;
+
     g_assert(bql_locked());
 
-    const uint32_t old = arch_get_system_reg(env, HEX_SREG_SSR);
+    old = env->t_sreg[HEX_SREG_SSR];
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_EX, 1);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_CAUSE, cause);
-    const uint32_t new = arch_get_system_reg(env, HEX_SREG_SSR);
+    new = env->t_sreg[HEX_SREG_SSR];
 
     hexagon_modify_ssr(env, new, old);
 }
@@ -693,22 +695,26 @@ static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
 
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
+    bool old_EX, old_UM, old_GM, old_IE, old_XE2;
+    bool new_EX, new_UM, new_GM, new_IE, new_XE2;
+    uint8_t old_asid, new_asid, old_XA, new_XA;
+
     g_assert(bql_locked());
 
-    bool old_EX = GET_SSR_FIELD(SSR_EX, old);
-    bool old_UM = GET_SSR_FIELD(SSR_UM, old);
-    bool old_GM = GET_SSR_FIELD(SSR_GM, old);
-    bool old_IE = GET_SSR_FIELD(SSR_IE, old);
-    bool old_XE2 = GET_SSR_FIELD(SSR_XE2, old);
-    uint8_t old_XA = GET_SSR_FIELD(SSR_XA, old);
-    bool new_EX = GET_SSR_FIELD(SSR_EX, new);
-    bool new_UM = GET_SSR_FIELD(SSR_UM, new);
-    bool new_GM = GET_SSR_FIELD(SSR_GM, new);
-    bool new_IE = GET_SSR_FIELD(SSR_IE, new);
-    bool new_XE2 = GET_SSR_FIELD(SSR_XE2, new);
-    uint8_t new_XA = GET_SSR_FIELD(SSR_XA, new);
-    uint8_t old_asid = GET_SSR_FIELD(SSR_ASID, old);
-    uint8_t new_asid = GET_SSR_FIELD(SSR_ASID, new);
+    old_EX = GET_SSR_FIELD(SSR_EX, old);
+    old_UM = GET_SSR_FIELD(SSR_UM, old);
+    old_GM = GET_SSR_FIELD(SSR_GM, old);
+    old_IE = GET_SSR_FIELD(SSR_IE, old);
+    old_XE2 = GET_SSR_FIELD(SSR_XE2, old);
+    old_XA = GET_SSR_FIELD(SSR_XA, old);
+    new_EX = GET_SSR_FIELD(SSR_EX, new);
+    new_UM = GET_SSR_FIELD(SSR_UM, new);
+    new_GM = GET_SSR_FIELD(SSR_GM, new);
+    new_IE = GET_SSR_FIELD(SSR_IE, new);
+    new_XE2 = GET_SSR_FIELD(SSR_XE2, new);
+    new_XA = GET_SSR_FIELD(SSR_XA, new);
+    old_asid = GET_SSR_FIELD(SSR_ASID, old);
+    new_asid = GET_SSR_FIELD(SSR_ASID, new);
 
     if ((old_EX != new_EX) ||
         (old_UM != new_UM) ||
@@ -716,7 +722,6 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         (new_asid != old_asid)) {
         hex_mmu_mode_change(env);
     }
-
 
     if (old_XE2 != new_XE2) {
         CPUState *cs;
@@ -775,21 +780,22 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     }
 }
 
-void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,
-        uint32_t cycles_hi)
+void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val)
 {
-    uint64_t cur_cycles = hexagon_get_sys_pcycle_count(env);
-    uint64_t cycles = ((uint64_t)cycles_hi << 32)
-        | extract64(cur_cycles, 0, 32);
-    hexagon_set_sys_pcycle_count(env, cycles);
+    uint64_t old;
+    g_assert(bql_locked());
+    old = hexagon_get_sys_pcycle_count(env);
+    old = deposit64(old, 32, 32, val);
+    hexagon_set_sys_pcycle_count(env, old);
 }
 
-void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env,
-        uint32_t cycles_lo)
+void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t val)
 {
-    uint64_t cur_cycles = hexagon_get_sys_pcycle_count(env);
-    uint64_t cycles = extract64(cur_cycles, 32, 32) | cycles_lo;
-    hexagon_set_sys_pcycle_count(env, cycles);
+    uint64_t old;
+    g_assert(bql_locked());
+    old = hexagon_get_sys_pcycle_count(env);
+    old = deposit64(old, 0, 32, val);
+    hexagon_set_sys_pcycle_count(env, old);
 }
 
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
