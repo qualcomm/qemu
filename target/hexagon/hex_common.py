@@ -1153,7 +1153,7 @@ class GuestRegister(Register):
     def gen_check_impl(self, f, regno):
         if self.is_written():
             f.write(code_fmt(f"""\
-                if (!hexagon_greg_writable(insn->regno[{regno}],
+                if (!greg_writable(insn->regno[{regno}],
                     {str(self.is_pair()).lower()})) {{
                     return;
                 }}

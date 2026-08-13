@@ -22,6 +22,7 @@
 #include "dma_adapter.h"
 #include "system.h"
 
+#define env thread
 #define ARCHOPT(OPTION)  (proc->arch_proc_options->OPTION)
 
 #if 1

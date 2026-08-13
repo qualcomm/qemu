@@ -1,7 +1,7 @@
 /*
- *  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
- *  SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef HEXAGON_SYS_MACROS_H
@@ -13,6 +13,7 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include "hw/hexagon/hexagon_globalreg.h"
 
 #ifdef QEMU_GENERATE
 #define GET_SSR_FIELD(RES, FIELD) \
@@ -25,10 +26,21 @@
     (uint32_t)GET_FIELD(FIELD, REGIN)
 #define SET_SYSTEM_FIELD(ENV, REG, FIELD, VAL) \
     do { \
-        uint32_t regval = arch_get_system_reg(ENV, REG); \
+        HexagonCPU *_sf_cpu = env_archcpu(ENV); \
+        uint32_t regval; \
+        if ((REG) < HEX_SREG_GLB_START) { \
+            regval = (ENV)->t_sreg[(REG)]; \
+        } else { \
+            regval = _sf_cpu->globalregs ? \
+                hexagon_globalreg_read(_sf_cpu->globalregs, (REG)) : 0; \
+        } \
         fINSERT_BITS(regval, reg_field_info[FIELD].width, \
                      reg_field_info[FIELD].offset, (VAL)); \
-        arch_set_system_reg(ENV, REG, regval); \
+        if ((REG) < HEX_SREG_GLB_START) { \
+            (ENV)->t_sreg[(REG)] = regval; \
+        } else if (_sf_cpu->globalregs) { \
+            hexagon_globalreg_write(_sf_cpu->globalregs, (REG), regval); \
+        } \
     } while (0)
 #define SET_SSR_FIELD(ENV, FIELD, VAL) \
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SSR, FIELD, VAL)
@@ -36,9 +48,11 @@
     SET_SYSTEM_FIELD(ENV, HEX_SREG_SYSCFG, FIELD, VAL)
 
 #define CCR_FIELD_SET(ENV, FIELD) \
-    (!!GET_FIELD(FIELD, arch_get_system_reg(ENV, HEX_SREG_CCR)))
+    (!!GET_FIELD(FIELD, (ENV)->t_sreg[HEX_SREG_CCR]))
 
 #endif
+
+#define fREAD_ELR() (env->t_sreg[HEX_SREG_ELR])
 
 #define fLOAD_PHYS(NUM, SIZE, SIGN, SRC1, SRC2, DST) { \
   const uintptr_t rs = ((unsigned long)(unsigned)(SRC1)) & 0x7ff; \
@@ -110,7 +124,7 @@
     } while (0)
 
 #define fGRE_ENABLED() \
-    GET_FIELD(CCR_GRE, arch_get_system_reg(env, HEX_SREG_CCR))
+    GET_FIELD(CCR_GRE, env->t_sreg[HEX_SREG_CCR])
 #define fTRAP1_VIRTINSN(IMM) \
     (sys_in_guest_mode(env) && fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))
@@ -136,7 +150,12 @@
 /* Always succeed: */
 #define fL2LOCKA(EA, PDV, PDN) (PDV = 0xFF)
 #define fCLEAR_RTE_EX() \
-        g_assert_not_reached()
+    do { \
+        uint32_t tmp = env->t_sreg[HEX_SREG_SSR]; \
+        fINSERT_BITS(tmp, reg_field_info[SSR_EX].width, \
+                     reg_field_info[SSR_EX].offset, 0); \
+        log_sreg_write(env, HEX_SREG_SSR, tmp, slot); \
+    } while (0)
 
 #define fDCINVIDX(REG)
 
@@ -146,12 +165,14 @@
 #define fSET_K0_LOCK()        hex_k0_lock(env);
 #define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
 
+#define fDCINVA(REG) do { REG = REG; } while (0) /* Nothing to do in qemu */
+
 #define fTLB_IDXMASK(INDEX) \
-    ((INDEX) & (fPOW2_ROUNDUP(\
+    ((INDEX) & (fPOW2_ROUNDUP( \
         fCAST4u(hexagon_tlb_get_num_entries(env_archcpu(env)->tlb))) - 1))
 #define fDMATLB_IDXMASK(INDEX) \
     ((INDEX) & \
-     (fPOW2_ROUNDUP(\
+     (fPOW2_ROUNDUP( \
         fCAST4u(hexagon_tlb_get_dma_entries(env_archcpu(env)->tlb))) - 1))
 
 #define fTLB_NONPOW2WRAP(INDEX) ({ \
@@ -191,10 +212,17 @@
 #define fTLBPP(TLBHI) \
     hex_tlb_lookup_extended(env, ((TLBHI) << 8), ((TLBHI) & 0xfffffffffffff000))
 
-#define fIN_DEBUG_MODE(TNUM) \
-    0    /* FIXME */
-#define fIN_DEBUG_MODE_NO_ISDB(TNUM) \
-    0    /* FIXME */
+#define fGET_TNUM() (env->threadId)
+
+#define fIN_DEBUG_MODE(TNUM) ({ \
+    HexagonCPU *_cpu = env_archcpu(env); \
+    uint32_t _isdbst = _cpu->globalregs ? \
+        hexagon_globalreg_read(_cpu->globalregs, HEX_SREG_ISDBST) : 0; \
+    (GET_FIELD(ISDBST_DEBUGMODE, _isdbst) \
+        & (0x1 << (TNUM))) != 0; })
+
+#define fIN_DEBUG_MODE_NO_ISDB(TNUM) false
+#define fIN_DEBUG_MODE_WARN(TNUM) false
 
 #ifdef QEMU_GENERATE
 
@@ -245,6 +273,11 @@
         DST = HEX_DC_STATE_INVALID | 0x00; \
     } while (0)
 #endif
+
+#else
+
+#define fIN_DEBUG_MODE(TNUM) \
+    0    /* FIXME */
 
 #endif
 

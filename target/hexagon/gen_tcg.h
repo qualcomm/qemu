@@ -2192,6 +2192,9 @@
 #define fGEN_TCG_S2_asr_i_r(SHORTCODE) \
     fASHIFTR(RdV, RsV, uiV, 4_4)
 
+#define fGEN_TCG_Y2_break(SHORTCODE)
+#define fGEN_TCG_J2_unpause(SHORTCODE)
+
 /* r0 = addasl(r1, r2, #3) */
 #define fGEN_TCG_S2_addasl_rrri(SHORTCODE) \
     do { \
@@ -2811,6 +2814,11 @@
         RsV = RsV; \
         uiV = uiV; \
     } while (0)
+#define fGEN_TCG_Y2_dcfetchbo_nt(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        uiV = uiV; \
+    } while (0)
 
 #define fGEN_TCG_L2_loadw_aq(SHORTCODE)                 SHORTCODE
 #define fGEN_TCG_L4_loadd_aq(SHORTCODE)                 SHORTCODE
@@ -2824,12 +2832,6 @@
     do { \
         RsV = RsV; \
     } while (0)
-#define fGEN_TCG_Y2_dcfetchbo_nt(SHORTCODE) \
-    do { \
-        uiV = uiV; \
-        RsV = RsV; \
-    } while (0)
-
 #define fGEN_TCG_S2_storew_rl_at_vi(SHORTCODE)          SHORTCODE
 #define fGEN_TCG_S4_stored_rl_at_vi(SHORTCODE)          SHORTCODE
 #define fGEN_TCG_S2_storew_rl_st_vi(SHORTCODE)          SHORTCODE

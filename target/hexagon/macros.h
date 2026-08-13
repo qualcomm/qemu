@@ -676,6 +676,8 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fBREAK()
 
 #define fUNPAUSE()
+#define fPAUSE(IMM)
+#define fDCFETCH(REG)
 
 #define fALIGN_REG_FIELD_VALUE(FIELD, VAL) \
     ((VAL) << reg_field_info[FIELD].offset)
@@ -744,9 +746,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define GET_DMA_LDST_ERROR_BADVA(EXTENDED_VA, VA) \
     ((EXTENDED_VA) ? (size4u_t)(((uint64_t)VA >> 32) | (VA & ~0xFFF)) \
                    : (size4u_t)VA)
-
-#define fIN_DEBUG_MODE(TNUM) \
-    0    /* FIXME */
 
 #define fTLBMATCH_MIN_SIZE() (hexagon_version_env(thread) < 0x79 ? 6 : 9)
 
