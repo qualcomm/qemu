@@ -324,6 +324,7 @@ static inline bool is_wlun(uint8_t lun)
 void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint8_t response, uint8_t scsi_status,
                            uint16_t data_segment_length);
+void ufs_build_scsi_lun_not_supported_response(UfsRequest *req);
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 void ufs_wb_update_avail_buffer(UfsHc *u);
