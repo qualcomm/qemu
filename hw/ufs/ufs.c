@@ -391,7 +391,7 @@ static void ufs_process_db(UfsHc *u, uint32_t val)
 
 /*
  * Return canned PA layer attribute values. The emulated link has no PHY,
- * so these are purely declarative: a single lane in HS-Gear 4, FAST_MODE.
+ * so these are purely declarative: two lanes in HS-Gear 3, FAST_MODE.
  */
 static uint32_t ufs_uic_dme_get_value(uint16_t attr_id)
 {
@@ -406,6 +406,8 @@ static uint32_t ufs_uic_dme_get_value(uint16_t attr_id)
         return 4;
     case UFS_ATTR_PA_PWRMODE:
         return (1 << 4) | 1;
+    case 0x0041: /* Qualcomm MPHY TX_FSM_STATE: HIBERN8 */
+        return 1;
     default:
         return 0;
     }
@@ -1126,7 +1128,8 @@ static UfsReqResult ufs_exec_scsi_cmd(UfsRequest *req)
 
     if (!is_wlun(lun) && (lun >= UFS_MAX_LUS || u->lus[lun] == NULL)) {
         trace_ufs_err_scsi_cmd_invalid_lun(lun);
-        return UFS_REQUEST_FAIL;
+        ufs_build_scsi_lun_not_supported_response(req);
+        return UFS_REQUEST_SUCCESS;
     }
 
     switch (lun) {
@@ -1967,6 +1970,13 @@ static QueryRespCode ufs_read_desc(UfsRequest *req)
     switch (idn) {
     case UFS_QUERY_DESC_IDN_DEVICE:
         memcpy(&req->rsp_upiu.qr.data, &u->device_desc, sizeof(u->device_desc));
+        status = UFS_QUERY_RESULT_SUCCESS;
+        break;
+    case UFS_QUERY_DESC_IDN_CONFIGURATION:
+        /* Return a valid, empty descriptor for U-Boot's size probe. */
+        memset(&req->rsp_upiu.qr.data, 0, 0x90);
+        req->rsp_upiu.qr.data[0] = 0x90;
+        req->rsp_upiu.qr.data[1] = UFS_QUERY_DESC_IDN_CONFIGURATION;
         status = UFS_QUERY_RESULT_SUCCESS;
         break;
     case UFS_QUERY_DESC_IDN_UNIT:

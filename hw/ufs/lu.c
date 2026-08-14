@@ -58,6 +58,15 @@ static void ufs_build_scsi_response_upiu(UfsRequest *req, uint8_t *sense,
                           status, data_segment_length);
 }
 
+void ufs_build_scsi_lun_not_supported_response(UfsRequest *req)
+{
+    uint8_t sense_buf[UFS_SENSE_SIZE];
+
+    scsi_build_sense(sense_buf, SENSE_CODE(LUN_NOT_SUPPORTED));
+    ufs_build_scsi_response_upiu(req, sense_buf, sizeof(sense_buf), 0,
+                                 CHECK_CONDITION);
+}
+
 #define UFS_GROUP_NUMBER_MASK 0x1F
 #define UFS_WB_GROUP_NUMBER_DEFAULT 0x00 /* 00000b */
 #define UFS_WB_GROUP_NUMBER_PINNED 0x18 /* 11000b */
