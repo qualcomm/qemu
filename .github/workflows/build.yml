@@ -380,7 +380,7 @@ jobs:
           podman run --pull newer --init --privileged --rm -i -v $(pwd):$(pwd) -w $(pwd)
           -v /var/run/user/$UID/podman/:/run/podman
           docker.io/pboqemu/qemu-ci:debian
-          bash -cx "make -j1 check-tcg"
+          bash -cx "./build/pyvenv/bin/meson test -C build --suite tcg --print-errorlogs"
 
   # run all meson tests, except functional.
   check:
