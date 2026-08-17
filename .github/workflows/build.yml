@@ -144,8 +144,10 @@ jobs:
       - uses: actions/checkout@v6
       - run: brew uninstall cmake # conflict with install command below
       - run: brew install --quiet $(env HOMEBREW_NO_ENV_HINTS=1 brew deps --include-build qemu) bison flex
-      - run: export PATH="$(brew --prefix bison)/bin:$PATH" && ./configure --enable-werror && ninja -C build
+      - run: brew install --quiet aarch64-elf-gcc i686-elf-gcc m68k-elf-gcc i386-elf-gcc riscv64-elf-gcc x86_64-elf-gcc gdb
+      - run: export PATH="$(brew --prefix bison)/bin:$PATH" && ./configure --enable-werror --cross-prefix-aarch64=aarch64-elf- --cross-prefix-i386=i686-elf- --cross-prefix-x86_64=x86_64-elf- --cross-prefix-riscv64=riscv64-elf- --cross-prefix-m68k=m86k-elf- && ninja -C build
       - run: ./build/qemu-system-x86_64 -nographic -plugin ./build/contrib/plugins/libstoptrigger,icount=1000000 -plugin ./build/tests/tcg/plugins/libinsn -plugin ./build/contrib/plugins/libcpp -d plugin
+      - run: ./build/pyvenv/bin/meson test -C build --suite tcg
 
   build-freebsd:
     needs: checkapply
