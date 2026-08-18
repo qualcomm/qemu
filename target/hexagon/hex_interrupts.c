@@ -1,7 +1,7 @@
 /*
- *  Copyright(c) 2022-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
- *  SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -20,98 +20,116 @@ static bool int_should_dtg(CPUHexagonState *env, int int_num);
 
 static bool get_syscfg_gie(CPUHexagonState *env)
 {
-    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t syscfg =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG);
     return GET_SYSCFG_FIELD(SYSCFG_GIE, syscfg);
 }
 
 static bool get_ssr_ex(CPUHexagonState *env)
 {
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return GET_SSR_FIELD(SSR_EX, ssr);
 }
 
 static bool get_ssr_ie(CPUHexagonState *env)
 {
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return GET_SSR_FIELD(SSR_IE, ssr);
 }
 
 /* Do these together so we only have to call hexagon_modify_ssr once */
 static void set_ssr_ex_cause(CPUHexagonState *env, int ex, uint32_t cause)
 {
-    target_ulong old = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t old, new;
+
+    old = env->t_sreg[HEX_SREG_SSR];
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_EX, ex);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_CAUSE, cause);
-    target_ulong new = arch_get_system_reg(env, HEX_SREG_SSR);
+    new = env->t_sreg[HEX_SREG_SSR];
     hexagon_modify_ssr(env, new, old);
 }
 
 static bool get_iad_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD);
     return extract32(iad, int_num, 1);
 }
 
 static void set_iad_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong iad = arch_get_system_reg(env, HEX_SREG_IAD);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t iad =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD);
     iad = deposit32(iad, int_num, 1, val);
-    arch_set_system_reg(env, HEX_SREG_IAD, iad);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad);
 }
 
 static uint32_t get_ipend(CPUHexagonState *env)
 {
-    return arch_get_system_reg(env, HEX_SREG_IPEND);
+    HexagonCPU *cpu = env_archcpu(env);
+    return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND);
 }
 
 static inline bool get_ipend_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t ipend =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND);
     return extract32(ipend, int_num, 1);
 }
 
 static void clear_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t ipend =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND);
     ipend &= ~mask;
-    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend(CPUHexagonState *env, uint32_t mask)
 {
-    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t ipend =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND);
     ipend |= mask;
-    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend);
 }
 
 static void set_ipend_bit(CPUHexagonState *env, int int_num, int val)
 {
-    target_ulong ipend = arch_get_system_reg(env, HEX_SREG_IPEND);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t ipend =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND);
     ipend = deposit32(ipend, int_num, 1, val);
-    arch_set_system_reg(env, HEX_SREG_IPEND, ipend);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend);
 }
 
 static bool get_imask_bit(CPUHexagonState *env, int int_num)
 {
-    target_ulong imask = arch_get_system_reg(env, HEX_SREG_IMASK);
+    uint32_t imask = env->t_sreg[HEX_SREG_IMASK];
     return extract32(imask, int_num, 1);
 }
 
 static uint32_t get_prio(CPUHexagonState *env)
 {
-    target_ulong stid = arch_get_system_reg(env, HEX_SREG_STID);
+    uint32_t stid = env->t_sreg[HEX_SREG_STID];
     return extract32(stid, reg_field_info[STID_PRIO].offset,
                      reg_field_info[STID_PRIO].width);
 }
 
-static void set_elr(CPUHexagonState *env, target_ulong val)
+static void set_elr(CPUHexagonState *env, uint32_t val)
 {
-    arch_set_system_reg(env, HEX_SREG_ELR, val);
+    env->t_sreg[HEX_SREG_ELR] = val;
 }
 
 static bool get_schedcfgen(CPUHexagonState *env)
 {
-    target_ulong schedcfg = arch_get_system_reg(env, HEX_SREG_SCHEDCFG);
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t schedcfg =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SCHEDCFG);
     return extract32(schedcfg, reg_field_info[SCHEDCFG_EN].offset,
                      reg_field_info[SCHEDCFG_EN].width);
 }
@@ -143,11 +161,7 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num)
     bool ssr_ex = get_ssr_ex(env);
     bool imask = get_imask_bit(env, int_num);
 
-    if (!(syscfg_gie && !iad && ssr_ie && !ssr_ex && !imask)) {
-        return false;
-    }
-
-    return true;
+    return syscfg_gie && !iad && ssr_ie && !ssr_ex && !imask;
 }
 
 static void clear_pending_locks(CPUHexagonState *env)
@@ -218,6 +232,7 @@ static bool int_should_dtg(CPUHexagonState *env, int int_num)
 static void hex_accept_int(CPUHexagonState *env, int int_num)
 {
     CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = env_archcpu(env);
     const int exe_mode = get_exe_mode(env);
     const bool in_wait_mode = exe_mode == HEX_EXE_MODE_WAIT;
     target_ulong elr;
@@ -231,7 +246,7 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
 
     if (in_wait_mode) {
         qemu_log_mask(CPU_LOG_INT,
-            "%s: thread %d resuming, exiting WAIT mode\n",
+            "%s: thread " TARGET_FMT_ld " resuming, exiting WAIT mode\n",
             __func__, env->threadId);
         elr = env->wait_next_pc;
         clear_wait_mode(env);
@@ -248,14 +263,13 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
          * GSR.CAUSE receives the L2VIC vector ID (VIDx), not the
          * monitor-mode cause code (0xC0 | int_num).
          */
-        HexagonCPU *cpu = env_archcpu(env);
         int vic_group = int_num - 2;
         uint32_t vid_packed = l2vic_read_vid(cpu->l2vic, vic_group / 2);
         uint32_t vid = extract32(vid_packed, (vic_group & 1) ? 16 : 0, 16);
         guest_event_entry(env, vid, elr, HEX_EVENT_INT0, false);
     } else {
         /* Monitor-mode interrupt delivery */
-        target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
+        uint32_t evb = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB);
         set_ssr_ex_cause(env, 1, HEX_CAUSE_INT0 | int_num);
         set_elr(env, elr);
         env->gpr[HEX_REG_PC] = evb | (cs->exception_index << 2);
@@ -286,31 +300,39 @@ bool hex_check_interrupts(CPUHexagonState *env)
     schedcfgen = get_schedcfgen(env);
     for (int i = 0; i < max_ints; i++) {
         if (!get_iad_bit(env, i) && get_ipend_bit(env, i)) {
+            bool syscfg_gie, iad, ssr_ie, imask;
+
             qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[%d] pc = 0x%x found int %d\n", __func__,
-                          env->threadId, env->gpr[HEX_REG_PC], i);
+                          "%s: thread[" TARGET_FMT_ld "] "
+                          "pc = 0x" TARGET_FMT_lx
+                          " found int %d\n",
+                          __func__, env->threadId,
+                          env->gpr[HEX_REG_PC], i);
             if (hex_is_qualified_for_int(env, i) &&
                 (!schedcfgen || is_lowest_prio(env, i))) {
-                qemu_log_mask(CPU_LOG_INT, "%s: thread[%d] int %d handled_\n",
-                    __func__, env->threadId, i);
+                qemu_log_mask(CPU_LOG_INT,
+                              "%s: thread[" TARGET_FMT_ld "] int %d handled_\n",
+                              __func__, env->threadId, i);
                 hex_accept_int(env, i);
                 int_handled = true;
                 break;
             }
-            bool syscfg_gie = get_syscfg_gie(env);
-            bool iad = get_iad_bit(env, i);
-            bool ssr_ie = get_ssr_ie(env);
-            bool imask = get_imask_bit(env, i);
+            syscfg_gie = get_syscfg_gie(env);
+            iad = get_iad_bit(env, i);
+            ssr_ie = get_ssr_ie(env);
+            imask = get_imask_bit(env, i);
 
             qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[%d] int %d not handled, qualified: %d, "
+                          "%s: thread[" TARGET_FMT_ld "] "
+                          "int %d not handled, qualified: %d, "
                           "schedcfg_en: %d, low prio %d\n",
                           __func__, env->threadId, i,
                           hex_is_qualified_for_int(env, i), schedcfgen,
                           is_lowest_prio(env, i));
 
             qemu_log_mask(CPU_LOG_INT,
-                          "%s: thread[%d] int %d not handled, GIE %d, iad %d, "
+                          "%s: thread[" TARGET_FMT_ld "] "
+                          "int %d not handled, GIE %d, iad %d, "
                           "SSR:IE %d, SSR:EX: %d, imask bit %d\n",
                           __func__, env->threadId, i, syscfg_gie, iad, ssr_ie,
                           ssr_ex, imask);
@@ -373,6 +395,7 @@ void hex_interrupt_update(CPUHexagonState *env)
             const int exe_mode = get_exe_mode(hex_env);
             if (exe_mode != HEX_EXE_MODE_OFF) {
                 cpu_interrupt(cs, CPU_INTERRUPT_SWI);
+                cpu_resume(cs);
             }
         }
     }

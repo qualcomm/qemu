@@ -1447,12 +1447,12 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
 
     if (slot == 0) {
-        arch_set_system_reg(env, HEX_SREG_BADVA0, badva);
+        env->t_sreg[HEX_SREG_BADVA0] = badva;
         SET_SSR_FIELD(env, SSR_V0, 1);
         SET_SSR_FIELD(env, SSR_V1, 0);
         SET_SSR_FIELD(env, SSR_BVS, 0);
     } else if (slot == 1) {
-        arch_set_system_reg(env, HEX_SREG_BADVA1, badva);
+        env->t_sreg[HEX_SREG_BADVA1] = badva;
         SET_SSR_FIELD(env, SSR_V0, 0);
         SET_SSR_FIELD(env, SSR_V1, 1);
         SET_SSR_FIELD(env, SSR_BVS, 1);
@@ -1763,9 +1763,12 @@ void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
     uint32_t modectl;
     uint32_t thread_enabled_mask;
     CPUState *cpu;
+    HexagonCPU *hex_cpu;
 
     BQL_LOCK_GUARD();
-    modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    hex_cpu = env_archcpu(env);
+    modectl = hex_cpu->globalregs ?
+        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL) : 0;
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
 
     CPU_FOREACH (cpu) {
@@ -1776,10 +1779,11 @@ void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
             uint32_t intbitpos = (src >> 16) & 0xF;
             uint32_t val = (src >> thread_env->threadId) & 0x1;
             imask = deposit32(imask, intbitpos, 1, val);
-            arch_set_system_reg(thread_env, HEX_SREG_IMASK, imask);
+            thread_env->t_sreg[HEX_SREG_IMASK] = imask;
 
-            qemu_log_mask(CPU_LOG_INT, "%s: thread %d, new imask 0x%x\n",
-                          __func__, thread_env->threadId, imask);
+            qemu_log_mask(CPU_LOG_INT, "%s: thread " TARGET_FMT_ld
+               ", new imask 0x%" PRIx32 "\n", __func__,
+               thread_env->threadId, imask);
         }
     }
     hex_interrupt_update(env);
@@ -1793,9 +1797,12 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
     uint32_t intbitpos;
     uint32_t dest_reg;
     CPUState *cpu;
+    HexagonCPU *hex_cpu;
 
     BQL_LOCK_GUARD();
-    modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    hex_cpu = env_archcpu(env);
+    modectl = hex_cpu->globalregs ?
+        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL) : 0;
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     /* src fields are in same position as modectl, but mean different things */
     intbitpos = GET_FIELD(MODECTL_W, src);
@@ -1804,14 +1811,13 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = arch_get_system_reg(thread_env, HEX_SREG_IMASK);
+            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
             dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
         }
     }
 
     return dest_reg;
 }
-
 
 static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
@@ -2208,26 +2214,29 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     g_assert_not_reached();
 }
 
-void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
+void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
 {
     CPUState *cs;
 
     g_assert(env->processor_ptr->thread_system_mask != 0);
 
     BQL_LOCK_GUARD();
-    pred &= env->processor_ptr->thread_system_mask;
+    tid &= env->processor_ptr->thread_system_mask;
     CPU_FOREACH(cs) {
-        CPUHexagonState *found_env = cpu_env(cs);
-
-        if (pred == found_env->threadId) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+        if (tid == found_env->threadId) {
             SET_SYSTEM_FIELD(found_env, HEX_SREG_IMASK, IMASK_MASK, imask);
-            qemu_log_mask(CPU_LOG_INT, "%s: tid %d imask 0x%x\n",
+            qemu_log_mask(CPU_LOG_INT, "%s: tid " TARGET_FMT_lx
+                          " imask 0x%" PRIx32 "\n",
                           __func__, found_env->threadId, imask);
-            hex_interrupt_update(env);
+            hex_interrupt_update(found_env);
             return;
         }
     }
-    hex_interrupt_update(env);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "setimask used with an invalid tid near PC: 0x%"
+                  PRIx32 "\n", env->next_PC);
 }
 
 void HELPER(start)(CPUHexagonState *env, uint32_t imask)

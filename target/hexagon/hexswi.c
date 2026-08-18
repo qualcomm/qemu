@@ -813,20 +813,20 @@ void hexagon_vmrte(CPUHexagonState *env)
     cpu_loop_exit(cs);
 }
 
-static void set_addresses(CPUHexagonState *env,
-    target_ulong pc_offset, target_ulong exception_index)
-
+static void set_addresses(CPUHexagonState *env, uint32_t pc_offset,
+                          uint32_t exception_index)
 {
-    target_ulong elr = arch_get_thread_reg(env, HEX_REG_PC) + pc_offset;
-    arch_set_system_reg(env, HEX_SREG_ELR, elr);
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t evb = cpu->globalregs ? arch_get_system_reg(env, HEX_SREG_EVB) : 0;
-    arch_set_thread_reg(env, HEX_REG_PC, evb | (exception_index << 2));
+    uint32_t evb = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB) : 0;
+    env->t_sreg[HEX_SREG_ELR] = env->gpr[HEX_REG_PC] + pc_offset;
+    env->gpr[HEX_REG_PC] = evb | (exception_index << 2);
 }
 
 static const char *event_name[] = {
          [HEX_EVENT_RESET] = "HEX_EVENT_RESET",
          [HEX_EVENT_IMPRECISE] = "HEX_EVENT_IMPRECISE",
+         [HEX_EVENT_PRECISE] = "HEX_EVENT_PRECISE",
          [HEX_EVENT_TLB_MISS_X] = "HEX_EVENT_TLB_MISS_X",
          [HEX_EVENT_TLB_MISS_RW] = "HEX_EVENT_TLB_MISS_RW",
          [HEX_EVENT_TRAP0] = "HEX_EVENT_TRAP0",
@@ -857,16 +857,22 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     BQL_LOCK_GUARD();
 
     qemu_log_mask(CPU_LOG_INT,
-            "\t%s: event 0x%x:%s, cause 0x%x(%d)\n", __func__,
-            cs->exception_index, event_name[cs->exception_index], env->cause_code, env->cause_code);
+                 "\t%s: event 0x%02x:%s, cause 0x%" PRIx32 "(%" PRIu32 ")\n",
+                  __func__, (unsigned)cs->exception_index,
+                  event_name[cs->exception_index], env->cause_code,
+                  env->cause_code);
 
     env->llsc_addr = ~0;
 
     CPU_MEMOP_PC_SET_ON_EXCEPTION(env);
 
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
-        arch_set_system_reg(env, HEX_SREG_DIAG, env->cause_code);
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
+                                    env->cause_code);
+        }
         env->cause_code = HEX_CAUSE_DOUBLE_EXCEPT;
         cs->exception_index = HEX_EVENT_PRECISE;
 
@@ -911,24 +917,27 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_TLBMISSX_CAUSE_NORMAL:
         case HEX_CAUSE_TLBMISSX_CAUSE_NEXTPAGE:
             qemu_log_mask(CPU_LOG_MMU,
-                "TLB miss EX exception (0x%x) caught: "
-                "Cause code (0x%x) "
-                "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
-                ", BADVA = 0x%" PRIx32 "\n",
-                cs->exception_index, env->cause_code,
-                env->threadId,
-                arch_get_thread_reg(env, HEX_REG_PC),
-                arch_get_system_reg(env, HEX_SREG_BADVA));
+                         "TLB miss EX exception (0x%02" PRIx32 ") caught: "
+                          "Cause code (0x%" PRIx32 ") "
+                          "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
+                          ", BADVA = 0x%" PRIx32 "\n",
+                          (uint32_t)cs->exception_index,
+                          env->cause_code, env->threadId,
+                          env->gpr[HEX_REG_PC],
+                          env->t_sreg[HEX_SREG_BADVA]);
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
             break;
 
         default:
-            cpu_abort(cs, "1:Hexagon exception %d/0x%x: "
-                "Unknown cause code %d/0x%x\n",
-                cs->exception_index, cs->exception_index,
-                env->cause_code, env->cause_code);
+            cpu_abort(cs,
+                      "1:Hexagon exception %" PRId32 "/0x%02" PRIx32 ": "
+                      "Unknown cause code %" PRIu32 "/0x%" PRIx32 "\n",
+                      (uint32_t)cs->exception_index,
+                      (uint32_t)cs->exception_index,
+                      env->cause_code,
+                      env->cause_code);
             break;
         }
         break;
@@ -944,13 +953,14 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_TLBMISSRW_CAUSE_READ:
         case HEX_CAUSE_TLBMISSRW_CAUSE_WRITE:
             qemu_log_mask(CPU_LOG_MMU,
-                "TLB miss RW exception (0x%x) caught: "
-                "Cause code (0x%x) "
-                "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
-                ", BADVA = 0x%" PRIx32 "\n",
-                cs->exception_index, env->cause_code,
-                env->threadId, env->gpr[HEX_REG_PC],
-                arch_get_system_reg(env, HEX_SREG_BADVA));
+                          "TLB miss RW exception (0x%02" PRIx32 ") caught: "
+                          "Cause code (0x%" PRIx32 ") "
+                          "TID = 0x%" PRIx32 ", PC = 0x%" PRIx32
+                          ", BADVA = 0x%" PRIx32 "\n",
+                          (uint32_t)cs->exception_index,
+                          env->cause_code, env->threadId,
+                          env->gpr[HEX_REG_PC],
+                          env->t_sreg[HEX_SREG_BADVA]);
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
@@ -1039,10 +1049,13 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
             break;
 
         default:
-            cpu_abort(cs, "3:Hexagon exception %d/0x%x: "
-                "Unknown cause code %d/0x%x\n",
-                cs->exception_index, cs->exception_index,
-                env->cause_code, env->cause_code);
+            cpu_abort(cs,
+                      "3:Hexagon exception %" PRId32 "/0x%02" PRIx32 ": "
+                      "Unknown cause code %" PRIu32 "/0x%" PRIx32 "\n",
+                      (uint32_t)cs->exception_index,
+                      (uint32_t)cs->exception_index,
+                      env->cause_code,
+                      env->cause_code);
             break;
         }
         break;
@@ -1089,9 +1102,9 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     default:
-        printf("%s:%d: throw error\n", __func__, __LINE__);
-        cpu_abort(cs, "Hexagon Unsupported exception 0x%x/0x%x\n",
-                  cs->exception_index, env->cause_code);
+        qemu_log_mask(LOG_UNIMP,
+                "Hexagon Unsupported exception 0x%02x/0x%" PRIx32 "\n",
+                (unsigned)cs->exception_index, env->cause_code);
         break;
     }
 

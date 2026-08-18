@@ -67,7 +67,7 @@ void cpu_loop(CPUHexagonState *env)
             exit(EXIT_FAILURE);
             break;
         case HEX_EVENT_PRECISE:
-            switch(env->cause_code) {
+            switch (env->cause_code) {
             case HEX_CAUSE_FETCH_NO_UPAGE:
             case HEX_CAUSE_PRIV_NO_UREAD:
             case HEX_CAUSE_PRIV_NO_UWRITE:

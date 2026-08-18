@@ -938,13 +938,14 @@ static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
     tcg_gen_qemu_ld_i64(frame, EA, ctx->mem_idx, MO_LE | MO_UQ | MO_ALIGN);
 }
 
-
+/* Stack overflow check */
 void gen_framecheck(DisasContext *ctx, TCGv addr, TCGv ea)
 {
 #ifndef CONFIG_USER_ONLY
     TCGLabel *ok = gen_new_label();
     tcg_gen_brcond_tl(TCG_COND_GEU, addr, hex_gpr[HEX_REG_FRAMELIMIT], ok);
-    gen_helper_raise_stack_overflow(tcg_env, tcg_constant_i32(ctx->insn->slot), ea);
+    gen_helper_raise_stack_overflow(tcg_env,
+                                   tcg_constant_i32(ctx->insn->slot), ea);
     gen_set_label(ok);
 #endif
 }

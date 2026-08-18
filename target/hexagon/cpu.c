@@ -590,16 +590,18 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
 #if !defined(CONFIG_USER_ONLY)
 void hexagon_cpu_soft_reset(CPUHexagonState *env)
 {
+    HexagonCPU *cpu;
+
     BQL_LOCK_GUARD();
-    arch_set_system_reg(env, HEX_SREG_SSR, 0);
+    env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
-    HexagonCPU *cpu = env_archcpu(env);
+    cpu = env_archcpu(env);
     if (cpu->globalregs) {
-        target_ulong evb = arch_get_system_reg(env, HEX_SREG_EVB);
-        arch_set_thread_reg(env, HEX_REG_PC, evb);
+        uint32_t evb = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB);
+        env->gpr[HEX_REG_PC] = evb;
     } else {
-        arch_set_thread_reg(env, HEX_REG_PC, 0x0);
+        env->gpr[HEX_REG_PC] = 0;
     }
 }
 #endif
@@ -851,14 +853,19 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 }
 
 #ifndef CONFIG_USER_ONLY
-bool hexagon_thread_is_enabled(CPUHexagonState *env) {
+bool hexagon_thread_is_enabled(CPUHexagonState *env)
+{
     HexagonCPU *cpu = env_archcpu(env);
+    uint32_t modectl;
+    uint32_t thread_enabled_mask;
+    bool E_bit;
+
     if (!cpu->globalregs) {
         return true;
     }
-    target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
-    uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
-    bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
+    modectl = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL);
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    E_bit = thread_enabled_mask & (0x1 << env->threadId);
 
     return E_bit;
 }
@@ -1120,6 +1127,12 @@ static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+static vaddr hexagon_pointer_wrap(CPUState *cs, int mmu_idx,
+                                  vaddr result, vaddr base)
+{
+    return result;
+}
+
 static void G_NORETURN hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                         MMUAccessType access_type,
                                         int mmu_idx,
@@ -1190,7 +1203,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
 #if !defined(CONFIG_USER_ONLY)
     .tlb_fill = hexagon_tlb_fill,
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
-    .pointer_wrap = cpu_pointer_wrap_uint32,
+    .pointer_wrap = hexagon_pointer_wrap,
     .cpu_exec_halt = hexagon_cpu_has_work,
     .cpu_exec_reset = cpu_reset,
     .do_interrupt = hexagon_cpu_do_interrupt,

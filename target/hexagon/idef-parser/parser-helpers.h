@@ -295,6 +295,8 @@ void gen_cancel(Context *c, YYLTYPE *locp);
 
 void gen_load_cancel(Context *c, YYLTYPE *locp);
 
+void gen_framecheck(Context *c, YYLTYPE *locp, HexValue *addr, HexValue *ea);
+
 void gen_load(Context *c, YYLTYPE *locp, HexValue *size,
               HexSignedness signedness, HexValue *ea, HexValue *dst);
 
@@ -349,7 +351,5 @@ void free_instruction(Context *c);
 void assert_signedness(Context *c,
                        YYLTYPE *locp,
                        HexSignedness signedness);
-
-void gen_framecheck(Context *c, YYLTYPE *locp, HexValue *addr, HexValue *ea);
 
 #endif /* PARSER_HELPERS_h */
