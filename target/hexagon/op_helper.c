@@ -457,14 +457,13 @@ void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
     uint32_t iad;
+    HexagonCPU *cpu = env_archcpu(env);
 
     BQL_LOCK_GUARD();
-    iad = arch_get_system_reg(env, HEX_SREG_IAD) & ~(mask);
-    arch_set_system_reg(env, HEX_SREG_IAD, iad);
+    iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD) & ~(mask);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad);
 
     /* Clear interrupt using L2VIC interface */
-    CPUState *cs = env_cpu(env);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
     if (cpu->l2vic) {
         l2vic_clear_interrupt(cpu->l2vic);
     }
@@ -475,10 +474,11 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
     uint32_t iad;
+    HexagonCPU *cpu = env_archcpu(env);
 
     BQL_LOCK_GUARD();
-    iad = arch_get_system_reg(env, HEX_SREG_IAD) | mask;
-    arch_set_system_reg(env, HEX_SREG_IAD, iad);
+    iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD) | mask;
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad);
     hex_interrupt_update(env);
 }
 
@@ -1477,7 +1477,8 @@ static void hex_k0_lock(CPUHexagonState *env)
     trace_hexagon_k0_lock(env->threadId, env->next_PC, env->k0_lock_count);
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                                              HEX_SREG_SYSCFG);
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (env->k0_lock_state == HEX_LOCK_QUEUED) {
             env->next_PC += 4;
@@ -1520,7 +1521,8 @@ static void hex_k0_unlock(CPUHexagonState *env)
     g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
 
     /* Nothing to do if the k0 isn't locked by this thread */
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                                              HEX_SREG_SYSCFG);
     if ((GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg) == 0) ||
         (env->k0_lock_state != HEX_LOCK_OWNER)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1775,7 +1777,7 @@ void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
         uint32_t thread_id_mask = 0x1 << thread_env->threadId;
         if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = arch_get_system_reg(thread_env, HEX_SREG_IMASK);
+            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
             uint32_t intbitpos = (src >> 16) & 0xF;
             uint32_t val = (src >> thread_env->threadId) & 0x1;
             imask = deposit32(imask, intbitpos, 1, val);
@@ -1821,7 +1823,7 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
 
 static inline bool ssr_ce_enabled(CPUHexagonState *env)
 {
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
     return GET_SSR_FIELD(SSR_CE, ssr);
 }
 
@@ -1830,18 +1832,18 @@ static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
     HexagonCPU *cpu = env_archcpu(env);
     uint32_t low, high;
     if (IS_PMU_CREG(reg)) {
-        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+        target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
         int ssr_pe = GET_SSR_FIELD(SSR_PE, ssr);
         return ssr_pe ? hexagon_get_pmu_counter(env, reg - HEX_REG_UPMUCNT0) : 0;
     }
     switch (reg) {
     case HEX_REG_PKTCNTLO:
         low = env->exec_ctr_pkt;
-        arch_set_thread_reg(env, HEX_REG_PKTCNTLO, low);
+        env->gpr[HEX_REG_PKTCNTLO] = low;
         return low;
     case HEX_REG_PKTCNTHI:
         high = 0;
-        arch_set_thread_reg(env, HEX_REG_PKTCNTHI, high);
+        env->gpr[HEX_REG_PKTCNTHI] = high;
         return high;
     case HEX_REG_UPCYCLELO:
         return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_low(env) : 0;
@@ -1867,34 +1869,38 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
            (((uint64_t)creg_read(env, reg + 1)) << 32);
 }
 
-static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
-                                                    uint32_t reg)
+uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg)
 {
     g_assert(bql_locked());
     if (reg == HEX_SREG_BADVA) {
-        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+        target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
         if (GET_SSR_FIELD(SSR_BVS, ssr)) {
-            return arch_get_system_reg(env, HEX_SREG_BADVA1);
+            return env->t_sreg[HEX_SREG_BADVA1];
         }
-        return arch_get_system_reg(env, HEX_SREG_BADVA0);
+        return env->t_sreg[HEX_SREG_BADVA0];
     } else if (IS_PMU_SREG(reg)) {
         return hexagon_get_pmu_counter(env, pmu_index_from_sreg(reg));
     } else if (reg == HEX_SREG_IPENDAD) {
-        return (arch_get_system_reg(env, HEX_SREG_IPEND) & 0xffff) |
-            ((arch_get_system_reg(env, HEX_SREG_IAD) & 0xffff) << 16);
+        HexagonCPU *cpu = env_archcpu(env);
+        return (hexagon_globalreg_read(cpu->globalregs,
+                                       HEX_SREG_IPEND) & 0xffff) |
+            ((hexagon_globalreg_read(cpu->globalregs,
+                                     HEX_SREG_IAD) & 0xffff) << 16);
+    } else if (reg == HEX_SREG_PCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_SREG_PCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    } else if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    } else {
+        return hexagon_globalreg_read(env_archcpu(env)->globalregs, reg);
     }
-    return arch_get_system_reg(env, reg);
 }
 
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 {
     BQL_LOCK_GUARD();
-    return sreg_read(env, reg);
-}
-
-uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg)
-{
-    return sreg_read(env, reg);
+    return hexagon_sreg_read(env, reg);
 }
 
 uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
@@ -1903,8 +1909,8 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
     if (reg == HEX_SREG_PCYCLELO) {
         return hexagon_get_sys_pcycle_count(env);
     }
-    return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
-        sreg_read(env, reg + 1));
+    return deposit64((uint64_t) hexagon_sreg_read(env, reg), 32, 32,
+        hexagon_sreg_read(env, reg + 1));
 }
 
 #define DECL_PMU_EVENT(name, val) case name:
@@ -1939,9 +1945,10 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 {
     g_assert(bql_locked());
 
+    HexagonCPU *cpu = env_archcpu(env);
     uint32_t old;
     uint32_t syscfg_read_only_mask = 0x80001c00;
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG);
 
     /* clear read-only bits if they are set in the new value. */
     val &= ~syscfg_read_only_mask;
@@ -1949,8 +1956,8 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
     val |= (syscfg & syscfg_read_only_mask);
 
     uint32_t tmp = val;
-    old = arch_get_system_reg(env, HEX_SREG_SYSCFG);
-    arch_set_system_reg(env, HEX_SREG_SYSCFG, tmp);
+    old = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG);
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_SYSCFG, tmp);
 
     /* Check for change in MMU enable */
     target_ulong old_mmu_enable = GET_SYSCFG_FIELD(SYSCFG_MMUEN, old);
@@ -2005,7 +2012,9 @@ static void set_pmu_event(CPUHexagonState *env, unsigned int index,
     env->pmu.g_events[index] = event;
 
     bool pmu_enabled =
-        GET_SYSCFG_FIELD(SYSCFG_PM, arch_get_system_reg(env, HEX_SREG_SYSCFG));
+        GET_SYSCFG_FIELD(SYSCFG_PM,
+                         hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                                                HEX_SREG_SYSCFG));
 
     if (event != old_event) {
         if (pmu_enabled) {
@@ -2025,17 +2034,19 @@ static void set_pmu_event(CPUHexagonState *env, unsigned int index,
 static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                                   uint32_t val)
 {
-    uint32_t old = arch_get_system_reg(env, reg);
     uint32_t new = val;
+    HexagonCPU *cpu = env_archcpu(env);
 
     g_assert(bql_locked());
     if (reg == HEX_SREG_PMUSTID0 || reg == HEX_SREG_PMUSTID1) {
+        uint32_t old = hexagon_globalreg_read(cpu->globalregs, reg);
         if (old != new) {
             qemu_log_mask(LOG_UNIMP, "PMUSTID settings not implemented.");
         }
-        arch_set_system_reg(env, reg, val);
+        hexagon_globalreg_write(cpu->globalregs, reg, val);
         return true;
     } else if (reg == HEX_SREG_PMUCFG) {
+        uint32_t old = hexagon_globalreg_read(cpu->globalregs, reg);
         int old_thmask = GET_FIELD(PMUCFG_THMASK, old);
         int new_thmask = GET_FIELD(PMUCFG_THMASK, val);
         if (old_thmask != new_thmask && new_thmask) {
@@ -2049,7 +2060,7 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                           deposit16(env->pmu.g_events[i], 8, 2, new_bits));
         }
         pmu_unlock();
-        arch_set_system_reg(env, reg, val);
+        hexagon_globalreg_write(cpu->globalregs, reg, val);
         return true;
     } else if (reg == HEX_SREG_PMUEVTCFG || reg == HEX_SREG_PMUEVTCFG1) {
         int half_pmu_ctrs = NUM_PMU_CTRS / 2;
@@ -2061,7 +2072,7 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
                           deposit16(env->pmu.g_events[index], 0, 8, new_bits));
         }
         pmu_unlock();
-        arch_set_system_reg(env, reg, val);
+        hexagon_globalreg_write(cpu->globalregs, reg, val);
         return true;
     } else if (IS_PMU_SREG(reg)) {
         hexagon_set_pmu_counter(env, reg, val);
@@ -2079,13 +2090,17 @@ static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
         val = GET_FIELD(IMASK_MASK, val);
-        arch_set_system_reg(env, reg, val);
+        env->t_sreg[reg] = val;
     } else if (reg == HEX_SREG_PCYCLELO) {
         hexagon_set_sys_pcycle_count_low(env, val);
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
     } else if (!handle_pmu_sreg_write(env, reg, val)) {
-        arch_set_system_reg(env, reg, val);
+        if (reg < HEX_SREG_GLB_START) {
+            env->t_sreg[reg] = val;
+        } else {
+            hexagon_globalreg_write(env_archcpu(env)->globalregs, reg, val);
+        }
     }
 }
 
@@ -2097,17 +2112,20 @@ sreg_write_masked(CPUHexagonState *env, uint32_t reg, uint32_t val)
     if (reg == HEX_SREG_SYSCFG) {
         modify_syscfg(env, val);
     } else if (reg == HEX_SREG_IMASK) {
-        val = GET_FIELD(IMASK_MASK, val);
-        arch_set_system_reg_masked(env, reg, val);
+        env->t_sreg[reg] = GET_FIELD(IMASK_MASK, val);
     } else if (reg == HEX_SREG_PCYCLELO) {
         hexagon_set_sys_pcycle_count_low(env, val);
     } else if (reg == HEX_SREG_PCYCLEHI) {
         hexagon_set_sys_pcycle_count_high(env, val);
     } else if (!handle_pmu_sreg_write(env, reg, val)) {
-        arch_set_system_reg_masked(env, reg, val);
+        if (reg < HEX_SREG_GLB_START) {
+            env->t_sreg[reg] = val;
+        } else {
+            hexagon_globalreg_write_masked(env_archcpu(env)->globalregs,
+                                           reg, val);
+        }
     }
 }
-
 
 void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
@@ -2159,7 +2177,7 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
     }
     switch (reg) {
     case HEX_GREG_GPCYCLELO: {
-        target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+        target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
         int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
         return ssr_ce ? hexagon_get_sys_pcycle_count(env) : 0;
     }
@@ -2176,7 +2194,7 @@ uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
     CPU_FOREACH(cs) {
         CPUHexagonState *found_env = cpu_env(cs);
         if (found_env->threadId == tid) {
-            target_ulong imask = arch_get_system_reg(found_env, HEX_SREG_IMASK);
+            target_ulong imask = found_env->t_sreg[HEX_SREG_IMASK];
             qemu_log_mask(CPU_LOG_INT, "%s: tid %d imask = 0x%x\n",
                           __func__, env->threadId,
                           (unsigned)GET_FIELD(IMASK_MASK, imask));
@@ -2253,10 +2271,11 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
     uint32_t lowest_th_prio = 0; /* 0 is highest prio */
     uint32_t bestwait_reg;
     uint32_t best_prio;
+    HexagonCPU *cpu = env_archcpu(env);
 
     BQL_LOCK_GUARD();
     qemu_log_mask(CPU_LOG_INT, "%s: check resched\n", __func__);
-    schedcfg = arch_get_system_reg(env, HEX_SREG_SCHEDCFG);
+    schedcfg = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SCHEDCFG);
     schedcfg_en = GET_FIELD(SCHEDCFG_EN, schedcfg);
     int_number = GET_FIELD(SCHEDCFG_INTNO, schedcfg);
 
@@ -2268,7 +2287,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
         HexagonCPU *thread = HEXAGON_CPU(cs);
         CPUHexagonState *thread_env = &(thread->env);
         uint32_t th_prio = GET_FIELD(
-            STID_PRIO, arch_get_system_reg(thread_env, HEX_SREG_STID));
+            STID_PRIO, thread_env->t_sreg[HEX_SREG_STID]);
         if (!hexagon_thread_is_enabled(thread_env)) {
             continue;
         }
@@ -2278,7 +2297,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
             : th_prio;
     }
 
-    bestwait_reg = arch_get_system_reg(env, HEX_SREG_BESTWAIT);
+    bestwait_reg = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_BESTWAIT);
     best_prio = GET_FIELD(BESTWAIT_PRIO, bestwait_reg);
 
     /*
@@ -2289,7 +2308,7 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
     if (lowest_th_prio > best_prio) {
         qemu_log_mask(CPU_LOG_INT,
                       "%s: raising resched int %d, cur PC 0x%08x\n", __func__,
-                      int_number, arch_get_thread_reg(env, HEX_REG_PC));
+                      int_number, env->gpr[HEX_REG_PC]);
         SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, ~0);
         hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
     }
@@ -2306,12 +2325,12 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
     CPUState *cs = NULL;
 
     trace_hexagon_critical("NMI (Non Maskable Interrupt)", env->threadId,
-        arch_get_thread_reg(env, HEX_REG_PC),
-        arch_get_thread_reg(env, HEX_REG_R29),
-        arch_get_system_reg(env, HEX_SREG_SSR),
-        arch_get_system_reg(env, HEX_SREG_BADVA),
-        arch_get_system_reg(env, HEX_SREG_ELR),
-        arch_get_system_reg(env, HEX_SREG_DIAG));
+        env->gpr[HEX_REG_PC],
+        env->gpr[HEX_REG_R29],
+        env->t_sreg[HEX_SREG_SSR],
+        env->t_sreg[HEX_SREG_BADVA],
+        env->t_sreg[HEX_SREG_ELR],
+        hexagon_globalreg_read(env_archcpu(env)->globalregs, HEX_SREG_DIAG));
 
     BQL_LOCK_GUARD();
     CPU_FOREACH (cs) {
