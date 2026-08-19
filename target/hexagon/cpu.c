@@ -224,24 +224,11 @@ static void print_reg_json(FILE *f, CPUHexagonState *env, int regnum)
 
 
 #ifndef CONFIG_USER_ONLY
-static target_ulong get_badva(CPUHexagonState *env)
-{
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
-    if (GET_SSR_FIELD(SSR_BVS, ssr)) {
-        return arch_get_system_reg(env, HEX_SREG_BADVA1);
-    } else {
-        return arch_get_system_reg(env, HEX_SREG_BADVA0);
-    }
-}
-
 static void print_sreg(FILE *f, CPUHexagonState *env, int regnum)
 {
-    target_ulong val = arch_get_system_reg(env, regnum);
-    if (regnum == HEX_SREG_BADVA) {
-        val = get_badva(env);
-    }
+    BQL_LOCK_GUARD();
     qemu_fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n", hexagon_sregnames[regnum],
-                 val);
+                 hexagon_sreg_read(env, regnum));
 }
 
 static void print_greg(FILE *f, CPUHexagonState *env, int regnum)
