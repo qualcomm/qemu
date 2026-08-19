@@ -15,6 +15,7 @@
 #include "hex_mmu.h"
 #include "macros.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #include "sys_macros.h"
 #include "reg_fields.h"
 #include "trace.h"
@@ -129,7 +130,8 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
             hexagon_tlb_read(cpu->tlb, idx), PTE_V);
         bool mmu_enabled = cpu->globalregs ?
             GET_SYSCFG_FIELD(SYSCFG_MMUEN,
-                             arch_get_system_reg(env, HEX_SREG_SYSCFG)) : 0;
+                             hexagon_globalreg_read(cpu->globalregs,
+                                                     HEX_SREG_SYSCFG)) : 0;
         if (old_entry_valid && mmu_enabled) {
             /* FIXME - Do we have to invalidate everything here? */
             CPUState *cs = env_cpu(env);
@@ -171,7 +173,7 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 {
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->tlb) {
-        uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+        uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
         uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
         int32_t cause_code = 0;
         bool result = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
@@ -329,7 +331,8 @@ void hex_tlb_lock(CPUHexagonState *env)
     trace_hexagon_tlb_lock(env->threadId, env->next_PC, env->tlb_lock_count);
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = hexagon_globalreg_read(cpu->globalregs,
+                                              HEX_SREG_SYSCFG);
     uint8_t tlb_lock = GET_SYSCFG_FIELD(SYSCFG_TLBLOCK, syscfg);
     if (tlb_lock) {
         if (env->tlb_lock_state == HEX_LOCK_QUEUED) {
@@ -384,7 +387,8 @@ void hex_tlb_unlock(CPUHexagonState *env)
     g_assert((env->tlb_lock_count == 0) || (env->tlb_lock_count == 1));
 
     /* Nothing to do if the TLB isn't locked by this thread */
-    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint32_t syscfg = hexagon_globalreg_read(cpu->globalregs,
+                                              HEX_SREG_SYSCFG);
     uint8_t tlb_lock = GET_SYSCFG_FIELD(SYSCFG_TLBLOCK, syscfg);
     if ((tlb_lock == 0) ||
         (env->tlb_lock_state != HEX_LOCK_OWNER)) {

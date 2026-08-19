@@ -11,6 +11,7 @@
 
 #include "hex_mmu.h"
 #include "system/physmem.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 
 #define VTCM_CFG_BASE_OFF 0x38
 #define VTCM_CFG_SIZE_OFF 0x3c
@@ -27,7 +28,8 @@ static inline paddr_t get_vtcm_base(thread_t *thread)
 
     if (g_once_init_enter(&init_needed)) {
         init_needed = false;
-        hwaddr cfgbase = (hwaddr)arch_get_system_reg(thread, HEX_SREG_CFGBASE)
+        hwaddr cfgbase = (hwaddr)hexagon_globalreg_read(
+            env_archcpu(thread)->globalregs, HEX_SREG_CFGBASE)
             << 16;
         physical_memory_read(cfgbase + VTCM_CFG_BASE_OFF, &vtcm_base,
             sizeof(target_ulong));
@@ -46,7 +48,8 @@ static inline bool in_vtcm_space_impl(thread_t *thread, paddr_t paddr)
 
     if (g_once_init_enter(&init_needed)) {
         init_needed = false;
-        hwaddr cfgbase = (hwaddr)arch_get_system_reg(thread, HEX_SREG_CFGBASE)
+        hwaddr cfgbase = (hwaddr)hexagon_globalreg_read(
+            env_archcpu(thread)->globalregs, HEX_SREG_CFGBASE)
             << 16;
         physical_memory_read(cfgbase + VTCM_CFG_BASE_OFF, &vtcm_base,
             sizeof(target_ulong));

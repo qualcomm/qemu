@@ -204,7 +204,7 @@ static bool int_should_dtg(CPUHexagonState *env, int int_num)
 {
     uint32_t ccr;
 
-    ccr = arch_get_system_reg(env, HEX_SREG_CCR);
+    ccr = env->t_sreg[HEX_SREG_CCR];
 
     switch (int_num) {
     case 3:
