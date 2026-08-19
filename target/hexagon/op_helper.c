@@ -2125,11 +2125,6 @@ void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
     BQL_LOCK_GUARD();
     sreg_write(env, reg, val);
-    /*
-     * The above is needed to run special logic for regs like syscfg, but it
-     * won't set read-only bits. This will:
-     */
-    arch_set_system_reg(env, reg, val);
 }
 
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
