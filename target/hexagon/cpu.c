@@ -497,8 +497,9 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     uint32_t hex_flags = 0;
 
 #ifndef CONFIG_USER_ONLY
-    target_ulong syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    target_ulong syscfg = hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                                                  HEX_SREG_SYSCFG);
+    target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
 
     bool pcycle_enabled = extract32(syscfg,
                                     reg_field_info[SYSCFG_PCYCLEEN].offset,
@@ -646,12 +647,12 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->vtcm_pending = false;
 
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
-    arch_set_system_reg(env, HEX_SREG_VWCTRL, DEFAULT_VWCTRL_VAL);
+    env->t_sreg[HEX_SREG_VWCTRL] = DEFAULT_VWCTRL_VAL;
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->pmu.num_packets = 0;
     env->pmu.hvx_packets = 0;
 
-    arch_set_system_reg(env, HEX_SREG_HTID, env->threadId);
+    env->t_sreg[HEX_SREG_HTID] = env->threadId;
 
     env->gpr[HEX_REG_UPCYCLELO] = INVALID_REG_VAL;
     env->gpr[HEX_REG_UPCYCLEHI] = INVALID_REG_VAL;
@@ -675,8 +676,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->ss_pending = false;
 
     hexagon_cpu_soft_reset(env);
-    arch_set_thread_reg(env, HEX_REG_PC,
-                        hexagon_globalreg_get_boot_evb(cpu->globalregs));
+    env->gpr[HEX_REG_PC] = hexagon_globalreg_get_boot_evb(cpu->globalregs);
 #endif
 
     if (env->hmx_state) {
@@ -967,17 +967,17 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 static void set_badva_regs(CPUHexagonState *env, target_ulong VA, int slot,
                            MMUAccessType access_type)
 {
-    arch_set_system_reg(env, HEX_SREG_BADVA, VA);
+    env->t_sreg[HEX_SREG_BADVA] = VA;
 
     if (access_type == MMU_INST_FETCH || slot == 0) {
-        arch_set_system_reg(env, HEX_SREG_BADVA0, VA);
-        arch_set_system_reg(env, HEX_SREG_BADVA1, INVALID_BADVA);
+        env->t_sreg[HEX_SREG_BADVA0] = VA;
+        env->t_sreg[HEX_SREG_BADVA1] = INVALID_BADVA;
         SET_SSR_FIELD(env, SSR_V0, 1);
         SET_SSR_FIELD(env, SSR_V1, 0);
         SET_SSR_FIELD(env, SSR_BVS, 0);
     } else if (slot == 1) {
-        arch_set_system_reg(env, HEX_SREG_BADVA0, INVALID_BADVA);
-        arch_set_system_reg(env, HEX_SREG_BADVA1, VA);
+        env->t_sreg[HEX_SREG_BADVA0] = INVALID_BADVA;
+        env->t_sreg[HEX_SREG_BADVA1] = VA;
         SET_SSR_FIELD(env, SSR_V0, 0);
         SET_SSR_FIELD(env, SSR_V1, 1);
         SET_SSR_FIELD(env, SSR_BVS, 1);
@@ -1157,7 +1157,8 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
     CPUHexagonState *env = cpu_env(cs);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     if (cpu->globalregs) {
-        uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+        uint32_t syscfg =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG);
         uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
         if (!mmuen) {
             return MMU_KERNEL_IDX;
@@ -1235,7 +1236,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 #ifndef CONFIG_USER_ONLY
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
     int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
     int ssr_pe = GET_SSR_FIELD(SSR_PE, ssr);
     int off;

@@ -59,47 +59,6 @@ uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
     return (uint32_t)(hexagon_get_sys_pcycle_count(env));
 }
 
-uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
-{
-    if (reg == HEX_SREG_PCYCLELO) {
-        return hexagon_get_sys_pcycle_count_low(env);
-    } else if (reg == HEX_SREG_PCYCLEHI) {
-        return hexagon_get_sys_pcycle_count_high(env);
-    }
-
-    g_assert(reg < NUM_SREGS);
-    if (reg < HEX_SREG_GLB_START) {
-        return env->t_sreg[reg];
-    } else {
-        HexagonCPU *cpu = env_archcpu(env);
-        return hexagon_globalreg_read(cpu->globalregs, reg);
-    }
-}
-
-void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val)
-{
-    g_assert(reg < NUM_SREGS);
-    if (reg < HEX_SREG_GLB_START) {
-        env->t_sreg[reg] = val;
-    } else {
-        HexagonCPU *cpu = env_archcpu(env);
-        hexagon_globalreg_write(cpu->globalregs, reg, val);
-    }
-}
-
-void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
-                                uint32_t val)
-{
-    g_assert(reg < NUM_SREGS);
-    if (reg < HEX_SREG_GLB_START) {
-        env->t_sreg[reg] = val;
-    } else {
-        HexagonCPU *cpu = env_archcpu(env);
-        hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
-    }
-}
-
-
 #define BYTES_LEFT_IN_PAGE(A) (TARGET_PAGE_SIZE - ((A) % TARGET_PAGE_SIZE))
 
 static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
@@ -360,7 +319,9 @@ static uint32_t clear_enable_mask(CPUHexagonState *env)
 {
     g_assert(bql_locked());
 
-    const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    const uint32_t modectl =
+        hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                               HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask &= ~(0x1 << env->threadId);
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
@@ -372,7 +333,9 @@ static void set_wait_mode(CPUHexagonState *env)
 {
     g_assert(bql_locked());
 
-    const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    const uint32_t modectl =
+        hexagon_globalreg_read(env_archcpu(env)->globalregs,
+                               HEX_SREG_MODECTL);
     uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
     thread_wait_mask |= 0x1 << env->threadId;
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
@@ -528,7 +491,7 @@ static int sys_in_monitor_mode_ssr(uint32_t ssr)
 
 int sys_in_monitor_mode(CPUHexagonState *env)
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return sys_in_monitor_mode_ssr(ssr);
 }
 
@@ -545,7 +508,7 @@ static int sys_in_guest_mode_ssr(uint32_t ssr)
 
 int sys_in_guest_mode(CPUHexagonState *env)
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return sys_in_guest_mode_ssr(ssr);
 }
 
@@ -560,20 +523,20 @@ static int sys_in_user_mode_ssr(uint32_t ssr)
 
 int sys_in_user_mode(CPUHexagonState *env)
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return sys_in_user_mode_ssr(ssr);
 }
 
 static bool sys_coproc_active(CPUHexagonState *env)
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     return (GET_SSR_FIELD(SSR_XE2, ssr) == 1);
 }
 
 int get_cpu_mode(CPUHexagonState *env)
 
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
 
     if (sys_in_monitor_mode_ssr(ssr)) {
         return HEX_CPU_MODE_MONITOR;
@@ -589,12 +552,15 @@ int get_exe_mode(CPUHexagonState *env)
 {
     g_assert(bql_locked());
 
-    target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    HexagonCPU *cpu = env_archcpu(env);
+    target_ulong modectl =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL);
     uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
     uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
     bool W_bit = thread_wait_mask & (0x1 << env->threadId);
-    target_ulong isdbst2 = arch_get_system_reg(env, HEX_SREG_ISDBST2);
+    target_ulong isdbst2 =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_ISDBST2);
     uint32_t debugmode = GET_FIELD(ISDBST2_DEBUGMODE, isdbst2);
     bool D_bit = debugmode & (0x1 << env->threadId);
 
@@ -619,7 +585,8 @@ void clear_wait_mode(CPUHexagonState *env)
     g_assert(bql_locked());
     HexagonCPU *cpu = env_archcpu(env);
     if (cpu->globalregs) {
-        const uint32_t modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+        const uint32_t modectl =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL);
         uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
         thread_wait_mask &= ~(0x1 << env->threadId);
         SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
@@ -683,7 +650,7 @@ static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
             continue;
         }
         /* Check if another thread has the XE bit set and same XA */
-        uint32_t thread_ssr = arch_get_system_reg(thread_env, HEX_SREG_SSR);
+        uint32_t thread_ssr = thread_env->t_sreg[HEX_SREG_SSR];
         if (GET_SSR_FIELD(SSR_XE, thread_ssr) && GET_FIELD(SSR_XA, thread_ssr) == XA) {
             qemu_log_mask(LOG_GUEST_ERROR,
                     "setting SSR.XA '%d' on thread %d but thread"

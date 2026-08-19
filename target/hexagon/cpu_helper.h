@@ -12,25 +12,6 @@
 struct HexagonGlobalRegState;
 #endif
 
-static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
-                                       uint32_t val)
-{
-    g_assert(reg < TOTAL_PER_THREAD_REGS);
-    env->gpr[reg] = val;
-}
-
-static inline uint32_t arch_get_thread_reg(CPUHexagonState *env, uint32_t reg)
-{
-    g_assert(reg < TOTAL_PER_THREAD_REGS);
-    return env->gpr[reg];
-}
-
-void arch_set_system_reg(CPUHexagonState *env, uint32_t reg, uint32_t val);
-void arch_set_system_reg_masked(CPUHexagonState *env, uint32_t reg,
-                                uint32_t val);
-
-uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg);
-
 #define DEBUG_MEMORY_READ_ENV(ENV,ADDR,SIZE,PTR) \
     hexagon_read_memory(ENV, ADDR, SIZE, PTR)
 #define DEBUG_MEMORY_READ(ADDR,SIZE,PTR) \
