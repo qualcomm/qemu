@@ -14,6 +14,7 @@
 #else
 #include "hw/core/boards.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #endif
 #include "accel/tcg/cpu-ldst.h"
 #include "qemu/log.h"
@@ -134,9 +135,9 @@ static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
 static void sim_handle_trap0(CPUHexagonState *env)
 {
     g_assert(bql_locked());
-    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
-    target_ulong what_swi = arch_get_thread_reg(env, HEX_REG_R00);
-    target_ulong swi_info = arch_get_thread_reg(env, HEX_REG_R01);
+    target_ulong ssr = env->t_sreg[HEX_SREG_SSR];
+    target_ulong what_swi = env->gpr[HEX_REG_R00];
+    target_ulong swi_info = env->gpr[HEX_REG_R01];
 
     if (!is_hexagon_specific_swi_flag(what_swi)) {
         if (what_swi == HEX_SYS_READ || what_swi == HEX_SYS_READC ||
@@ -263,12 +264,13 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
     case HEX_SYS_EXCEPTION:
     {
-        arch_set_system_reg(env, HEX_SREG_MODECTL, 0);
+        hexagon_globalreg_write(env_archcpu(env)->globalregs,
+                                HEX_SREG_MODECTL, 0);
 
         /* sometimes qurt returns pointer to rval and sometimes the */
         /* actual numeric value.  here we inspect value and make a  */
         /* choice as to probable intent. */
-        target_ulong ret = arch_get_thread_reg(env, HEX_REG_R02);
+        target_ulong ret = env->gpr[HEX_REG_R02];
         hexagon_dump_json(env);
         exit(ret);
     }
@@ -473,7 +475,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         }
 
         if (host_dir_entry) {
-            vaddr_t guest_dir_entry = arch_get_thread_reg(env, HEX_REG_R02);
+            vaddr_t guest_dir_entry = env->gpr[HEX_REG_R02];
             DEBUG_MEMORY_WRITE(guest_dir_entry, 4, host_dir_entry->d_ino);
             for (int i = 0; i < sizeof(host_dir_entry->d_name); i++) {
                 DEBUG_MEMORY_WRITE(guest_dir_entry + 4 + i, 1,
@@ -563,39 +565,39 @@ static void sim_handle_trap0(CPUHexagonState *env)
       case HEX_CAUSE_MISALIGNED_LOAD:
           printf("0x%x, Misaligned Load @ 0x%x",
                  HEX_CAUSE_MISALIGNED_LOAD,
-                 arch_get_system_reg(env, HEX_SREG_BADVA));
+                 env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_MISALIGNED_STORE:
           printf("0x%x, Misaligned Store @ 0x%x",
                  HEX_CAUSE_MISALIGNED_STORE,
-                 arch_get_system_reg(env, HEX_SREG_BADVA));
+                 env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_PRIV_NO_READ:
           printf("0x%x, Privilege violation: "
               "user/guest read permission @ 0x%x",
               HEX_CAUSE_PRIV_NO_READ,
-              arch_get_system_reg(env, HEX_SREG_BADVA));
+              env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_PRIV_NO_WRITE:
           printf("0x%x, Privilege violation: "
               "user/guest write permission @ 0x%x",
               HEX_CAUSE_PRIV_NO_WRITE,
-              arch_get_system_reg(env, HEX_SREG_BADVA));
+              env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_PRIV_NO_UREAD:
           printf("0x%x, Privilege violation: user read permission @ 0x%x",
                  HEX_CAUSE_PRIV_NO_UREAD,
-                 arch_get_system_reg(env, HEX_SREG_BADVA));
+                 env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_PRIV_NO_UWRITE:
           printf("0x%x, Privilege violation: user write permission @ 0x%x",
                  HEX_CAUSE_PRIV_NO_UWRITE,
-                 arch_get_system_reg(env, HEX_SREG_BADVA));
+                 env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_COPROC_LDST:
           printf("0x%x, Coprocessor VMEM address error. @ 0x%x",
                  HEX_CAUSE_COPROC_LDST,
-                 arch_get_system_reg(env, HEX_SREG_BADVA));
+                 env->t_sreg[HEX_SREG_BADVA]);
           break;
       case HEX_CAUSE_STACK_LIMIT:
           printf("0x%x, Stack limit check error", HEX_CAUSE_STACK_LIMIT);
@@ -644,24 +646,22 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_READ_CYCLES:
     case HEX_SYS_READ_TCYCLES:
     {
-        arch_set_thread_reg(env, HEX_REG_R00, 0);
-        arch_set_thread_reg(env, HEX_REG_R01, 0);
+        env->gpr[HEX_REG_R00] = 0;
+        env->gpr[HEX_REG_R01] = 0;
         break;
     }
 
     case HEX_SYS_READ_ICOUNT:
     {
-        arch_set_thread_reg(env, HEX_REG_R00, 0);
-        arch_set_thread_reg(env, HEX_REG_R01, 0);
+        env->gpr[HEX_REG_R00] = 0;
+        env->gpr[HEX_REG_R01] = 0;
         break;
     }
 
     case HEX_SYS_READ_PCYCLES:
     {
-        arch_set_thread_reg(env, HEX_REG_R00,
-            arch_get_system_reg(env, HEX_SREG_PCYCLELO));
-        arch_set_thread_reg(env, HEX_REG_R01,
-            arch_get_system_reg(env, HEX_SREG_PCYCLEHI));
+        env->gpr[HEX_REG_R00] = hexagon_get_sys_pcycle_count_low(env);
+        env->gpr[HEX_REG_R01] = hexagon_get_sys_pcycle_count_high(env);
         break;
     }
 
@@ -693,9 +693,9 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
                        target_ulong event_pc, int guest_event_num,
                        bool set_gbadva)
 {
-    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
-    uint32_t ccr = arch_get_system_reg(env, HEX_SREG_CCR);
-    uint32_t gevb = arch_get_system_reg(env, HEX_SREG_GEVB);
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    uint32_t ccr = env->t_sreg[HEX_SREG_CCR];
+    uint32_t gevb = env->t_sreg[HEX_SREG_GEVB];
     uint32_t old_ssr = ssr;
     uint32_t gsr = 0;
 
@@ -717,7 +717,7 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
     hexagon_modify_ssr(env,
-                       arch_get_system_reg(env, HEX_SREG_SSR),
+                       env->t_sreg[HEX_SREG_SSR],
                        old_ssr);
 
     /* CCR.GIE = 0 */
@@ -729,7 +729,7 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     /* GBADVA = BADVA for addressing exceptions */
     if (set_gbadva) {
         env->greg[HEX_GREG_GBADVA] =
-            arch_get_system_reg(env, HEX_SREG_BADVA);
+            env->t_sreg[HEX_SREG_BADVA];
     }
 
     /* PC = GEVB + (event_number << 2) */
@@ -749,7 +749,7 @@ static bool should_dtg(CPUHexagonState *env, int exception_index)
         return false;
     }
 
-    ccr = arch_get_system_reg(env, HEX_SREG_CCR);
+    ccr = env->t_sreg[HEX_SREG_CCR];
 
     switch (exception_index) {
     case HEX_EVENT_TRAP0:
@@ -777,7 +777,7 @@ static bool should_dtg(CPUHexagonState *env, int exception_index)
 void hexagon_vmrte(CPUHexagonState *env)
 {
     uint32_t gsr = env->greg[HEX_GREG_GSR];
-    uint32_t old_ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
     target_ulong gelr = env->greg[HEX_GREG_GELR];
     CPUState *cs = env_cpu(env);
 
@@ -799,7 +799,7 @@ void hexagon_vmrte(CPUHexagonState *env)
      */
     bql_lock();
     hexagon_modify_ssr(env,
-                       arch_get_system_reg(env, HEX_SREG_SSR),
+                       env->t_sreg[HEX_SREG_SSR],
                        old_ssr);
     bql_unlock();
 
@@ -854,6 +854,7 @@ static const char *event_name[] = {
 void hexagon_cpu_do_interrupt(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
+    HexagonCPU *cpu = env_archcpu(env);
     BQL_LOCK_GUARD();
 
     qemu_log_mask(CPU_LOG_INT,
@@ -868,7 +869,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
-        HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
             hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
                                     env->cause_code);
@@ -877,19 +877,19 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         cs->exception_index = HEX_EVENT_PRECISE;
 
         trace_hexagon_critical("Double Exception", env->threadId,
-            arch_get_thread_reg(env, HEX_REG_PC),
-            arch_get_thread_reg(env, HEX_REG_R29),
-            arch_get_system_reg(env, HEX_SREG_SSR),
-            arch_get_system_reg(env, HEX_SREG_BADVA),
-            arch_get_system_reg(env, HEX_SREG_ELR),
-            arch_get_system_reg(env, HEX_SREG_DIAG));
+            env->gpr[HEX_REG_PC],
+            env->gpr[HEX_REG_R29],
+            env->t_sreg[HEX_SREG_SSR],
+            env->t_sreg[HEX_SREG_BADVA],
+            env->t_sreg[HEX_SREG_ELR],
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_DIAG));
     }
 
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC) + 4,
+                              env->gpr[HEX_REG_PC] + 4,
                               HEX_EVENT_TRAP0, false);
             break;
         }
@@ -909,7 +909,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_TLB_MISS_X:
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC),
+                              env->gpr[HEX_REG_PC],
                               HEX_EVENT_TLB_MISS_X, true);
             break;
         }
@@ -945,7 +945,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_TLB_MISS_RW:
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC),
+                              env->gpr[HEX_REG_PC],
                               HEX_EVENT_TLB_MISS_RW, true);
             break;
         }
@@ -979,18 +979,15 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_FPTRAP:
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC),
+                              env->gpr[HEX_REG_PC],
                               HEX_EVENT_FPTRAP, false);
             break;
         }
         hexagon_ssr_set_cause(env, env->cause_code);
-        /*
-         * FIXME - QTOOL-89796 Properly handle FP exception traps
-         *     arch_set_system_reg(env, HEX_SREG_ELR, env->next_PC);
-         */
-        arch_set_thread_reg(env, HEX_REG_PC,
-            arch_get_system_reg(env, HEX_SREG_EVB) |
-            (cs->exception_index << 2));
+        /* FIXME - QTOOL-89796 Properly handle FP exception traps */
+        env->gpr[HEX_REG_PC] =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB) |
+            (cs->exception_index << 2);
         break;
 
     case HEX_EVENT_DEBUG:
@@ -1005,7 +1002,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 (env->cause_code >= HEX_CAUSE_MISALIGNED_LOAD &&
                  env->cause_code <= HEX_CAUSE_VWCTRL_WINDOW_MISS);
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC),
+                              env->gpr[HEX_REG_PC],
                               HEX_EVENT_PRECISE, set_gbadva);
             break;
         }
@@ -1030,7 +1027,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                 ", BADVA = 0x%" PRIx32 "\n",
                 cs->exception_index, env->cause_code,
                 env->threadId, env->gpr[HEX_REG_PC],
-                arch_get_system_reg(env, HEX_SREG_BADVA));
+                env->t_sreg[HEX_SREG_BADVA]);
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 0, cs->exception_index);
             break;
@@ -1063,7 +1060,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_IMPRECISE:
         if (should_dtg(env, cs->exception_index)) {
             guest_event_entry(env, env->cause_code,
-                              arch_get_thread_reg(env, HEX_REG_PC) + 4,
+                              env->gpr[HEX_REG_PC] + 4,
                               HEX_EVENT_IMPRECISE, false);
             break;
         }
@@ -1079,16 +1076,21 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
             hexagon_ssr_set_cause(env, env->cause_code);
             set_addresses(env, 4, cs->exception_index);
-            arch_set_system_reg(env, HEX_SREG_DIAG,
-                (0x4 << 4) | (arch_get_system_reg(env, HEX_SREG_HTID) & 0xF));
+            hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
+                                    (0x4 << 4) |
+                                    (env->t_sreg[HEX_SREG_HTID] & 0xF));
             break;
 
         case HEX_CAUSE_IMPRECISE_NMI:
-            hexagon_ssr_set_cause(env, env->cause_code);
-            set_addresses(env, 4, cs->exception_index);
-            arch_set_system_reg(env, HEX_SREG_DIAG,
-                                (0x3 << 4) |
-                                    (arch_get_system_reg(env, HEX_SREG_DIAG)));
+            {
+                uint32_t diag;
+                hexagon_ssr_set_cause(env, env->cause_code);
+                set_addresses(env, 4, cs->exception_index);
+                diag = hexagon_globalreg_read(cpu->globalregs,
+                                               HEX_SREG_DIAG);
+                hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
+                                         (0x3 << 4) | diag);
+            }
             /* FIXME use thread mask */
             break;
 

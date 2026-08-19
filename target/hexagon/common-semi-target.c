@@ -23,21 +23,21 @@ uint64_t common_semi_arg(CPUState *cs, int argno)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-    return arch_get_thread_reg(env, HEX_REG_R00 + argno);
+    return env->gpr[HEX_REG_R00 + argno];
 }
 
 void common_semi_set_ret(CPUState *cs, uint64_t ret)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-    arch_set_thread_reg(env, HEX_REG_R00, ret);
+    env->gpr[HEX_REG_R00] = ret;
 }
 
 void common_semi_set_err(CPUState *cs, uint64_t err)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-    arch_set_thread_reg(env, HEX_REG_R01, err);
+    env->gpr[HEX_REG_R01] = err;
 }
 
 bool common_semi_sys_exit_is_extended(CPUState *cs)
@@ -54,7 +54,7 @@ uint64_t common_semi_stack_bottom(CPUState *cs)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-    return arch_get_thread_reg(env, HEX_REG_SP);
+    return env->gpr[HEX_REG_SP];
 }
 
 bool common_semi_has_synccache(CPUArchState *env)
