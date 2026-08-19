@@ -18,6 +18,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #endif
 #include "accel/tcg/cpu-ldst.h"
+#include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "tcg/tcg-op.h"
 #include "internal.h"
@@ -165,28 +166,28 @@ int hexagon_read_memory_locked(CPUHexagonState *env, target_ulong vaddr,
 
 static inline QEMU_ALWAYS_INLINE bool hexagon_write_memory_small(
     CPUHexagonState *env, target_ulong addr, int byte_count,
-    unsigned char *srcbuf, int mmu_idx)
+    uint64_t data, int mmu_idx)
 
 {
     /* handle small sizes */
     switch (byte_count) {
     case 1:
-        cpu_stb_mmuidx_ra(env, addr, *srcbuf, mmu_idx, CPU_MEMOP_PC(env));
+        cpu_stb_mmuidx_ra(env, addr, (uint8_t)data, mmu_idx,
+                          CPU_MEMOP_PC(env));
         return true;
 
     case 2:
-        cpu_stw_le_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx,
+        cpu_stw_le_mmuidx_ra(env, addr, (uint16_t)data, mmu_idx,
                              CPU_MEMOP_PC(env));
         return true;
 
     case 4:
-        cpu_stl_le_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx,
+        cpu_stl_le_mmuidx_ra(env, addr, (uint32_t)data, mmu_idx,
                              CPU_MEMOP_PC(env));
         return true;
 
     case 8:
-        cpu_stq_le_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx,
-                             CPU_MEMOP_PC(env));
+        cpu_stq_le_mmuidx_ra(env, addr, data, mmu_idx, CPU_MEMOP_PC(env));
         return true;
 
     default:
@@ -201,9 +202,10 @@ void hexagon_write_memory_block(CPUHexagonState *env, target_ulong addr,
 {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
 
-    /* handle small sizes */
-    if (hexagon_write_memory_small(env,
-        addr, byte_count, srcbuf, mmu_idx) == true) {
+    /* hexagon_write_memory_small/ldn_le_p can only handle 1, 2, 4, and 8 */
+    if (is_power_of_2(byte_count) && byte_count <= 8) {
+        hexagon_write_memory_small(env, addr, byte_count,
+                                   ldn_le_p(srcbuf, byte_count), mmu_idx);
         return;
     }
 
@@ -237,7 +239,7 @@ void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
 
     if (hexagon_write_memory_small(env,
-        paddr, size, (unsigned char *)&data, mmu_idx) == true)
+        paddr, size, data, mmu_idx) == true)
         return;
 
     CPUState *cs = env_cpu(env);
