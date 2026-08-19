@@ -627,7 +627,7 @@ int dma_adapter_register_perm_exception(dma_t *dma, uint32_t va,  dma_access_rig
 
 	e_info.badva0 = va;
 #if !defined(CONFIG_USER_ONLY)
-    e_info.badva1 = arch_get_system_reg(thread, HEX_SREG_BADVA1);
+    e_info.badva1 = thread->t_sreg[HEX_SREG_BADVA1];
 #endif
 	e_info.bv0 = 1;
 	e_info.bv1 = 0;
@@ -1079,7 +1079,7 @@ static int dma_adapter_report_exception(dma_t *dma) {
 	// elr should be adjusted to be a PC of DMPOLL or DMWAIT.
 	dma_info->einfo.elr = thread->Regs[REG_PC];
 #if !defined(CONFIG_USER_ONLY)
-    dma_info->einfo.badva1 = arch_get_system_reg(thread, HEX_SREG_BADVA1);
+    dma_info->einfo.badva1 = thread->t_sreg[HEX_SREG_BADVA1];
 #endif
 	
 	// Take an owner thread an exception.
@@ -1110,11 +1110,11 @@ size4u_t dma_adapter_cmd_start(thread_t *thread, size4u_t new_dma, size4u_t dumm
 	} else {
         if (new_dma != 0) {
 #ifndef CONFIG_USER_ONLY
-            uint32_t ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
+            uint32_t ssr = thread->t_sreg[HEX_SREG_SSR];
             fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
                     reg_field_info[SSR_ASID].offset,
                     (GET_SSR_FIELD(SSR_ASID, ssr)));
-            arch_set_system_reg(thread, HEX_SREG_SSR, ssr);
+            thread->t_sreg[HEX_SREG_SSR] = ssr;
 #else
         g_assert_not_reached();
 #endif
@@ -1143,11 +1143,11 @@ size4u_t dma_adapter_cmd_link(thread_t *thread, size4u_t tail, size4u_t new_dma,
 	} else {
         if (new_dma != 0) {
 #ifndef CONFIG_USER_ONLY
-            uint32_t ssr = arch_get_system_reg(thread, HEX_SREG_SSR);
+            uint32_t ssr = thread->t_sreg[HEX_SREG_SSR];
             fINSERT_BITS(ssr, reg_field_info[SSR_ASID].width,
                     reg_field_info[SSR_ASID].offset,
                     (GET_SSR_FIELD(SSR_ASID, ssr)));
-            arch_set_system_reg(thread, HEX_SREG_SSR, ssr);
+            thread->t_sreg[HEX_SREG_SSR] = ssr;
 #else
             g_assert_not_reached();
 #endif
