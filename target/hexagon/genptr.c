@@ -524,7 +524,7 @@ static inline void gen_store_conditional4(DisasContext *ctx,
 
     tmp = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(tmp, hex_llsc_addr, hex_llsc_val, src,
-                              ctx->mem_idx, MO_32);
+                              ctx->mem_idx, MO_LE | MO_32);
     tcg_gen_movcond_tl(TCG_COND_EQ, pred, tmp, hex_llsc_val,
                        ctx->ones, ctx->zero);
     tcg_gen_br(done);
@@ -547,7 +547,7 @@ static inline void gen_store_conditional8(DisasContext *ctx,
 
     tmp = tcg_temp_new_i64();
     tcg_gen_atomic_cmpxchg_i64(tmp, hex_llsc_addr, hex_llsc_val_i64, src,
-                               ctx->mem_idx, MO_64);
+                               ctx->mem_idx, MO_LE | MO_64);
     tcg_gen_movcond_i64(TCG_COND_EQ, tmp, tmp, hex_llsc_val_i64,
                         ctx->ones64, ctx->zero64);
     tcg_gen_extrl_i64_i32(pred, tmp);
