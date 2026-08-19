@@ -64,28 +64,25 @@ uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 
 static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
     CPUHexagonState *env, target_ulong addr, int byte_count,
-    unsigned char *dstbuf, int mmu_idx)
+    uint64_t *data, int mmu_idx)
 
  {
     /* handle small sizes */
     switch (byte_count) {
     case 1:
-        *dstbuf = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        *data = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
         return true;
 
     case 2:
-        *(unsigned short *)dstbuf =
-            cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        *data = cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
         return true;
 
     case 4:
-        *(uint32_t *)dstbuf =
-            cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        *data = cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
         return true;
 
     case 8:
-        *(uint64_t *)dstbuf =
-            cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        *data = cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
         return true;
 
     default:
@@ -99,10 +96,11 @@ void hexagon_read_memory_block(CPUHexagonState *env, target_ulong addr,
 
  {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    uint64_t data;
 
     /* handle small sizes */
-    if (hexagon_read_memory_small(env,
-        addr, byte_count, dstbuf, mmu_idx) == true) {
+    if (hexagon_read_memory_small(env, addr, byte_count, &data, mmu_idx)) {
+        stn_le_p(dstbuf, byte_count, data);
         return;
     }
 
@@ -134,10 +132,12 @@ void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr,
 {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
     target_ulong paddr = vaddr;
+    uint64_t data;
 
-    if (hexagon_read_memory_small(env,
-        paddr, size, retptr, mmu_idx) == true)
+    if (hexagon_read_memory_small(env, paddr, size, &data, mmu_idx)) {
+        stn_he_p(retptr, size, data);
         return;
+    }
 
     CPUState *cs = env_cpu(env);
     cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
@@ -152,10 +152,12 @@ int hexagon_read_memory_locked(CPUHexagonState *env, target_ulong vaddr,
     if (size == 4 || size == 8) {
         unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
         target_ulong paddr = vaddr;
+        uint64_t data;
 
-        if (hexagon_read_memory_small(env,
-            paddr, size, retptr, mmu_idx) == true)
+        if (hexagon_read_memory_small(env, paddr, size, &data, mmu_idx)) {
+            stn_he_p(retptr, size, data);
             return ret;
+        }
     }
 
     CPUState *cs = env_cpu(env);
