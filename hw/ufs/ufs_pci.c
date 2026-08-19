@@ -86,7 +86,7 @@ static void ufs_realize_pci(PCIDevice *pci_dev, Error **errp)
               u->parent_obj.qdev.id);
 
     ufs_init_state(u);
-    ufs_init_hc(u);
+    ufs_init_hc(u, true);
     ufs_init_pci(u, pci_dev);
 
     ufs_init_wlu(&u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN);

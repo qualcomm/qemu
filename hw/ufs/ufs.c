@@ -16,12 +16,13 @@
  *
  * Add options:
  *      -drive file=<file>,if=none,id=<drive_id>
- *      -device ufs-sysbus,serial=<serial>,id=<bus_name>, \
+ *      -device ufs-sysbus,serial=<serial>,id=<bus_name>,mmio-size=<size>, \
  *              nutrs=<N[optional]>,nutmrs=<N[optional]>
  *      -device ufs-sysbus-lu,drive=<drive_id>,bus=<bus_name>
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -60,7 +61,7 @@ static inline uint64_t ufs_mcq_op_reg_addr(UfsHc *u, int qid)
 
 static inline uint64_t ufs_reg_size(UfsHc *u)
 {
-    /* Total UFS HCI Register size in bytes */
+    /* Total standard UFS HCI register size in bytes. */
     return ufs_mcq_op_reg_addr(u, 0) + sizeof(u->mcq_op_reg);
 }
 
@@ -2623,7 +2624,7 @@ static void ufs_wb_init(UfsHc *u)
     wb->pinned_total_written_bytes = 0;
 }
 
-void ufs_init_hc(UfsHc *u)
+void ufs_init_hc(UfsHc *u, bool pci)
 {
     uint32_t cap = 0;
     uint32_t mcqconfig = 0;
@@ -2633,7 +2634,12 @@ void ufs_init_hc(UfsHc *u)
                                 UFS_DEV_LOW_TEMP_NOTIF | UFS_DEV_HID_SUPPORT;
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT);
 
-    u->reg_size = pow2ceil(ufs_reg_size(u));
+    if (pci) {
+        u->reg_size = pow2ceil(ufs_reg_size(u));
+    } else {
+        assert(u->sysbus_mmio_size >= ufs_reg_size(u));
+        u->reg_size = u->sysbus_mmio_size;
+    }
 
     memset(&u->reg, 0, sizeof(u->reg));
     memset(&u->mcq_reg, 0, sizeof(u->mcq_reg));
@@ -2773,7 +2779,7 @@ static void ufs_realize_sysbus(DeviceState *dev, Error **errp)
     qbus_init(&u->bus, sizeof(UfsBus), TYPE_UFS_SYSBUS_BUS, dev, NULL);
 
     ufs_init_state(u);
-    ufs_init_hc(u);
+    ufs_init_hc(u, false);
     ufs_init_sysbus(dev);
 
     ufs_init_wlu(&u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN);
@@ -2824,6 +2830,7 @@ static const Property ufs_props[] = {
     DEFINE_PROP_UINT8("mcq-maxq", UfsHc, params.mcq_maxq, 2),
     DEFINE_PROP_UINT32("wb-max-size", UfsHc, params.wb_max_size, 0x400),
     DEFINE_PROP_UINT32("wb-min-size", UfsHc, params.wb_min_size, 0x100),
+    DEFINE_PROP_UINT32("mmio-size", UfsHc, sysbus_mmio_size, 0),
 };
 
 static const VMStateDescription ufs_vmstate = {
