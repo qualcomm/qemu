@@ -73,39 +73,24 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_read_memory_small(
         return true;
 
     case 2:
-        if (QEMU_IS_ALIGNED(addr, 2)) {
-            *(unsigned short *)dstbuf =
-                cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        *(unsigned short *)dstbuf =
+            cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        return true;
 
     case 4:
-        if (QEMU_IS_ALIGNED(addr, 4)) {
-            *(uint32_t *)dstbuf =
-                cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        *(uint32_t *)dstbuf =
+            cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        return true;
 
     case 8:
-        if (QEMU_IS_ALIGNED(addr, 8)) {
-            *(uint64_t *)dstbuf =
-                cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        *(uint64_t *)dstbuf =
+            cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, CPU_MEMOP_PC(env));
+        return true;
 
     default:
         /* larger request, handle elsewhere */
         return false;
     }
-
-    /* not aligned, copy bytes */
-    for (int i = 0; i < byte_count; ++i) {
-        *dstbuf++ = cpu_ldub_mmuidx_ra(env, addr++, mmu_idx, CPU_MEMOP_PC(env));
-    }
-    return true;
 }
 
 void hexagon_read_memory_block(CPUHexagonState *env, target_ulong addr,
@@ -190,40 +175,24 @@ static inline QEMU_ALWAYS_INLINE bool hexagon_write_memory_small(
         return true;
 
     case 2:
-        if (QEMU_IS_ALIGNED(addr, 2)) {
-            cpu_stw_le_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx,
-                                 CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        cpu_stw_le_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx,
+                             CPU_MEMOP_PC(env));
+        return true;
 
     case 4:
-        if (QEMU_IS_ALIGNED(addr, 4)) {
-            cpu_stl_le_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx,
-                                 CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        cpu_stl_le_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx,
+                             CPU_MEMOP_PC(env));
+        return true;
 
     case 8:
-        if (QEMU_IS_ALIGNED(addr, 8)) {
-            cpu_stq_le_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx,
-                                 CPU_MEMOP_PC(env));
-            return true;
-        }
-        break;
+        cpu_stq_le_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx,
+                             CPU_MEMOP_PC(env));
+        return true;
 
     default:
         /* larger request, handle elsewhere */
         return false;
     }
-
-    /* not aligned, copy bytes */
-    for (int i = 0; i < byte_count; ++i) {
-        cpu_stb_mmuidx_ra(env, addr++, *srcbuf++, mmu_idx, CPU_MEMOP_PC(env));
-    }
-
-    return true;
 }
 
 void hexagon_write_memory_block(CPUHexagonState *env, target_ulong addr,
