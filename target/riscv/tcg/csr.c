@@ -49,7 +49,8 @@ void riscv_set_csr_ops(int csrno, const riscv_csr_operations *ops)
 
 /* Predicates */
 #if !defined(CONFIG_USER_ONLY)
-RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit)
+RISCVException smstateen_acc_ok(const CPURISCVState *env,
+                                int index, uint64_t bit)
 {
     bool virt = env->virt_enabled;
 

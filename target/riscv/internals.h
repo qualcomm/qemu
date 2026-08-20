@@ -66,7 +66,7 @@ static inline bool mmuidx_2stage(int mmu_idx)
  * Return the endianness for the current privilege
  * level, based on the MSTATUS MBE/SBE/UBE bits.
  */
-static inline MemOp mo_endian_env(CPURISCVState *env)
+static inline MemOp mo_endian_env(const CPURISCVState *env)
 {
     bool be = false;
 #if !defined(CONFIG_USER_ONLY)

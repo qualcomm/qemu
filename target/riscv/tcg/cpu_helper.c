@@ -39,7 +39,7 @@
 #include "pmp.h"
 #include "qemu/plugin.h"
 
-int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
+int riscv_env_mmu_index(const CPURISCVState *env, bool ifetch)
 {
 #ifdef CONFIG_USER_ONLY
     return 0;
@@ -63,7 +63,7 @@ int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
-bool cpu_get_fcfien(CPURISCVState *env)
+bool cpu_get_fcfien(const CPURISCVState *env)
 {
     /* no cfi extension, return false */
     if (!env_archcpu(env)->cfg.ext_zicfilp) {
@@ -90,7 +90,7 @@ bool cpu_get_fcfien(CPURISCVState *env)
     }
 }
 
-bool cpu_get_bcfien(CPURISCVState *env)
+bool cpu_get_bcfien(const CPURISCVState *env)
 {
     /* no cfi extension, return false */
     if (!env_archcpu(env)->cfg.ext_zicfiss) {
@@ -119,7 +119,7 @@ bool cpu_get_bcfien(CPURISCVState *env)
     }
 }
 
-bool riscv_env_smode_dbltrp_enabled(CPURISCVState *env, bool virt)
+bool riscv_env_smode_dbltrp_enabled(const CPURISCVState *env, bool virt)
 {
 #ifdef CONFIG_USER_ONLY
     return false;
@@ -163,7 +163,7 @@ bool riscv_env_smode_dbltrp_enabled(CPURISCVState *env, bool virt)
  *     M-mode:  mseccfg.PMM
  *     Other existing modes: disabled
  */
-RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env)
+RISCVPmPmm riscv_pm_get_pmm(const CPURISCVState *env)
 {
 #ifndef CONFIG_USER_ONLY
     privilege_mode_t priv_mode;
@@ -215,7 +215,7 @@ RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env)
 #endif
 }
 
-RISCVPmPmm riscv_pm_get_vm_ldst_pmm(CPURISCVState *env)
+RISCVPmPmm riscv_pm_get_vm_ldst_pmm(const CPURISCVState *env)
 {
 #ifndef CONFIG_USER_ONLY
     privilege_mode_t priv_mode;
@@ -241,7 +241,7 @@ RISCVPmPmm riscv_pm_get_vm_ldst_pmm(CPURISCVState *env)
 #endif
 }
 
-bool riscv_cpu_virt_mem_enabled(CPURISCVState *env, bool is_vm_ldst)
+bool riscv_cpu_virt_mem_enabled(const CPURISCVState *env, bool is_vm_ldst)
 {
 #ifndef CONFIG_USER_ONLY
     int satp_mode = 0;
@@ -426,7 +426,7 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 /* Return true is floating point support is currently enabled */
-bool riscv_cpu_fp_enabled(CPURISCVState *env)
+bool riscv_cpu_fp_enabled(const CPURISCVState *env)
 {
     if (env->mstatus & MSTATUS_FS) {
         if (env->virt_enabled && !(env->mstatus_hs & MSTATUS_FS)) {
@@ -439,7 +439,7 @@ bool riscv_cpu_fp_enabled(CPURISCVState *env)
 }
 
 /* Return true is vector support is currently enabled */
-bool riscv_cpu_vector_enabled(CPURISCVState *env)
+bool riscv_cpu_vector_enabled(const CPURISCVState *env)
 {
     if (env->mstatus & MSTATUS_VS) {
         if (env->virt_enabled && !(env->mstatus_hs & MSTATUS_VS)) {
