@@ -322,7 +322,7 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_rev(self) -> None:
         """Tests reading the processor revision register to verify the
         architecture version is properly reported."""
-        self.run_console_pattern("rev", "0x81")
+        self.run_console_pattern("rev", "0x81", machine='V81QA_1')
 
     def test_single_step(self) -> None:
         """Tests single-step debugging functionality by enabling single-step
