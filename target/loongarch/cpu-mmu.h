@@ -30,14 +30,14 @@ typedef struct MMUContext {
     uint64_t      pte_buddy[2];
 } MMUContext;
 
-static inline bool cpu_has_ptw(CPULoongArchState *env)
+static inline bool cpu_has_ptw(const CPULoongArchState *env)
 {
-    CPUSysState *sys = env_sys(env);
+    const CPUSysState *sys = env_sys(env);
 
     return !!FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, HPTW_EN);
 }
 
-static inline bool pte_present(CPULoongArchState *env, uint64_t entry)
+static inline bool pte_present(const CPULoongArchState *env, uint64_t entry)
 {
     uint8_t present;
 
@@ -50,7 +50,7 @@ static inline bool pte_present(CPULoongArchState *env, uint64_t entry)
     return !!present;
 }
 
-static inline bool pte_write(CPULoongArchState *env, uint64_t entry)
+static inline bool pte_write(const CPULoongArchState *env, uint64_t entry)
 {
     uint8_t writable;
 
@@ -89,17 +89,17 @@ static inline bool pte_dirty(uint64_t entry)
     return !!FIELD_EX64(entry, TLBENTRY, D);
 }
 
-bool check_ps(CPULoongArchState *ent, uint8_t ps);
-TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
+bool check_ps(const CPULoongArchState *ent, uint8_t ps);
+TLBRet loongarch_check_pte(const CPULoongArchState *env, MMUContext *context,
                            MMUAccessType access_type, int mmu_idx);
-TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
+TLBRet get_physical_address(const CPULoongArchState *env, MMUContext *context,
                             MMUAccessType access_type, int mmu_idx,
                             int is_debug);
-TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
+TLBRet loongarch_ptw(const CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug);
-void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
+void get_dir_base_width(const CPULoongArchState *env, uint64_t *dir_base,
                         uint64_t *dir_width, unsigned int level);
 hwaddr loongarch_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
-uint64_t loongarch_palen_mask(CPULoongArchState *env);
+uint64_t loongarch_palen_mask(const CPULoongArchState *env);
 
 #endif  /* LOONGARCH_CPU_MMU_H */
