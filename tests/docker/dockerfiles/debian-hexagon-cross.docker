@@ -47,10 +47,10 @@ ENV TOOLCHAIN_INSTALL=/opt/hexagon-toolchain
 ENV CCACHE_WRAPPERSDIR=/usr/libexec/ccache-wrappers
 
 # Toolchain version; only changes when the toolchain itself changes.
-ARG HEXAGON_TOOLCHAIN_VERSION=21.0.03-extended
+ARG HEXAGON_TOOLCHAIN_VERSION=23.0-8300-extended
 # Package (upload) revision; bump for every rebuilt package, even if the
 # toolchain version is unchanged.
-ARG HEXAGON_TOOLCHAIN_REVISION=revision-2
+ARG HEXAGON_TOOLCHAIN_REVISION=rev1
 
 RUN --mount=type=secret,id=gitlab_token,target=/run/secrets/gitlab_token \
     set -eu && \
