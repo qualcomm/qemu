@@ -751,6 +751,7 @@ warn_flags = [
   '-Wno-string-plus-int',
   '-Wno-tautological-type-limit-compare',
   '-Wno-typedef-redefinition',
+  '-Wno-unused-but-set-global',
 ]
 
 if get_option('optimization') == 'g'
