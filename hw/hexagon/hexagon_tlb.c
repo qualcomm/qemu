@@ -1,7 +1,7 @@
 /*
- * Hexagon TLB QOM Object
+ * Hexagon TLB QOM Device
  *
- * Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 

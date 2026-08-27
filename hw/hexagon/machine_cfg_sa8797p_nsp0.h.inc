@@ -4,7 +4,7 @@
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-static hexagon_machine_config SA8797P_nsp0 = {
+static struct hexagon_machine_config SA8797P_nsp0 = {
     .cfgbase =         0x30000000 + 0x180000,
     .rev_id =          0x8781,
     .cfgtable = {

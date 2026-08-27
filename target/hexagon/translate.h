@@ -401,7 +401,7 @@ extern TCGv hex_imprecise_exception;
 #endif
 extern TCGv hex_next_PC;
 
-void gen_exception(int excp, target_ulong PC);
+void gen_exception(int excp, uint32_t PC);
 void gen_exception_end_tb(DisasContext *ctx, int excp);
 
 void process_store(DisasContext *ctx, int slot_num);

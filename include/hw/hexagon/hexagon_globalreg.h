@@ -1,7 +1,7 @@
 /*
  * Hexagon Global Registers QOM Object
  *
- * Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -22,14 +22,14 @@ struct HexagonGlobalRegState {
     SysBusDevice parent_obj;
 
     /* Array of system registers */
-    target_ulong regs[NUM_SREGS];
+    uint32_t regs[NUM_SREGS];
 
     /* Global performance cycle counter base */
     uint64_t g_pcycle_base;
 
     /* Properties for global register reset values */
     uint32_t boot_evb;           /* Boot Exception Vector Base (HEX_SREG_EVB) */
-    uint64_t config_table_addr;  /* Configuration table base (HEX_SREG_CFGBASE) */
+    uint64_t config_table_addr;  /* Configuration table base */
     uint32_t dsp_rev;           /* DSP revision register (HEX_SREG_REV) */
 
     /* ISDB properties */

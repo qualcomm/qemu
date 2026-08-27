@@ -1,7 +1,8 @@
 /*
- * Hexagon Baseboard System emulation.
+ * Hexagon DSP Subsystem emulation.  This represents a generic DSP
+ * subsystem with few peripherals, like the Compute DSP.
  *
- * Copyright (c) 2020-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -57,19 +58,26 @@
 
 static bool syscfg_is_linux;
 
-static struct hexagon_board_boot_info hexagon_binfo;
+#define TYPE_HEXAGON_DSP_MACHINE "hexagon-dsp-machine"
+OBJECT_DECLARE_SIMPLE_TYPE(HexagonDspMachineState, HEXAGON_DSP_MACHINE)
 
-static hwaddr isdb_secure_flag;
-static hwaddr isdb_trusted_flag;
+struct HexagonDspMachineState {
+    HexagonCommonMachineState parent_obj;
+
+    hwaddr isdb_secure_flag;
+    hwaddr isdb_trusted_flag;
+};
+
+static HexagonDspMachineState *current_dms;
 
 static void hex_symbol_callback(const char *st_name, int st_info,
                                 uint64_t st_value, uint64_t st_size)
 {
     if (!g_strcmp0("isdb_secure_flag", st_name)) {
-        isdb_secure_flag = st_value;
+        current_dms->isdb_secure_flag = st_value;
     }
     if (!g_strcmp0("isdb_trusted_flag", st_name)) {
-        isdb_trusted_flag = st_value;
+        current_dms->isdb_trusted_flag = st_value;
     }
 }
 
@@ -116,15 +124,21 @@ static uint32_t hex_ver_to_rev_id(HexagonVersion hex_ver)
     }
 }
 
-static void hexagon_load_kernel(HexagonVersion *hex_ver, uint64_t *boot_evb)
+/* Board init.  */
+static struct hexagon_board_boot_info hexagon_binfo;
+
+static void hexagon_load_kernel(HexagonDspMachineState *dms,
+                                HexagonVersion *hex_ver, uint64_t *boot_evb)
 {
     long kernel_size;
     int elf_rev_byte;
 
+    current_dms = dms;
     kernel_size = load_elf_ram_sym(hexagon_binfo.kernel_filename, NULL, NULL,
                       NULL, boot_evb, NULL, NULL,
                       &hexagon_binfo.kernel_elf_flags, 0, EM_HEXAGON, 0, 0,
                       &address_space_memory, false, hex_symbol_callback);
+    current_dms = NULL;
 
     if (kernel_size <= 0) {
         error_report("no kernel file '%s'",
@@ -147,23 +161,25 @@ static void hexagon_load_kernel(HexagonVersion *hex_ver, uint64_t *boot_evb)
     }
 }
 
-static void hexagon_init_bootstrap(MachineState *machine,
+static void hexagon_init_bootstrap(HexagonDspMachineState *dms,
                                    HexagonVersion *hex_ver, uint64_t *boot_evb)
 {
+    MachineState *machine = MACHINE(dms);
+
     if (machine->kernel_filename) {
-        hexagon_load_kernel(hex_ver, boot_evb);
-        if (isdb_secure_flag || isdb_trusted_flag) {
+        hexagon_load_kernel(dms, hex_ver, boot_evb);
+        if (dms->isdb_secure_flag || dms->isdb_trusted_flag) {
             /* By convention these flags are at offsets 0x30 and 0x34 */
             uint32_t  mem;
-            physical_memory_read(isdb_secure_flag, &mem, sizeof(mem));
+            physical_memory_read(dms->isdb_secure_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
                 mem = cpu_to_le32(1);
-                physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
+                physical_memory_write(dms->isdb_secure_flag, &mem, sizeof(mem));
             }
-            physical_memory_read(isdb_trusted_flag, &mem, sizeof(mem));
+            physical_memory_read(dms->isdb_trusted_flag, &mem, sizeof(mem));
             if (mem == 0x0) {
                 mem = cpu_to_le32(1);
-                physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
+                physical_memory_write(dms->isdb_trusted_flag, &mem, sizeof(mem));
             }
         }
     } else if (!qtest_enabled()) {
@@ -188,7 +204,7 @@ static void create_hwkm_prng(hwaddr HWKM_PRNG_BASE)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, HWKM_PRNG_BASE);
 }
 
-static void create_turing_lmh(hexagon_machine_config *cfg, int offset)
+static void create_turing_lmh(struct hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_LMH);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -196,7 +212,7 @@ static void create_turing_lmh(hexagon_machine_config *cfg, int offset)
                     (cfg->cfgtable.subsystem_base << 16) + offset);
 }
 
-static void create_cdsp_pll(hexagon_machine_config *cfg, int offset)
+static void create_cdsp_pll(struct hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_QDSP6SS_PLL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -204,7 +220,7 @@ static void create_cdsp_pll(hexagon_machine_config *cfg, int offset)
                     (cfg->cfgtable.subsystem_base << 16) + offset);
 }
 
-static void create_cdsp_clkctl(hexagon_machine_config *cfg, int offset)
+static void create_cdsp_clkctl(struct hexagon_machine_config *cfg, int offset)
 {
     DeviceState *dev = qdev_new(TYPE_QDSP6SS_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -219,7 +235,7 @@ static void create_cdsp_gdscr(hwaddr base)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 }
 
-static void create_cdsp_ccswi(hexagon_machine_config *cfg)
+static void create_cdsp_ccswi(struct hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_CDSP0_CLKCTL);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -227,7 +243,7 @@ static void create_cdsp_ccswi(hexagon_machine_config *cfg)
                     (cfg->cfgtable.subsystem_base << 16) - 0x378000);
 }
 
-static void create_turing_cc(hexagon_machine_config *cfg, hwaddr base)
+static void create_turing_cc(struct hexagon_machine_config *cfg, hwaddr base)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_CC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -235,7 +251,7 @@ static void create_turing_cc(hexagon_machine_config *cfg, hwaddr base)
 }
 
 
-static void create_cdsp_turing_dsp_rsc_8480(hexagon_machine_config *cfg)
+static void create_cdsp_turing_dsp_rsc_8480(struct hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
@@ -268,7 +284,7 @@ static void create_cdsp_turing_dsp_rsc_8480(hexagon_machine_config *cfg)
 
 }
 
-static void create_cdsp_turing_rsc_8480(hexagon_machine_config *cfg)
+static void create_cdsp_turing_rsc_8480(struct hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
@@ -300,7 +316,7 @@ static void create_cdsp_turing_rsc_8480(hexagon_machine_config *cfg)
     }
 
 }
-static void create_cdsp_turing_rsc_8775(hexagon_machine_config *cfg)
+static void create_cdsp_turing_rsc_8775(struct hexagon_machine_config *cfg)
 {
     DeviceState *dev = qdev_new(TYPE_TURING_RSC);
 
@@ -361,8 +377,14 @@ static void copy_cpu_properties(const char *from, const char *to)
 }
 
 static void hexagon_common_init(MachineState *machine,
-                                hexagon_machine_config *m_cfg)
+                                struct hexagon_machine_config *m_cfg)
 {
+    HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(machine);
+    HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(machine);
+    MemoryRegion *address_space;
+    DeviceState *glob_regs_dev;
+    DeviceState *tlb_dev;
+
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
     if (machine->kernel_filename) {
         hexagon_binfo.ram_size = machine->ram_size;
@@ -371,18 +393,16 @@ static void hexagon_common_init(MachineState *machine,
 
     machine->enable_graphics = 0;
 
-    MemoryRegion *address_space = get_system_memory();
+    address_space = get_system_memory();
 
-    MemoryRegion *config_table_rom = g_new(MemoryRegion, 1);
-    memory_region_init_rom(config_table_rom, NULL, "config_table.rom",
+    memory_region_init_rom(&hms->cfgtable_rom, NULL, "config_table.rom",
                            sizeof(m_cfg->cfgtable), &error_fatal);
     memory_region_add_subregion(address_space, m_cfg->cfgbase,
-                                config_table_rom);
+                                &hms->cfgtable_rom);
 
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    memory_region_init_ram(sram, NULL, "lpddr4.ram",
-        machine->ram_size, &error_fatal);
-    memory_region_add_subregion(address_space, 0x0, sram);
+    memory_region_init_ram(&hms->ram, NULL, "ddr.ram",
+                           machine->ram_size, &error_fatal);
+    memory_region_add_subregion(address_space, 0x0, &hms->ram);
 
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
@@ -404,13 +424,13 @@ static void hexagon_common_init(MachineState *machine,
     HexagonCPU **cpus = g_malloc_n(machine->smp.cpus, sizeof(HexagonCPU *));
     Error **errp = NULL;
 
-    DeviceState *glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
 
     /* Create TLB object */
-    DeviceState *tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
     object_property_add_child(OBJECT(machine), "hexagon-tlb", OBJECT(tlb_dev));
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);
@@ -421,7 +441,7 @@ static void hexagon_common_init(MachineState *machine,
 
     HexagonVersion hex_ver = machine_cpu_version(machine);
     uint64_t boot_evb;
-    hexagon_init_bootstrap(machine, &hex_ver, &boot_evb);
+    hexagon_init_bootstrap(dms, &hex_ver, &boot_evb);
     g_assert(hex_ver != HEX_VER_ANY && hex_ver != HEX_VER_NONE);
     qdev_prop_set_uint32(glob_regs_dev, "boot-evb", boot_evb);
     g_autoptr(GString) cpu_type = g_string_new("");
@@ -542,10 +562,10 @@ static void hexagon_common_init(MachineState *machine,
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
                        qdev_get_gpio_in(l2vic_dev, 4));
 
-    hexagon_config_table *config_table = &m_cfg->cfgtable;
+    union hexagon_config_table *config_table = &m_cfg->cfgtable;
 
     /* Convert to LE for guest memory */
-    hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
+    union hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
     memcpy(guest_config_table, config_table, sizeof(*config_table));
 
     for (int i = 0; i < ARRAY_SIZE(guest_config_table->raw); i++) {
@@ -573,7 +593,7 @@ static void init_mc(MachineClass *mc)
     qemu_semihosting_enable();
 }
 
-static void machcfg_disable_coproc(hexagon_machine_config *cfg)
+static void machcfg_disable_coproc(struct hexagon_machine_config *cfg)
 {
     cfg->cfgtable.coproc2_reg0 = 0;
     cfg->cfgtable.coproc2_reg1 = 0;
@@ -883,7 +903,7 @@ static void v75na_1024_config_init(MachineState *machine)
 
 static void sim_nocoproc_config_init(MachineState *machine)
 {
-    hexagon_machine_config v81dgb_1_nocoproc;
+    struct hexagon_machine_config v81dgb_1_nocoproc;
     memcpy(&v81dgb_1_nocoproc, &v81dgb_1, sizeof(v81dgb_1));
     machcfg_disable_coproc(&v81dgb_1_nocoproc);
     hexagon_common_init(machine, &v81dgb_1_nocoproc);
@@ -1211,92 +1231,104 @@ static void sim_coproc_init(ObjectClass *oc, const void *data)
 
 static const TypeInfo hexagon_machine_types[] = {
     {
-        .name = MACHINE_TYPE_NAME("V66G_1024"),
+        .name = TYPE_HEXAGON_COMMON_MACHINE,
         .parent = TYPE_MACHINE,
+        .instance_size = sizeof(HexagonCommonMachineState),
+        .abstract = true,
+    },
+    {
+        .name = TYPE_HEXAGON_DSP_MACHINE,
+        .parent = TYPE_HEXAGON_COMMON_MACHINE,
+        .instance_size = sizeof(HexagonDspMachineState),
+        .abstract = true,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V66G_1024"),
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v66g_1024_init,
     }, {
         .name = MACHINE_TYPE_NAME("V68N_1024"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v68n_1024_init,
     }, {
         .name = MACHINE_TYPE_NAME("V69NA_1024"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v69na_1024_init,
     }, {
         .name = MACHINE_TYPE_NAME("V73NA_1024"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v73na_1024_init,
     }, {
         .name = MACHINE_TYPE_NAME("V73M"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v73m_init,
     }, {
         .name = MACHINE_TYPE_NAME("V73_Linux"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v73na_1024_linux_init,
     }, {
         .name = MACHINE_TYPE_NAME("V75NA_1024"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v75na_1024_init,
     }, {
         .name = MACHINE_TYPE_NAME("V75_Linux"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v75na_1024_linux_init,
     }, {
         .name = MACHINE_TYPE_NAME("V79NA_1"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v79na_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V79M_1"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v79m_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V79_Linux"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v79na_1_linux_init,
     }, {
         .name = MACHINE_TYPE_NAME("V81QA_1"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81qa_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V81NA_2"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81na_2_init,
     }, {
         .name = MACHINE_TYPE_NAME("SC8480XP_NSP0"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = sc8480xp_nsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("V81DGB_1"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81dgb_1_init,
     }, {
         .name = MACHINE_TYPE_NAME("V66_Linux"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v66g_linux_init,
     }, {
         .name = MACHINE_TYPE_NAME("V68_H2"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v68n_h2_init,
     }, {
         .name = MACHINE_TYPE_NAME("SA8540P_CDSP0"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = SA8540P_cdsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("SA8775P_CDSP0"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = SA8775P_cdsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("SA8797P_NSP0"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = SA8797P_nsp0_init,
     }, {
         .name = MACHINE_TYPE_NAME("sim"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = sim_init,
     }, {
         .name = MACHINE_TYPE_NAME("sim_coproc"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = sim_coproc_init,
     },
 };

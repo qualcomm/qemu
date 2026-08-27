@@ -18,9 +18,6 @@
 #ifndef HEXAGON_OPCODES_H
 #define HEXAGON_OPCODES_H
 
-#define HEXAGON_LATEST_REV v81
-#define HEXAGON_LATEST_REV_UPPER V81
-
 typedef enum {
 #define OPCODE(IID) IID
 #include "opcodes_def_generated.h.inc"

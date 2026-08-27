@@ -273,7 +273,6 @@ decodetree_trans_funcs_generated = custom_target(
     command: [python, files('gen_trans_funcs.py'), semantics_generated, '@OUTPUT@'],
 )
 hexagon_ss.add(decodetree_trans_funcs_generated)
-
 hexagon_softmmu_ss = ss.source_set()
 
 hexagon_ss.add(files(

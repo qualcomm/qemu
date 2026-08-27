@@ -1,11 +1,12 @@
 /*
  * Hexagon Global Registers
  *
- * Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
+#include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
@@ -15,7 +16,7 @@
 #include "target/hexagon/cpu.h"
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
-#include "trace/trace-hw_hexagon.h"
+#include "trace.h"
 #include "qapi/error.h"
 
 #define IMMUTABLE (~0)
@@ -172,16 +173,16 @@ static void hexagon_globalreg_init(Object *obj)
 {
     HexagonGlobalRegState *s = HEXAGON_GLOBALREG(obj);
 
-    memset(s->regs, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(s->regs, 0, sizeof(s->regs));
 }
 
 static inline uint32_t apply_write_mask(uint32_t new_val, uint32_t cur_val,
                                         uint32_t reg_mask)
 {
-	if (reg_mask) {
-		return (new_val & ~reg_mask) | (cur_val & reg_mask);
-	}
-	return new_val;
+    if (reg_mask) {
+        return (new_val & ~reg_mask) | (cur_val & reg_mask);
+    }
+    return new_val;
 }
 
 uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg)
@@ -274,7 +275,7 @@ void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s, uint64_t value)
 static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
 {
     g_assert(s);
-    memset(s->regs, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(s->regs, 0, sizeof(s->regs));
 
     s->g_pcycle_base = 0;
 

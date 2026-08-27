@@ -29,7 +29,7 @@ typedef struct ProcessorState processor_t;
 #include "migration/qemu-file.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "reg_fields.h"
+#include "target/hexagon/reg_fields.h"
 #define NUM_SREGS 106
 #define NUM_GREGS 32
 #define GREG_WRITES_MAX 2
@@ -37,8 +37,6 @@ typedef struct ProcessorState processor_t;
 #endif
 
 #include "hex_regs.h"
-
-#define TARGET_LONG_BITS 32
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64

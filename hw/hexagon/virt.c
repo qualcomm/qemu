@@ -1,7 +1,7 @@
 /*
  * Hexagon virt emulation
  *
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -85,7 +85,7 @@ static void create_fdt(HexagonVirtMachineState *vms)
 }
 
 static void fdt_add_hvx(HexagonVirtMachineState *vms,
-                        const hexagon_machine_config *m_cfg, Error **errp)
+                        const struct hexagon_machine_config *m_cfg, Error **errp)
 {
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
@@ -118,7 +118,7 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
 
 static int32_t irq_hvm_ic_phandle = -1;
 static void fdt_add_hvm_pic_node(HexagonVirtMachineState *vms,
-                                 const hexagon_machine_config *m_cfg)
+                                 const struct hexagon_machine_config *m_cfg)
 {
     MachineState *ms = MACHINE(vms);
     irq_hvm_ic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
@@ -169,21 +169,26 @@ static void fdt_add_gpt_node(HexagonVirtMachineState *vms)
                            base_memmap[VIRT_GPT].size);
 }
 
-static int32_t clock_phandle = -1;
-static void fdt_add_clocks(const HexagonVirtMachineState *vms)
+static int32_t fdt_add_clocks(const HexagonVirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
-    clock_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+
+    int32_t clk_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+
     qemu_fdt_add_subnode(ms->fdt, "/apb-pclk");
     qemu_fdt_setprop_string(ms->fdt, "/apb-pclk", "compatible", "fixed-clock");
     qemu_fdt_setprop_cell(ms->fdt, "/apb-pclk", "#clock-cells", 0x0);
     qemu_fdt_setprop_cell(ms->fdt, "/apb-pclk", "clock-frequency", 24000000);
     qemu_fdt_setprop_string(ms->fdt, "/apb-pclk", "clock-output-names",
                             "clk24mhz");
-    qemu_fdt_setprop_cell(ms->fdt, "/apb-pclk", "phandle", clock_phandle);
+
+    qemu_fdt_setprop_cell(ms->fdt, "/apb-pclk", "phandle", clk_phandle);
+
+    return clk_phandle;
 }
 
-static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
+static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
+                         int32_t clk_phandle)
 {
     char *nodename;
     hwaddr base = base_memmap[uart].base;
@@ -194,11 +199,13 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     const char clocknames[] = "uartclk\0apb_pclk";
     MachineState *ms = MACHINE(vms);
 
-    DeviceState *pl011_dev = qdev_new("pl011");
-    SysBusDevice *s = SYS_BUS_DEVICE(pl011_dev);
-    qdev_prop_set_chr(pl011_dev, "chardev", serial_hd(0));
+    DeviceState *dev;
+    SysBusDevice *s;
 
-    qdev_connect_clock_in(pl011_dev, "clk", vms->apb_pclk);
+    dev = qdev_new(TYPE_PL011);
+    s = SYS_BUS_DEVICE(dev);
+    qdev_prop_set_chr(dev, "chardev", serial_hd(0));
+    qdev_connect_clock_in(dev, "clk", vms->apb_pclk);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->l2vic, irq));
@@ -210,8 +217,8 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart)
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", 32 + irq, 0);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clock_phandle,
-                           clock_phandle);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clk_phandle,
+                           clk_phandle);
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names", clocknames,
                      sizeof(clocknames));
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
@@ -272,7 +279,7 @@ static void fdt_add_virtio_devices(const HexagonVirtMachineState *vms)
 }
 
 static void create_qtimer(HexagonVirtMachineState *vms,
-        const hexagon_machine_config *m_cfg)
+        const struct hexagon_machine_config *m_cfg)
 {
     Error **errp = NULL;
     vms->qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));
@@ -504,7 +511,8 @@ static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     Error **errp = NULL;
-    const hexagon_machine_config *m_cfg = &v68n_1024;
+    const struct hexagon_machine_config *m_cfg = &v68n_1024;
+    int32_t clk_phandle;
 
     /*
      * If an external DTB is specified, load it instead of generating one.
@@ -652,8 +660,8 @@ static void virt_init(MachineState *ms)
         fdt_add_hvm_pic_node(vms, m_cfg);
         fdt_add_virtio_devices(vms);
         fdt_add_cpu_nodes(vms);
-        fdt_add_clocks(vms);
-        fdt_add_uart(vms, VIRT_UART0);
+        clk_phandle = fdt_add_clocks(vms);
+        fdt_add_uart(vms, VIRT_UART0, clk_phandle);
         fdt_add_gpt_node(vms);
     }
     sysbus_connect_irq(SYS_BUS_DEVICE(vms->qtimer), 0,
@@ -663,11 +671,11 @@ static void virt_init(MachineState *ms)
     create_pll(vms);
     fdt_add_pll_node(vms);
 
-    hexagon_config_table *config_table =
-        (hexagon_config_table *)&m_cfg->cfgtable;
+    union hexagon_config_table *config_table =
+        (union hexagon_config_table *)&m_cfg->cfgtable;
 
     /* Create a copy with little-endian byte order for guest memory */
-    hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
+    union hexagon_config_table *guest_config_table = g_malloc(sizeof(*config_table));
     memcpy(guest_config_table, config_table, sizeof(*config_table));
 
     /* Convert all uint32_t fields to little-endian for the guest */
@@ -690,6 +698,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
+    mc->desc = "Hexagon Virtual Machine";
     mc->init = virt_init;
     mc->default_cpu_type = HEXAGON_CPU_TYPE_NAME("v81");
     mc->default_ram_size = 4 * GiB;
@@ -707,7 +716,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
 
 static const TypeInfo virt_machine_types[] = { {
     .name = TYPE_HEXAGON_VIRT_MACHINE,
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_HEXAGON_COMMON_MACHINE,
     .instance_size = sizeof(HexagonVirtMachineState),
     .class_init = virt_class_init,
     .instance_init = virt_instance_init,

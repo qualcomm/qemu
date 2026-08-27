@@ -1,10 +1,6 @@
-/*
- *  Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
- *
- *  SPDX-License-Identifier: GPL-2.0-or-later
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-static hexagon_machine_config SA8775P_cdsp0 = {
+static struct hexagon_machine_config SA8775P_cdsp0 = {
     .cfgbase =         0x24000000 + 0x180000,
     .rev_id =          0x8c73,
     .cfgtable = {

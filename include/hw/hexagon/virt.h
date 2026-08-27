@@ -1,7 +1,7 @@
 /*
  * Definitions for hexagon virt board.
  *
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ * Copyright (c) Qualcomm Innovation Center, Inc. All Rights Reserved.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -24,12 +24,13 @@ typedef struct HexagonBootInfo {
 
 struct HexagonVirtMachineState {
     /*< private >*/
-    MachineState parent_obj;
+    HexagonCommonMachineState parent_obj;
 
     int fdt_size;
     MemoryRegion *sys;
     MemoryRegion cfgtable;
     MemoryRegion ram;
+    MemoryRegion tcm;
     MemoryRegion vtcm;
     MemoryRegion bios;
     DeviceState *l2vic;
@@ -37,6 +38,7 @@ struct HexagonVirtMachineState {
     Clock *apb_pclk;
     HexagonBootInfo bootinfo;
     QCTQtimerState *qtimer;
+    Clock *apb_clk;
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);

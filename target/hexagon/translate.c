@@ -37,6 +37,7 @@
 #include "pmu.h"
 #include "semihosting/guestfd.h"
 #include "semihosting/console.h"
+#include "exec/target_page.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -156,19 +157,19 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
-void gen_exception(int excp, target_ulong PC)
+void gen_exception(int excp, uint32_t PC)
 {
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp),
-                               tcg_constant_tl(PC));
+                               tcg_constant_i32(PC));
 }
 
-static inline void gen_precise_exception(int excp, target_ulong PC)
+static inline void gen_precise_exception(int excp, uint32_t PC)
 {
     tcg_gen_movi_tl(hex_cause_code, excp);
     gen_exception(HEX_EVENT_PRECISE, PC);
 }
 
-static inline void gen_pcycle_counters(DisasContext *ctx)
+static void gen_pcycle_counters(DisasContext *ctx)
 {
     if (ctx->pcycle_enabled) {
         tcg_gen_addi_i64(hex_cycle_count, hex_cycle_count, ctx->num_cycles);
@@ -189,6 +190,7 @@ static void gen_pmu_counters(DisasContext *ctx)
     }
 }
 #endif
+
 
 static void gen_exec_counters(DisasContext *ctx)
 {
@@ -292,6 +294,7 @@ static void gen_end_tb(DisasContext *ctx)
 
 void gen_exception_end_tb(DisasContext *ctx, int excp)
 {
+    gen_exec_counters(ctx);
     gen_precise_exception(excp, ctx->pkt.pc);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -442,6 +445,31 @@ static bool pkt_may_do_io(Packet *pkt)
            check_for_opcode(pkt, A4_tfrcpp) ||
            check_for_opcode(pkt, A4_tfrpcp);
 }
+
+static bool has_sreg_write_ends_tb(Packet const *pkt)
+{
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn const *insn = &pkt->insn[i];
+        uint16_t opcode = insn->opcode;
+        if (opcode == Y2_tfrsrcr) {
+            /* Write to a single sreg */
+            int reg_num = insn->regno[0];
+            if (sreg_write_ends_tb(reg_num)) {
+                return true;
+            }
+        } else if (opcode == Y4_tfrspcp) {
+            /* Write to a sreg pair */
+            int reg_num = insn->regno[0];
+            if (sreg_write_ends_tb(reg_num)) {
+                return true;
+            }
+            if (sreg_write_ends_tb(reg_num + 1)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 #endif
 
 static bool pkt_ends_tb(Packet *pkt)
@@ -483,25 +511,8 @@ static bool pkt_ends_tb(Packet *pkt)
     if (check_for_attrib(pkt, A_IMPLICIT_WRITES_SSR)) {
         return true;
     }
-    for (int i = 0; i < pkt->num_insns; i++) {
-        Insn *insn = &pkt->insn[i];
-        uint16_t opcode = insn->opcode;
-        if (opcode == Y2_tfrsrcr) {
-            /* Write to a single sreg */
-            int reg_num = insn->regno[0];
-            if (sreg_write_ends_tb(reg_num)) {
-                return true;
-            }
-        } else if (opcode == Y4_tfrspcp) {
-            /* Write to a sreg pair */
-            int reg_num = insn->regno[0];
-            if (sreg_write_ends_tb(reg_num)) {
-                return true;
-            }
-            if (sreg_write_ends_tb(reg_num + 1)) {
-                return true;
-            }
-        }
+    if (has_sreg_write_ends_tb(pkt)) {
+        return true;
     }
 #endif
     return false;
@@ -564,6 +575,7 @@ static bool pkt_has_pcycle_read(Packet *pkt)
     }
     return false;
 }
+
 
 static bool need_next_PC(DisasContext *ctx)
 {
@@ -844,7 +856,6 @@ static void gen_start_packet(CPUHexagonState *env, DisasContext *ctx)
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     bitmap_zero(ctx->qregs_written, NUM_QREGS);
     ctx->qreg_log_idx = 0;
-    ctx->pre_commit = true;
 
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;

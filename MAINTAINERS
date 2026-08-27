@@ -258,6 +258,7 @@ F: tests/tcg/hexagon/
 F: tests/qtest/hexagon-pll-test.c
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user.mak
+F: configs/targets/hexagon-softmmu.mak
 F: tests/docker/dockerfiles/debian-hexagon-cross.docker
 F: gdbstub/gdb-xml/hexagon*.xml
 F: docs/system/target-hexagon.rst
@@ -1346,6 +1347,18 @@ F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
 F: tests/functional/hppa/
 
+Hexagon Machines
+----------------
+V66G_1024, V68N_1024, sa8775-cdsp0
+M: Brian Cain <brian.cain@oss.qualcomm.com>
+R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
+S: Supported
+F: hw/hexagon/
+F: include/hw/hexagon/
+F: configs/devices/hexagon-softmmu/default.mak
+F: docs/system/hexagon/
+F: docs/devel/hexagon-sys.rst
+
 LoongArch Machines
 ------------------
 Virt
@@ -2280,7 +2293,7 @@ F: hw/char/
 F: include/hw/char/
 
 Network devices
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 S: Odd Fixes
 F: hw/net/
 F: include/hw/net/
@@ -3453,7 +3466,7 @@ F: include/qemu/qemu-print.h
 F: util/qemu-print.c
 
 Network device backends
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 S: Maintained
 F: net/
 F: include/net/
@@ -4050,7 +4063,7 @@ F: target/i386/igvm.c
 
 VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
-R: Jason Wang <jasowang@redhat.com>
+R: Jason Wang <jasowangio@gmail.com>
 R: Yi Liu <yi.l.liu@intel.com>
 R: Clément Mathieu--Drif <clement.mathieu--drif@bull.com>
 S: Supported
@@ -4485,7 +4498,7 @@ F: subprojects/libvfio-user.wrap
 F: tests/functional/x86_64/test_vfio_user_client.py
 
 EBPF
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 R: Yuri Benditovich <ybendito@redhat.com>
 S: Maintained
 F: docs/devel/ebpf_rss.rst

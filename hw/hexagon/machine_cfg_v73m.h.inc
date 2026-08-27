@@ -4,7 +4,7 @@
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-static hexagon_machine_config v73m = {
+static struct hexagon_machine_config v73m = {
     .cfgbase =             0xd8380000,
     .rev_id =              0xcc73,
     .cfgtable = {

@@ -91,7 +91,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
 }
 
 G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
-                                        target_ulong PC)
+                                        uint32_t PC)
 {
     hexagon_raise_exception_err(env, excp, PC);
 }
@@ -2359,7 +2359,6 @@ void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
  */
 static uint32_t get_ready_count(CPUHexagonState *env)
 {
-
     uint32_t ready_count = 0;
     CPUState *cs;
 

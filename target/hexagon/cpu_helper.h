@@ -75,4 +75,5 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, int index);
 uint32_t hexagon_get_pmu_event_stats(int event);
 void hexagon_reset_pmu_event_stats(int event);
 void hexagon_set_pmu_counter(CPUHexagonState *env, uint32_t reg, uint32_t val);
+
 #endif
