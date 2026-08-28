@@ -3,33 +3,35 @@
 # Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-BUILD_DIR="$(pwd)/build"
+set -e
 
-print_help()
-{
-    echo
-    echo "Usage: $(basename "${0}") [OPTIONS]"
-    echo
-    echo "Options:"
-    echo "    -b    name of the build directory"
-    echo "          (default: ${BUILD_DIR})"
-    echo "    -m    enable MTTCG"
-    echo "    -h    print this help"
-}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+readonly SCRIPT_DIR
+
+. "${SCRIPT_DIR}/util/help.sh"
+
+HELP_MESSAGE="Usage: $(basename "${0}") [OPTIONS]
+
+Options:
+    -b    name of the build directory (default: ./build)
+    -m    enable MTTCG
+    -h    print this help"
 
 readonly OPTIONS="hb:m"
 while getopts "${OPTIONS}" option; do
     case "${option}" in
         "b") readonly BUILD_DIR="${OPTARG}";;
         "m") readonly MTTCG="-accel tcg,thread=multi";;
-        "h") print_help; exit 0;;
-        "*") print_help; exit 1;;
+        "h") print_help;;
+        *) print_help_error "Unknown option";;
     esac
 done
 
 shift $((OPTIND-1))
 
-set -ex
+[ -z "${BUILD_DIR}" ] && readonly BUILD_DIR="${PWD}/build"
+
+set -x
 
 make --directory="${BUILD_DIR}" \
      --jobs="$(getconf _NPROCESSORS_ONLN)" \

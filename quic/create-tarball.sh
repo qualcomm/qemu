@@ -3,23 +3,21 @@
 # Copyright(c) 2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-BUILD_DIR="$(pwd)/build"
-INSTALL_DIR="${BUILD_DIR}/install"
+set -e
 
-print_help()
-{
-    echo
-    echo "Usage: $(basename "${0}") [OPTIONS]"
-    echo
-    echo "Options:"
-    echo "    -b    name of the build directory"
-    echo "          (default: ${BUILD_DIR})"
-    echo "    -i    name of the install directory"
-    echo "          (default: ${INSTALL_DIR})"
-    echo "    -p    tarball prefix (default: none; tarball is named <tag-or-sha>.tar.gz)"
-    echo "    -v    tarball version (default: exact git tag or short SHA)"
-    echo "    -h    print this help"
-}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+readonly SCRIPT_DIR
+
+. "${SCRIPT_DIR}/util/help.sh"
+
+HELP_MESSAGE="Usage: $(basename "${0}") [OPTIONS]
+
+Options:
+    -b    name of the build directory (default: ./build)
+    -i    name of the install directory (default: ./build/install)
+    -p    tarball prefix (default: none; tarball is named <tag-or-sha>.tar.gz)
+    -v    tarball version (default: exact git tag or short SHA)
+    -h    print this help"
 
 readonly OPTIONS="hb:i:p:v:"
 while getopts "${OPTIONS}" option; do
@@ -28,19 +26,20 @@ while getopts "${OPTIONS}" option; do
         "i") readonly INSTALL_DIR="${OPTARG}";;
         "p") readonly TARBALL_PREFIX="${OPTARG}";;
         "v") readonly TARBALL_VERSION="${OPTARG}";;
-        "h") print_help; exit 0;;
-        *) print_help; exit 1;;
+        "h") print_help;;
+        *) print_help_error "Unknown option";;
     esac
 done
 
 shift $((OPTIND-1))
 
-set -ex
+[ -z "${BUILD_DIR}" ] && readonly BUILD_DIR="${PWD}/build"
+[ -z "${INSTALL_DIR}" ] && readonly INSTALL_DIR="${BUILD_DIR}/install"
 
-if [ ! -d "${BUILD_DIR}" ] || [ ! -d "${INSTALL_DIR}" ]; then
-    echo "Error: Build artifacts missing"
-    exit 1
-fi
+set -x
+
+[ ! -d "${BUILD_DIR}" ] && print_help_error "Build dir missing"
+[ ! -d "${INSTALL_DIR}" ] && print_help_error "Install dir missing"
 
 readonly RELEASE_NOTE="quic/RELEASE-NOTES.txt"
 if [ -f "${RELEASE_NOTE}" ]; then
