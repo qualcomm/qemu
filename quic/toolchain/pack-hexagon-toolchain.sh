@@ -1,34 +1,24 @@
 #!/usr/bin/env sh
+
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set -eu
+set -e
 
-if [ ${#} -ne 1 ]; then
-    printf "%s\n" "Usage: ${0} <toolchain-dir>" >&2
-    printf "%s\n" "" >&2
-    printf "%s\n" "Pack a hexagon toolchain into hexagon-toolchain-<basename>-extended.tar.zst." >&2
-    printf "%s\n" "<toolchain-dir> should be the directory containing Tools/" >&2
-    printf "%s\n" "(typically the unpacked SDK release; basename is used as the version)." >&2
-    exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+readonly SCRIPT_DIR
 
-readonly TOOLCHAIN_DIR="${1}"
-VERSION="$(basename "${TOOLCHAIN_DIR}")"
-readonly VERSION
-readonly TARBALL="hexagon-toolchain-${VERSION}-extended.tar.zst"
+. "${SCRIPT_DIR}/../util/help.sh"
+. "${SCRIPT_DIR}/versions.sh"
 
-if [ ! -d "${TOOLCHAIN_DIR}/Tools" ]; then
-    printf "%s\n" "Error: ${TOOLCHAIN_DIR}/Tools not found" >&2
-    exit 1
-fi
+HELP_MESSAGE="Usage: ${0}
 
-if ! command -v zstd >/dev/null 2>&1; then
-    printf "%s\n" "Error: zstd not found in PATH" >&2
-    exit 1
-fi
+Pack a hexagon toolchain into ${EXTENDED_TARBALL}"
 
-printf "%s\n" "Packing ${TOOLCHAIN_DIR}/Tools into ${TARBALL}..."
+! command -v zstd >/dev/null 2>&1 \
+    && print_help_error "zstd not found in PATH"
+
+printf "%s\n" "Packing ${BAREMETAL_DST_PATH} into ${EXTENDED_TARBALL} ..."
 tar --owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX' \
-    -I zstd -cf "${TARBALL}" -C "${TOOLCHAIN_DIR}" Tools
-
-printf "%s\n" "Done: ${TARBALL}"
+    --use-compress-program=zstd --create --file="${EXTENDED_TARBALL}" \
+    --directory="${BAREMETAL_DST_PATH}" .
