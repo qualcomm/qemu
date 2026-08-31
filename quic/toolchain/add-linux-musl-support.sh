@@ -1,39 +1,34 @@
 #!/bin/bash
 
-#  Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
-#  SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set -euo pipefail
 
-usage() {
-    echo "Usage: $0 <dest-toolchain-root> <src-linux-toolchain>"
-    echo ""
-    echo "Augments a baremetal-only Hexagon toolchain with Linux cross-compilation"
-    echo "support by copying the sysroot, QEMU, symlinks, and driver config from"
-    echo "a reference hexagon-unknown-linux-musl cross-toolchain."
-    echo ""
-    echo "  dest-toolchain-root   Path to the baremetal toolchain (e.g. .../Tools)"
-    echo "  src-linux-toolchain   Path to the reference Linux cross-toolchain host dir"
-    echo "                        (e.g. .../clang+llvm-22.1.0-cross-"
-    echo "                        hexagon-unknown-linux-musl/x86_64-linux-gnu)"
-    exit 1
-}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly SCRIPT_DIR
 
-[ $# -eq 2 ] || usage
+. "${SCRIPT_DIR}/../util/help.sh"
+. "${SCRIPT_DIR}/versions.sh"
 
-DEST="$(cd "$1" && pwd)"
-SRC="$(cd "$2" && pwd)"
+HELP_MESSAGE="Usage: ${0}
+
+Augments a baremetal-only Hexagon toolchain with Linux cross-compilation
+support by copying the sysroot, QEMU, symlinks, and driver config from
+a reference hexagon-unknown-linux-musl cross-toolchain."
+
+DEST="${BAREMETAL_DST_PATH}"
+SRC="${MUSL_DST_PATH}"
 
 BIN="${DEST}/bin"
 TARGET="${DEST}/target"
 SYSROOT="${TARGET}/hexagon-unknown-linux-musl"
 
 # Validate inputs
-[ -x "${BIN}/clang" ] || { echo "Error: ${BIN}/clang not found"; exit 1; }
-[ -d "${SRC}/bin" ]   || { echo "Error: ${SRC}/bin not found"; exit 1; }
+[ -x "${BIN}/clang" ] || print_help_error "${BIN}/clang not found"
+[ -d "${SRC}/bin" ] || print_help_error "${SRC}/bin not found"
 [ -d "${SRC}/target/hexagon-unknown-linux-musl" ] || {
-    echo "Error: source sysroot not found"
-    exit 1
+    print_help_error "Source sysroot not found"
 }
 
 # Resolve the real clang binary name for symlinks
@@ -76,9 +71,8 @@ for d in "${DEST}"/lib/clang/*/; do
     esac
 done
 if [ ${#dest_clang_versions[@]} -ne 1 ]; then
-    echo "Error: expected exactly one numeric version dir under" \
+    print_help_error "expected exactly one numeric version dir under" \
         "${DEST}/lib/clang/, found: ${dest_clang_versions[*]:-<none>}"
-    exit 1
 fi
 DEST_CLANG_VER_DIR="${dest_clang_versions[0]}"
 DEST_CLANG_VER="$(basename "${DEST_CLANG_VER_DIR}")"
@@ -93,9 +87,8 @@ for d in "${SRC}"/lib/clang/*/; do
     esac
 done
 if [ ${#src_clang_versions[@]} -ne 1 ]; then
-    echo "Error: expected exactly one numeric version dir under" \
+    print_help_error "expected exactly one numeric version dir under" \
         "${SRC}/lib/clang/, found: ${src_clang_versions[*]:-<none>}"
-    exit 1
 fi
 SRC_CLANG_VER_DIR="${src_clang_versions[0]}"
 
@@ -105,8 +98,7 @@ DEST_RTLIB_DIR="${DEST_CLANG_VER_DIR}/lib/hexagon-unknown-linux-musl"
 # Validate source files exist
 for f in libclang_rt.builtins.a clang_rt.crtbegin.o clang_rt.crtend.o; do
     if [ ! -f "${SRC_RTLIB_DIR}/${f}" ]; then
-        echo "Error: missing ${SRC_RTLIB_DIR}/${f}"
-        exit 1
+        print_help_error "missing ${SRC_RTLIB_DIR}/${f}"
     fi
 done
 
