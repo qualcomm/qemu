@@ -123,6 +123,12 @@ hpet_ram_write_invalid_tn_cmp(void) "invalid HPET_TN_CMP + 4 write"
 hpet_ram_write_invalid(void) "invalid hpet_ram_writel"
 hpet_ram_write_counter_write_while_enabled(void) "Writing counter while HPET enabled!"
 
+# imx_epit.c
+imx_epit_get_freq(uint32_t freq) "ptimer frequency is %u"
+imx_epit_read(const char *name, uint32_t value) "(%s) = 0x%08x"
+imx_epit_write(const char *name, uint64_t value) "(%s, value = 0x%08" PRIx64 ")"
+imx_epit_cmp(uint32_t sr) "sr was %d"
+
 # qct-qctimer.c
 qtimer_read(uint64_t offset) "QTimer read from offset 0x%" PRIx64
 qtimer_write(uint64_t offset, uint64_t value) "QTimer write at offset 0x%" PRIx64 " value 0x%08" PRIx64

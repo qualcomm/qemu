@@ -29,6 +29,7 @@
 #include "exec/vaddr.h"
 #include "exec/breakpoint.h"
 #include "exec/memop.h"
+#include "gdbstub/enums.h"
 #ifdef CONFIG_TCG
 #include "accel/tcg/tb-cpu-state.h"
 #include "tcg/tcg-gvec-desc.h"
@@ -134,6 +135,14 @@ FIELD(CPACR_EL1, ZEN, 16, 2)
 FIELD(CPACR_EL1, FPEN, 20, 2)
 FIELD(CPACR_EL1, SMEN, 24, 2)
 FIELD(CPACR_EL1, TTA, 28, 1)   /* matches CPACR.TRCDIS */
+
+/* Bit definitions for NSACR (AArch32 only) */
+FIELD(NSACR, CP10, 10, 1)
+FIELD(NSACR, CP11, 11, 1)
+FIELD(NSACR, NSD32DIS, 14, 1)  /* v7; RES0 in v8 */
+FIELD(NSACR, NSASEDIS, 15, 1)
+FIELD(NSACR, RFR, 19, 1)       /* v7; RES0 in v8 */
+FIELD(NSACR, NSTRCDIS, 20, 1)
 
 /* Bit definitions for HCPTR (AArch32 only) */
 FIELD(HCPTR, TCP10, 10, 1)
@@ -1968,8 +1977,8 @@ int delete_hw_breakpoint(vaddr pc);
 
 bool check_watchpoint_in_range(int i, vaddr addr);
 CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr);
-int insert_hw_watchpoint(vaddr addr, vaddr len, int type);
-int delete_hw_watchpoint(vaddr addr, vaddr len, int type);
+int insert_gdbstub_hw_watchpoint(vaddr addr, vaddr len, GdbBreakpointType type);
+int delete_gdbstub_hw_watchpoint(vaddr addr, vaddr len, GdbBreakpointType type);
 
 /* Return the current value of the system counter in ticks */
 uint64_t gt_get_countervalue(CPUARMState *env);

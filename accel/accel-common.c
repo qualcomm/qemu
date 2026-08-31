@@ -70,6 +70,11 @@ void accel_init_interfaces(AccelClass *ac)
     accel_init_cpu_interfaces(ac);
 }
 
+bool accel_supports_guest_debug(AccelState *accel)
+{
+    return accel->gdbstub.sstep_flags & SSTEP_ENABLE;
+}
+
 void accel_cpu_instance_init(CPUState *cpu)
 {
     if (cpu->cc->accel_cpu && cpu->cc->accel_cpu->cpu_instance_init) {
@@ -111,16 +116,6 @@ void accel_cpu_common_unrealize(CPUState *cpu)
     if (acc->cpu_common_unrealize) {
         acc->cpu_common_unrealize(cpu);
     }
-}
-
-int accel_supported_gdbstub_sstep_flags(void)
-{
-    AccelState *accel = current_accel();
-    AccelClass *acc = ACCEL_GET_CLASS(accel);
-    if (acc->gdbstub_supported_sstep_flags) {
-        return acc->gdbstub_supported_sstep_flags(accel);
-    }
-    return 0;
 }
 
 static const TypeInfo accel_types[] = {

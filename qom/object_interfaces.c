@@ -20,28 +20,33 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/keyval.h"
+#include "trace.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
     ERRP_GUARD();
 
+    trace_user_creatable_complete(uc, object_get_typename(OBJECT(uc)));
     if (ucc->complete) {
         ucc->complete(uc, errp);
     }
     return !*errp;
 }
 
-bool user_creatable_can_be_deleted(UserCreatable *uc)
+bool user_creatable_prepare_delete(UserCreatable *uc, Error **errp)
 {
-
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
+    bool ret = true;
 
-    if (ucc->can_be_deleted) {
-        return ucc->can_be_deleted(uc);
-    } else {
-        return true;
+    trace_user_creatable_prepare_delete(uc, object_get_typename(OBJECT(uc)));
+    if (ucc->prepare_delete) {
+        ret = ucc->prepare_delete(uc, errp);
     }
+    trace_user_creatable_prepare_delete_result(
+        uc, object_get_typename(OBJECT(uc)),
+        *errp ? error_get_pretty(*errp) : NULL);
+    return ret;
 }
 
 void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
@@ -253,8 +258,7 @@ bool user_creatable_del(const char *id, Error **errp)
         return false;
     }
 
-    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj))) {
-        error_setg(errp, "object '%s' is in use, can not be deleted", id);
+    if (!user_creatable_prepare_delete(USER_CREATABLE(obj), errp)) {
         return false;
     }
 

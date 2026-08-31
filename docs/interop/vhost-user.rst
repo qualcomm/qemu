@@ -214,6 +214,18 @@ fields at the end.
 
 :domid: a 32-bit Xen hypervisor specific domain id.
 
+For all memory regions active at a given time:
+
+- ``[guest address, guest address + size)`` of one memory region never overlaps
+  the ``[guest address, guest address + size)`` of another memory region.
+
+- ``[user address, user address + size)`` of one memory region never overlaps
+  the ``[user address, user address + size)`` of another memory region.
+
+Violating any of these is a bug in the front-end. This ensures that a guest
+address or user address always refers to at most one location in memory.
+The front-end must remove a region before it can add an overlapping one.
+
 Single memory region description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -518,12 +530,26 @@ Rings have two independent states: started/stopped, and enabled/disabled.
 * started and enabled: The back-end must process the ring normally, i.e.
   process all requests and execute them.
 
-Each ring is initialized in a stopped and disabled state.  The back-end
-must start a ring upon receiving a kick (that is, detecting that file
-descriptor is readable) on the descriptor specified by
-``VHOST_USER_SET_VRING_KICK`` or receiving the in-band message
-``VHOST_USER_VRING_KICK`` if negotiated, and stop a ring upon receiving
-``VHOST_USER_GET_VRING_BASE``.
+Each ring is initialized in a stopped and disabled state.  Rings are started
+with ``VHOST_USER_SET_VRING_KICK`` (or ``VHOST_USER_VRING_KICK`` if
+``VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS`` is negotiated) and stopped with
+``VHOST_USER_GET_VRING_BASE``.  A stopped ring enters the started state again
+with ``VHOST_USER_SET_VRING_KICK`` (or ``VHOST_USER_VRING_KICK`` if
+``VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS`` is negotiated) and the back-end
+resumes processing requests.
+
+Note that previous versions of this specification stated that rings start when
+the back-end receives a kick (that is, detecting that file descriptor is
+readable) on the descriptor specified by ``VHOST_USER_SET_VRING_KICK`` or
+receiving the in-band message ``VHOST_USER_VRING_KICK`` if negotiated.
+Widely-used front-ends and back-ends did not implement this behavior and it
+complicates poll mode back-ends that do not rely on the kick file descriptor.
+
+For compatibility with back-ends that implemented the start on kick behavior,
+front-ends SHOULD inject a kick after ``VHOST_USER_SET_VRING_KICK``.  This
+ensures that the back-end processes any available requests in the ring.
+Back-ends SHOULD NOT rely on receiving a kick after
+``VHOST_USER_SET_VRING_KICK``.
 
 Rings can be enabled or disabled by ``VHOST_USER_SET_VRING_ENABLE``.
 
@@ -730,6 +756,15 @@ Memory access
 The front-end sends a list of vhost memory regions to the back-end using the
 ``VHOST_USER_SET_MEM_TABLE`` message.  Each region has two base
 addresses: a guest address and a user address.
+
+Memory regions can be added via the ``VHOST_USER_ADD_MEM_REG`` message.  They
+can be removed via the ``VHOST_USER_REM_MEM_REG`` message. These messages can
+only be used if the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
+feature has been successfully negotiated.
+
+Guest addresses are physical addresses in the guest.  User addresses are
+arbitrary opaque values, though they typically refer to userspace addresses in
+the client process.
 
 Messages contain guest addresses and/or user addresses to reference locations
 within the shared memory.  The mapping of these addresses works as follows.

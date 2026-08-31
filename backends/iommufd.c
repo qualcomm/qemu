@@ -63,11 +63,16 @@ static void iommufd_backend_set_fd(Object *obj, const char *str, Error **errp)
     trace_iommu_backend_set_fd(be->fd);
 }
 
-static bool iommufd_backend_can_be_deleted(UserCreatable *uc)
+static bool iommufd_backend_prepare_delete(UserCreatable *uc, Error **errp)
 {
     IOMMUFDBackend *be = IOMMUFD_BACKEND(uc);
 
-    return !be->users;
+    if (be->users) {
+        error_setg(errp, "Can not delete IOMMUFD backend '%s' with %d users",
+                   object_get_canonical_path_component(OBJECT(uc)), be->users);
+        return false;
+    }
+    return true;
 }
 
 static void iommufd_backend_complete(UserCreatable *uc, Error **errp)
@@ -92,7 +97,7 @@ static void iommufd_backend_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
-    ucc->can_be_deleted = iommufd_backend_can_be_deleted;
+    ucc->prepare_delete = iommufd_backend_prepare_delete;
     ucc->complete = iommufd_backend_complete;
 
     object_class_property_add_str(oc, "fd", NULL, iommufd_backend_set_fd);
@@ -638,6 +643,13 @@ static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
     }
 }
 
+static bool hiod_iommufd_support_ats(HostIOMMUDevice *hiod)
+{
+    HostIOMMUDeviceCaps *caps = &hiod->caps;
+
+    return !(caps->hw_caps & IOMMU_HW_CAP_PCI_ATS_NOT_SUPPORTED);
+}
+
 static bool hiod_iommufd_get_pasid_info(HostIOMMUDevice *hiod,
                                         PasidInfo *pasid_info)
 {
@@ -660,6 +672,7 @@ static void hiod_iommufd_class_init(ObjectClass *oc, const void *data)
 
     hiodc->get_cap = hiod_iommufd_get_cap;
     hiodc->get_pasid_info = hiod_iommufd_get_pasid_info;
+    hiodc->support_ats = hiod_iommufd_support_ats;
 };
 
 static const TypeInfo types[] = {

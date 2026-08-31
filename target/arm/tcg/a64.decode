@@ -250,9 +250,8 @@ ERETA           1101011 0100 11111 00001 m:1 11111 11111 &reta  # ERETAA, ERETAB
     YIELD       1101 0101 0000 0011 0010 0000 001 11111
     WFE         1101 0101 0000 0011 0010 0000 010 11111
     WFI         1101 0101 0000 0011 0010 0000 011 11111
-    # We implement WFE to never block, so our SEV/SEVL are NOPs
-    # SEV       1101 0101 0000 0011 0010 0000 100 11111
-    # SEVL      1101 0101 0000 0011 0010 0000 101 11111
+    SEV         1101 0101 0000 0011 0010 0000 100 11111
+    SEVL        1101 0101 0000 0011 0010 0000 101 11111
     # Our DGL is a NOP because we don't merge memory accesses anyway.
     # DGL       1101 0101 0000 0011 0010 0000 110 11111
     XPACLRI     1101 0101 0000 0011 0010 0000 111 11111
@@ -1455,6 +1454,21 @@ FCVTZS_g        . 0011110 .. 111000 000000 ..... .....  @icvt
 FCVTZU_g        . 0011110 .. 111001 000000 ..... .....  @icvt
 FCVTAS_g        . 0011110 .. 100100 000000 ..... .....  @icvt
 FCVTAU_g        . 0011110 .. 100101 000000 ..... .....  @icvt
+
+# Conversion between floating-point and integer (SIMD & FP)
+SCVTF_simd      . 0011110 .. 111100 000000 ..... .....  @icvt
+UCVTF_simd      . 0011110 .. 111101 000000 ..... .....  @icvt
+
+FCVTAS_g_simd   . 0011110 .. 111010 000000 ..... .....  @icvt
+FCVTAU_g_simd   . 0011110 .. 111011 000000 ..... .....  @icvt
+FCVTMS_g_simd   . 0011110 .. 110100 000000 ..... .....  @icvt
+FCVTMU_g_simd   . 0011110 .. 110101 000000 ..... .....  @icvt
+FCVTNS_g_simd   . 0011110 .. 101010 000000 ..... .....  @icvt
+FCVTNU_g_simd   . 0011110 .. 101011 000000 ..... .....  @icvt
+FCVTPS_g_simd   . 0011110 .. 110010 000000 ..... .....  @icvt
+FCVTPU_g_simd   . 0011110 .. 110011 000000 ..... .....  @icvt
+FCVTZS_g_simd   . 0011110 .. 110110 000000 ..... .....  @icvt
+FCVTZU_g_simd   . 0011110 .. 110111 000000 ..... .....  @icvt
 
 FJCVTZS         0 0011110 01 111110 000000 ..... .....  @rr
 

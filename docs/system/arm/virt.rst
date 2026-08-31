@@ -39,6 +39,7 @@ The virt board supports:
 - A PL061 GPIO controller
 - An optional machine-wide SMMUv3 IOMMU
 - User-creatable SMMUv3 devices (see below for example)
+- An optional SBSA Generic Watchdog Timer (see below)
 - hotpluggable DIMMs
 - hotpluggable NVDIMMs
 - An MSI controller (GICv2m or ITS).
@@ -287,6 +288,55 @@ User-creatable SMMUv3 devices
       ...
       -device pxb-pcie,id=pcie.1,numa_node=1
       -device arm-smmuv3,primary-bus=pcie.1,id=smmuv3.1
+
+  *Accelerated SMMUv3 (nested translation)*
+
+  The ``accel=on`` option enables hardware-accelerated nested translation
+  for vfio-pci passthrough devices. In this mode the guest SMMU driver
+  programs its own Stage-1 page tables, with the host SMMUv3 handling both
+  Stage-1 (guest) and Stage-2 (host) translations in hardware. The host
+  SMMUv3 must support nested translation. This mode requires the iommufd
+  backend and is only supported when booting with ACPI (not device tree).
+
+  When ``accel=on``, QEMU automatically derives the values for the
+  ``ril``, ``ats``, ``oas``, ``ssidsize`` and ``cmdqv`` sub-options
+  from the host SMMUv3 capabilities unless they are set explicitly.
+
+  Example::
+
+      -device arm-smmuv3,primary-bus=pcie.0,id=smmuv3.0,accel=on
+
+  *Accelerated SMMUv3 command queues (Tegra241 CMDQV)*
+
+  The ``cmdqv`` sub-option enables NVIDIA Tegra241 Command Queue
+  Virtualization (CMDQV) on supported hosts. With CMDQV, each accelerated
+  ``arm-smmuv3`` device gets dedicated hardware command queues and the
+  guest issues SMMU invalidation commands directly to real hardware,
+  bypassing QEMU and improving throughput for workloads that issue many
+  invalidations. Without it, every invalidation command traps into QEMU.
+
+SBSA Generic Watchdog
+"""""""""""""""""""""
+
+The SBSA Generic Watchdog Timer (GWDT) can be added to the virt machine
+using ``-device sbsa-gwdt``. It is only supported on the virt machine,
+which wires up statically assigned MMIO regions and IRQs via
+machine-specific plug handlers.
+
+Two modes are available:
+
+Native mode (default)
+  The watchdog is described via the ACPI GTDT table and FDT, using
+  the system counter frequency. Example::
+
+    -device sbsa-gwdt
+
+WDAT mode
+  The watchdog is described via the ACPI WDAT table (no FDT node),
+  using a 1 kHz timer frequency. WDAT and GTDT watchdog entries are
+  mutually exclusive. Example::
+
+    -device sbsa-gwdt,wdat=on
 
 Linux guest kernel configuration
 """"""""""""""""""""""""""""""""

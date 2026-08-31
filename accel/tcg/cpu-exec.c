@@ -308,7 +308,7 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
      * so that one could (gdb) singlestep into the guest kernel's
      * architectural breakpoint handler.
      */
-    if (cpu->singlestep_enabled) {
+    if (cpu_single_stepping(cpu)) {
         return false;
     }
 
@@ -460,7 +460,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
-        CPUClass *cc = cpu->cc;
+        const CPUClass *cc = cpu->cc;
         const TCGCPUOps *tcg_ops = cc->tcg_ops;
 
         if (tcg_ops->synchronize_from_tb) {
@@ -485,7 +485,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
      * raise a debug exception.  Single-step with another exception
      * is handled in cpu_handle_exception.
      */
-    if (unlikely(cpu->singlestep_enabled) && cpu->exception_index == -1) {
+    if (unlikely(cpu_single_stepping(cpu)) && cpu->exception_index == -1) {
         cpu->exception_index = EXCP_DEBUG;
         cpu_loop_exit(cpu);
     }
@@ -732,7 +732,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         bql_unlock();
         cpu->exception_index = -1;
 
-        if (unlikely(cpu->singlestep_enabled)) {
+        if (unlikely(cpu_single_stepping(cpu))) {
             /*
              * After processing the exception, ensure an EXCP_DEBUG is
              * raised when single-stepping so that GDB doesn't miss the
@@ -828,7 +828,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                 return true;
             }
 
-            if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
+            if (unlikely(cpu->singlestep_flags & SSTEP_NOIRQ)) {
                 /* Mask out external interrupts for this step. */
                 interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
             }
@@ -849,7 +849,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                  * raised when single-stepping so that GDB doesn't miss the
                  * next instruction.
                  */
-                if (unlikely(cpu->singlestep_enabled)) {
+                if (unlikely(cpu_single_stepping(cpu))) {
                     cpu->exception_index = EXCP_DEBUG;
                     bql_unlock();
                     return true;

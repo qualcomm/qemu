@@ -46,12 +46,12 @@ static int kvm_get_stealtime(CPUState *cs)
         .addr = (uint64_t)&env->stealtime.guest_addr,
     };
 
-    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
     if (err) {
         return 0;
     }
 
-    err = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
     if (err) {
         error_report("PVTIME: KVM_GET_DEVICE_ATTR: %s", strerror(errno));
         return err;
@@ -70,12 +70,12 @@ static int kvm_set_stealtime(CPUState *cs)
         .addr = (uint64_t)&env->stealtime.guest_addr,
     };
 
-    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
     if (err) {
         return 0;
     }
 
-    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, &attr);
     if (err) {
         error_report("PVTIME: KVM_SET_DEVICE_ATTR %s with gpa "TARGET_FMT_lx,
                       strerror(errno), env->stealtime.guest_addr);
@@ -96,13 +96,13 @@ static int kvm_set_pv_features(CPUState *cs)
         .addr = (uint64_t)&val,
     };
 
-    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
     if (err) {
         return 0;
     }
 
     val = env->pv_features;
-    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, &attr);
     if (err) {
         error_report("Fail to set pv feature "TARGET_FMT_lx " with error %s",
                       val, strerror(errno));
@@ -713,11 +713,11 @@ static int kvm_loongarch_get_cpucfg(CPUState *cs)
     CPULoongArchState *env = cpu_env(cs);
 
     for (i = 0; i < 21; i++) {
-        ret = kvm_get_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
-        if (ret < 0) {
-            trace_kvm_failed_get_cpucfg(strerror(errno));
+        int r = kvm_get_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
+        ret |= r;
+        if (!r) {
+            env->cpucfg[i] = (uint32_t)val;
         }
-        env->cpucfg[i] = (uint32_t)val;
     }
     return ret;
 }
@@ -725,7 +725,7 @@ static int kvm_loongarch_get_cpucfg(CPUState *cs)
 static int kvm_check_cpucfg2(CPUState *cs)
 {
     int ret;
-    uint64_t val;
+    uint64_t val = 0;
     struct kvm_device_attr attr = {
         .group = KVM_LOONGARCH_VCPU_CPUCFG,
         .attr = 2,
@@ -736,8 +736,17 @@ static int kvm_check_cpucfg2(CPUState *cs)
     ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
 
     if (!ret) {
-        kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
-        env->cpucfg[2] &= val;
+        /*
+         * The &= mask is best-effort feature negotiation. If HAS succeeded,
+         * a GET failure is most likely a copy_{from,to}_user issue; warn and
+         * keep the cpucfg2 the guest already has rather than failing the sync.
+         */
+        int r = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+        if (r) {
+            warn_report("CPUCFG2: KVM_GET_DEVICE_ATTR: %s", strerror(errno));
+        } else {
+            env->cpucfg[2] &= val;
+        }
 
         if (FIELD_EX32(env->cpucfg[2], CPUCFG2, FP)) {
             /* The FP minimal version is 1. */
@@ -761,16 +770,13 @@ static int kvm_loongarch_put_cpucfg(CPUState *cs)
 
     for (i = 0; i < 21; i++) {
 	if (i == 2) {
-            ret = kvm_check_cpucfg2(cs);
-            if (ret) {
-                return ret;
+            int r = kvm_check_cpucfg2(cs);
+            if (r) {
+                return r;
             }
 	}
         val = env->cpucfg[i];
-        ret = kvm_set_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
-        if (ret < 0) {
-            trace_kvm_failed_put_cpucfg(strerror(errno));
-        }
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
     }
     return ret;
 }
@@ -1418,17 +1424,19 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
-int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
+int kvm_arch_insert_gdbstub_hw_breakpoint(vaddr addr, vaddr len,
+                                          GdbBreakpointType type)
 {
     return -ENOSYS;
 }
 
-int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
+int kvm_arch_remove_gdbstub_hw_breakpoint(vaddr addr, vaddr len,
+                                          GdbBreakpointType type)
 {
     return -ENOSYS;
 }
 
-void kvm_arch_remove_all_hw_breakpoints(void)
+void kvm_arch_remove_all_gdbstub_hw_breakpoints(void)
 {
 }
 
@@ -1438,7 +1446,7 @@ static bool kvm_loongarch_handle_debug(CPUState *cs, struct kvm_run *run)
     CPULoongArchState *env = &cpu->env;
 
     kvm_cpu_synchronize_state(cs);
-    if (cs->singlestep_enabled) {
+    if (cpu_single_stepping(cs)) {
         return true;
     }
 

@@ -23,6 +23,8 @@ typedef struct MigPendingData {
     uint64_t postcopy_bytes;
     /* Amount of pending bytes can be transferred only in stopcopy */
     uint64_t stopcopy_bytes;
+    /* Number of new pending switchover ACKs */
+    uint32_t switchover_ack_pending;
     /*
      * Total pending data, modules do not need to update this field, it
      * will be automatically calculated by migration core API.
@@ -171,6 +173,28 @@ typedef struct SaveVMHandlers {
      */
     bool (*is_active_iterate)(void *opaque);
 
+    /**
+     * @save_query_pending
+     *
+     * This estimates the remaining data to transfer on the source side.
+     *
+     * When @exact is true, a module must report accurate results.  When
+     * @exact is false, a module may report estimates.
+     *
+     * It's highly recommended that modules implement a faster version of
+     * the query path (for example, by proper caching on the counters) if
+     * an accurate query will be time-consuming.
+     *
+     * @opaque: data pointer passed to register_savevm_live()
+     * @pending: pointer to a MigPendingData struct
+     * @exact: set to true for an accurate (slow) query
+     * @final: set to true for the final query during switchover. When final is
+     * true, the query is called with BQL locked. Otherwise, it's called with
+     * BQL unlocked.
+     */
+    void (*save_query_pending)(void *opaque, MigPendingData *pending,
+                               bool exact, bool final);
+
     /* This runs outside the BQL in the migration case, and
      * within the lock in the savevm case.  The callback had better only
      * use data that is local to the migration thread or protected
@@ -209,25 +233,6 @@ typedef struct SaveVMHandlers {
      * returned, @errp must be set.
      */
     bool (*save_postcopy_prepare)(QEMUFile *f, void *opaque, Error **errp);
-
-    /**
-     * @save_query_pending
-     *
-     * This estimates the remaining data to transfer on the source side.
-     *
-     * When @exact is true, a module must report accurate results.  When
-     * @exact is false, a module may report estimates.
-     *
-     * It's highly recommended that modules implement a faster version of
-     * the query path (for example, by proper caching on the counters) if
-     * an accurate query will be time-consuming.
-     *
-     * @opaque: data pointer passed to register_savevm_live()
-     * @pending: pointer to a MigPendingData struct
-     * @exact: set to true for an accurate (slow) query
-     */
-    void (*save_query_pending)(void *opaque, MigPendingData *pending,
-                               bool exact);
 
     /**
      * @load_state
@@ -298,19 +303,6 @@ typedef struct SaveVMHandlers {
      * Returns zero to indicate success and negative for error
      */
     int (*resume_prepare)(MigrationState *s, void *opaque);
-
-    /**
-     * @switchover_ack_needed
-     *
-     * Checks if switchover ack should be used. Called only on
-     * destination.
-     *
-     * @opaque: data pointer passed to register_savevm_live()
-     *
-     * Returns true if switchover ack should be used and false
-     * otherwise
-     */
-    bool (*switchover_ack_needed)(void *opaque);
 
     /**
      * @switchover_start

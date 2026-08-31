@@ -282,7 +282,9 @@ F: disas/hppa.c
 F: tests/tcg/hppa/
 
 LoongArch TCG CPUs
-M: Song Gao <gaosong@loongson.cn>
+M: Song Gao <17746591750@163.com>
+M: Bibo Mao <maobibo@loongson.cn>
+R: Xianglai Li <lixianglai@loongson.cn>
 S: Maintained
 F: target/loongarch/
 F: tests/docker/dockerfiles/debian-loongarch-cross.docker
@@ -355,7 +357,7 @@ M: Alistair Francis <alistair.francis@wdc.com>
 R: Weiwei Li <liwei1518@gmail.com>
 R: Daniel Henrique Barboza <daniel.barboza@oss.qualcomm.com>
 R: Liu Zhiwei <zhiwei_liu@linux.alibaba.com>
-R: Chao Liu <chao.liu.zevorn@gmail.com>
+R: Chao Liu <chao.liu@processmission.com>
 L: qemu-riscv@nongnu.org
 S: Supported
 F: configs/targets/riscv*
@@ -1362,8 +1364,9 @@ F: docs/devel/hexagon-sys.rst
 LoongArch Machines
 ------------------
 Virt
-M: Song Gao <gaosong@loongson.cn>
+M: Song Gao <17746591750@163.com>
 M: Bibo Mao <maobibo@loongson.cn>
+R: Xianglai Li <lixianglai@loongson.cn>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
 F: docs/system/loongarch/virt.rst
@@ -1665,7 +1668,7 @@ F: tests/functional/ppc64/test_tuxrun.py
 
 PowerNV (Non-Virtualized)
 M: Nicholas Piggin <npiggin@gmail.com>
-R: Aditya Gupta <adityag@linux.ibm.com>
+M: Aditya Gupta <adityag@linux.ibm.com>
 R: Glenn Miles <milesg@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
@@ -1792,6 +1795,19 @@ F: hw/*/*sifive*.c
 F: include/hw/*/*sifive*.h
 F: tests/functional/riscv64/test_sifive_u.py
 
+Tenstorrent Machines
+M: Joel Stanley <joel@jms.id.au>
+M: Nicholas Piggin <npiggin@gmail.com>
+R: Anirudh Srinivasan <asrinivasan@oss.tenstorrent.com>
+R: Michael Ellerman <mpe@kernel.org>
+R: Portia Stephens <portias@oss.tenstorrent.com>
+L: qemu-riscv@nongnu.org
+S: Supported
+F: docs/system/riscv/tt_*.rst
+F: hw/riscv/tt_*.c
+F: include/hw/riscv/tt_*.h
+F: tests/functional/riscv64/test_tt_*.py
+
 AMD Microblaze-V Generic Board
 M: Sai Pavan Boddu <sai.pavan.boddu@amd.com>
 S: Maintained
@@ -1806,7 +1822,7 @@ F: hw/riscv/xiangshan_kmh.c
 F: include/hw/riscv/xiangshan_kmh.h
 
 K230 Machines
-M: Chao Liu <chao.liu.zevorn@gmail.com>
+M: Chao Liu <chao.liu@processmission.com>
 L: qemu-riscv@nongnu.org
 S: Maintained
 F: docs/system/riscv/k230.rst
@@ -2125,6 +2141,15 @@ F: hw/net/can/xlnx-*
 F: include/hw/net/xlnx-*
 F: tests/qtest/xlnx-can*-test*
 
+FlexCAN
+M: Matyas Bobek <matyas.bobek@gmail.com>
+M: Pavel Pisa <pisa@cmp.felk.cvut.cz>
+S: Maintained
+F: hw/net/can/flexcan.c
+F: hw/net/can/flexcan_regs.h
+F: include/hw/net/flexcan.h
+F: tests/qtest/flexcan-test.c
+
 EDU
 M: Jiri Slaby <jslaby@suse.cz>
 S: Maintained
@@ -2318,6 +2343,7 @@ F: tests/qtest/virtio-scsi-test.c
 F: tests/qtest/fuzz-virtio-scsi-test.c
 F: tests/qtest/am53c974-test.c
 F: tests/qtest/fuzz-lsi53c895a-test.c
+F: tests/functional/x86_64/test_hotplug_scsi.py
 T: git https://github.com/bonzini/qemu.git scsi-next
 
 SSI
@@ -2660,6 +2686,7 @@ S: Supported
 F: hw/nvme/*
 F: include/block/nvme.h
 F: tests/qtest/nvme-test.c
+F: tests/functional/x86_64/test_nvme_migration.py
 F: docs/system/devices/nvme.rst
 T: git git://git.infradead.org/qemu-nvme.git nvme-next
 
@@ -2754,6 +2781,14 @@ pcf8574
 S: Orphan
 F: hw/gpio/pcf8574.c
 F: include/hw/gpio/pcf8574.h
+
+DesignWare I2C
+M: Chris Rauer <crauer@google.com>
+R: Alano Song <alanosong@163.com>
+R: Joel Stanley <joel@jms.id.au>
+S: Maintained
+F: hw/i2c/designware_i2c.c
+F: include/hw/i2c/designware_i2c.h
 
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
@@ -3311,6 +3346,7 @@ F: scripts/dump-guest-memory.py
 F: stubs/dump.c
 F: docs/specs/vmcoreinfo.rst
 F: tests/qtest/vmcoreinfo-test.c
+F: tests/qtest/dump-test.c
 
 Error reporting
 M: Markus Armbruster <armbru@redhat.com>
@@ -3388,13 +3424,16 @@ F: tests/unit/test-ram-discard-manager-stubs.c
 Memory devices
 M: David Hildenbrand <david@kernel.org>
 M: Igor Mammedov <imammedo@redhat.com>
+R: FangSheng Huang <FangSheng.Huang@amd.com>
 S: Supported
 F: hw/mem/memory-device*.c
 F: hw/mem/nvdimm.c
 F: hw/mem/pc-dimm.c
+F: hw/mem/sp-mem.c
 F: include/hw/mem/memory-device.h
 F: include/hw/mem/nvdimm.h
 F: include/hw/mem/pc-dimm.h
+F: include/hw/mem/sp-mem.h
 F: docs/nvdimm.txt
 
 SPICE
@@ -3640,6 +3679,7 @@ F: docs/interop/*qmp-*
 F: scripts/qmp/
 F: tests/qtest/qmp-test.c
 F: tests/qtest/qmp-cmd-test.c
+F: tests/functional/generic/test_monitor_hotplug.py
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 qtest
@@ -3774,7 +3814,7 @@ F: hw/pci/pcie_doe.c
 F: docs/specs/spdm.rst
 
 Checkpatch
-R: Chao Liu <chao.liu.zevorn@gmail.com>
+R: Chao Liu <chao.liu@processmission.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
 
@@ -4074,6 +4114,7 @@ F: include/hw/i386/intel_iommu.h
 F: tests/functional/x86_64/test_intel_iommu.py
 F: tests/qtest/intel-iommu-test.c
 F: tests/qtest/iommu-intel-test.c
+F: tests/qtest/iommu-intel-inv-test.c
 
 AMD-Vi Emulation
 M: Alejandro Jimenez <alejandro.j.jimenez@oracle.com>
