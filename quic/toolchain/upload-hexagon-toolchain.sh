@@ -1,60 +1,37 @@
 #!/usr/bin/env sh
+
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set -eu
+set -e
 
-# Check for required arguments
-if [ ${#} -ne 2 ]; then
-    printf "%s\n" "Usage: ${0} <tarball> <revision>" >&2
-    exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+readonly SCRIPT_DIR
 
-readonly TARBALL="${1}"
-readonly HEXAGON_TOOLCHAIN_REVISION="${2}"
-TARBALL_BASENAME="$(basename "${TARBALL}")"
-readonly TARBALL_BASENAME
+. "${SCRIPT_DIR}/../util/help.sh"
+. "${SCRIPT_DIR}/versions.sh"
 
-# Verify tarball exists
-if [ ! -f "${TARBALL}" ]; then
-    printf "%s\n" "Error: Tarball not found: ${TARBALL}" >&2
-    exit 1
-fi
+readonly HELP_MESSAGE="Usage: ${0}
 
-# Verify tarball ends with .tar.zst
-if ! printf "%s" "${TARBALL_BASENAME}" | grep -q '\.tar\.zst$'; then
-    printf "%s\n" "Error: must end with .tar.zst: ${TARBALL_BASENAME}" >&2
-    exit 1
-fi
+Requires GITLAB_TOOLCHAIN_UPLOAD_TOKEN to be set."
 
-# Configuration
+[ -z "${GITLAB_TOOLCHAIN_UPLOAD_TOKEN}" ] \
+    && print_help_error "GITLAB_TOOLCHAIN_UPLOAD_TOKEN missing"
+
+[ ! -f "${EXTENDED_TARBALL}" ] \
+    && print_help_error "Tarball not found: ${EXTENDED_TARBALL}"
+
+! printf "%s" "${EXTENDED_TARBALL}" | grep -q '\.tar\.zst$' \
+    && print_help_error "Tarball must end with .tar.zst: ${EXTENDED_TARBALL}"
+
 readonly GITLAB_URL="https://gitlab.qualcomm.com"
 readonly PROJECT_ID="qqvp%2Fqemu%2Fqemu"
-readonly PACKAGE_NAME="${TARBALL_BASENAME%.tar.zst}"
+readonly PACKAGE_NAME="${EXTENDED_TARBALL%.tar.zst}"
+readonly PACKAGE_BASE="${GITLAB_URL}/api/v4/projects/${PROJECT_ID}"
+readonly PACKAGE_PATH="packages/generic/${PACKAGE_NAME}/${EXTENDED_REVISION}"
+readonly UPLOAD_URL="${PACKAGE_BASE}/${PACKAGE_PATH}/${EXTENDED_TARBALL}"
 
-# Check for GITLAB_TOOLCHAIN_UPLOAD_TOKEN
-if [ -z "${GITLAB_TOOLCHAIN_UPLOAD_TOKEN:-}" ]; then
-    printf "%s\n" \
-        "Error: GITLAB_TOOLCHAIN_UPLOAD_TOKEN is not set." >&2
-    printf "%s\n" \
-        "  export GITLAB_TOOLCHAIN_UPLOAD_TOKEN=<token>" >&2
-    exit 1
-fi
-
-# Build the registry URL
-readonly PKG_BASE="${GITLAB_URL}/api/v4/projects/${PROJECT_ID}"
-readonly PKG_PATH="packages/generic/${PACKAGE_NAME}/${HEXAGON_TOOLCHAIN_REVISION}"
-readonly UPLOAD_URL="${PKG_BASE}/${PKG_PATH}/${TARBALL_BASENAME}"
-
-printf "%s\n" "Uploading to GitLab Package Registry..."
-if curl -f \
-    -H "PRIVATE-TOKEN: ${GITLAB_TOOLCHAIN_UPLOAD_TOKEN}" \
-    --upload-file "${TARBALL}" \
-    "${UPLOAD_URL}"; then
-    printf "%s\n" ""
-    printf "%s\n" "Upload successful!"
-else
-    printf "%s\n" "Error: Upload failed." >&2
-    exit 1
-fi
-
-printf "%s\n" "Download URL: ${UPLOAD_URL}"
+printf "%s\n" "Uploading to GitLab Package Registry ..."
+! curl --fail --header "PRIVATE-TOKEN: ${GITLAB_TOOLCHAIN_UPLOAD_TOKEN}" \
+    --upload-file "${EXTENDED_TARBALL}" "${UPLOAD_URL}" \
+    && print_help_error "Upload failed: ${UPLOAD_URL}"
