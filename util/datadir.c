@@ -102,6 +102,18 @@ void qemu_add_default_firmwarepath(void)
 
     /* try to find datadir relative to the executable path */
     qemu_add_data_dir(get_relocated_path(CONFIG_QEMU_DATADIR));
+
+#ifdef CONFIG_LIBQEMU
+    /*
+     * LibQemu can be embedded in an executable that is not installed below
+     * QEMU's configured bindir. Keep the configured data directory as a
+     * fallback for build-tree users while retaining the relocated path as
+     * the preferred path for installed executables.
+     */
+    if (g_file_test(CONFIG_QEMU_DATADIR, G_FILE_TEST_IS_DIR)) {
+        qemu_add_data_dir(g_strdup(CONFIG_QEMU_DATADIR));
+    }
+#endif /* CONFIG_LIBQEMU */
 }
 
 void qemu_list_data_dirs(void)
