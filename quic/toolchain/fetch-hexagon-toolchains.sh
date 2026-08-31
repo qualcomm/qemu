@@ -1,28 +1,44 @@
 #!/usr/bin/env sh
+
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set -eu
+set -e
 
-BAREMETAL_VER="${1:-21.0.03}"
-readonly BAREMETAL_VER
-MUSL_VER="${2:-22.1.4}"
-readonly MUSL_VER
+SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+readonly SCRIPT_DIR
 
-readonly BAREMETAL_SRC="/pkg/qct/software/hexagon/releases/tools/${BAREMETAL_VER}"
-readonly MUSL_URL="https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/${MUSL_VER}_/clang+llvm-${MUSL_VER}-cross-hexagon-unknown-linux-musl.tar.zst"
+. "${SCRIPT_DIR}/../util/help.sh"
+. "${SCRIPT_DIR}/versions.sh"
 
-if [ ! -d "${BAREMETAL_SRC}" ]; then
-    printf "Error: %s not found.\n" "${BAREMETAL_SRC}" >&2
-    printf "Run from a host with /pkg/qct/software/hexagon mounted.\n" >&2
-    exit 1
-fi
-printf "Copying baremetal toolchain %s...\n" "${BAREMETAL_VER}"
-mkdir -p "./${BAREMETAL_VER}"
-cp -a "${BAREMETAL_SRC}/Tools" "./${BAREMETAL_VER}/Tools"
+HELP_MESSAGE="Usage: ${0}
 
-printf "Downloading musl toolchain %s...\n" "${MUSL_VER}"
-curl -fSL "${MUSL_URL}" | tar -I zstd -xf -
+Fetch the baremetal and Linux/musl Hexagon toolchains.
 
-printf "Done.\n"
-printf "  Baremetal: ./%s/Tools\n" "${BAREMETAL_VER}"
-printf "  Musl:      ./clang+llvm-%s-cross-hexagon-unknown-linux-musl/x86_64-linux-gnu\n" "${MUSL_VER}"
+Requires access to: /prj/qct/llvm/release/internal/HEXAGON"
+
+readonly BAREMETAL_SRC_PATH="/prj/qct/llvm/release/internal/HEXAGON/\
+${BAREMETAL_BRANCH}/linux64/${BAREMETAL_TOOLSET}"
+[ ! -d "${BAREMETAL_SRC_PATH}" ] \
+    &&  print_help_error "${BAREMETAL_SRC_PATH} not found."
+
+mkdir -p "${BAREMETAL_DST_PATH}"
+
+printf 'Copying baremetal toolchain %s to %s ...\n' \
+    "${BAREMETAL_SRC_PATH}" "${BAREMETAL_DST_PATH}"
+cp --archive "${BAREMETAL_SRC_PATH}/Tools/." "${BAREMETAL_DST_PATH}"
+
+readonly MUSL_TARBALL="clang+llvm-${MUSL_VERSION}\
+-cross-hexagon-unknown-linux-musl.tar.zst"
+readonly MUSL_URL="https://artifacts.codelinaro.org/artifactory/\
+codelinaro-toolchain-for-hexagon/${MUSL_VERSION}_/${MUSL_TARBALL}"
+
+mkdir -p "${MUSL_DST_PATH}"
+
+printf "Downloading musl toolchain %s to %s ...\n" \
+    "${MUSL_VERSION}" "${MUSL_DST_PATH}/${MUSL_TARBALL}"
+curl --silent --fail --show-error --output "${MUSL_DST_PATH}/${MUSL_TARBALL}" \
+    --location "${MUSL_URL}"
+tar --use-compress-program=zstd --extract --directory="${MUSL_DST_PATH}" \
+    --file="${MUSL_DST_PATH}/${MUSL_TARBALL}" --strip-components=2
+rm -rf "${MUSL_DST_PATH:?}/${MUSL_TARBALL:?}"
