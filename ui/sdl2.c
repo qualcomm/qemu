@@ -136,7 +136,8 @@ void sdl2_gl_create(struct sdl2_console *scon)
         scon->winctx = SDL_GL_CreateContext(scon->real_window);
         SDL_GL_SetSwapInterval(0);
 
-#ifdef CONFIG_OPENGL
+#if defined(CONFIG_OPENGL) && \
+    (defined(CONFIG_X11) || defined(CONFIG_GBM) || defined(WIN32))
         qemu_egl_display = eglGetCurrentDisplay();
 #endif
     } else {
