@@ -138,7 +138,8 @@ void sdl2_gl_create(struct sdl2_console *scon)
         scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
     }
 
-#ifdef CONFIG_OPENGL
+#if defined(CONFIG_OPENGL) && \
+    (defined(CONFIG_X11) || defined(CONFIG_GBM) || defined(WIN32))
     qemu_egl_display = eglGetCurrentDisplay();
 #endif
 
