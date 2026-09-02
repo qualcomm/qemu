@@ -4530,6 +4530,24 @@ endforeach
 multi_target_link_args = emulator_link_args
 multi_target_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
 
+if multi_target_objects != []
+  executable('qemu-system',
+             sources: [multi_target_crates, files('system/main.c')],
+             dependencies: multi_target_deps,
+             objects: multi_target_objects,
+             link_depends: [block_syms, qemu_syms],
+             link_args: multi_target_link_args)
+else
+  error_str = f'''qemu-system only support targets:
+@multi_target_supported_targets@
+
+use ./configure --target-list= to choose at least one of them'''
+  t = custom_target(command: ['sh', '-c', 'echo "' + error_str + '" && exit 1'],
+                    output: 'none',
+                    build_by_default: false)
+  alias_target('qemu-system', t)
+endif
+
 if get_option('plugins')
   install_headers('include/plugins/qemu-plugin.h')
   if host_os == 'windows'
