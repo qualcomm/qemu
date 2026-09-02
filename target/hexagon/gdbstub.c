@@ -65,6 +65,11 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         return 4;
     }
 
+    if (n == HEX_REG_PC) {
+        cpu_set_pc(cs, ldl_le_p(mem_buf));
+        return 4;
+    }
+
     if (n < TOTAL_PER_THREAD_REGS) {
         env->gpr[n] = ldl_le_p(mem_buf);
         return 4;
@@ -112,7 +117,8 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     n -= NUM_SREGS;
 
     if (n < NUM_GREGS) {
-        return env->greg[n] = ldl_p(mem_buf);
+        env->greg[n] = ldl_p(mem_buf);
+        return sizeof(target_ulong);
     }
     n -= NUM_GREGS;
 

@@ -153,4 +153,3 @@ $(TESTS):
 	$(call build_fn,$<,$@)
 %.o: %.cpp
 	$(call build_fn,$<,$@)
-

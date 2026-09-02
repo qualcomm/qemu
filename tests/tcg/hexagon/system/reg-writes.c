@@ -51,7 +51,7 @@ void __attribute__((naked, noreturn)) finalize(void)
         "if (!p0) call #failed\n"
 
         "r0 = imask\n"
-        "p0 = cmp.eq(r0, #%0)\n"
+        "p0 = cmp.eq(r0, #0x5678)\n"
         "if (!p0) call #failed\n"
 
         "call #passed\n"
