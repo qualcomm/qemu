@@ -444,7 +444,7 @@ void hexagon_stop_thread(CPUHexagonState *env)
     thread_enabled_mask = clear_enable_mask(env);
     cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
-    if (!thread_enabled_mask) {
+    if (!thread_enabled_mask && !env_archcpu(env)->vp_mode) {
         /* All threads are stopped, request shutdown */
         qemu_system_shutdown_request_with_code(
             SHUTDOWN_CAUSE_GUEST_SHUTDOWN, get_thread0_r2());
