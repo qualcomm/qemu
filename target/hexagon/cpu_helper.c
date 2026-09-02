@@ -452,12 +452,14 @@ void hexagon_stop_thread(CPUHexagonState *env)
     CPUState *cs = env_cpu(env);
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     if (!thread_enabled_mask) {
-        /* All threads are stopped, request shutdown */
-        if (cpu->dump_json_file) {
-            hexagon_dump_json(env);
+        if (!cpu->vp_mode) {
+            /* All threads are stopped, request shutdown */
+            if (cpu->dump_json_file) {
+                hexagon_dump_json(env);
+            }
+            qemu_system_shutdown_request_with_code(
+                SHUTDOWN_CAUSE_GUEST_SHUTDOWN, get_thread0_r2());
         }
-        qemu_system_shutdown_request_with_code(
-            SHUTDOWN_CAUSE_GUEST_SHUTDOWN, get_thread0_r2());
     }
 }
 

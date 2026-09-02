@@ -190,9 +190,6 @@ static void hexagon_init_bootstrap(HexagonDspMachineState *dms,
                 physical_memory_write(dms->isdb_trusted_flag, &mem, sizeof(mem));
             }
         }
-    } else if (!qtest_enabled()) {
-        error_report("kernel image must be given with -kernel");
-        exit(1);
     } else if (*hex_ver == HEX_VER_ANY) {
         *hex_ver = glue(HEX_VER_, HEXAGON_LATEST_REV_UPPER);
     }
@@ -501,6 +498,11 @@ static void hexagon_common_init(MachineState *machine,
         if (i != 0 && cpus[0]->usefs) {
             qdev_prop_set_string(DEVICE(cpu), "usefs", cpus[0]->usefs);
         }
+    }
+
+    if (!machine->kernel_filename && !cpus[0]->vp_mode && !qtest_enabled()) {
+        error_report("kernel image must be given with -kernel");
+        exit(1);
     }
 
     QCTQtimerState *qtimer = QCT_QTIMER(qdev_new(TYPE_QCT_QTIMER));

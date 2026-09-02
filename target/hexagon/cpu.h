@@ -482,6 +482,7 @@ struct ArchCPU {
     bool cacheop_exceptions;
     gchar *usefs;
     gchar *cmdline;
+    bool vp_mode;
     bool enable_semihosting;
     L2VicInterface *l2vic;
     hwaddr vtcm_base_addr;
