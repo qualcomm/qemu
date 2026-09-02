@@ -1507,6 +1507,13 @@ probe_target_compiler() {
     : ${container_cross_strip:=${container_cross_prefix}strip}
   done
 
+  case $target in
+    hexagon-linux-user)
+      cross_cc_hexagon=hexagon-unknown-linux-musl-clang ;;
+    hexagon-softmmu)
+      cross_cc_hexagon=hexagon-clang ;;
+  esac
+
   try=cross
   # For softmmu/roms also look for a bi-endian or multilib-enabled host compiler
   if [ "${1%softmmu}" != "$1" ] || test "$target_arch" = "$cpu"; then
