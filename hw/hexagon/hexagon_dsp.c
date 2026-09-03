@@ -593,19 +593,6 @@ static void init_mc(MachineClass *mc)
     qemu_semihosting_enable();
 }
 
-static void machcfg_disable_coproc(struct hexagon_machine_config *cfg)
-{
-    cfg->cfgtable.coproc2_reg0 = 0;
-    cfg->cfgtable.coproc2_reg1 = 0;
-    cfg->cfgtable.coproc2_reg2 = 0;
-    cfg->cfgtable.coproc2_reg3 = 0;
-    cfg->cfgtable.coproc2_reg4 = 0;
-    cfg->cfgtable.coproc2_reg5 = 0;
-    cfg->cfgtable.coproc2_reg6 = 0;
-    cfg->cfgtable.coproc2_reg7 = 0;
-    cfg->cfgtable.coproc2_cvt_mpy_size = 0;
-}
-
 /* ----------------------------------------------------------------- */
 /* Core-specific configuration settings are defined below this line. */
 /* Config table values defined in machine_configs.h.inc              */
@@ -901,19 +888,6 @@ static void v75na_1024_config_init(MachineState *machine)
     hexagon_common_init(machine, &v75na_1024);
 }
 
-static void sim_nocoproc_config_init(MachineState *machine)
-{
-    struct hexagon_machine_config v81dgb_1_nocoproc;
-    memcpy(&v81dgb_1_nocoproc, &v81dgb_1, sizeof(v81dgb_1));
-    machcfg_disable_coproc(&v81dgb_1_nocoproc);
-    hexagon_common_init(machine, &v81dgb_1_nocoproc);
-}
-
-static void sim_coproc_config_init(MachineState *machine)
-{
-    hexagon_common_init(machine, &v75na_1024);
-}
-
 static void v75na_1024_linux_config_init(MachineState *machine)
 {
     syscfg_is_linux = true;
@@ -1177,7 +1151,8 @@ static void v81na_2_init(ObjectClass *oc, const void *data)
 
     mc->desc = "Hexagon V81NA_2";
     mc->init = v81na_2_config_init;
-    mc->is_default = false;
+    mc->alias = "sim";
+    mc->is_default = true;
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
     mc->default_cpus = 12;
@@ -1196,37 +1171,11 @@ static void v81dgb_1_init(ObjectClass *oc, const void *data)
 
     mc->desc = "Hexagon V81DGB_1";
     mc->init = v81dgb_1_config_init;
-    mc->is_default = false;
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
     mc->default_cpus = 12;
     mc->max_cpus = THREADS_MAX;
     mc->default_ram_size = 4 * GiB;
-}
-
-static void sim_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "Hexagon Sim-like";
-    mc->init = sim_nocoproc_config_init;
-    init_mc(mc);
-    mc->is_default = true;
-    mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
-        HEXAGON_LATEST_REV_UPPER);
-    mc->default_cpus = 6;
-}
-
-static void sim_coproc_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "Hexagon Sim-like COPROC";
-    mc->init = sim_coproc_config_init;
-    init_mc(mc);
-    mc->default_cpu_type = glue(TYPE_HEXAGON_CPU_,
-        HEXAGON_LATEST_REV_UPPER);
-    mc->default_cpus = 6;
 }
 
 static const TypeInfo hexagon_machine_types[] = {
@@ -1322,14 +1271,6 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("SA8797P_NSP0"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = SA8797P_nsp0_init,
-    }, {
-        .name = MACHINE_TYPE_NAME("sim"),
-        .parent = TYPE_HEXAGON_DSP_MACHINE,
-        .class_init = sim_init,
-    }, {
-        .name = MACHINE_TYPE_NAME("sim_coproc"),
-        .parent = TYPE_HEXAGON_DSP_MACHINE,
-        .class_init = sim_coproc_init,
     },
 };
 

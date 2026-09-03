@@ -538,10 +538,10 @@ class SysTestsStandaloneTests(QemuSystemTest):
         "pending Q6_mxmem2_bias_A intrinsic support"
     )
     def test_vwctrl(self):
-        self.run_console_pattern("vwctrl", "PASS", machine="sim_coproc")
+        self.run_console_pattern("vwctrl", "PASS", machine="sim")
 
     def test_invalid_hmx(self):
-        self.run_exit_zero("invalid_hmx", machine="sim_coproc")
+        self.run_exit_zero("invalid_hmx", machine="sim")
 
     def test_neg_unaligned(self):
         self.run_expect_exit_nonzero("unaligned", r"0x20|Misaligned Load")

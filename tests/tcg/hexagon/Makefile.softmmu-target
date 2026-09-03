@@ -44,9 +44,9 @@ coproc_conv_asm.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_conv_fp16.o: EXTRA_TEST_CFLAGS= -mhmx
 coproc_range.o: EXTRA_TEST_CFLAGS= -mhmx
 
-run-coproc_conv:QEMU_EXTRA_OPTS=-M sim_coproc
+run-coproc_conv:QEMU_EXTRA_OPTS=-M sim
 run-coproc_range:QEMU_EXTRA_OPTS=-M V68N_1024
-run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim_coproc
+run-coproc_conv_fp16:QEMU_EXTRA_OPTS=-M sim
 
 run-coproc_conv: coproc_conv
 run-coproc_range: coproc_range

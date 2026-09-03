@@ -47,7 +47,7 @@
         "prog-args": [],
         "qemu-args": [
             "-M",
-            "sim_coproc",
+            "sim",
             "-cpu",
             "v73",
             "-append",
@@ -70,7 +70,7 @@
         "prog-args": [],
         "qemu-args": [
             "-M",
-            "sim_coproc",
+            "sim",
             "-cpu",
             "v73",
             "-append",
@@ -90,7 +90,7 @@
         "prog-args": [],
         "qemu-args": [
             "-M",
-            "sim_coproc",
+            "sim",
             "-cpu",
             "v73",
             "-append",
