@@ -240,6 +240,8 @@ def cross_build(prefix, targets):
 # Please keep each group sorted alphabetically for easy reading.
 #
 
+DOCKER_IO_AMD64 = "docker.io/amd64"
+
 try:
     #
     # Standard native builds
@@ -264,6 +266,7 @@ try:
     # Cross compiling builds
     #
     generate_dockerfile("debian-amd64-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         cross="x86_64",
                         trailer=cross_build("x86_64-linux-gnu-",
                                             "x86_64-softmmu,"
@@ -281,6 +284,7 @@ try:
                                             "arm-softmmu,arm-linux-user"))
 
     generate_dockerfile("debian-i686-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         cross="i686",
                         trailer=cross_build("i686-linux-gnu-",
                                             "i386-softmmu,i386-linux-user"))
@@ -313,9 +317,11 @@ try:
     # tests.
 
     generate_dockerfile("debian-all-test-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         project="qemu-minimal",
                         enable_rust=False,
                         trailer=debian_all_test_cross_compilers)
+
 
     #
     # GitLab packages lists

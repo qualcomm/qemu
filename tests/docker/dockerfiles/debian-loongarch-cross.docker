@@ -4,7 +4,7 @@
 # This docker target uses prebuilt toolchains for LoongArch64 from:
 # https://github.com/loongson/build-tools/releases
 #
-FROM docker.io/library/debian:13-slim
+FROM docker.io/amd64/debian:13-slim
 
 # Add deb-src repository sources
 RUN sed -i "s/^Types: deb$/Types: deb deb-src/" \
