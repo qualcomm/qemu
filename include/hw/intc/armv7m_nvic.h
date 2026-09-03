@@ -41,6 +41,14 @@ struct NVICState {
 
     ARMCPU *cpu;
 
+    /*
+     * Embedded SysTick state for standalone NVIC use (without ARMv7M container).
+     * These registers are at offsets 0x10-0x1C within the NVIC MMIO region.
+     */
+    uint32_t systick_csr;   /* Control and Status Register */
+    uint32_t systick_rvr;   /* Reload Value Register */
+    int64_t  systick_reload_time_ns; /* Virtual time when CVR was last reset */
+
     VecInfo vectors[NVIC_MAX_VECTORS];
     /* If the v8M security extension is implemented, some of the internal
      * exceptions are banked between security states (ie there exists both
