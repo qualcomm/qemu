@@ -626,6 +626,13 @@ void HELPER(wfe)(CPUARMState *env, uint32_t insn_len)
         return;
     }
 
+#ifdef CONFIG_LIBQEMU
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        HELPER(yield)(env);
+        return;
+    }
+#endif
+
     /* For A-profile we also can be woken by the event stream */
     if (cpu->wfxt_timer) {
         int64_t next_event = gt_calc_next_event_stream(env);
