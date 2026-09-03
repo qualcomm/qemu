@@ -28,6 +28,7 @@
 constexpr int COPROC_RPC_VERSION = 10;
 
 #if defined(__unix__) || defined(__APPLE__)
+#include <poll.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -122,14 +123,37 @@ class RemoteRPC
     {
         unsigned short coproc_port = 0;
 #if defined(__unix__) || defined(__APPLE__)
+        struct pollfd pfd = {coproc_pipe.read_end, POLLIN, 0};
+        auto poll_ret = poll(&pfd, 1, 3000);
+        if (poll_ret == 0) {
+            std::cerr
+            << "Timed out waiting for coproc rpc server port, possible version mismatch"
+            << std::endl;
+            std::exit(EXIT_FAILURE);
+        } else if (poll_ret < 0) {
+            std::cerr << "poll() failed waiting for coproc rpc server port: "
+            << std::strerror(errno) << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
         auto ret =
             read(coproc_pipe.read_end, &coproc_port, sizeof(coproc_port));
         if (-1 == ret) {
             std::cerr << "Failed to read coproc rpc server port: "
-                      << std::strerror(errno) << std::endl;
+            << std::strerror(errno) << std::endl;
             std::exit(EXIT_FAILURE);
         }
 #elif _WIN32
+        auto wait_ret = WaitForSingleObject(coproc_pipe.read_end, 3000);
+        if (wait_ret == WAIT_TIMEOUT) {
+            std::cerr
+            << "Timed out waiting for coproc rpc server port, possible version mismatch"
+            << std::endl;
+            std::exit(EXIT_FAILURE);
+        } else if (wait_ret == WAIT_FAILED) {
+            std::cerr << "Wait failed for coproc rpc server port: "
+            << GetLastError() << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
         DWORD bytes_read;
         auto ret = ReadFile(coproc_pipe.read_end, &coproc_port,
                             sizeof(coproc_port), &bytes_read, NULL);
