@@ -81,11 +81,10 @@ foreach ($pkg in $winConfig.packages) {
     }
 }
 
-# Create a temporary directory for downloads
-$tempDir = "temp_deps"
-if (Test-Path $tempDir) {
-    Remove-Item -Path $tempDir -Recurse -Force
-}
+# Create a unique temporary directory for downloads. GetTempPath() uses the
+# user's Windows temp directory, normally %LOCALAPPDATA%\Temp or %TEMP%.
+$tempDir = Join-Path ([System.IO.Path]::GetTempPath()) `
+    ("qemu-deps-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
 # Download and extract each package
