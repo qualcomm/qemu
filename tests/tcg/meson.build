@@ -273,6 +273,8 @@ foreach target, plan: tcg_tests
       if get_option('container_registry') != ''
         cmd += ['--registry', get_option('container_registry')]
       endif
+      # ensure container is reproducible, works with podman only
+      cmd += ['--timestamp', '0']
       t = custom_target(image_name, command: cmd,
                         build_by_default: false,
                         console: true,
