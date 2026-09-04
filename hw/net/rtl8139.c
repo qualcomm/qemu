@@ -92,6 +92,10 @@ static inline G_GNUC_PRINTF(1, 2) int DPRINTF(const char *fmt, ...)
 
 #define TYPE_RTL8139 "rtl8139"
 
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 OBJECT_DECLARE_SIMPLE_TYPE(RTL8139State, RTL8139)
 
 /* Symbolic offsets to registers. */

@@ -1345,8 +1345,12 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     case MADV_UNMERGEABLE:
     case MADV_HUGEPAGE:
     case MADV_NOHUGEPAGE:
+#ifdef MADV_POPULATE_READ
     case MADV_POPULATE_READ:
+#endif
+#ifdef MADV_POPULATE_WRITE
     case MADV_POPULATE_WRITE:
+#endif
 #ifdef MADV_COLLAPSE
     case MADV_COLLAPSE:
 #endif
