@@ -264,6 +264,7 @@ foreach target, plan: tcg_tests
     image_name = 'image-' + cc_dockerfile
     if cc_dockerfile not in image_targets and docker_supported
       cmd = [docker_wrapper, 'build', docker_platform,
+             '--timestamp', '0',
              '-f', dockerfile, '-t', cc_dockerfile]
       t = custom_target(image_name, command: cmd,
                         build_by_default: false,
