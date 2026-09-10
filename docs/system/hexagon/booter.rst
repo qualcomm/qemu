@@ -93,29 +93,23 @@ virtual address (``ANGEL_VA``, ``0xffd00000``): it writes the request
 there and then polls the same location in a loop, waiting for
 ``hexagon-sim`` to service the request and clear the flag.
 
-QEMU does not implement this mailbox protocol.  Instead, the ``sim``
-machine backs the mailbox with a stub device
-(``hw/hexagon/hexagon-angel-mbox.c``) that always reads back a cleared
-busy flag, unblocking ``booter``'s poll loop without actually servicing
-the request: console output text, exit codes, and any other request
-content written to the mailbox are discarded.  This is enough for
-``booter`` to make progress and run to completion, but any output or
-behavior that depends on the angel/semihosting request actually being
-serviced (e.g. console text printed via that path) will not appear.
+QEMU does not implement this mailbox protocol, so ``booter``'s poll loop
+never observes the busy flag being cleared and spins forever.  Nothing
+can reasonably be mapped at physical address ``0`` to stub it out
+either: that is where ``-M sim`` guest images are loaded (they link at,
+and reset to, ``0x0``).  To run H2's test suite, use ``hexagon-sim`` as
+described above.
 
-Note that ``ANGEL_VA`` is nested inside a coarser TLB entry that
-``booter`` installs for ``Q6_SS_BASE_VA`` (``0xffc00000``), mapped to
-the machine's ``csr_base``.  On real hardware and under ``hexagon-sim``,
-the more specific ``ANGEL_VA`` entry takes priority, but QEMU's TLB
-lookup matches the coarser entry first, so accesses to ``ANGEL_VA``
-actually resolve to an offset within the ``csr_base`` window rather than
-to physical address ``0`` as ``booter`` intends.  The stub device is
-mapped at ``csr_base`` to account for this.  Running, e.g.::
-
-  qemu-system-hexagon -M sim -kernel pc-bios/booter_v81 -append test.elf \
-      -semihosting -semihosting-config target=native
-
-now boots and runs ``booter`` instead of hanging.  To run H2's test
-suite with full semihosting fidelity (including its own console
-output), continue to use ``hexagon-sim`` as described above.
+Note also that with H2 built for a 4MB ``DEVICE_PAGE_SIZE``, ``ANGEL_VA``
+falls *inside* the coarser TLB entry that ``booter`` installs for
+``Q6_SS_BASE_VA`` (``0xffc00000``).  Two valid entries then match the
+same virtual address, which is a multi-TLB match, not a most-specific-
+wins lookup: ``hexagon-sim`` reports ``0x44, Multiple TLB match`` for a
+fine entry nested inside a coarse one, and QEMU raises the same
+architectural imprecise exception
+(``HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH``).  Since ``booter``'s angel
+handler is itself reached through that mapping, the result is a double
+exception.  The fix belongs on the H2 side -- either keep the device
+page small enough that it does not reach ``ANGEL_VA``, or move
+``ANGEL_VA``/``Q6_SS_BASE_VA`` apart.
 
