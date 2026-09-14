@@ -1028,6 +1028,46 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
          * non-retentive power state, which allows us to RAZ/WI this.
          */
         return 0;
+    case 0x10: /* SysTick Control and Status Register */
+    {
+        uint32_t csr = s->systick_csr;
+        /* Clear COUNTFLAG on read */
+        s->systick_csr &= ~(1u << 16);
+        return csr;
+    }
+    case 0x14: /* SysTick Reload Value Register */
+        return s->systick_rvr;
+    case 0x18: /* SysTick Current Value Register */
+    {
+        uint32_t rvr = s->systick_rvr;
+        if (rvr == 0 || !(s->systick_csr & 1)) {
+            return 0;
+        }
+        /* Compute CVR based on elapsed virtual time since last reload.
+         * cpu_freq_hz defaults to 19.2 MHz (period = ~52 ns per tick).
+         * CVR counts down from RVR to 0.
+         */
+        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t elapsed_ns = now_ns - s->systick_reload_time_ns;
+        /* Use 19.2 MHz as default CPU frequency (52.08 ns per tick) */
+        uint64_t ticks_elapsed = (uint64_t)elapsed_ns * 192 / 10000;
+        uint64_t period = (uint64_t)rvr + 1;
+        uint64_t ticks_in_period = ticks_elapsed % period;
+        /* CVR counts down: starts at RVR, wraps to RVR after reaching 0 */
+        uint32_t cvr = (uint32_t)(rvr - ticks_in_period);
+        /* Check if we wrapped (COUNTFLAG) */
+        if (ticks_elapsed >= period) {
+            s->systick_csr |= (1u << 16); /* Set COUNTFLAG */
+            /* Update reload time to last wrap point */
+            uint64_t wraps = ticks_elapsed / period;
+            s->systick_reload_time_ns = now_ns -
+                (int64_t)((ticks_elapsed - wraps * period) * 10000 / 192);
+        }
+        return cvr;
+    }
+    case 0x1c: /* SysTick Calibration Value Register */
+        /* Report 19200 ticks per 1ms (19.2 MHz) */
+        return 0x4AFF; /* 19199 = 0x4AFF, TENMS field */
     case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
     {
         int startvec = 8 * (offset - 0x380) + NVIC_FIRST_IRQ;
@@ -1585,6 +1625,25 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             goto bad_offset;
         }
         /* Make the IMPDEF choice to RAZ/WI this. */
+        break;
+    case 0x10: /* SysTick Control and Status Register */
+    {
+        uint32_t old_csr = s->systick_csr;
+        /* Only bits 0-2 are writable (ENABLE, TICKINT, CLKSOURCE) */
+        s->systick_csr = (s->systick_csr & ~0x7u) | (value & 0x7u);
+        /* If ENABLE transitions 0->1, reset the reload time */
+        if (!(old_csr & 1) && (s->systick_csr & 1)) {
+            s->systick_reload_time_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        }
+        break;
+    }
+    case 0x14: /* SysTick Reload Value Register */
+        s->systick_rvr = value & 0xFFFFFF;
+        break;
+    case 0x18: /* SysTick Current Value Register */
+        /* Writing any value clears CVR and COUNTFLAG, resets reload time */
+        s->systick_csr &= ~(1u << 16);
+        s->systick_reload_time_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         break;
     case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
     {
@@ -2696,6 +2755,11 @@ static void armv7m_nvic_reset(DeviceState *dev)
          */
         arm_rebuild_hflags(&s->cpu->env);
     }
+
+    /* Reset embedded SysTick state */
+    s->systick_csr = 0;
+    s->systick_rvr = 0;
+    s->systick_reload_time_ns = 0;
 }
 
 static void nvic_systick_trigger(void *opaque, int n, int level)
