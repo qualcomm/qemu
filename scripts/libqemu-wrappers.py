@@ -36,7 +36,13 @@ class PrivateInclude:
     def gen():
         for i in PrivateInclude.includes:
             if i.arch:
-                gen_c('#ifdef TARGET_{}'.format(i.arch.upper()))
+                # Support multiple architectures separated by '|'
+                if '|' in i.arch:
+                    archs = [a.strip() for a in i.arch.split('|')]
+                    conditions = ' || '.join(['defined(TARGET_{})'.format(a.upper()) for a in archs])
+                    gen_c('#if {}'.format(conditions))
+                else:
+                    gen_c('#ifdef TARGET_{}'.format(i.arch.upper()))
             gen_c('#include "{}"'.format(i.path))
             if i.arch:
                 gen_c('#endif')
@@ -296,7 +302,13 @@ def gen_fill_fct():
 
     for f in ExportedFct.fcts.values():
         if f.arch:
-            gen_c('#ifdef TARGET_{}'.format(f.arch.upper()))
+            # Support multiple architectures separated by '|'
+            if '|' in f.arch:
+                archs = [a.strip() for a in f.arch.split('|')]
+                conditions = ' || '.join(['defined(TARGET_{})'.format(a.upper()) for a in archs])
+                gen_c('#if {}'.format(conditions))
+            else:
+                gen_c('#ifdef TARGET_{}'.format(f.arch.upper()))
 
         gen_c('exports->{name} = ({cast}) {target};'.format(
             name = f.pub,

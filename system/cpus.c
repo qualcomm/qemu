@@ -514,6 +514,23 @@ void qemu_cpu_kick(CPUState *cpu)
 
 #ifdef CONFIG_LIBQEMU
     libqemu_cpu_kick_cb(cpu);
+    /*
+     * Send SIG_IPI directly to the RR CPU thread to break self-chained
+     * TCG translation blocks when a real interrupt is pending.
+     * Bypass cpus_kick_thread()'s thread_kicked guard so that a
+     * hardware interrupt (CPU_INTERRUPT_HARD) always delivers a signal
+     * even if a deadline-timer kick just set thread_kicked=true.
+     * Guard against the case where the CPU thread has not yet been
+     * created (cpu->thread->thread == 0) to avoid a crash in pthread_kill.
+     */
+    if (cpu->thread && cpu->thread->thread) {
+#ifndef _WIN32
+        int err = pthread_kill(cpu->thread->thread, SIG_IPI);
+        if (err && err != ESRCH) {
+            fprintf(stderr, "qemu:%s: %s\n", __func__, strerror(err));
+        }
+#endif
+    }
 #endif
 
     if (cpus_accel->kick_vcpu_thread) {
