@@ -8,6 +8,7 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu.h"
 #include "system/cpus.h"
 #include "internal.h"
