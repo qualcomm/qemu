@@ -718,6 +718,8 @@ static const ARMCPRegInfo cortex_r52_cp_reginfo[] = {
     { .name = "IMP_CDBGICD",
       .cp = 15, .opc1 = 3, .crn = 15, .crm = 4, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NOP, .resetvalue = 0 },
+      { .name = "DCACHE_INVAL", .cp = 15, .opc1 = 0, .crn = 15, .crm = 5,
+      .opc2 = 0, .access = PL1_W, .type = ARM_CP_NOP },
 };
 
 
