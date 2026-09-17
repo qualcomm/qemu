@@ -21,11 +21,13 @@ EXTRA_RUNS =
 CFLAGS += -Wno-incompatible-pointer-types -Wno-undefined-internal
 CFLAGS += -fno-unroll-loops -fno-stack-protector
 
+LDFLAGS += -no-pie
+
 HEX_SRC=$(SRC_PATH)/tests/tcg/hexagon
 VPATH += $(HEX_SRC)
 
 %: $(HEX_SRC)/%.S $(HEX_SRC)/crt.S
-	$(CC) -static -mv67 -nostdlib $^ -o $@
+	$(CC) -static -no-pie -mv67 -nostdlib $^ -o $@
 
 HEX_TESTS = first
 HEX_TESTS += hello
