@@ -2402,8 +2402,8 @@ void HELPER(cpu_limit)(CPUHexagonState *env, target_ulong PC,
     if (ready_count > 1 &&
         env->exec_ctr_tb >= HEXAGON_TB_EXEC_PER_CPU_MAX) {
         env->gpr[HEX_REG_PC] = next_PC;
-        hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
         env->exec_ctr_tb = 0;
+        hexagon_raise_exception_err(env, EXCP_YIELD, next_PC);
     }
     env->last_cpu = env->threadId;
 }
