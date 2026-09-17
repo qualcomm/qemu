@@ -2560,7 +2560,7 @@ static void pmsav8r_regn_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     ARMCPU *cpu = env_archcpu(env);
-    uint8_t index = (extract32(ri->opc0, 0, 1) << 4) |
+    uint8_t index = (extract32(ri->opc1, 0, 1) << 4) |
                     (extract32(ri->crm, 0, 3) << 1) | extract32(ri->opc2, 2, 1);
 
     tlb_flush(CPU(cpu)); /* Mappings may have changed - purge! */
@@ -2589,7 +2589,7 @@ static void pmsav8r_regn_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static uint64_t pmsav8r_regn_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = env_archcpu(env);
-    uint8_t index = (extract32(ri->opc0, 0, 1) << 4) |
+    uint8_t index = (extract32(ri->opc1, 0, 1) << 4) |
                     (extract32(ri->crm, 0, 3) << 1) | extract32(ri->opc2, 2, 1);
 
     if (ri->opc1 & 4) {
