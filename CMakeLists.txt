@@ -9,12 +9,8 @@ if(NOT DEFINED LIBQEMU_TARGETS)
     set(LIBQEMU_TARGETS aarch64)
 endif()
 
-# For the arm target, use the aarch64 target which is a superset of the former.
 set(temp)
 foreach(target ${LIBQEMU_TARGETS})
-    if(target STREQUAL "arm")
-        set(target aarch64)
-    endif()
     list(APPEND temp ${target})
 endforeach()
 set(LIBQEMU_TARGETS ${temp})
