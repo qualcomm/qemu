@@ -15,7 +15,8 @@ from qemu_test import skipIfMissingCommands, skipUntrustedTest
 class LoadBFLT(QemuUserTest):
 
     ASSET_ROOTFS = Asset(
-        ('https://elinux.org/images/5/51/Stm32_mini_rootfs.cpio.bz2'),
+        #('https://elinux.org/images/5/51/Stm32_mini_rootfs.cpio.bz2'),
+         ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/eefb788e4980c9e8d6c9d60ce7d15d4da6bf4fbc6a80f487673824600d5ba9cc.cpio.bz2'),
          'eefb788e4980c9e8d6c9d60ce7d15d4da6bf4fbc6a80f487673824600d5ba9cc')
 
     @skipIfMissingCommands('cpio')
