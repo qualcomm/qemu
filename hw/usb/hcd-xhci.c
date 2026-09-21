@@ -1080,7 +1080,8 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
 static void xhci_ep_kick_timer(void *opaque)
 {
     XHCIEPContext *epctx = opaque;
-    xhci_kick_epctx(epctx, 0);
+
+    xhci_kick_ep(epctx->xhci, epctx->slotid, epctx->epid, 0);
 }
 
 static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
@@ -1891,6 +1892,12 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         return;
     }
 
+    /*
+     * Timer and USB completion callbacks can synchronously kick this endpoint.
+     * Protect the retry transition as well as the normal scheduling loop.
+     */
+    epctx->kick_active++;
+
     if (epctx->retry) {
         xfer = epctx->retry;
 
@@ -1901,7 +1908,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             mfindex = xhci_mfindex_get(xhci);
             xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
             if (xfer->running_retry) {
-                return;
+                goto out;
             }
             xfer->timed_xfer = 0;
             xfer->running_retry = 1;
@@ -1909,7 +1916,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         if (xfer->iso_xfer) {
             /* retry iso transfer */
             if (xhci_setup_packet(xfer) < 0) {
-                return;
+                goto out;
             }
             usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
             assert(xfer->packet.status != USB_RET_NAK);
@@ -1917,12 +1924,12 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         } else {
             /* retry nak'ed transfer */
             if (xhci_setup_packet(xfer) < 0) {
-                return;
+                goto out;
             }
             usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
             if (xfer->packet.status == USB_RET_NAK) {
                 xhci_xfer_unmap(xfer);
-                return;
+                goto out;
             }
             xhci_try_complete_packet(xfer);
         }
@@ -1937,7 +1944,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
 
     if (epctx->state == EP_HALTED) {
         DPRINTF("xhci: ep halted, not running schedule\n");
-        return;
+        goto out;
     }
 
 
@@ -1945,7 +1952,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         uint32_t err;
         stctx = xhci_find_stream(epctx, streamid, &err);
         if (stctx == NULL) {
-            return;
+            goto out;
         }
         ring = &stctx->ring;
         xhci_set_ep_state(xhci, epctx, stctx, EP_RUNNING);
@@ -1955,10 +1962,9 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         xhci_set_ep_state(xhci, epctx, NULL, EP_RUNNING);
     }
     if (!ring->dequeue) {
-        return;
+        goto out;
     }
 
-    epctx->kick_active++;
     while (1) {
         length = xhci_ring_chain_length(xhci, ring);
         if (length <= 0) {
@@ -1985,8 +1991,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             if (!type) {
                 xhci_die(xhci);
                 xhci_ep_free_xfer(xfer);
-                epctx->kick_active--;
-                return;
+                goto out;
             }
         }
         xfer->streamid = streamid;
@@ -2021,12 +2026,12 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
-    epctx->kick_active--;
-
+out:
     ep = xhci_epid_to_usbep(epctx);
     if (ep) {
         usb_device_flush_ep_queue(ep->dev, ep);
     }
+    epctx->kick_active--;
 }
 
 static TRBCCode xhci_enable_slot(XHCIState *xhci, unsigned int slotid)
@@ -3261,13 +3266,15 @@ static void xhci_wakeup(USBPort *usbport)
 static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
+    XHCIEPContext *epctx = xfer->epctx;
 
     if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
         xhci_ep_nuke_one_xfer(xfer, 0);
         return;
     }
     xhci_try_complete_packet(xfer);
-    xhci_kick_epctx(xfer->epctx, xfer->streamid);
+    xhci_kick_ep(epctx->xhci, epctx->slotid, epctx->epid,
+                 xfer->streamid);
     if (xfer->complete) {
         xhci_ep_free_xfer(xfer);
     }
