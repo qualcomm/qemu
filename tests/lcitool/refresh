@@ -12,6 +12,7 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+import re
 import sys
 import subprocess
 
@@ -41,7 +42,7 @@ def atomic_write(filename, content):
         raise
 
 
-def generate(filename, cmd, trailer):
+def generate(filename, cmd, trailer, registry_path):
     print("Generate %s" % filename)
     lcitool = subprocess.run(cmd, capture_output=True, encoding='utf8')
 
@@ -49,6 +50,10 @@ def generate(filename, cmd, trailer):
         raise Exception("Failed to generate %s: %s" % (filename, lcitool.stderr))
 
     content = lcitool.stdout
+
+    if registry_path is not None:
+        content = re.sub("FROM.*/", "FROM " + registry_path + '/', content)
+
     if trailer is not None:
         content += trailer
     atomic_write(filename, content)
@@ -64,7 +69,7 @@ add_user_mapping = [
 ]
 
 def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
-                        enable_rust=True):
+                        enable_rust=True, registry_path=None):
     filename = Path(src_dir, "tests", "docker", "dockerfiles", host + ".docker")
     cmd = lcitool_cmd + ["dockerfile"]
     if cross is not None:
@@ -79,26 +84,26 @@ def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
 
     if enable_rust:
         trailer += "\nENV ENABLE_RUST=1\n"
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, registry_path)
 
 
 def generate_vars(target, trailer=None):
     filename = Path(src_dir, ".gitlab-ci.d", target + ".vars")
     cmd = lcitool_cmd + ["variables", "--format", "shell", target, "qemu"]
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, None)
 
 
 def generate_pkglist(vm, target, project="qemu"):
     filename = Path(src_dir, "tests", "vm", "generated", vm + ".json")
     cmd = lcitool_cmd + ["variables", "--format", "json", target, project]
-    generate(filename, cmd, None)
+    generate(filename, cmd, None, None)
 
 
 def generate_yaml(os, target, arch, trailer=None):
     filename = Path(src_dir, "scripts", "ci", "setup", os, f"{target}-{arch}.yaml")
     cmd = lcitool_cmd + ["variables", "--format", "yaml", "-a",
                          arch, target, "qemu"]
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, None)
 
 
 alpine_extras = r"""
