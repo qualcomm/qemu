@@ -72,4 +72,29 @@
 #define fGEN_TCG_M8_mxmem2_st_bias(SHORTCODE) \
     gen_helper_hmx_bias_store(tcg_env, RsV, tcg_constant_i32(1))
 
+/*
+ * M8_mxmem*_act_ub - activation load (spatial-major, block mode).
+ */
+#define fGEN_TCG_M8_mxmem_blk_sm_act_ub(SHORTCODE) \
+    gen_helper_hmx_act_load(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_ACT(HMX_ACT_UB, HMX_ACT_FMT_SM, \
+                                      HMX_ACT_BLK)))
+
+/*
+ * M8_mxmem_wei_b - byte weight load + FXP matrix multiply against the
+ * activation latched by the preceding act-load instruction.
+ */
+#define fGEN_TCG_M8_mxmem_wei_b(SHORTCODE) \
+    gen_helper_hmx_matmul_fxp(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_WEI(HMX_WEI_B, HMX_MOD_NORMAL)))
+
+/*
+ * M8_mxcvtr_sat_ub - legacy convert-and-store (spatial-major, byte,
+ * saturating, direction AFTER, clear accumulator).
+ */
+#define fGEN_TCG_M8_mxcvtr_sat_ub(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UB_SM, \
+                                      0, 0)))
+
 #endif /* HEXAGON_GEN_TCG_HMX_H */
