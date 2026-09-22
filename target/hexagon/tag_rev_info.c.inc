@@ -968,6 +968,10 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [M8_mxmem_wei_sm] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
     [M8_mxswap] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
     [M8_mxswap_hf] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_pv64] = { .introduced = HEX_VER_V75, .removed = HEX_VER_NONE },
+    [M8_pv64d] = { .introduced = HEX_VER_V75, .removed = HEX_VER_NONE },
+    [M8_pv64dfp] = { .introduced = HEX_VER_V75, .removed = HEX_VER_NONE },
+    [M8_pv64fp] = { .introduced = HEX_VER_V75, .removed = HEX_VER_NONE },
 
     [S2_pstorerbf_pi_nt] = { .introduced = HEX_VER_V79,
                              .removed = HEX_VER_NONE },
