@@ -1321,8 +1321,8 @@ static void hmx_flush_acc_clear(CPUHexagonState *env, HmxState *hmx)
  * convert-and-store: convert the current FXP accumulator to bytes (UB)
  * or halfwords (UH, combining adjacent spatial pairs) and store them
  * to VTCM in one instruction (as opposed to the newer cvt_rs +
- * mxmem(...)=cvt pair, which defers the store -- not implemented for
- * UH/UH2X2 yet, see hmx_flush_cvt_fxp()). UH2X2 combines 2x2
+ * mxmem(...)=cvt pair, which defers the store -- see
+ * hmx_flush_cvt_fxp()). UH2X2 combines 2x2
  * spatial+channel blocks via hmx_u16x16_cvt(), with scale/output-bias
  * concatenated from two adjacent bias registers rather than UH's
  * single one.
@@ -1631,14 +1631,174 @@ static void hmx_fxp_convert(const HmxConfig *hmx_cfg, HmxState *hmx,
 }
 
 /*
- * M8_cvt_rs_{ub,ub_sc0,ub_sc1} - trigger the deferred FXP convert
- * (acc -> cvt_future_fxp, see hmx_fxp_convert()). Always returns 0 (the
+ * Non-legacy UH (2x1) convert: acc -> cvt_future_fxp, combining
+ * adjacent spatial pairs via hmx_u16_cvt(). Same deferred-pipeline
+ * aging as hmx_fxp_convert(); see that function's comment.
+ */
+static void hmx_fxp_convert_2x1(const HmxConfig *hmx_cfg, HmxState *hmx,
+                                int acc_set, int relu,
+                                int bias_set, int fb_dst, int extra_8bit,
+                                uint32_t cur_pc)
+{
+    HmxAccFxp *acc = &hmx->acc[acc_set & 1].fxp_primary;
+
+    if (fb_dst == 0) {
+        hmx_flush_cvt_fxp(hmx);
+        hmx->cvt_fxp_pending = 1;
+        hmx->cvt_fxp_pending_age = 1;
+        hmx->cvt_fxp_pending_pc = cur_pc;
+    } else {
+        if (hmx->cvt_fxp_pending && cur_pc == hmx->cvt_fxp_pending_pc) {
+            hmx->cvt_fxp_pending_age = 0;
+        } else {
+            hmx_flush_cvt_fxp(hmx);
+            hmx->cvt_fxp_pending = 1;
+            hmx->cvt_fxp_pending_age = 0;
+            hmx->cvt_fxp_pending_pc = cur_pc;
+        }
+    }
+
+    int32_t  bias_input[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_exp[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_shape[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_scale[HMX_OUTPUT_CHANNELS];
+    uint32_t bias1[HMX_OUTPUT_CHANNELS];
+    uint16_t bias_rnd[HMX_OUTPUT_CHANNELS];
+
+    for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+        uint64_t raw = hmx->bias_raw[bias_set][o];
+        bias_input[o] = hmx_bias_input_bias(raw);
+        bias_exp[o]   = (int16_t)hmx_bias_exponent(raw);
+        bias_shape[o] = (int16_t)hmx_bias_shape(raw);
+        bias_scale[o] = (int16_t)hmx_bias_scale(raw);
+        bias1[o]      = (raw >> 23) & 0xFF;
+        /* UH 2x1 uses rnd_bit (BIAS[22]) instead of the full out_bias. */
+        bias_rnd[o] = (raw >> 22) & 1;
+    }
+
+    HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
+
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s += 2) {
+        for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+            int64_t acc_ll = (int64_t)acc->data[s][o];
+            int64_t acc_hl = (int64_t)acc->data[s + 1][o];
+            uint32_t poly_scale = ((uint32_t)bias_scale[o] << 8) | bias1[o];
+
+            uint32_t result = hmx_u16_cvt(
+                acc_hl, acc_ll, bias_input[o], bias_exp[o],
+                bias_shape[o], poly_scale, bias_rnd[o],
+                /* sat */ relu, /* legacy */ 0,
+                /* has_feedback */ 0, /* has_extra_acc_bits */ extra_8bit);
+
+            result >>= 4;
+            cvt_out->data[s][o] = hmx_cvt_out_lo(result);
+            cvt_out->data[s + 1][o] = hmx_cvt_out_hi(result);
+        }
+    }
+}
+
+/*
+ * Non-legacy UH2X2 convert: acc -> cvt_future_fxp, combining 2x2
+ * spatial+channel blocks via hmx_u16x16_cvt(). Same deferred-pipeline
+ * aging as hmx_fxp_convert().
+ *
+ * ch_sel (cvt Rs[10:9]) selects which output channel of each 2x2
+ * block the 16-bit result lands in, and which accumulators feed the
+ * convert: ch_sel==2 shifts the "low" pair's accumulators into the
+ * "high" (odd-channel) slot instead of using the real odd-channel
+ * accumulators; any ch_sel != 3 zeroes the low-channel accumulators
+ * before combining. See the reference for the hardware rationale;
+ * ported as specified rather than only handling the one case an
+ * earlier QEMU attempt hardcoded (which produced all-zero odd output
+ * channels for ch_sel 0/1).
+ */
+static void hmx_fxp_convert_2x2(const HmxConfig *hmx_cfg, HmxState *hmx,
+                                int acc_set, int relu,
+                                int bias_set, int fb_dst, int ch_sel,
+                                uint32_t cur_pc)
+{
+    HmxAccFxp *acc = &hmx->acc[acc_set & 1].fxp_primary;
+    int output_adjust = (ch_sel == 2) ? 0 : 1;
+
+    if (fb_dst == 0) {
+        hmx_flush_cvt_fxp(hmx);
+        hmx->cvt_fxp_pending = 1;
+        hmx->cvt_fxp_pending_age = 1;
+        hmx->cvt_fxp_pending_pc = cur_pc;
+    } else {
+        if (hmx->cvt_fxp_pending && cur_pc == hmx->cvt_fxp_pending_pc) {
+            hmx->cvt_fxp_pending_age = 0;
+        } else {
+            hmx_flush_cvt_fxp(hmx);
+            hmx->cvt_fxp_pending = 1;
+            hmx->cvt_fxp_pending_age = 0;
+            hmx->cvt_fxp_pending_pc = cur_pc;
+        }
+    }
+
+    HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
+
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s += 2) {
+        for (int o = 0; o < hmx_cfg->mx_cols; o += 2) {
+            uint64_t raw_lo = hmx->bias_raw[bias_set][o];
+            uint64_t raw_hi = hmx->bias_raw[bias_set][o + 1];
+
+            int32_t input_bias = hmx_bias_input_bias(raw_lo);
+            int16_t exp = (int16_t)hmx_bias_exponent(raw_lo);
+            int16_t shape = (int16_t)hmx_bias_shape(raw_lo);
+
+            uint32_t sig_lo = hmx_bias_scale(raw_lo);
+            uint32_t sigmsb_hi = !((raw_hi >> 16) & 1);
+            uint32_t sig_hi = raw_hi & 0x3FF;
+            uint32_t scale = (((sigmsb_hi << 10) | sig_hi) << 11) |
+                             (sig_lo & 0x7FF);
+
+            uint32_t bias1_hi = (raw_hi >> 23) & 0xFF;
+            int32_t bias_lo_val = hmx_bias_output_bias(raw_lo);
+            uint32_t out_bias = (uint32_t)((bias1_hi << 12) +
+                                (bias_lo_val & 0xFFF));
+
+            int64_t bias48 = (int64_t)input_bias << 16;
+
+            int64_t acc_ll = (int64_t)acc->data[s][o];
+            int64_t acc_hl = (int64_t)acc->data[s + 1][o];
+            int64_t acc_lh = (int64_t)acc->data[s][o + 1];
+            int64_t acc_hh = (int64_t)acc->data[s + 1][o + 1];
+
+            if (ch_sel != 3) {
+                if (ch_sel == 2) {
+                    acc_lh = acc_ll;
+                    acc_hh = acc_hl;
+                }
+                acc_ll = 0;
+                acc_hl = 0;
+            }
+
+            uint32_t result = hmx_u16x16_cvt(
+                acc_hh, acc_hl, acc_lh, acc_ll,
+                bias48, exp, shape, scale, out_bias,
+                /* sat */ relu, /* legacy */ 0);
+
+            result >>= 4;
+            cvt_out->data[s][o + output_adjust] = hmx_cvt_out_lo(result);
+            cvt_out->data[s + 1][o + output_adjust] = hmx_cvt_out_hi(result);
+            if (!fb_dst) {
+                cvt_out->data[s][o + !output_adjust] = 0;
+                cvt_out->data[s + 1][o + !output_adjust] = 0;
+            }
+        }
+    }
+}
+
+/*
+ * M8_cvt_rs_{ub,ub_sc0,ub_sc1,uh_2x1,uh_2x2} - trigger the deferred FXP
+ * convert (acc -> cvt_future_fxp, see hmx_fxp_convert()/
+ * hmx_fxp_convert_2x1()/hmx_fxp_convert_2x2()). Always returns 0 (the
  * destination register, per the reference); the converted data isn't
  * read back through a GPR, it's read back from memory by a later
- * HELPER(hmx_cvt_store) (M8_mxmem/M8_mxmem_deep).
+ * HELPER(hmx_cvt_store) (M8_mxmem/M8_mxmem_deep/M8_mxmem_2x2).
  *
- * Only the UB (8x8 byte) output format is implemented; UH_2X1/UH_2X2/HF/
- * F8 fall through to the default (still returns 0, matching the
+ * HF/F8 fall through to the default (still returns 0, matching the
  * reference's own default case) since no tag is overridden to reach
  * them yet.
  */
@@ -1669,6 +1829,29 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
             hmx->cvt_acc_clear_pc = cur_pc;
         }
         return 0;
+    case HMX_CVT_RS_UH_2X1:
+        /* Rs[5]: extra_8bit_acc, see hmx_u16_cvt(). */
+        hmx_fxp_convert_2x1(hmx_cfg, hmx, hmx->current_acc_set, relu,
+                            bias_sel, fb_dst, (rs >> 5) & 1, cur_pc);
+        if (acc_clear) {
+            hmx->cvt_acc_clear_pending = 1;
+            hmx->cvt_acc_clear_set = hmx->current_acc_set;
+            hmx->cvt_acc_clear_pc = cur_pc;
+        }
+        return 0;
+    case HMX_CVT_RS_UH_2X2:
+    {
+        /* Rs[10:9]: ch_sel, see hmx_fxp_convert_2x2(). */
+        int ch_sel = (rs >> 9) & 0x3;
+        hmx_fxp_convert_2x2(hmx_cfg, hmx, hmx->current_acc_set, relu,
+                            bias_sel, fb_dst, ch_sel, cur_pc);
+        if (acc_clear) {
+            hmx->cvt_acc_clear_pending = 1;
+            hmx->cvt_acc_clear_set = hmx->current_acc_set;
+            hmx->cvt_acc_clear_pc = cur_pc;
+        }
+        return 0;
+    }
     default:
         return 0;
     }
