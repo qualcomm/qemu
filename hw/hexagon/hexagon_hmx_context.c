@@ -98,6 +98,7 @@ static const VMStateDescription vmstate_hmx_regs = {
         VMSTATE_UINT32_V(act_rt, HmxState, 2),
         VMSTATE_UINT32_V(act_format, HmxState, 2),
         VMSTATE_UINT32(act_type, HmxState),
+        VMSTATE_UINT8_V(is_bf16, HmxState, 2),
         VMSTATE_UINT8(is_f8_odd, HmxState),
         VMSTATE_UINT8(fp8_odd_sel, HmxState),
         VMSTATE_UINT32(format_offset, HmxState),
