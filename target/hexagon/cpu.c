@@ -449,15 +449,15 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
     CPUHexagonState *env = cpu_env(cs);
-#ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
-#endif
 
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj, type);
     }
 
     hexagon_dma_reset(&HEXAGON_CPU(obj)->dma);
+
+    memset(cpu->hmx, 0, sizeof(*cpu->hmx));
 
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
@@ -531,6 +531,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     cpu->cfg.hex_def = mcc->hex_def;
+
+    hmx_init_config(cpu);
+    cpu->hmx = g_new0(HmxState, 1);
+    cpu_env(cs)->hmx_state = cpu->hmx;
 
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
@@ -620,6 +624,13 @@ static void hexagon_cpu_set_irq(void *opaque, int irq, int level)
     }
 }
 #endif
+
+static void hexagon_cpu_finalize(Object *obj)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(obj);
+
+    g_free(cpu->hmx);
+}
 
 static void hexagon_cpu_init(Object *obj)
 {
@@ -966,6 +977,7 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .instance_size = sizeof(HexagonCPU),
         .instance_align = __alignof(HexagonCPU),
         .instance_init = hexagon_cpu_init,
+        .instance_finalize = hexagon_cpu_finalize,
         .abstract = true,
         .class_size = sizeof(HexagonCPUClass),
         .class_init = hexagon_cpu_class_init,
