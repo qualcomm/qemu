@@ -1154,11 +1154,101 @@ static uint32_t hmx_u8_cvt(int64_t acc, int32_t bias32, int16_t exp,
 }
 
 /*
+ * hmx_acc_rnd: rounding-only variant of hmx_acc_bias(), used where the
+ * convert has no output-bias field to add (e.g. UH 2x1's feedback-off
+ * path, which uses rnd_bit instead).
+ */
+static inline int64_t hmx_acc_rnd(__int128_t acc_scaled,
+                                  int32_t element_size,
+                                  int32_t rnd_bit, int32_t frac_bits)
+{
+    int convert_width = 12;
+    int64_t ulp_bit = 64 - 8 * element_size - 1;
+    __int128_t ulp = (__int128_t)((int64_t)rnd_bit << ulp_bit);
+
+    (void)frac_bits;
+    acc_scaled = acc_scaled + acc_scaled;
+    __int128_t acc_rnd = acc_scaled + ulp;
+    return (int64_t)(acc_rnd >>
+        ((ulp_bit + 1) - ((convert_width - 8) * element_size)));
+}
+
+/*
+ * Split a 20-bit UH result into lo/hi 16-bit CVT buffer entries.
+ * lo = result[11:0] (12 bits); hi = result[19:8] aligned to bits
+ * [11:4] (12 bits, lower 4 zeroed).
+ */
+static inline uint16_t hmx_cvt_out_lo(uint32_t result)
+{
+    return (uint16_t)(result & 0xFFF);
+}
+
+static inline uint16_t hmx_cvt_out_hi(uint32_t result)
+{
+    return (uint16_t)((result >> 8) & 0xFF0);
+}
+
+/*
+ * hmx_u16_cvt: unsigned halfword 16x8 (2x1) convert. Combines two
+ * adjacent spatial accumulators into a wider-precision value. Uses
+ * rounding (not output bias) per the reference.
+ */
+static uint32_t hmx_u16_cvt(int64_t acc_hl, int64_t acc_ll,
+                            int32_t bias32, int16_t exp,
+                            int16_t zeroing, uint32_t sig,
+                            uint16_t rnd_bit, int32_t sat,
+                            int16_t legacy, int16_t has_feedback,
+                            int16_t has_extra_acc_bits)
+{
+    const int32_t element_size = 2;
+    const int32_t frac_bits = 24;
+
+    int64_t acc_combined = acc_hl + (acc_ll >> 8);
+    int64_t acc_biased = acc_combined + (int64_t)bias32;
+
+    /*
+     * extra_8bit_acc (Rs[5]): the 8 LSBs dropped by (acc_ll >> 8) are
+     * reintroduced as extra precision below the binary point; the
+     * conversion only takes effect for exp > 8, otherwise the extra
+     * bits are truncated by the shift, so acc_biased_for_shift stays
+     * at the un-extended value. acc_biased (extended) still feeds
+     * rectify's sign/zero detection.
+     */
+    int64_t acc_biased_for_shift = acc_biased;
+    if (has_extra_acc_bits) {
+        uint32_t extra_8bits = (uint32_t)(acc_ll & 0xFF);
+        acc_biased = (acc_biased << 8) | extra_8bits;
+        if (exp > 8) {
+            acc_biased_for_shift = acc_biased;
+            exp -= 8;
+        }
+    }
+
+    int64_t acc_shifted = hmx_acc_shift(acc_biased_for_shift, exp, sat,
+                                        frac_bits, 32);
+    int64_t acc_rectified = hmx_acc_rectify(acc_shifted, zeroing, legacy,
+                                            acc_biased, element_size, 0);
+
+    int64_t scale_cvt = ((int64_t)sig) << 12;
+    __int128_t acc_scaled = hmx_acc_scale(acc_rectified, scale_cvt);
+    int64_t acc_final;
+    if (has_feedback) {
+        acc_final = hmx_acc_bias(acc_scaled, element_size,
+                                 rnd_bit, frac_bits);
+    } else {
+        acc_final = hmx_acc_rnd(acc_scaled, element_size,
+                                rnd_bit, frac_bits);
+    }
+
+    return hmx_sat_to_max(acc_final, element_size, sat);
+}
+
+/*
  * Apply any deferred accumulator clear+flip from a previous packet.
- * Deferred pipeline aging (cvt_fxp_pending*) isn't implemented yet --
- * only the legacy HELPER(hmx_cvt_transfer) convert+store path is, and
- * it doesn't defer -- so these are no-ops until the non-legacy cvt_rs
- * pipeline lands, at which point they'll actually see pending state.
+ * Deferred pipeline aging (cvt_fxp_pending*): both the legacy
+ * HELPER(hmx_cvt_transfer) convert+store path and the non-legacy
+ * cvt_rs + mxmem(...)=cvt pair flush through here; see
+ * HELPER(hmx_commit_packet) for the packet-boundary flush.
  */
 static void hmx_flush_cvt_fxp(HmxState *hmx)
 {
@@ -1191,14 +1281,14 @@ static void hmx_flush_acc_clear(CPUHexagonState *env, HmxState *hmx)
 }
 
 /*
- * M8_mxcvt{l,r}[_dm]_[sat_]ub[_r] - legacy convert-and-store: convert
- * the current FXP accumulator to bytes and store them to VTCM in one
- * instruction (as opposed to the newer cvt_rs + mxmem(...)=cvt pair,
- * which defers the store -- not implemented yet, see
- * hmx_flush_cvt_fxp()).
+ * M8_mxcvt{l,r}[_dm]_[sat_]ub[_r] / M8_mxcvt{b,a}[_sat]_uh[_r] - legacy
+ * convert-and-store: convert the current FXP accumulator to bytes (UB)
+ * or halfwords (UH, combining adjacent spatial pairs) and store them
+ * to VTCM in one instruction (as opposed to the newer cvt_rs +
+ * mxmem(...)=cvt pair, which defers the store -- not implemented for
+ * UH yet, see hmx_flush_cvt_fxp()).
  *
- * Only the UB (8x8 byte) format is implemented; UH/UH2X2/HF land with
- * their own overrides later.
+ * UH2X2/HF land with their own overrides later.
  */
 void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                               uint32_t params)
@@ -1211,7 +1301,8 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     int retain = HMX_UNPACK_CVT_RETAIN(params);
     uintptr_t ra = GETPC();
 
-    g_assert(fmt == HMX_CVT_FMT_UB_SM || fmt == HMX_CVT_FMT_UB_DM);
+    g_assert(fmt == HMX_CVT_FMT_UB_SM || fmt == HMX_CVT_FMT_UB_DM ||
+             fmt == HMX_CVT_FMT_UH);
 
     hmx_flush_cvt_fxp(hmx);
     hmx_flush_acc_clear(env, hmx);
@@ -1257,20 +1348,48 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         bias_out[o]   = hmx_bias_output_bias_unsigned(raw);
     }
 
-    for (int s = s_start; s < s_end; s++) {
-        for (int o = 0; o < hmx_cfg->mx_cols; o++) {
-            int64_t acc_combined = (int64_t)acc->data[s][o];
+    if (fmt == HMX_CVT_FMT_UH) {
+        /*
+         * UH 2x1: combine adjacent spatial pairs. Uses rnd_bit
+         * (BIAS[22]) instead of the full output bias.
+         */
+        for (int s = s_start; s < s_end; s += 2) {
+            for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+                int64_t acc_ll = (int64_t)acc->data[s][o];
+                int64_t acc_hl = (int64_t)acc->data[s + 1][o];
+                uint64_t raw = hmx->bias_raw[bias_set][o];
+                uint16_t rnd = (raw >> 22) & 1;
+                uint32_t bias1 = (raw >> 23) & 0xFF;
+                uint32_t poly_scale = ((uint32_t)bias_scale[o] << 8) | bias1;
 
-            /*
-             * Legacy mode: sat = !relu (relu=0 -> saturate,
-             * relu=1 -> mask/wrap), legacy=1 (disables jamming).
-             */
-            uint32_t result = hmx_u8_cvt(
-                acc_combined, bias_input[o], bias_exp[o],
-                bias_shape[o], bias_scale[o], bias_out[o],
-                /* sat */ !relu, /* legacy */ 1);
+                uint32_t result = hmx_u16_cvt(
+                    acc_hl, acc_ll, bias_input[o], bias_exp[o],
+                    bias_shape[o], poly_scale, rnd,
+                    /* sat */ !relu, /* legacy */ 1,
+                    /* has_feedback */ 0, /* has_extra_acc_bits */ 0);
 
-            cvt->data[s][o] = (uint16_t)result;
+                result >>= 4;
+                cvt->data[s][o] = hmx_cvt_out_lo(result);
+                cvt->data[s + 1][o] = hmx_cvt_out_hi(result);
+            }
+        }
+    } else {
+        /* UB convert (8x8 byte) */
+        for (int s = s_start; s < s_end; s++) {
+            for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+                int64_t acc_combined = (int64_t)acc->data[s][o];
+
+                /*
+                 * Legacy mode: sat = !relu (relu=0 -> saturate,
+                 * relu=1 -> mask/wrap), legacy=1 (disables jamming).
+                 */
+                uint32_t result = hmx_u8_cvt(
+                    acc_combined, bias_input[o], bias_exp[o],
+                    bias_shape[o], bias_scale[o], bias_out[o],
+                    /* sat */ !relu, /* legacy */ 1);
+
+                cvt->data[s][o] = (uint16_t)result;
+            }
         }
     }
 
