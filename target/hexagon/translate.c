@@ -899,6 +899,19 @@ static void gen_start_packet(DisasContext *ctx)
         }
     }
 #endif
+
+#ifndef CONFIG_USER_ONLY
+    /*
+     * HMX is only usable while SSR:XE2 grants access to the
+     * coprocessor. SSR:XE2 is a TB flag, so one exception for the
+     * first HMX packet in the TB is enough.
+     */
+    if (ctx->pkt.pkt_has_hmx && !ctx->hmx_coproc_enabled &&
+        !ctx->hmx_check_emitted) {
+        gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
+        ctx->hmx_check_emitted = true;
+    }
+#endif
 }
 
 bool is_gather_store_insn(DisasContext *ctx)
