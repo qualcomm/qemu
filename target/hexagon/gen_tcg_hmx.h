@@ -468,4 +468,42 @@
         tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH, \
                                       1, 1)))
 
+/*
+ * M8_mxcvt{b,a}[_sat]_uh2x2[_r] - legacy UH2X2 convert-and-store:
+ * combines 2x2 spatial+channel blocks via hmx_u16x16_cvt(). Same
+ * direction/sat/retain convention as the UB/UH tags above.
+ */
+#define fGEN_TCG_M8_mxcvtb_sat_uh2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH2X2, \
+                                      0, 0)))
+#define fGEN_TCG_M8_mxcvtb_sat_uh2x2_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH2X2, \
+                                      0, 1)))
+#define fGEN_TCG_M8_mxcvtb_uh2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH2X2, \
+                                      1, 0)))
+#define fGEN_TCG_M8_mxcvtb_uh2x2_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH2X2, \
+                                      1, 1)))
+#define fGEN_TCG_M8_mxcvta_sat_uh2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH2X2, \
+                                      0, 0)))
+#define fGEN_TCG_M8_mxcvta_sat_uh2x2_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH2X2, \
+                                      0, 1)))
+#define fGEN_TCG_M8_mxcvta_uh2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH2X2, \
+                                      1, 0)))
+#define fGEN_TCG_M8_mxcvta_uh2x2_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH2X2, \
+                                      1, 1)))
+
 #endif /* HEXAGON_GEN_TCG_HMX_H */
