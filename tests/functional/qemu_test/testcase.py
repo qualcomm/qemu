@@ -33,6 +33,17 @@ from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
 
+def _dump_log_tail(log_path, num_lines=200):
+    if not os.path.exists(log_path):
+        return
+    with open(log_path, 'r', errors='replace') as log_fh:
+        lines = log_fh.readlines()
+    print('--- last %d lines of %s ---' % (num_lines, log_path),
+          file=sys.stderr)
+    for line in lines[-num_lines:]:
+        sys.stderr.write(line)
+
+
 class QemuBaseTest(unittest.TestCase):
 
     def uncompress(self, compressed, target=None, format=None):
@@ -182,6 +193,13 @@ class QemuBaseTest(unittest.TestCase):
         '''
         return str(Path(self.outputdir, *args))
 
+    def log_files(self):
+        '''
+        Returns the list of log files produced during the execution of
+        this test, that are dumped to stderr when the test fails.
+        '''
+        return [self.log_filename]
+
     def plugin_file(self, plugin_name):
         '''
         @params plugin name
@@ -269,6 +287,9 @@ class QemuBaseTest(unittest.TestCase):
                       '\n %s' % test.log_filename, file=sys.stderr)
                 if hasattr(test, 'console_log_name'):
                     print(' %s' % test.console_log_name, file=sys.stderr)
+                if hasattr(test, 'log_files'):
+                    for log_path in test.log_files():
+                        _dump_log_tail(log_path)
                 failed[test.id()] = True
         sys.exit(not res.result.wasSuccessful())
 
@@ -312,6 +333,13 @@ class QemuSystemTest(QemuBaseTest):
         file_formatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(file_formatter)
         console_log.addHandler(self._console_log_fh)
+
+    def log_files(self):
+        files = super().log_files()
+        files.append(self.console_log_name)
+        for name in self._vms:
+            files.append(self.log_file(f'{name}.log'))
+        return files
 
     def set_machine(self, machinename):
         cls = type(self)
