@@ -339,8 +339,8 @@ if idef_parser_enabled and ('hexagon-linux-user' in target_dirs or
         'idef_parser_input.h.inc',
         output: 'idef_parser_input.h.inc',
         depends: [semantics_generated],
-        depend_files: [hex_common_py],
-        command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, '@OUTPUT@'],
+        depend_files: [hex_common_py, gen_tcg_hmx_h],
+        command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, gen_tcg_hmx_h, '@OUTPUT@'],
     )
 
     compiler = meson.get_compiler('c').cmd_array()
