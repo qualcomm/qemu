@@ -1333,3 +1333,335 @@ void HELPER(hmx_cvt_transfer)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         hmx->current_acc_set ^= 1;
     }
 }
+
+/*
+ * Non-legacy FXP convert: acc -> cvt_future_fxp (deferred; not stored to
+ * memory here -- see HELPER(hmx_cvt_rs) and HELPER(hmx_cvt_store)).
+ *
+ * Rs bitfield (convert control, read by HELPER(hmx_cvt_rs)):
+ *   [0]   acc_clear: 0=clear acc, 1=retain
+ *   [1]   relu: 0=apply ReLU (clip negatives), 1=no ReLU (active-low)
+ *   [3:2] fb_dst: feedback destination (0=none, 1=out_bias, 2=scale)
+ *   [4]   fb_limit: feedback limit mode
+ *   [13:12] bias_sel
+ */
+static void hmx_fxp_convert(const HmxConfig *hmx_cfg, HmxState *hmx,
+                            int acc_set, int relu,
+                            int bias_set, int fb_dst, int fb_limit,
+                            uint32_t cur_pc)
+{
+    HmxAccFxp *acc = &hmx->acc[acc_set & 1].fxp_primary;
+
+    /*
+     * Deferred pipeline aging (matching the reference's commit_regs):
+     *
+     * fb=0 sets cvt_advance=0 (age), fb!=0 sets cvt_advance=1 (don't
+     * age). When fb=0 and fb!=0 both occur for the same PC (the same
+     * packet), the fb!=0 pass suppresses the aging fb=0 requested.
+     *
+     * The age+copy itself is deferred until the next consumer (store
+     * or the next fb=0 convert) needs the committed data -- see
+     * hmx_flush_cvt_fxp().
+     */
+    if (fb_dst == 0) {
+        hmx_flush_cvt_fxp(hmx);
+        hmx->cvt_fxp_pending = 1;
+        hmx->cvt_fxp_pending_age = 1;
+        hmx->cvt_fxp_pending_pc = cur_pc;
+    } else {
+        if (hmx->cvt_fxp_pending && cur_pc == hmx->cvt_fxp_pending_pc) {
+            hmx->cvt_fxp_pending_age = 0;
+        } else {
+            hmx_flush_cvt_fxp(hmx);
+            hmx->cvt_fxp_pending = 1;
+            hmx->cvt_fxp_pending_age = 0;
+            hmx->cvt_fxp_pending_pc = cur_pc;
+        }
+    }
+
+    /* Feedback reads from the working buffer (cvt_future_fxp). */
+    HmxCvtStateFxp *feedback_buf = &hmx->cvt_future_fxp;
+
+    int32_t  bias_input[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_exp[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_shape[HMX_OUTPUT_CHANNELS];
+    int16_t  bias_scale[HMX_OUTPUT_CHANNELS];
+    uint16_t bias_out[HMX_OUTPUT_CHANNELS];
+
+    for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+        uint64_t raw = hmx->bias_raw[bias_set][o];
+        bias_input[o] = hmx_bias_input_bias(raw);
+        bias_exp[o]   = (int16_t)hmx_bias_exponent(raw);
+        bias_shape[o] = (int16_t)hmx_bias_shape(raw);
+        bias_scale[o] = (int16_t)hmx_bias_scale(raw);
+        bias_out[o]   = hmx_bias_output_bias_unsigned(raw);
+    }
+
+    HmxCvtStateFxp *cvt_out = &hmx->cvt_future_fxp;
+
+    for (int s = 0; s < (int)hmx_cfg->mx_rows; s++) {
+        for (int o = 0; o < hmx_cfg->mx_cols; o++) {
+            int64_t acc_combined = (int64_t)acc->data[s][o];
+            int16_t scale = bias_scale[o];
+            uint16_t out_bias = bias_out[o];
+
+            if (fb_dst != 0) {
+                uint16_t fb = feedback_buf->data[s][o];
+                if (fb_dst == 1) {
+                    out_bias = fb_limit ? (out_bias > fb ? out_bias : fb)
+                                        : (out_bias > fb ? fb : out_bias);
+                } else if (fb_dst == 2) {
+                    int16_t fb16 = (int16_t)fb;
+                    scale = fb_limit ? (scale > fb16 ? scale : fb16)
+                                     : (scale > fb16 ? fb16 : scale);
+                }
+            }
+
+            uint32_t result = hmx_u8_cvt(
+                acc_combined, bias_input[o], bias_exp[o],
+                bias_shape[o], scale, out_bias,
+                /* sat */ relu, /* legacy */ 0);
+
+            cvt_out->data[s][o] = (uint16_t)result;
+        }
+    }
+}
+
+/*
+ * M8_cvt_rs_{ub,ub_sc0,ub_sc1} - trigger the deferred FXP convert
+ * (acc -> cvt_future_fxp, see hmx_fxp_convert()). Always returns 0 (the
+ * destination register, per the reference); the converted data isn't
+ * read back through a GPR, it's read back from memory by a later
+ * HELPER(hmx_cvt_store) (M8_mxmem/M8_mxmem_deep).
+ *
+ * Only the UB (8x8 byte) output format is implemented; UH_2X1/UH_2X2/HF/
+ * F8 fall through to the default (still returns 0, matching the
+ * reference's own default case) since no tag is overridden to reach
+ * them yet.
+ */
+uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
+{
+    HmxState *hmx = env->hmx_state;
+    int relu = !((rs >> 1) & 1);
+    int bias_sel = (rs >> 12) & 0x3;
+    int fb_dst = (rs >> 2) & 0x3;
+    int fb_limit = (rs >> 4) & 0x1;
+    int acc_clear = !(rs & 1);
+    uint32_t cur_pc = env->gpr[HEX_REG_PC];
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+
+    if (hmx_cpu_version(env) < HEX_VER_V75) {
+        bias_sel = 0;
+    }
+
+    switch (type) {
+    case HMX_CVT_RS_UB:
+    case HMX_CVT_RS_UB_SC0:
+    case HMX_CVT_RS_UB_SC1:
+        hmx_fxp_convert(hmx_cfg, hmx, hmx->current_acc_set, relu, bias_sel,
+                        fb_dst, fb_limit, cur_pc);
+        if (acc_clear) {
+            hmx->cvt_acc_clear_pending = 1;
+            hmx->cvt_acc_clear_set = hmx->current_acc_set;
+            hmx->cvt_acc_clear_pc = cur_pc;
+        }
+        return 0;
+    default:
+        return 0;
+    }
+}
+
+/*
+ * M8_commit_packet's HMX half: flush the deferred convert pipeline and
+ * any deferred accumulator clear at the end of every packet that has
+ * an HMX instruction (see translate.c's gen_commit_packet()). Mirrors
+ * the reference's commit_regs + commit_mem.
+ */
+void HELPER(hmx_commit_packet)(CPUHexagonState *env)
+{
+    HmxState *hmx = env->hmx_state;
+
+    hmx_flush_cvt_fxp(hmx);
+    hmx_flush_acc_clear(env, hmx);
+}
+
+/*
+ * Convert raw spatial address to linear CVT buffer index (0-63).
+ * CM: 6 spatial bits at [10:5]; SM: 6 spatial bits at [10:7] and [1:0].
+ */
+static inline int hmx_raw_to_linear(int32_t raw, int is_cm)
+{
+    if (is_cm) {
+        return (raw >> 5) & 0x3F;
+    }
+    return ((((uint32_t)raw >> 7) << 2) | (raw & 3)) & 0x3F;
+}
+
+/*
+ * Write one FXP spatial "peg" (mx_cols output channels) to memory.
+ * CM: channels at byte stride (mx_cols bytes per peg).
+ * SM/2x2: channels at 4-byte stride (interleaved with spatial).
+ */
+static void hmx_store_fxp_peg(CPUHexagonState *env,
+                              const HmxConfig *hmx_cfg,
+                              HmxCvtStateFxp *cvt,
+                              int linear_s, uint32_t base_addr,
+                              int32_t mem_spatial, int fmt, uintptr_t ra)
+{
+    uint32_t pa = base_addr + (mem_spatial & 0x7FF);
+
+    if (fmt == HMX_CVTST_CM) {
+        g_assert((hmx_cfg->mx_cols & 3) == 0);
+        for (int o = 0; o < (int)hmx_cfg->mx_cols; o += 4) {
+            uint32_t w =
+                (((cvt->data[linear_s][o + 0] >> 4) & 0xFF)) |
+                (((cvt->data[linear_s][o + 1] >> 4) & 0xFF) << 8) |
+                (((cvt->data[linear_s][o + 2] >> 4) & 0xFF) << 16) |
+                (((cvt->data[linear_s][o + 3] >> 4) & 0xFF) << 24);
+            cpu_stl_le_data_ra(env, pa + o, w, ra);
+        }
+    } else {
+        for (int o = 0; o < (int)hmx_cfg->mx_cols; o++) {
+            uint8_t val = (cvt->data[linear_s][o] >> 4) & 0xFF;
+            cpu_stb_data_ra(env, pa + (o << 2), val, ra);
+        }
+    }
+}
+
+/*
+ * Write one x-row of the store.
+ *
+ * The CVT buffer index uses a rotated accumulator index (x_acc_idx,
+ * y_acc_idx) rather than the memory position (x_idx, y_idx); this
+ * rotation accounts for the spatial split at x_offset.
+ *
+ * Age selection is based on X position relative to x_offset:
+ *   x < x_offset  -> cvt_ages[before_state] (previous convert)
+ *   x >= x_offset -> cvt_ages[0] (current convert)
+ */
+static void hmx_store_x_row(CPUHexagonState *env,
+                            const HmxConfig *hmx_cfg,
+                            HmxCvtStateFxp *cvt_ages,
+                            uint32_t base_addr, int32_t y_idx,
+                            int32_t y_acc_idx, uint32_t x_offset,
+                            uint32_t tile_x_inc, int32_t xm,
+                            int is_cm, int fmt, int before_state,
+                            int32_t x_acc_offset, uintptr_t ra)
+{
+    int32_t x_idx, x_acc_idx;
+    int s;
+
+    /* BEFORE: x < x_offset, reads from the previous CVT age. */
+    x_idx = 0;
+    x_acc_idx = x_acc_offset;
+    for (; x_idx < (int32_t)x_offset; ) {
+        s = hmx_raw_to_linear(x_acc_idx | y_acc_idx, is_cm);
+        hmx_store_fxp_peg(env, hmx_cfg, &cvt_ages[before_state],
+                          s, base_addr, x_idx | y_idx, fmt, ra);
+        x_idx = hmx_inc_with_spatial_mask(x_idx, tile_x_inc, xm);
+        x_acc_idx = hmx_inc_with_spatial_mask(x_acc_idx, tile_x_inc, xm);
+        if (!tile_x_inc) {
+            break;
+        }
+    }
+
+    /* AFTER: x >= x_offset, reads from the current CVT age. */
+    x_acc_idx = 0;
+    while (x_idx >= 0) {
+        s = hmx_raw_to_linear(x_acc_idx | y_acc_idx, is_cm);
+        hmx_store_fxp_peg(env, hmx_cfg, &cvt_ages[0],
+                          s, base_addr, x_idx | y_idx, fmt, ra);
+        x_idx = hmx_inc_with_spatial_mask(x_idx, tile_x_inc, xm);
+        x_acc_idx = hmx_inc_with_spatial_mask(x_acc_idx, tile_x_inc, xm);
+        if (!tile_x_inc) {
+            break;
+        }
+    }
+}
+
+/*
+ * M8_mxmem / M8_mxmem_deep / M8_mxmem_cm / M8_mxmem_cm_deep / M8_mxmem_2x2
+ * - store the deferred convert pipeline's output to memory, with a
+ * before/after spatial split at (y_offset, x_offset) derived from Rs/Rt
+ * (see the reference's HELPER(hmx_cvt_store) for the full row-rotation
+ * rationale, ported unchanged here). Only the FXP (CM/SM/2x2) formats
+ * are implemented; F8 needs the FP convert path, not written yet.
+ */
+void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
+                           uint32_t params)
+{
+    HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+    int fmt = HMX_UNPACK_CVTST_FMT(params);
+    int age = HMX_UNPACK_CVTST_AGE(params);
+    uintptr_t ra = GETPC();
+
+    g_assert(fmt != HMX_CVTST_F8);
+    g_assert(age < HMX_NUM_CVT_AGES);
+
+    uint32_t base_addr = rs & 0xFFFFF800;
+
+    /* Flush the pending conversion before reading the aged pipeline. */
+    hmx_flush_cvt_fxp(hmx);
+    hmx_flush_acc_clear(env, hmx);
+
+    int is_cm = (fmt == HMX_CVTST_CM);
+    uint32_t sp_mask = is_cm ? HMX_SPATIAL_MASK_BITS_CM
+                             : HMX_SPATIAL_MASK_BITS_SM;
+    uint32_t tile_y_mask = rt & sp_mask;
+    uint32_t tile_x_mask = (~rt) & sp_mask;
+    uint32_t tile_x_inc =
+        tile_x_mask ? (tile_x_mask & (-(int32_t)tile_x_mask)) : 0;
+    uint32_t tile_y_inc =
+        tile_y_mask ? (tile_y_mask & (-(int32_t)tile_y_mask)) : 0;
+    uint32_t x_offset = rs & tile_x_mask;
+    uint32_t y_offset = rs & tile_y_mask;
+    int32_t xm = (int32_t)(tile_x_mask | (1u << 31));
+    int32_t ym = (int32_t)(tile_y_mask | (1u << 31));
+
+    /* BEFORE reads from previous CVT state: age=0->[1], age=1->[2]. */
+    int before_state = 1 + age;
+
+    int32_t x_acc_offset = 0;
+    if (x_offset && tile_x_inc) {
+        int32_t x_count = (int32_t)x_offset;
+        while (x_count >= 0) {
+            x_acc_offset =
+                hmx_inc_with_spatial_mask(x_acc_offset, tile_x_inc, xm);
+            x_count = hmx_inc_with_spatial_mask(x_count, tile_x_inc, xm);
+        }
+    }
+
+    /* First y pass: y from y_offset onward. */
+    int32_t y_idx = (int32_t)y_offset;
+    int32_t y_acc_idx = 0;
+
+    while (y_idx >= 0) {
+        hmx_store_x_row(env, hmx_cfg, hmx->cvt_fxp, base_addr, y_idx,
+                        y_acc_idx, x_offset, tile_x_inc, xm,
+                        is_cm, fmt, before_state, x_acc_offset, ra);
+        y_idx = hmx_inc_with_spatial_mask(y_idx, tile_y_inc, ym);
+        y_acc_idx = hmx_inc_with_spatial_mask(y_acc_idx, tile_y_inc, ym);
+        if (!tile_y_inc) {
+            break;
+        }
+    }
+
+    /* Second y pass: y from 0 to y_offset, address adjusted by dY. */
+    if ((int32_t)y_offset > 0) {
+        uint32_t dY = rt & 0xFFFFF800;
+        if (dY) {
+            base_addr += dY;
+        }
+        for (y_idx = 0; y_idx < (int32_t)y_offset; ) {
+            hmx_store_x_row(env, hmx_cfg, hmx->cvt_fxp, base_addr,
+                            y_idx, y_acc_idx, x_offset, tile_x_inc, xm,
+                            is_cm, fmt, before_state, x_acc_offset, ra);
+            y_idx = hmx_inc_with_spatial_mask(y_idx, tile_y_inc, ym);
+            y_acc_idx = hmx_inc_with_spatial_mask(y_acc_idx, tile_y_inc, ym);
+            if (!tile_y_inc) {
+                break;
+            }
+        }
+    }
+}
