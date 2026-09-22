@@ -429,4 +429,43 @@
     gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
         tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_CM, HMX_CVTST_AGE1)))
 
+/*
+ * M8_mxcvt{b,a}[_sat]_uh[_r] - legacy UH (2x1) convert-and-store:
+ * combines adjacent spatial pairs into one 16-bit value via
+ * hmx_u16_cvt(). b=BEFORE(LEFT), a=AFTER(RIGHT) direction, same
+ * sat/retain convention as the UB tags above.
+ */
+#define fGEN_TCG_M8_mxcvtb_sat_uh(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH, \
+                                      0, 0)))
+#define fGEN_TCG_M8_mxcvtb_sat_uh_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH, \
+                                      0, 1)))
+#define fGEN_TCG_M8_mxcvtb_uh(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH, \
+                                      1, 0)))
+#define fGEN_TCG_M8_mxcvtb_uh_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_LEFT, HMX_CVT_FMT_UH, \
+                                      1, 1)))
+#define fGEN_TCG_M8_mxcvta_sat_uh(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH, \
+                                      0, 0)))
+#define fGEN_TCG_M8_mxcvta_sat_uh_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH, \
+                                      0, 1)))
+#define fGEN_TCG_M8_mxcvta_uh(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH, \
+                                      1, 0)))
+#define fGEN_TCG_M8_mxcvta_uh_r(SHORTCODE) \
+    gen_helper_hmx_cvt_transfer(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH, \
+                                      1, 1)))
+
 #endif /* HEXAGON_GEN_TCG_HMX_H */
