@@ -40,12 +40,16 @@ static const VMStateDescription vmstate_hmx_acc_fp = {
 
 static const VMStateDescription vmstate_hmx_acc_set = {
     .name = "hexagon_hmx_acc_set",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(fxp_primary, HmxAccSet, 0, vmstate_hmx_acc_fxp,
                        HmxAccFxp),
         VMSTATE_STRUCT(fp_primary, HmxAccSet, 0, vmstate_hmx_acc_fp,
+                       HmxAccFp),
+        VMSTATE_STRUCT(fxp_secondary, HmxAccSet, 2, vmstate_hmx_acc_fxp,
+                       HmxAccFxp),
+        VMSTATE_STRUCT(fp_secondary, HmxAccSet, 2, vmstate_hmx_acc_fp,
                        HmxAccFp),
         VMSTATE_END_OF_LIST()
     },
@@ -75,7 +79,7 @@ static const VMStateDescription vmstate_hmx_cvt_fp = {
 
 static const VMStateDescription vmstate_hmx_regs = {
     .name = "hexagon_hmx_regs",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(acc, HmxState, HMX_NUM_ACC_SETS, 0,
@@ -91,6 +95,8 @@ static const VMStateDescription vmstate_hmx_regs = {
         VMSTATE_UINT32(current_acc_set, HmxState),
         VMSTATE_BUFFER(act_buffer, HmxState),
         VMSTATE_UINT32(act_rs, HmxState),
+        VMSTATE_UINT32_V(act_rt, HmxState, 2),
+        VMSTATE_UINT32_V(act_format, HmxState, 2),
         VMSTATE_UINT32(act_type, HmxState),
         VMSTATE_UINT8(is_f8_odd, HmxState),
         VMSTATE_UINT8(fp8_odd_sel, HmxState),
@@ -114,8 +120,10 @@ static const VMStateDescription vmstate_hmx_regs = {
         VMSTATE_INT32(mac_cycle_limit, HmxState),
         VMSTATE_UINT32(cvt_fxp_pending, HmxState),
         VMSTATE_UINT32(cvt_fxp_pending_age, HmxState),
+        VMSTATE_UINT32_V(cvt_fxp_pending_pc, HmxState, 2),
         VMSTATE_UINT32(cvt_acc_clear_pending, HmxState),
         VMSTATE_UINT32(cvt_acc_clear_set, HmxState),
+        VMSTATE_UINT32_V(cvt_acc_clear_pc, HmxState, 2),
         VMSTATE_END_OF_LIST()
     },
 };
