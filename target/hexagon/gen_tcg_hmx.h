@@ -506,4 +506,28 @@
         tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UH2X2, \
                                       1, 1)))
 
+/*
+ * M8_cvt_rs_uh_2x1 / M8_cvt_rs_uh_2x2 - trigger the deferred UH/UH2X2
+ * convert, same "writes its own return value into RsV" shape as
+ * M8_cvt_rs_ub above.
+ */
+#define fGEN_TCG_M8_cvt_rs_uh_2x1(SHORTCODE) \
+    gen_helper_hmx_cvt_rs(RsV, tcg_env, RsV, \
+        tcg_constant_i32(HMX_CVT_RS_UH_2X1))
+#define fGEN_TCG_M8_cvt_rs_uh_2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_rs(RsV, tcg_env, RsV, \
+        tcg_constant_i32(HMX_CVT_RS_UH_2X2))
+
+/*
+ * M8_mxmem_2x2 - store the deferred UH2X2 convert pipeline's output.
+ * HELPER(hmx_cvt_store)'s addressing already treats HMX_CVTST_2X2 the
+ * same as HMX_CVTST_NORMAL (both use the 4-byte-stride SM peg store,
+ * see hmx_store_fxp_peg()); only the *producer*
+ * (hmx_fxp_convert_2x2(), via M8_cvt_rs_uh_2x2 above) is format-
+ * specific.
+ */
+#define fGEN_TCG_M8_mxmem_2x2(SHORTCODE) \
+    gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_2X2, HMX_CVTST_AGE0)))
+
 #endif /* HEXAGON_GEN_TCG_HMX_H */
