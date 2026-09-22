@@ -34,6 +34,10 @@ DEF_REG_FIELD(USR_LPCFG,          8, 2)
 
 DEF_REG_FIELD(USR_FPDAZ,         17, 1)
 
+/* HMX FP overflow control: Inf/NaN enable and NaN propagate */
+DEF_REG_FIELD(USR_FPCOPROC_INFNAN,  20, 1)
+DEF_REG_FIELD(USR_FPCOPROC_NANPROP, 21, 1)
+
 DEF_REG_FIELD(USR_FPRND,         22, 2)
 
 DEF_REG_FIELD(USR_FPINVE,        25, 1)

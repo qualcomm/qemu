@@ -26,6 +26,21 @@
 #define HMX_BIAS_ENTRY_BYTES    ((uint32_t)sizeof(uint64_t))
 #define HMX_BIAS_HIGH_WORD_OFFSET 128
 #define HMX_FXP_WEIGHTS_PER_WORD 4
+#define HMX_MATMUL_RS_BF16_BIT   6
+#define HMX_CVT_RS_BF16_BIT      7
+#define HMX_BF16_MIN_ACC_EXP     8
+#define HMX_BF16_BINARY32_SHIFT  16
+#define HMX_BF16_RNE_BIAS        UINT32_C(0x7fff)
+#define HMX_BF16_SIGN_MASK       UINT16_C(0x8000)
+#define HMX_BF16_EXP_MASK        UINT16_C(0x7f80)
+#define HMX_BF16_FRAC_MASK       UINT16_C(0x007f)
+#define HMX_BF16_MAX_FINITE      UINT16_C(0x7f7f)
+#define HMX_BF16_MAX_EMAX_MINUS_1 UINT16_C(0x7eff)
+#define HMX_BF16_NEG_MAX_FINITE \
+    (HMX_BF16_SIGN_MASK | HMX_BF16_MAX_FINITE)
+#define HMX_BF16_NEG_MAX_EMAX_MINUS_1 \
+    (HMX_BF16_SIGN_MASK | HMX_BF16_MAX_EMAX_MINUS_1)
+#define HMX_BF16_CANONICAL_NAN   UINT16_C(0xffff)
 
 #define HMX_ACT_CROUTON_SIZE    2048  /* 2KB crouton */
 /* 4KB: 2 croutons */
@@ -36,11 +51,11 @@ typedef struct HmxAccFxp {
 } HmxAccFxp;
 
 /*
- * FP accumulator cell storage, as an IEEE double bit pattern.
+ * FP accumulator cell storage, as an IEEE binary64 bit pattern.
  *
  * A bit-exact XFP representation is added alongside this once the HMX
  * XFP conversion pipeline lands; until then every HMX-FP-capable
- * revision uses this double representation.
+ * revision uses this SoftFloat representation.
  */
 typedef struct HmxAccFp {
     uint64_t data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
@@ -114,6 +129,8 @@ typedef struct HmxState {
     uint32_t act_type;      /* HMX_ACT_UB, HMX_ACT_HF, HMX_ACT_F8 */
     uint8_t  is_f8_odd;     /* Rs[0]: FP8 activation reads odd byte of pair */
     uint8_t  fp8_odd_sel;   /* cvt Rs[11]: FP8 convert writes odd (1) half */
+    /* HF matmul input format selected by Rs[6]. */
+    uint8_t  is_bf16;
 
     /*
      * Multi-tap convolution state (computed by activation load,
@@ -309,6 +326,10 @@ static inline int hmx_compute_indices(int start, int stop, int inc,
 #define HMX_CVT_RS_UH_2X2  4
 #define HMX_CVT_RS_HF      5
 #define HMX_CVT_RS_F8      6
+
+/* Relaxed-precision FP convert feedback destination (cvt Rs[3:2]) */
+#define HEXAGON_XFP_FB_OUTBIAS 1
+#define HEXAGON_XFP_FB_SCALE   2
 
 /* Macros to pack/unpack helper parameters */
 #define HMX_PACK_WEI(type, mod)   ((type) | ((mod) << 8))

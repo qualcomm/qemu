@@ -10,9 +10,8 @@
 
 /*
  * mx_fp_rate: FP MAC reduction-group size.
- * hmx_fp_uses_xfp: selects the bit-exact XFP accumulator model over the
- *     native-double one; unused until the HMX XFP conversion pipeline
- *     lands (see hmx_state.h's HmxAccFp).
+ * hmx_fp_uses_xfp: selects the bit-exact XFP accumulator model (v81) over
+ *     the SoftFloat one (see hmx_state.h's HmxAccFp).
  */
 typedef struct HmxConfig {
     uint32_t mx_rows;
