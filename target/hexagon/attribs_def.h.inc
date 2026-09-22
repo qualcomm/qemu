@@ -112,6 +112,7 @@ DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
 DEF_ATTRIB(CVI_VA_2SRC, "Execs on multimedia vector engine; requires two srcs", "", "")
 
 DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers.", "", "")
+DEF_ATTRIB(VDBG, "Vector debugging instruction", "", "")
 
 /* Change-of-flow attributes */
 DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
@@ -245,6 +246,8 @@ DEF_ATTRIB(HMX_FLT, "HMX floating-point instruction", "", "")
 DEF_ATTRIB(HMX_CU_SCALAR, "HMX scalar operand", "", "")
 DEF_ATTRIB(HMX_BLOCK_ALIGN, "HMX block-aligned access", "", "")
 DEF_ATTRIB(HMX_128B_ALIGN, "HMX 128-byte aligned access", "", "")
+DEF_ATTRIB(NOTE_MX_PAIR,
+    "Weights and Activations need to be paired in a packet.", "", "")
 
 /* Keep this as the last attribute: */
 DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")
