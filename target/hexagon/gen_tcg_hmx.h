@@ -395,4 +395,38 @@
         tcg_constant_i32(HMX_PACK_CVT(HMX_CVT_RIGHT, HMX_CVT_FMT_UB_DM, \
                                       1, 1)))
 
+/*
+ * M8_cvt_rs_{ub,ub_sc0,ub_sc1} - trigger the deferred FXP convert.
+ * Writes the (always-zero) return value directly into RsV, matching
+ * the reference: this instruction's only register operand is Rs32
+ * (read-only per the idef syntax), so there is no separate
+ * destination for gen_tcg_func()'s normal write-back path to commit.
+ */
+#define fGEN_TCG_M8_cvt_rs_ub(SHORTCODE) \
+    gen_helper_hmx_cvt_rs(RsV, tcg_env, RsV, tcg_constant_i32(HMX_CVT_RS_UB))
+#define fGEN_TCG_M8_cvt_rs_ub_sc0(SHORTCODE) \
+    gen_helper_hmx_cvt_rs(RsV, tcg_env, RsV, \
+        tcg_constant_i32(HMX_CVT_RS_UB_SC0))
+#define fGEN_TCG_M8_cvt_rs_ub_sc1(SHORTCODE) \
+    gen_helper_hmx_cvt_rs(RsV, tcg_env, RsV, \
+        tcg_constant_i32(HMX_CVT_RS_UB_SC1))
+
+/*
+ * M8_mxmem[_cm][_deep] - store the deferred convert pipeline's output
+ * (see HELPER(hmx_cvt_store)). Only the FXP SM/CM formats are here;
+ * M8_mxmem_2x2 needs the UH_UH convert format, not implemented yet.
+ */
+#define fGEN_TCG_M8_mxmem(SHORTCODE) \
+    gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_NORMAL, HMX_CVTST_AGE0)))
+#define fGEN_TCG_M8_mxmem_deep(SHORTCODE) \
+    gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_NORMAL, HMX_CVTST_AGE1)))
+#define fGEN_TCG_M8_mxmem_cm(SHORTCODE) \
+    gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_CM, HMX_CVTST_AGE0)))
+#define fGEN_TCG_M8_mxmem_cm_deep(SHORTCODE) \
+    gen_helper_hmx_cvt_store(tcg_env, RsV, RtV, \
+        tcg_constant_i32(HMX_PACK_CVTST(HMX_CVTST_CM, HMX_CVTST_AGE1)))
+
 #endif /* HEXAGON_GEN_TCG_HMX_H */
