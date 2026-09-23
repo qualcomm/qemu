@@ -12,6 +12,7 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+import re
 import sys
 import subprocess
 
@@ -41,7 +42,7 @@ def atomic_write(filename, content):
         raise
 
 
-def generate(filename, cmd, trailer):
+def generate(filename, cmd, trailer, registry_path):
     print("Generate %s" % filename)
     lcitool = subprocess.run(cmd, capture_output=True, encoding='utf8')
 
@@ -49,6 +50,10 @@ def generate(filename, cmd, trailer):
         raise Exception("Failed to generate %s: %s" % (filename, lcitool.stderr))
 
     content = lcitool.stdout
+
+    if registry_path is not None:
+        content = re.sub("FROM.*/", "FROM " + registry_path + '/', content)
+
     if trailer is not None:
         content += trailer
     atomic_write(filename, content)
@@ -64,9 +69,9 @@ add_user_mapping = [
 ]
 
 def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
-                        enable_rust=True):
+                        enable_rust=True, registry_path=None):
     filename = Path(src_dir, "tests", "docker", "dockerfiles", host + ".docker")
-    cmd = lcitool_cmd + ["dockerfile"]
+    cmd = lcitool_cmd + ["dockerfile", "--host-arch", "x86_64"]
     if cross is not None:
         cmd.extend(["--cross", cross])
     cmd.extend([target, project])
@@ -79,26 +84,26 @@ def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
 
     if enable_rust:
         trailer += "\nENV ENABLE_RUST=1\n"
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, registry_path)
 
 
 def generate_vars(target, trailer=None):
     filename = Path(src_dir, ".gitlab-ci.d", target + ".vars")
     cmd = lcitool_cmd + ["variables", "--format", "shell", target, "qemu"]
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, None)
 
 
 def generate_pkglist(vm, target, project="qemu"):
     filename = Path(src_dir, "tests", "vm", "generated", vm + ".json")
     cmd = lcitool_cmd + ["variables", "--format", "json", target, project]
-    generate(filename, cmd, None)
+    generate(filename, cmd, None, None)
 
 
 def generate_yaml(os, target, arch, trailer=None):
     filename = Path(src_dir, "scripts", "ci", "setup", os, f"{target}-{arch}.yaml")
     cmd = lcitool_cmd + ["variables", "--format", "yaml", "-a",
                          arch, target, "qemu"]
-    generate(filename, cmd, trailer)
+    generate(filename, cmd, trailer, None)
 
 
 alpine_extras = r"""
@@ -177,15 +182,15 @@ RUN apt update && \
   rsync
 
 # https://openrisc.io/2025/04/20/toolchainrootfsbins
-RUN if dpkg-architecture -e amd64; then \
-cd /tmp && \
+RUN cd /tmp && \
   wget -q https://github.com/stffrdhrn/or1k-toolchain-build/releases/download/or1k-16.1.0-20260614/or1k-none-linux-musl-16.1.0-20260614.tar.xz && \
   tar --no-same-owner -xf *.tar.xz && \
   rsync -a or1k-none-linux-musl/ /usr/ && \
-  rm -rf /tmp/*; \
-fi
+  rm -rf /tmp/*
 
-ENV AVAILABLE_COMPILERS="\
+RUN apt update && \
+  DEBIAN_FRONTEND=noninteractive eatmydata \
+  apt install -y --no-install-recommends \
   gcc-aarch64-linux-gnu \
   libc6-dev-arm64-cross \
   gcc-arm-linux-gnueabihf \
@@ -208,19 +213,18 @@ ENV AVAILABLE_COMPILERS="\
   libc6-dev-s390x-cross\
   gcc-sh4-linux-gnu \
   libc6-dev-sh4-cross \
-  "
-RUN if dpkg-architecture -e amd64; then \
-  export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-hppa-linux-gnu libc6-dev-hppa-cross"; \
-  export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-m68k-linux-gnu libc6-dev-m68k-cross"; \
-  export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-powerpc-linux-gnu libc6-dev-powerpc-cross"; \
-  export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-powerpc64-linux-gnu libc6-dev-ppc64-cross"; \
-  export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-sparc64-linux-gnu libc6-dev-sparc64-cross"; \
-fi && \
-apt update && \
-DEBIAN_FRONTEND=noninteractive eatmydata \
-apt install -y --no-install-recommends \
-${AVAILABLE_COMPILERS} && \
-dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt
+  gcc-hppa-linux-gnu \
+  libc6-dev-hppa-cross \
+  gcc-m68k-linux-gnu \
+  libc6-dev-m68k-cross \
+  gcc-powerpc-linux-gnu \
+  libc6-dev-powerpc-cross \
+  gcc-powerpc64-linux-gnu \
+  libc6-dev-ppc64-cross \
+  gcc-sparc64-linux-gnu \
+  libc6-dev-sparc64-cross \
+  && \
+  dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt
 ENV QEMU_CONFIGURE_OPTS=--disable-docs
 ENV DEF_TARGET_LIST=aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user
 """
@@ -234,6 +238,8 @@ def cross_build(prefix, targets):
 # Update all the various build configurations.
 # Please keep each group sorted alphabetically for easy reading.
 #
+
+DOCKER_IO_AMD64 = "docker.io/amd64"
 
 try:
     #
@@ -259,6 +265,7 @@ try:
     # Cross compiling builds
     #
     generate_dockerfile("debian-amd64-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         cross="x86_64",
                         trailer=cross_build("x86_64-linux-gnu-",
                                             "x86_64-softmmu,"
@@ -276,6 +283,7 @@ try:
                                             "arm-softmmu,arm-linux-user"))
 
     generate_dockerfile("debian-i686-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         cross="i686",
                         trailer=cross_build("i686-linux-gnu-",
                                             "i386-softmmu,i386-linux-user"))
@@ -308,9 +316,11 @@ try:
     # tests.
 
     generate_dockerfile("debian-all-test-cross", "debian-13",
+                        registry_path=DOCKER_IO_AMD64,
                         project="qemu-minimal",
                         enable_rust=False,
                         trailer=debian_all_test_cross_compilers)
+
 
     #
     # GitLab packages lists

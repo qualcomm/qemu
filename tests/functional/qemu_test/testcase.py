@@ -33,7 +33,89 @@ from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
 
+def _dump_log_tail(log_path, num_lines=200):
+    if not os.path.exists(log_path):
+        return
+    with open(log_path, 'r', errors='replace') as log_fh:
+        lines = log_fh.readlines()
+    print('--- last %d lines of %s ---' % (num_lines, log_path),
+          file=sys.stderr)
+    for line in lines[-num_lines:]:
+        sys.stderr.write(line)
+
+
+def _get_retry_count():
+    env_var = 'QEMU_TEST_RETRY_FAILING_TEST_N_TIMES'
+    env_val = os.environ.get(env_var)
+    if env_val is None:
+        return 1
+    try:
+        retries = int(env_val)
+    except ValueError:
+        raise ValueError("%s must be a number, got '%s'" %
+                         (env_var, env_val)) from None
+    if retries < 1:
+        raise ValueError('%s must be >= 1, got %d' % (env_var, retries))
+    return retries
+
+
+class _RetryTestResult(unittest.TestResult):
+    '''A throwaway TestResult used to capture the outcome of a single
+    retry attempt, so it can be replayed onto the real TestResult once
+    all attempts are exhausted.'''
+
+    def __init__(self):
+        super().__init__()
+        self.outcome = None
+
+    def addError(self, test, err):
+        self.outcome = ('error', err)
+        super().addError(test, err)
+
+    def addFailure(self, test, err):
+        self.outcome = ('failure', err)
+        super().addFailure(test, err)
+
+    def addSkip(self, test, reason):
+        self.outcome = ('skip', reason)
+        super().addSkip(test, reason)
+
+
 class QemuBaseTest(unittest.TestCase):
+
+    def run(self, result=None):
+        self.num_attempts = 1
+
+        retries = _get_retry_count()
+        if retries <= 1:
+            return super().run(result)
+
+        if result is None:
+            result = self.defaultTestResult()
+
+        for attempt in range(1, retries + 1):
+            self.num_attempts = attempt
+            tmp_result = _RetryTestResult()
+            super().run(tmp_result)
+            if tmp_result.wasSuccessful():
+                break
+            if attempt < retries:
+                print('Test %s failed on attempt %d/%d, retrying' %
+                      (self.id(), attempt, retries), file=sys.stderr)
+
+        result.startTest(self)
+        if tmp_result.outcome is None:
+            result.addSuccess(self)
+        else:
+            (kind, info) = tmp_result.outcome
+            if kind == 'error':
+                result.addError(self, info)
+            elif kind == 'failure':
+                result.addFailure(self, info)
+            elif kind == 'skip':
+                result.addSkip(self, info)
+        result.stopTest(self)
+        return result
 
     def uncompress(self, compressed, target=None, format=None):
         '''
@@ -182,6 +264,13 @@ class QemuBaseTest(unittest.TestCase):
         '''
         return str(Path(self.outputdir, *args))
 
+    def log_files(self):
+        '''
+        Returns the list of log files produced during the execution of
+        this test, that are dumped to stderr when the test fails.
+        '''
+        return [self.log_filename]
+
     def plugin_file(self, plugin_name):
         '''
         @params plugin name
@@ -259,16 +348,27 @@ class QemuBaseTest(unittest.TestCase):
             Asset.precache_suites(test_module, cache)
             return
 
+        # Validate QEMU_TEST_RETRY_FAILING_TEST_N_TIMES early, so that an
+        # invalid value is reported before any test is run.
+        _get_retry_count()
+
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
         res = unittest.main(test_module, testRunner = tr, exit = False)
         failed = {}
         for (test, _message) in res.result.errors + res.result.failures:
             if hasattr(test, "log_filename") and not test.id() in failed:
+                num_attempts = getattr(test, 'num_attempts', 1)
+                if num_attempts > 1:
+                    print('Test %s still failed after %d attempts' %
+                          (test.id(), num_attempts), file=sys.stderr)
                 print('More information on ' + test.id() + ' could be found here:'
                       '\n %s' % test.log_filename, file=sys.stderr)
                 if hasattr(test, 'console_log_name'):
                     print(' %s' % test.console_log_name, file=sys.stderr)
+                if hasattr(test, 'log_files'):
+                    for log_path in test.log_files():
+                        _dump_log_tail(log_path)
                 failed[test.id()] = True
         sys.exit(not res.result.wasSuccessful())
 
@@ -312,6 +412,13 @@ class QemuSystemTest(QemuBaseTest):
         file_formatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(file_formatter)
         console_log.addHandler(self._console_log_fh)
+
+    def log_files(self):
+        files = super().log_files()
+        files.append(self.console_log_name)
+        for name in self._vms:
+            files.append(self.log_file(f'{name}.log'))
+        return files
 
     def set_machine(self, machinename):
         cls = type(self)
