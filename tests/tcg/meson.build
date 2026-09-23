@@ -265,6 +265,8 @@ foreach target, plan: tcg_tests
       if get_option('container_registry') != ''
         cmd += ['--registry', get_option('container_registry')]
       endif
+      # ensure container is reproducible, works with podman only
+      cmd += ['--timestamp', '0']
       t = custom_target(image_name, command: cmd,
                         build_by_default: false,
                         console: true,
@@ -527,4 +529,6 @@ endforeach
 if exe_targets.length() > 0
   # finally create a top level target to rebuild all tests
   alias_target('tcg-tests', exe_targets)
+  # before, this target was called build-tcg. Keep it for compatibility sake.
+  alias_target('build-tcg', exe_targets)
 endif

@@ -101,6 +101,10 @@ There are usually three log files:
   differently if the test chooses to use a different identifier for
   the guest VM (e.g. when the test spins up multiple VMs).
 
+Whenever a test fails or errors, the last 200 lines of each of these log
+files are printed to stderr, which is useful when the log files themselves
+are not easily accessible (e.g. in CI).
+
 Introduction to writing tests
 -----------------------------
 
@@ -392,6 +396,13 @@ e.g. if the QEMU binary has been compiled with debugging options enabled.
 To avoid these timeout issues by default and to save some precious CPU
 cycles during normal testing, such tests are disabled by default unless
 the QEMU_TEST_ALLOW_SLOW environment variable has been set.
+
+QEMU_TEST_RETRY_FAILING_TEST_N_TIMES
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When set to a positive integer, a failing test is retried (fully re-running
+setUp/tearDown) up to that many times, and only reported as failed if the
+last attempt also fails. This is useful to work around known-flaky tests
+without disabling them entirely.
 
 
 .. _unittest: https://docs.python.org/3/library/unittest.html
