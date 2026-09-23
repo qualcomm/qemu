@@ -11,6 +11,7 @@
 #define HEXAGON_HMX_STATE_H
 
 #include <stdint.h>
+#include "hmx_xfp.h"
 
 /*
  * HMX Architecture Constants
@@ -51,14 +52,20 @@ typedef struct HmxAccFxp {
 } HmxAccFxp;
 
 /*
- * FP accumulator cell storage, as an IEEE binary64 bit pattern.
- *
- * A bit-exact XFP representation is added alongside this once the HMX
- * XFP conversion pipeline lands; until then every HMX-FP-capable
- * revision uses this SoftFloat representation.
+ * FP accumulator cell storage. `data` is an IEEE binary64 bit pattern,
+ * used by v75/v79 and (until hmx_fp_uses_xfp is flipped on) v81's
+ * hmx_matmul_fp_softfloat()/hmx_fp_convert_softfloat() path. `xfp_data` is the
+ * bit-exact flat XFP representation (HmxXfp, hmx_xfp.h) v81's
+ * hmx_matmul_fp_xfp()/hmx_fp_convert_xfp() path uses instead -- a
+ * different in-memory shape, not a reinterpretation of the same
+ * bits, so both fields coexist rather than aliasing via a union.
+ * XFP "true zero" (status.zero=1, exp=-256) is NOT all-zero memory,
+ * so xfp_data must always be initialized via hmx_fp_acc_zero(), never
+ * memset() -- see hmx_helper.c.
  */
 typedef struct HmxAccFp {
     uint64_t data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
+    HmxXfp xfp_data[HMX_SPATIAL_DIM_FP][HMX_OUTPUT_CHANNELS];
 } HmxAccFp;
 
 typedef struct HmxAccSet {
@@ -102,6 +109,17 @@ typedef struct HmxCvtStateFp {
 typedef struct HmxState {
     /* Accumulators: 2 sets for swap operation */
     HmxAccSet acc[HMX_NUM_ACC_SETS];
+
+    /*
+     * XFP MAC product scratch: one rate-8 batch of pre-reduction
+     * products per (acc set, spatial, output channel), consumed by
+     * hmx_xfp_batch8() once the 8th lane is written -- see
+     * hmx_matmul_fp_xfp()/hmx_fp_spatial_mac_xfp() in hmx_helper.c.
+     * v81-only (hmx_cfg->hmx_fp_uses_xfp); unused, and left
+     * zero-initialized, on v75/v79.
+     */
+    HmxXfp fp_mac_cache[HMX_NUM_ACC_SETS][HMX_SPATIAL_DIM_FP]
+                       [HMX_OUTPUT_CHANNELS][8];
 
     /* Convert state: 3 ages for feedback operations */
     HmxCvtStateFxp cvt_fxp[HMX_NUM_CVT_AGES];
@@ -438,5 +456,16 @@ static inline uint32_t hmx_bias_output_bias_unsigned(uint64_t raw)
     uint32_t bits11_4 = (raw >> 23) & 0xFF; /* Out bias[11:4] = BIAS[30:23] */
     return (bits11_4 << 4) | (bit3 << 3) | bits2_0;
 }
+
+struct HmxConfig;
+
+/*
+ * Initialize a zeroed HmxState's FP accumulators and MAC product
+ * cache to XFP true-zero. v81-only (hmx_cfg->hmx_fp_uses_xfp) -- the
+ * SoftFloat path's plain zeroed memory is already correct for
+ * v75/v79. Called from CPU reset (cpu.c), right after the HmxState is
+ * zeroed.
+ */
+void hmx_init_fp_state(const struct HmxConfig *hmx_cfg, void *hmx_state);
 
 #endif /* HEXAGON_HMX_STATE_H */

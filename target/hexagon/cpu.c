@@ -458,6 +458,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     hexagon_dma_reset(&HEXAGON_CPU(obj)->dma);
 
     memset(cpu->hmx, 0, sizeof(*cpu->hmx));
+    if (cpu->hmx_cfg.hmx_fp_uses_xfp) {
+        hmx_init_fp_state(&cpu->hmx_cfg, cpu->hmx);
+    }
 
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
