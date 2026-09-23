@@ -314,6 +314,7 @@ hexagon_ss.add(files(
     'hlx_gvec_tables.c',
     'hmx_config.c',
     'hmx_helper.c',
+    'hmx_xfp.c',
 ))
 
 hexagon_softmmu_ss.add(files(

@@ -16,6 +16,18 @@ static void hexagon_hmx_context_reset_hold(Object *obj, ResetType type)
     memset(&s->regs, 0, sizeof(s->regs));
 }
 
+static const VMStateDescription vmstate_hmx_xfp = {
+    .name = "hexagon_hmx_xfp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT64(sig, HmxXfp),
+        VMSTATE_INT32(exp, HmxXfp),
+        VMSTATE_UINT32(status.val, HmxXfp),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_hmx_acc_fxp = {
     .name = "hexagon_hmx_acc_fxp",
     .version_id = 1,
@@ -29,11 +41,14 @@ static const VMStateDescription vmstate_hmx_acc_fxp = {
 
 static const VMStateDescription vmstate_hmx_acc_fp = {
     .name = "hexagon_hmx_acc_fp",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64_2DARRAY(data, HmxAccFp, HMX_SPATIAL_DIM_FP,
                                HMX_OUTPUT_CHANNELS),
+        VMSTATE_STRUCT_2DARRAY(xfp_data, HmxAccFp, HMX_SPATIAL_DIM_FP,
+                               HMX_OUTPUT_CHANNELS, 2, vmstate_hmx_xfp,
+                               HmxXfp),
         VMSTATE_END_OF_LIST()
     },
 };
