@@ -418,6 +418,8 @@ ExportedFct('cpu_arm_set_cpu_on_and_reset', 'int', [ 'Object *'],
 ExportedFct('cpu_arm_set_cpu_off', 'int', [ 'Object *'],
         priv = 'libqemu_arm_set_cpu_off', arch = 'arm')
 # AArch64 specific exports
+ExportedFct('cpu_aarch64_set_wyvern_features', 'void', [ 'Object *' ],
+        priv = 'libqemu_cpu_aarch64_set_wyvern_features', arch = 'aarch64')
 ExportedFct('cpu_arm_set_cp15_cbar', 'void', [ 'Object *', 'uint64_t' ],
         priv = 'libqemu_cpu_arm_set_cp15_cbar', arch = 'aarch64')
 ExportedFct('cpu_arm_add_nvic_link', 'void', [ 'Object *' ],

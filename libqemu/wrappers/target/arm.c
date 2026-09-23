@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "target/arm/cpu.h"
+#include "target/arm/cpu-features.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/cpregs.h"
 #include "target/arm/arm-powerctl.h"
@@ -101,6 +102,49 @@ void libqemu_cpu_aarch64_set_aarch64_mode(Object *obj, bool aarch64_mode)
     CPUARMState *cpu = &ARM_CPU(obj)->env;
 
     cpu->aarch64 = aarch64_mode;
+}
+
+void libqemu_cpu_aarch64_set_wyvern_features(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+    uint64_t t;
+
+    t = GET_IDREG(isar, ID_AA64ISAR2);
+    t = FIELD_DP64(t, ID_AA64ISAR2, MOPS, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR2, BC, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR2, CSSC, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR2, LUT, 1);
+    SET_IDREG(isar, ID_AA64ISAR2, t);
+
+    t = GET_IDREG(isar, ID_AA64ISAR3);
+    t = FIELD_DP64(t, ID_AA64ISAR3, FAMINMAX, 1);
+    SET_IDREG(isar, ID_AA64ISAR3, t);
+
+    t = GET_IDREG(isar, ID_AA64PFR1);
+    t = FIELD_DP64(t, ID_AA64PFR1, SME, 2);
+    SET_IDREG(isar, ID_AA64PFR1, t);
+
+    t = GET_IDREG(isar, ID_AA64PFR2);
+    t = FIELD_DP64(t, ID_AA64PFR2, FPMR, 1);
+    SET_IDREG(isar, ID_AA64PFR2, t);
+
+    t = GET_IDREG(isar, ID_AA64ZFR0);
+    t = FIELD_DP64(t, ID_AA64ZFR0, SVEVER, 2);
+    t = FIELD_DP64(t, ID_AA64ZFR0, B16B16, 1);
+    SET_IDREG(isar, ID_AA64ZFR0, t);
+
+    t = GET_IDREG(isar, ID_AA64SMFR0);
+    t = FIELD_DP64(t, ID_AA64SMFR0, BI32I32, 1);
+    t = FIELD_DP64(t, ID_AA64SMFR0, SMEVER, 2);
+    t = FIELD_DP64(t, ID_AA64SMFR0, LUTv2, 1);
+    SET_IDREG(isar, ID_AA64SMFR0, t);
+
+    t = GET_IDREG(isar, ID_AA64FPFR0);
+    t = FIELD_DP64(t, ID_AA64FPFR0, F8E5M2, 1);
+    t = FIELD_DP64(t, ID_AA64FPFR0, F8E4M3, 1);
+    t = FIELD_DP64(t, ID_AA64FPFR0, F8CVT, 1);
+    SET_IDREG(isar, ID_AA64FPFR0, t);
 }
 
 void libqemu_cpu_arm_add_nvic_link(Object *obj)
