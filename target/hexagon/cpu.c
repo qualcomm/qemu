@@ -487,15 +487,17 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
     CPUHexagonState *env = cpu_env(cs);
-#ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(cs);
-#endif
 
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj, type);
     }
 
     hexagon_dma_reset(&HEXAGON_CPU(obj)->dma);
+
+    if (cpu->hmx && cpu->hmx_cfg.hmx_fp_uses_xfp) {
+        hmx_init_fp_state(&cpu->hmx_cfg, cpu->hmx);
+    }
 
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
