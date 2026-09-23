@@ -117,22 +117,24 @@ void HELPER(hmx_clracc)(CPUHexagonState *env)
     memset(&hmx->acc[1].fxp_secondary, 0, sizeof(HmxAccFxp));
 }
 
-/*
- * M8_mxclracc_hf - clear both FP accumulator sets.
- *
- * hmx_fp_uses_xfp is always false for now (see hmx_config.c), so this
- * only needs the plain zero; the XFP true-zero path lands with
- * the rest of the XFP accumulator support.
- */
+/* M8_mxclracc_hf - clear both FP accumulator sets. */
 void HELPER(hmx_clracc_hf)(CPUHexagonState *env)
 {
     HmxState *hmx = env->hmx_state;
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
-    g_assert(!hmx_cfg_from_env(env)->hmx_fp_uses_xfp);
-    memset(&hmx->acc[0].fp_primary, 0, sizeof(HmxAccFp));
-    memset(&hmx->acc[0].fp_secondary, 0, sizeof(HmxAccFp));
-    memset(&hmx->acc[1].fp_primary, 0, sizeof(HmxAccFp));
-    memset(&hmx->acc[1].fp_secondary, 0, sizeof(HmxAccFp));
+    if (hmx_cfg->hmx_fp_uses_xfp) {
+        for (int a = 0; a < HMX_NUM_ACC_SETS; a++) {
+            hmx_fp_acc_zero(hmx_cfg, &hmx->acc[a].fp_primary);
+            hmx_fp_acc_zero(hmx_cfg, &hmx->acc[a].fp_secondary);
+        }
+        hmx_fp_mac_cache_zero(hmx);
+    } else {
+        memset(&hmx->acc[0].fp_primary, 0, sizeof(HmxAccFp));
+        memset(&hmx->acc[0].fp_secondary, 0, sizeof(HmxAccFp));
+        memset(&hmx->acc[1].fp_primary, 0, sizeof(HmxAccFp));
+        memset(&hmx->acc[1].fp_secondary, 0, sizeof(HmxAccFp));
+    }
 }
 
 /*
@@ -448,6 +450,7 @@ void HELPER(hmx_act_load)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
         }
         break;
     case HMX_ACT_F8:
+        g_assert(hmx_cfg_from_env(env)->mx_fp8_en);
         for (int i = 0; i < HMX_ACT_CROUTON_SIZE; i += 4) {
             uint32_t w = cpu_ldl_le_data_ra(env, base_addr + i, ra);
             stl_le_p(&hmx->act_buffer[i], w);
