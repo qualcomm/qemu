@@ -1487,9 +1487,10 @@ fp_wgt_advance:
 
 /*
  * Extract one weight column set for the XFP path (v81,
- * hmx_cfg->hmx_fp_uses_xfp). Same raw-bit extraction as
- * hmx_fp_extract_weights_softfloat(), but leaves the result as a raw FP16/F8
- * -shaped uint16_t (without conversion to SoftFloat binary64)
+ * hmx_cfg->hmx_fp_uses_xfp): HF (2 weights per 32-bit word) or F8 (4 per
+ * word, expanded to FP16 via the same raw-bit-shift F8->FP16 mapping
+ * HELPER(hmx_act_load) uses for F8 activations). Leaves each result as a
+ * raw FP16/BF16 uint16_t (without conversion to SoftFloat binary64)
  * since hmx_fp_spatial_mac_xfp() decodes through hmx_xfp_decode_fp16()/
  * hmx_xfp_decode_bf16() instead -- the bit-exact flat XFP decode, not
  * a host floating-point approximation.
@@ -2321,7 +2322,7 @@ static void hmx_flush_acc_clear(CPUHexagonState *env, HmxState *hmx)
      * Also clear the FP accumulator here, not just FXP -- clearing
      * only the FXP set would leave stale FP sums to accumulate across
      * layers. Dispatch by CPU revision (hmx_config.c's
-     * hmx_fp_uses_xfp): the double-based FP path's true-zero is a
+     * hmx_fp_uses_xfp): the SoftFloat path's true-zero is a
      * plain memset (all-zero bits *is* IEEE +0.0); the XFP path needs
      * hmx_fp_acc_zero()'s non-trivial canonical-zero builder, since
      * all-zero bits are not XFP's true-zero encoding. This branch was
@@ -2702,8 +2703,8 @@ static void hmx_cvt_pipeline_begin(HmxState *hmx, int fb_dst, uint32_t cur_pc)
 
 /*
  * M8_cvt_rs_hf - FP accumulator convert to FP16 or BF16,
- * SoftFloat-accumulator path (mirrors hmx_matmul_fp_softfloat()'s scoping
- * rationale: hmx_fp_uses_xfp is always false for now). relu is
+ * SoftFloat-accumulator path, used when !hmx_cfg->hmx_fp_uses_xfp
+ * (v75/v79; see hmx_fp_convert_xfp() for v81, including F8). relu is
  * accepted by HELPER(hmx_cvt_rs)'s caller for parity with the FXP
  * convert dispatch, but -- as in the reference -- it is not actually
  * consumed by the FP convert math; the bias register's "shape" field
@@ -2820,6 +2821,315 @@ static void hmx_fp_convert_softfloat(CPUHexagonState *env, HmxState *hmx,
                     fp16 = hmx_fp16_fixup(fp16, inf_prop, nan_prop, maxnorm);
                 }
                 hmx_fp_split_to_fxp(hmx, s, o, (uint32_t)fp16 << 4);
+            }
+        }
+    }
+}
+
+/*
+ * XFP FP convert path (v81, hmx_cfg->hmx_fp_uses_xfp). Convert is
+ * unconditional on hmx_fp_uses_xfp, unlike the MAC path selection --
+ * v75/v79 never reach here, only ever calling hmx_fp_convert_softfloat().
+ */
+
+/*
+ * Per-(bias_sel, o) state hoisted out of hmx_fp_convert_xfp()'s per-`s`
+ * loop below -- the acc_bias/scale/out_bias decode depends on bias_reg
+ * alone, with no dependency on the per-spatial-row accumulator or
+ * convert feedback. hmx_fp_convert_xfp() calls hmx_cvt_col_apply()
+ * once per (o, s) with the same bias_reg for all 32 values of s (bias_reg
+ * comes from hmx->bias_raw[bias_sel][o], indexed by o only), so decoding
+ * acc_bias/scale/out_bias from their raw bit patterns is redundantly
+ * repeated up to 32x per o for no reason.
+ *
+ * Split at exactly the acc/cvt_feedback dependency boundary:
+ *
+ *   - acc_bias's decode never depends on acc/cvt_feedback/shape --
+ *     always hoistable.
+ *   - out_bias's pre-feedback-clamp decode never depends on
+ *     acc/shape/negate either -- always hoistable; only the optional
+ *     feedback clamp (rs.fb_dst == FB_OUTBIAS) stays per-s
+ *     (cvt_feedback varies by s).
+ *   - scale's decode XORs in scale_negate = (bias.negate ^ abs_negate)
+ *     << 19, and abs_negate is 0 UNLESS bias.shape == 3 (the "abs"
+ *     shape), in which case it is the per-s acc_normalized.status.
+ *     negative. Hoistable iff bias.shape != 3; when it is 3, scale is
+ *     fully recomputed every s in hmx_cvt_col_apply() below.
+ *   - The bits_frac--/sig>>=1/bits_exp++ postprocessing on scale is left
+ *     per-s uniformly (three cheap ops) rather than special-cased on
+ *     fb_dst, to keep the split simple -- only the decode itself (a real
+ *     hexagon_xfp_from_fp() call) is hoisted.
+ *   - The accumulator shape/clip step is reproduced here via the
+ *     public hexagon_xfp_cmp()/hexagon_xfp_zero() -- always
+ *     acc-dependent (shape 1/2 clip the per-s accumulator), no hoist
+ *     attempted.
+ */
+typedef struct HmxCvtColState {
+    HexagonXfp acc_bias;
+    HexagonXfp out_bias_base;
+    HexagonXfp scale_pre;      /* valid only if scale_ready */
+    uint32_t scale_negate;     /* valid only if scale_ready */
+    int scale_ready;           /* false iff bias.shape == 3 */
+    HexagonXfpBias bias;
+    HexagonXfpUsr usr, usr_internal;
+    HexagonXfpCvtRs rs;
+    uint32_t fp_frac, fp_exp, int_out, frac_out, exp_out;
+    int is_f8;
+} HmxCvtColState;
+
+static void hmx_cvt_col_setup(const HmxConfig *hmx_cfg, int is_f8,
+                               HexagonXfpUsr usr, HexagonXfpBias bias,
+                               HexagonXfpCvtRs rs, uint32_t fp_frac,
+                               uint32_t fp_exp, HmxCvtColState *st)
+{
+    const uint32_t exp_out = hmx_cfg->xfp_cvt_exp;
+    const uint32_t frac_out = hmx_cfg->xfp_cvt_frac;
+    const uint32_t int_out = hmx_cfg->xfp_cvt_int;
+    const uint32_t input_norm = 0;
+
+    st->bias = bias;
+    st->usr = usr;
+    st->usr_internal = usr;
+    st->usr_internal.inf_nan_enable = 1;
+    st->usr_internal.nan_propagate = 1;
+    st->rs = rs;
+    st->fp_frac = fp_frac;
+    st->fp_exp = fp_exp;
+    st->int_out = int_out;
+    st->frac_out = frac_out;
+    st->exp_out = exp_out;
+    st->is_f8 = is_f8;
+
+    uint32_t val_ab = ((uint32_t)bias.acc_bias << 5) |
+                       (uint32_t)bias.acc_bias_extra;
+    st->acc_bias = hexagon_xfp_from_fp(hmx_cfg, usr, val_ab, fp_frac + 5,
+                                        fp_exp, int_out,
+                                        hmx_cfg->mx_fp_acc_frac,
+                                        hmx_cfg->mx_fp_acc_exp, input_norm);
+
+    uint32_t val_ob = ((uint32_t)bias.out_bias << 4) |
+                        (uint32_t)bias.out_bias_extra;
+    st->out_bias_base = hexagon_xfp_from_fp(hmx_cfg, usr, val_ob, fp_frac + 4,
+                                             fp_exp, int_out, frac_out,
+                                             exp_out, input_norm);
+
+    st->scale_ready = (bias.shape != 3);
+    if (st->scale_ready) {
+        st->scale_negate = ((uint32_t)bias.negate) << 19;
+        uint32_t val_sc = (((uint32_t)bias.scale << 4) |
+                           (uint32_t)bias.scale_extra) ^ st->scale_negate;
+        st->scale_pre = hexagon_xfp_from_fp(hmx_cfg, usr, val_sc, fp_frac + 4,
+                                            fp_exp, int_out, frac_out + 1,
+                                            exp_out, input_norm);
+    }
+}
+
+static uint32_t hmx_cvt_col_apply(const HmxConfig *hmx_cfg,
+                                   const HmxCvtColState *st,
+                                   HexagonXfp acc, uint32_t cvt_feedback)
+{
+    HexagonXfpBias bias = st->bias;
+    HexagonXfpUsr usr = st->usr;
+    HexagonXfpUsr usr_internal = st->usr_internal;
+    HexagonXfpCvtRs rs = st->rs;
+    uint32_t fp_frac = st->fp_frac, fp_exp = st->fp_exp;
+    uint32_t int_out = st->int_out, frac_out = st->frac_out,
+             exp_out = st->exp_out;
+    const uint32_t input_norm = 0;
+
+    HexagonXfp acc_biased = hexagon_xfp_add(hmx_cfg, usr_internal, acc,
+                                             st->acc_bias);
+    HexagonXfp acc_normalized = hexagon_xfp_cvt_normalize(
+        hmx_cfg, usr_internal, acc_biased, int_out, frac_out, exp_out);
+
+    HexagonXfp scale;
+    uint32_t abs_negate, scale_negate;
+    if (st->scale_ready) {
+        abs_negate = 0;
+        scale_negate = st->scale_negate;
+        scale = st->scale_pre;
+    } else {
+        abs_negate = acc_normalized.status.negative;
+        scale_negate = (bias.negate ^ abs_negate) << 19;
+        uint32_t val_sc = (((uint32_t)bias.scale << 4) |
+                           (uint32_t)bias.scale_extra) ^ scale_negate;
+        scale = hexagon_xfp_from_fp(hmx_cfg, usr, val_sc, fp_frac + 4, fp_exp,
+                                    int_out, frac_out + 1, exp_out,
+                                    input_norm);
+    }
+
+    if (rs.fb_dst == HEXAGON_XFP_FB_SCALE) {
+        uint32_t fb = cvt_feedback ^ scale_negate;
+        HexagonXfp feedback = hexagon_xfp_from_fp(
+            hmx_cfg, usr, fb, fp_frac + 4, fp_exp, int_out, frac_out + 1,
+            exp_out, input_norm);
+        scale = hexagon_xfp_cmp(hmx_cfg, usr, scale, feedback,
+                                 rs.fb_limit ^ (bias.negate ^ abs_negate));
+    }
+
+    scale.bits_frac--;
+    scale.sig >>= 1;
+
+    HexagonXfp acc_shaped = acc_normalized;
+    if (bias.shape == 1 || bias.shape == 2) {
+        HexagonXfp zero;
+        hexagon_xfp_zero(hmx_cfg, &zero);
+        acc_shaped = hexagon_xfp_cmp(hmx_cfg, usr, acc_normalized, zero,
+                                      bias.shape == 1 ? HEXAGON_XFP_MIN
+                                                       : HEXAGON_XFP_MAX);
+    }
+
+    scale.bits_exp++;
+    HexagonXfp acc_scaled = hexagon_xfp_mult(hmx_cfg, usr_internal, acc_shaped,
+                                              scale, scale.bits_exp);
+    acc_scaled.bits_exp = scale.bits_exp;
+
+    HexagonXfp out_bias = st->out_bias_base;
+    if (rs.fb_dst == HEXAGON_XFP_FB_OUTBIAS) {
+        HexagonXfp feedback = hexagon_xfp_from_fp(
+            hmx_cfg, usr, cvt_feedback, fp_frac + 4, fp_exp, int_out, frac_out,
+            exp_out, input_norm);
+        out_bias = hexagon_xfp_cmp(hmx_cfg, usr, out_bias, feedback,
+                                   rs.fb_limit);
+    }
+    out_bias.sig <<= (acc_scaled.bits_frac - out_bias.bits_frac);
+
+    HexagonXfp acc_final = hexagon_xfp_add(hmx_cfg, usr_internal, acc_scaled,
+                                            out_bias);
+
+    if (st->is_f8) {
+        return hexagon_xfp_to_fp(hmx_cfg, 1, usr, acc_final, 3, 4, rs);
+    } else {
+        return hexagon_xfp_to_fp(hmx_cfg, 0, usr, acc_final,
+                                  fp_frac + rs.fp_rnd * 4, fp_exp, rs);
+    }
+}
+
+/*
+ * M8_cvt_rs_{hf,f8}, v81 XFP path -- the bit-exact counterpart of
+ * hmx_fp_convert_softfloat() above, dispatched instead of it when
+ * hmx_cfg->hmx_fp_uses_xfp (see HELPER(hmx_cvt_rs)'s HF/F8 cases).
+ * Reads the flat XFP accumulator (HmxAccFp.xfp_data, populated by
+ * hmx_matmul_fp_xfp()) rather than the SoftFloat `data` field.
+ */
+static void hmx_fp_convert_xfp(CPUHexagonState *env, HmxState *hmx,
+                            int acc_set, int is_f8,
+                            int relu, int bias_sel, int maxnorm,
+                            int fp8_odd_sel, int is_bf16_out,
+                            int fb_dst, int fb_limit, int fp_rnd)
+{
+    HmxAccFp *acc_fp = &hmx->acc[acc_set].fp_primary;
+    HmxCvtStateFp *cvt = &hmx->cvt_fp[0];
+    const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
+
+    /*
+     * Final-output USR (the convert internally overrides inf/nan for the
+     * bias/scale/add arithmetic; hmx_cvt_col_setup/apply() handle that).
+     */
+    HexagonXfpUsr usr = {
+        .inf_nan_enable = GET_USR_FIELD(USR_FPCOPROC_INFNAN),
+        .nan_propagate = GET_USR_FIELD(USR_FPCOPROC_NANPROP),
+    };
+
+    /*
+     * Map QEMU instruction semantics to the reference rs fields.  QEMU's
+     * local `relu` means "clip negatives" (1=clip); the reference clips
+     * when !rs.relu, so rs.relu = !relu.  maxnorm is rs.fp_maxnorm; the
+     * convert output rounding bit (rs.fp_rnd) follows the reference
+     * default of rounded 16-bit output (fp_rnd=1) -- QEMU stores a 16-bit
+     * value, matching hmx_xfp_fp's rs.fp_rnd path.
+     */
+    HexagonXfpCvtRs rs = {
+        .relu = !relu,
+        .fp_rnd = fp_rnd,
+        .fp_maxnorm = maxnorm,
+        .fb_dst = fb_dst,
+        .fb_limit = fb_limit,
+        .is_bf16 = is_bf16_out,
+    };
+
+    /* Mirrors hmx_cvt_col_setup()'s mantissa_bits/exp_bits mapping. */
+    const uint32_t fp_frac = is_bf16_out ? 7 : 10;
+    const uint32_t fp_exp = is_bf16_out ? 8 : 5;
+
+    for (int o = 0; o < (int)hmx_cfg->mx_fp_cols; o++) {
+        uint64_t raw = hmx->bias_raw[bias_sel][o];
+
+        HexagonXfpBias bias = {
+            .scale = raw & 0xFFFF,
+            .out_bias = (raw >> 16) & 0xFFFF,
+            .scale_extra = (raw >> 32) & 0xF,
+            .out_bias_extra = (raw >> 36) & 0xF,
+            .shape = (raw >> 40) & 0x3,
+            .negate = (raw >> 42) & 0x1,
+            .acc_bias_extra = (raw >> 43) & 0x1F,
+            .acc_bias = (raw >> 48) & 0xFFFF,
+        };
+
+        HmxCvtColState cvt_st;
+        hmx_cvt_col_setup(hmx_cfg, is_f8, usr, bias, rs, fp_frac, fp_exp,
+                          &cvt_st);
+
+        for (int s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
+            /*
+             * acc->xfp_data is flat-typed (HmxXfp, hmx_state.h) for
+             * the MAC path's benefit; widen to generic here, once
+             * per cell -- see hmx_state.h's HmxAccFp comment for why
+             * this is the cheaper side of the trade to pay it on.
+             */
+            HexagonXfp acc = hmx_xfp_to_xfp(acc_fp->xfp_data[s][o],
+                                             8, 22, 9);
+
+            /*
+             * Recombine the 20-bit convert feedback from the split low/high
+             * cells written by a previous convert pass (reference
+             * convert feedback combine).
+             */
+            uint32_t cvt_feedback = 0;
+            if (fb_dst != 0) {
+                uint16_t lo = hmx->cvt_future_fxp.data[s * 2][o];
+                uint16_t hi = hmx->cvt_future_fxp.data[s * 2 + 1][o];
+                cvt_feedback = hmx_cvt_combine_feedback(hi, lo);
+            }
+
+            uint32_t result = hmx_cvt_col_apply(hmx_cfg, &cvt_st, acc,
+                                                cvt_feedback);
+
+            if (is_f8) {
+                /*
+                 * The store (HELPER(hmx_cvt_store) fmt==F8) reads
+                 * cvt_fp as packed raw F8 bytes: low byte = even spatial,
+                 * high byte = odd spatial.  Store the raw 8-bit result in
+                 * the selected half, preserving the other.
+                 */
+                uint8_t f8 = (uint8_t)(result & 0xFF);
+                uint16_t prev = cvt->data[s][o];
+                if (fp8_odd_sel) {
+                    cvt->data[s][o] = (prev & 0x00FF) | ((uint16_t)f8 << 8);
+                } else {
+                    cvt->data[s][o] = (prev & 0xFF00) | (uint16_t)f8;
+                }
+                /*
+                 * The convert-future half (feedback source) holds the
+                 * result <<4 so the store/feedback >>4 recovers the byte;
+                 * the un-selected half is preserved.
+                 */
+                uint16_t result16 = (uint16_t)((result & 0xFF) << 4);
+                if (fp8_odd_sel) {
+                    hmx->cvt_future_fxp.data[s * 2 + 1][o] = result16;
+                } else {
+                    hmx->cvt_future_fxp.data[s * 2][o] = result16;
+                }
+            } else {
+                /* Top 16-bit FP value for the legacy HF store path. */
+                uint16_t fp = (uint16_t)((result >> 4) & 0xFFFF);
+                fp = is_bf16_out
+                    ? hmx_bf16_fixup(fp, usr.inf_nan_enable,
+                                     usr.nan_propagate, maxnorm)
+                    : hmx_fp16_fixup(fp, usr.inf_nan_enable,
+                                     usr.nan_propagate, maxnorm);
+                cvt->data[s][o] = fp;
+                hmx_fp_split_to_fxp(hmx, s, o, result);
             }
         }
     }
@@ -3086,8 +3396,8 @@ static void hmx_fxp_convert_2x2(const HmxConfig *hmx_cfg, HmxState *hmx,
  * read back through a GPR, it's read back from memory by a later
  * HELPER(hmx_cvt_store) (M8_mxmem/M8_mxmem_deep/M8_mxmem_2x2).
  *
- * HF triggers the scoped SoftFloat FP convert (see
- * hmx_fp_convert_softfloat()).
+ * HF and F8 trigger the FP convert (see hmx_fp_convert_softfloat() and
+ * hmx_fp_convert_xfp()).
  */
 uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
 {
@@ -3144,16 +3454,59 @@ uint32_t HELPER(hmx_cvt_rs)(CPUHexagonState *env, uint32_t rs, uint32_t type)
         /*
          * Rs[6]: maxnorm, see hmx_fp16_fixup()/hmx_bf16_fixup(). Rs[7]:
          * is_bf16_out (BF16 output instead of FP16), gated the same
-         * way as the matmul's BF16 select. fb_dst/fb_limit: relaxed-
-         * precision convert feedback, see hmx_fp_convert_softfloat()'s doc
-         * comment.
+         * way as the matmul's BF16 select. Rs[8]: fp_rnd, the XFP
+         * convert's output rounding bit (only meaningful on the XFP
+         * path -- see hmx_fp_convert_xfp()'s doc comment). fb_dst/
+         * fb_limit: relaxed-precision convert feedback, see
+         * hmx_fp_convert_softfloat()'s doc comment.
          */
         int maxnorm = (rs >> 6) & 1;
         int is_bf16_out = ((rs >> HMX_CVT_RS_BF16_BIT) & 1) &&
             (hmx_cfg->mx_fp_acc_exp >= HMX_BF16_MIN_ACC_EXP);
         hmx_cvt_pipeline_begin(hmx, fb_dst, cur_pc);
-        hmx_fp_convert_softfloat(env, hmx, hmx->current_acc_set, bias_sel,
-                                 maxnorm, is_bf16_out, fb_dst, fb_limit);
+        if (hmx_cfg->hmx_fp_uses_xfp) {
+            int fp_rnd = (rs >> 8) & 1;
+            hmx_fp_convert_xfp(env, hmx, hmx->current_acc_set,
+                               /* is_f8 */ 0, relu, bias_sel, maxnorm,
+                               /* fp8_odd_sel */ 0, is_bf16_out,
+                               fb_dst, fb_limit, fp_rnd);
+        } else {
+            hmx_fp_convert_softfloat(env, hmx, hmx->current_acc_set,
+                                     bias_sel, maxnorm, is_bf16_out,
+                                     fb_dst, fb_limit);
+        }
+        if (acc_clear) {
+            hmx->cvt_acc_clear_pending = 1;
+            hmx->cvt_acc_clear_set = hmx->current_acc_set;
+            hmx->cvt_acc_clear_pc = cur_pc;
+        }
+        return 0;
+    }
+    case HMX_CVT_RS_F8:
+    {
+        /*
+         * Rs[6]: maxnorm. Rs[8]: fp_rnd. Rs[11]: fp8_odd_sel (which
+         * half of the packed cvt_fp slot this call writes).
+         * fb_dst/fb_limit: relaxed-precision convert feedback.
+         *
+         * F8 is v81-only (tag_rev_info.c.inc) and v81 always uses the
+         * XFP path, so there is no SoftFloat F8 convert (hmx_config.c
+         * checks both against mx_fp8_en).
+         *
+         * F8's age-pipeline shift happens unconditionally on every
+         * F8 convert (unlike FP16/BF16's deferred cvt_fxp_pending
+         * scheme), matching the reference's own call-site placement.
+         */
+        int maxnorm = (rs >> 6) & 1;
+        int fp8_odd_sel = (rs >> 11) & 1;
+        int fp_rnd = (rs >> 8) & 1;
+        g_assert(hmx_cfg->mx_fp8_en);
+        hmx->cvt_fp[2] = hmx->cvt_fp[1];
+        hmx->cvt_fp[1] = hmx->cvt_fp[0];
+        hmx_fp_convert_xfp(env, hmx, hmx->current_acc_set,
+                           /* is_f8 */ 1, relu, bias_sel, maxnorm,
+                           fp8_odd_sel, /* is_bf16_out */ 0,
+                           fb_dst, fb_limit, fp_rnd);
         if (acc_clear) {
             hmx->cvt_acc_clear_pending = 1;
             hmx->cvt_acc_clear_set = hmx->current_acc_set;
@@ -3280,7 +3633,10 @@ static void hmx_store_x_row(CPUHexagonState *env,
  * before/after spatial split at (y_offset, x_offset) derived from Rs/Rt
  * (see the reference's HELPER(hmx_cvt_store) for the full row-rotation
  * rationale, ported unchanged here). Only the FXP (CM/SM/2x2) formats
- * use that row-rotation logic.
+ * use that row-rotation logic; F8 is a separate, unconditional
+ * full-buffer store (see the reference: F8 has no store-time spatial
+ * select, only the convert-time fp8_odd_sel half-select), handled
+ * before it.
  */
 void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
                            uint32_t params)
@@ -3298,6 +3654,33 @@ void HELPER(hmx_cvt_store)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     /* Flush the pending conversion before reading the aged pipeline. */
     hmx_flush_cvt_fxp(hmx);
     hmx_flush_acc_clear(env, hmx);
+
+    if (fmt == HMX_CVTST_F8) {
+        g_assert(hmx_cfg->mx_fp8_en);
+        /*
+         * FP8 store: each cvt_fp slot packs two FP8 results (see
+         * HmxCvtStateFp's comment in hmx_state.h): low byte = even
+         * spatial (crouton 2s), high byte = odd spatial (crouton
+         * 2s+1). The even/odd half selection happens at convert time
+         * via fp8_odd_sel (Rs[11] on cvt.f8); the store unconditionally
+         * emits both halves to the two adjacent crouton positions, no
+         * store-time spatial select or row-rotation split.
+         */
+        HmxCvtStateFp *cvt = &hmx->cvt_fp[age];
+
+        for (int s = 0; s < HMX_SPATIAL_DIM_FP; s++) {
+            for (int o = 0; o < (int)hmx_cfg->mx_fp_cols; o++) {
+                uint16_t packed = cvt->data[s][o];
+                uint8_t f8_even = packed & 0xFF;
+                uint8_t f8_odd = (packed >> 8) & 0xFF;
+                int offset_even = hmx_act_offset_sm(s * 2, o);
+                int offset_odd = hmx_act_offset_sm(s * 2 + 1, o);
+                cpu_stb_data_ra(env, base_addr + offset_even, f8_even, ra);
+                cpu_stb_data_ra(env, base_addr + offset_odd, f8_odd, ra);
+            }
+        }
+        return;
+    }
 
     int is_cm = (fmt == HMX_CVTST_CM);
     uint32_t sp_mask = is_cm ? HMX_SPATIAL_MASK_BITS_CM
