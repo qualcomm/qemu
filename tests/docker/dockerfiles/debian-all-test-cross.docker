@@ -109,7 +109,6 @@ RUN apt update && \
   libc6-dev-sparc64-cross \
   && \
   dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt
-RUN apt update && apt install -y gcc-mipsisa64r6-linux-gnuabi64 libc6-dev-mips64r6-cross
 ENV QEMU_CONFIGURE_OPTS=--disable-docs
 ENV DEF_TARGET_LIST=aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user
 # As a final step configure the user (if env is defined)
