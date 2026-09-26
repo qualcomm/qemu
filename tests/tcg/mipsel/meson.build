@@ -176,6 +176,30 @@ foreach src: tests_dsp
   }
 endforeach
 
+tests_r5900 = [
+  'test_r5900_div1.c',
+  'test_r5900_divu1.c',
+  'test_r5900_madd.c',
+  'test_r5900_maddu.c',
+  'test_r5900_mflohi1.c',
+  'test_r5900_mtlohi1.c',
+  'test_r5900_mult.c',
+  'test_r5900_multu.c',
+]
+
+foreach src: tests_r5900
+  # TODO: does not compile for now, since toolchain crt1.o is compiled for
+  # double-float, while r5900 is single-float only. Skip for now.
+  continue
+
+  tests += {
+    src: {
+      'cflags': ['-mabi=32', '-march=r5900', '-msingle-float'],
+      'qemu_args': ['-cpu', 'R5900'],
+    }
+  }
+endforeach
+
 if 'qemu-mipsel' in emulators
   tcg_tests += {
     'mipsel-linux-user': {
