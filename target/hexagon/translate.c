@@ -30,6 +30,7 @@
 #include "attribs.h"
 #include "insn.h"
 #include "decode.h"
+#include "pmu.h"
 #include "translate.h"
 #include "genptr.h"
 #include "printinsn.h"
@@ -82,6 +83,15 @@ TCGv_ptr hex_hvx_ptr;
 TCGv_i32 hex_greg[NUM_GREGS];
 TCGv_i32 hex_t_sreg[NUM_SREGS];
 #endif
+TCGv_i32 hex_pmu_num_packets;
+TCGv_i32 hex_pmu_committed_loads;
+TCGv_i32 hex_pmu_committed_stores;
+TCGv_i32 hex_pmu_committed_memops;
+TCGv_i32 hex_pmu_hvx_packets;
+TCGv_i32 hex_pmu_hvx_pipe_alu;
+TCGv_i32 hex_pmu_hvx_pipe_mpy;
+TCGv_i32 hex_pmu_hvx_pipe_shift;
+TCGv_i32 hex_pmu_hvx_pipe_perm;
 static TCGv_i32 hex_cause_code;
 
 static const char * const hexagon_prednames[] = {
@@ -1278,6 +1288,59 @@ static void gen_commit_hlx(DisasContext *ctx)
     }
 }
 
+/*
+ * Bump the per-vCPU PMU tallies for the packet just committed. Emits real
+ * TCG ops only when PMU_ENABLED is set for this TB (ctx->pmu_enabled),
+ * computed once in hexagon_get_tb_cpu_state() from whether a "hexagon-pmu"
+ * device is linked and the guest has set SYSCFG.PM -- so a PMU-less machine,
+ * or a guest that hasn't enabled the PMU, generates none of this code.
+ */
+static void update_pmu_counters(DisasContext *ctx)
+{
+    uint16_t metrics = ctx->pmu_metrics;
+    int committed_loads = 0, committed_stores = 0, committed_memops = 0;
+
+    if (!ctx->pmu_enabled) {
+        return;
+    }
+
+    for (int i = 0; i < ctx->pkt.num_insns; i++) {
+        int opcode = ctx->pkt.insn[i].opcode;
+
+        if ((metrics & HEX_PMU_METRIC_LOADS) &&
+            GET_ATTRIB(opcode, A_LOAD)) {
+            committed_loads++;
+        }
+        if ((metrics & HEX_PMU_METRIC_STORES) &&
+            GET_ATTRIB(opcode, A_STORE)) {
+            committed_stores++;
+        }
+        if ((metrics & HEX_PMU_METRIC_MEMOPS) &&
+            GET_ATTRIB(opcode, A_MEMOP)) {
+            committed_memops++;
+        }
+    }
+
+    if (metrics & HEX_PMU_METRIC_PACKETS) {
+        tcg_gen_addi_i32(hex_pmu_num_packets, hex_pmu_num_packets, 1);
+    }
+    if (committed_loads) {
+        tcg_gen_addi_i32(hex_pmu_committed_loads, hex_pmu_committed_loads,
+                         committed_loads);
+    }
+    if (committed_stores) {
+        tcg_gen_addi_i32(hex_pmu_committed_stores, hex_pmu_committed_stores,
+                         committed_stores);
+    }
+    if (committed_memops) {
+        tcg_gen_addi_i32(hex_pmu_committed_memops, hex_pmu_committed_memops,
+                         committed_memops);
+    }
+    if ((metrics & HEX_PMU_METRIC_HVX_PACKETS) && ctx->pkt.pkt_has_hvx) {
+        tcg_gen_addi_i32(hex_pmu_hvx_packets, hex_pmu_hvx_packets, 1);
+    }
+}
+
 #ifndef CONFIG_USER_ONLY
 /*
  * A tlbp instruction may detect multiple TLB matches and set a pending
@@ -1402,6 +1465,7 @@ static void gen_commit_packet(DisasContext *ctx)
     if (ctx->pkt.pkt_has_hmx) {
         gen_helper_hmx_commit_packet(tcg_env);
     }
+    update_pmu_counters(ctx);
 
     if (ctx->pkt.vhist_insn != NULL) {
         ctx->pre_commit = false;
@@ -1521,6 +1585,10 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
+    ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
+    ctx->hmx_coproc_enabled =
+        FIELD_EX32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
+    ctx->hmx_check_emitted = false;
     ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
     ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
     if (ctx->ss_active) {
@@ -1532,6 +1600,8 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         FIELD_EX32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
     ctx->hmx_check_emitted = false;
 #endif
+    ctx->pmu_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PMU_ENABLED);
+    ctx->pmu_metrics = FIELD_EX32(hex_flags, TB_FLAGS, PMU_METRICS);
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1675,6 +1745,27 @@ void hexagon_translate_init(void)
         }
     }
 #endif
+    hex_pmu_num_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.num_packets), "pmu_num_packets");
+    hex_pmu_committed_loads = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_loads),
+        "pmu_committed_loads");
+    hex_pmu_committed_stores = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_stores),
+        "pmu_committed_stores");
+    hex_pmu_committed_memops = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.committed_memops),
+        "pmu_committed_memops");
+    hex_pmu_hvx_packets = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_packets), "pmu_hvx_packets");
+    hex_pmu_hvx_pipe_alu = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_alu), "pmu_hvx_pipe_alu");
+    hex_pmu_hvx_pipe_mpy = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_mpy), "pmu_hvx_pipe_mpy");
+    hex_pmu_hvx_pipe_shift = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_shift), "pmu_hvx_pipe_shift");
+    hex_pmu_hvx_pipe_perm = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, pmu.hvx_pipe_perm), "pmu_hvx_pipe_perm");
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),

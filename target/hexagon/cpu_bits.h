@@ -26,6 +26,7 @@ typedef struct HexagonCPUConfig {
     uint32_t lldb_stack_adjust;
     bool short_circuit;
     bool ieee_fp_extension;
+    bool pmu;
     const HexagonCPUDef *hex_def;
 } HexagonCPUConfig;
 
