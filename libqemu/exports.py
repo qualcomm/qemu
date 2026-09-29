@@ -462,3 +462,10 @@ ExportedFct(
 )
 ExportedFct('fw_cfg_find', 'FWCfgState *', [])
 ExportedFct('fw_cfg_set_dma_as', 'void', ['FWCfgState *', 'AddressSpace *'])
+
+ExportedFct('set_iommu_attrs_to_index_cb', 'void',
+        [ 'LibQemuIOMMUAttrsToIndexFn', 'void *' ],
+        priv = 'libqemu_set_iommu_attrs_to_index_cb')
+ExportedFct('set_iommu_num_indexes_cb', 'void',
+        [ 'LibQemuIOMMUNumIndexesFn', 'void *' ],
+        priv = 'libqemu_set_iommu_num_indexes_cb')
