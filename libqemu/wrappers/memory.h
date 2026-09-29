@@ -84,6 +84,10 @@ IOMMUMemoryRegion *libqemu_iommu_memory_region_new(void);
 typedef IOMMUTLBEntry (*LibQemuIOMMUTranslateFn)(IOMMUMemoryRegion *mr,
                                                  void *opaque, hwaddr addr,
                                                  int flag, int iommu_idx);
+typedef int (*LibQemuIOMMUAttrsToIndexFn)(IOMMUMemoryRegion *mr,
+                                          void *opaque, MemTxAttrs attrs);
+typedef int (*LibQemuIOMMUNumIndexesFn)(IOMMUMemoryRegion *mr,
+                                        void *opaque);
 void libqemu_iommu_memory_region_init(IOMMUMemoryRegion *mr, Object *owner,
                                       const char *name, uint64_t size);
 void libqemu_iommu_unmap(IOMMUMemoryRegion *mr, IOMMUTLBEntry *te);

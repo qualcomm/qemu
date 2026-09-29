@@ -20,3 +20,5 @@
 
 IOMMUTLBEntry libqemu_iommu_translate_cb(IOMMUMemoryRegion *mr, hwaddr addr,
                                          IOMMUAccessFlags flag, int iommu_idx);
+int libqemu_iommu_attrs_to_index_cb(IOMMUMemoryRegion *mr, MemTxAttrs attrs);
+int libqemu_iommu_num_indexes_cb(IOMMUMemoryRegion *mr);

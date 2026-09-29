@@ -21,6 +21,7 @@
 #define _LIBQEMU_WRAPPERS_LIBQEMU_H
 
 #include <stdbool.h>
+#include "libqemu/wrappers/memory.h"
 
 typedef struct QemuObject QemuObject;
 
@@ -30,6 +31,8 @@ typedef void (*LibQemuCpuKickFn)(QemuObject *cpu, void *opaque);
 void libqemu_set_cpu_end_of_loop_cb(LibQemuCpuEndOfLoopFn cb, void *opaque);
 void libqemu_set_cpu_kick_cb(LibQemuCpuKickFn cb, void *opaque);
 void libqemu_set_iommu_translate_cb(LibQemuIOMMUTranslateFn cb, void *opaque);
+void libqemu_set_iommu_attrs_to_index_cb(LibQemuIOMMUAttrsToIndexFn cb, void *opaque);
+void libqemu_set_iommu_num_indexes_cb(LibQemuIOMMUNumIndexesFn cb, void *opaque);
 
 void libqemu_enable_opengl(void);
 void libqemu_set_autostart(int);

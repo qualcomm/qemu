@@ -59,6 +59,16 @@ struct LibQemuContext {
         LibQemuIOMMUTranslateFn cb;
         void *opaque;
     } iommu_translate_cb;
+
+    struct {
+        LibQemuIOMMUAttrsToIndexFn cb;
+        void *opaque;
+    } iommu_attrs_to_index_cb;
+
+    struct {
+        LibQemuIOMMUNumIndexesFn cb;
+        void *opaque;
+    } iommu_num_indexes_cb;
 };
 
 /* Since QEMU has a implicit state, there is no use in returning an explicit
@@ -200,6 +210,18 @@ void libqemu_set_iommu_translate_cb(LibQemuIOMMUTranslateFn cb, void *opaque)
     context.iommu_translate_cb.cb = cb;
     context.iommu_translate_cb.opaque = opaque;
 }
+
+void libqemu_set_iommu_attrs_to_index_cb(LibQemuIOMMUAttrsToIndexFn cb, void *opaque)
+{
+    context.iommu_attrs_to_index_cb.cb = cb;
+    context.iommu_attrs_to_index_cb.opaque = opaque;
+}
+
+void libqemu_set_iommu_num_indexes_cb(LibQemuIOMMUNumIndexesFn cb, void *opaque)
+{
+    context.iommu_num_indexes_cb.cb = cb;
+    context.iommu_num_indexes_cb.opaque = opaque;
+}
 /* Not in header file due to IOMMUAccessFlags enum */
 
 IOMMUTLBEntry libqemu_iommu_translate_cb(IOMMUMemoryRegion *mr, hwaddr addr,
@@ -212,6 +234,22 @@ IOMMUTLBEntry libqemu_iommu_translate_cb(IOMMUMemoryRegion *mr, hwaddr addr,
         return cb(mr, opaque, addr, flag, iommu_idx);
     }
     g_assert_not_reached();
+}
+
+int libqemu_iommu_attrs_to_index_cb(IOMMUMemoryRegion *mr, MemTxAttrs attrs)
+{
+    LibQemuIOMMUAttrsToIndexFn cb = context.iommu_attrs_to_index_cb.cb;
+    void *opaque = context.iommu_attrs_to_index_cb.opaque;
+
+    return cb ? cb(mr, opaque, attrs) : 0;
+}
+
+int libqemu_iommu_num_indexes_cb(IOMMUMemoryRegion *mr)
+{
+    LibQemuIOMMUNumIndexesFn cb = context.iommu_num_indexes_cb.cb;
+    void *opaque = context.iommu_num_indexes_cb.opaque;
+
+    return cb ? cb(mr, opaque) : 1;
 }
 
 void libqemu_enable_opengl(void)
