@@ -4278,6 +4278,7 @@ multi_target_crates = []
 multi_target_supported_targets = [
   'aarch64-softmmu',
   'arm-softmmu',
+  'm68k-softmmu',
   'microblaze-softmmu',
 ]
 
