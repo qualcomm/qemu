@@ -11,6 +11,7 @@
 
 #include "system/memory.h"
 #include "system/address-spaces.h"
+#include "target/riscv/csr.h"
 
 #ifdef TARGET_RISCV32
 void HELPER(xqci_swm)(CPUArchState *env, target_ulong vaddr, target_ulong length, int rs3)
@@ -378,7 +379,7 @@ static void emit_qc_syncwl(DisasContext *ctx, TCGv_env tcg_env, int slist)
 void HELPER(xqci_outw)(CPUArchState *env, target_ulong address, target_ulong value)
 {
 #ifndef CONFIG_USER_ONLY
-    address_space_stl(&address_space_io, address, value,
+    address_space_stl_le(&address_space_io, address, value,
                       MEMTXATTRS_UNSPECIFIED, NULL);
 #endif
 }
@@ -386,7 +387,7 @@ void HELPER(xqci_outw)(CPUArchState *env, target_ulong address, target_ulong val
 target_ulong HELPER(xqci_inw)(CPUArchState *env, target_ulong address)
 {
 #ifndef CONFIG_USER_ONLY
-    return address_space_ldl(&address_space_io, address,
+    return address_space_ldl_le(&address_space_io, address,
                              MEMTXATTRS_UNSPECIFIED, NULL);
 #else
     return 0;
