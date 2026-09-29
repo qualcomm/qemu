@@ -3779,6 +3779,7 @@ subdir('ebpf')
 
 if have_system
   subdir('hw')
+  subdir('system')
 else
   subdir('hw/core')
 endif
@@ -3862,8 +3863,6 @@ endif
 common_ss.add(files('cpu-common.c'))
 user_ss.add(files('cpu-target.c'))
 system_ss.add(files('cpu-target.c'))
-
-subdir('system')
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
