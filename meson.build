@@ -4283,6 +4283,7 @@ multi_target_supported_targets = [
   'hppa-softmmu',
   'm68k-softmmu',
   'microblaze-softmmu',
+  'rx-softmmu',
 ]
 
 emulators = {}
