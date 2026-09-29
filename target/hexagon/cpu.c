@@ -32,6 +32,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "cpu_helper.h"
 #include "hex_mmu.h"
+#include "pmu.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "macros.h"
@@ -47,6 +48,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_hmx_context.h"
+#include "hw/hexagon/hexagon_pmu.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -76,6 +78,12 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
     DEFINE_PROP_LINK("hlx", HexagonCPU, hlx,
                      TYPE_HEXAGON_HLX, HexagonHLXState *),
+    /* All system-mode Hexagon machines provide one shared PMU. */
+    DEFINE_PROP_LINK("pmu", HexagonCPU, pmu, TYPE_HEXAGON_PMU,
+                     HexagonPMUState *),
+#endif
+#ifdef CONFIG_USER_ONLY
+    DEFINE_PROP_BOOL("pmu", HexagonCPU, cfg.pmu, false),
 #endif
     DEFINE_PROP_UINT32("dma-version", HexagonCPU, dma_version,
                        HEX_DMA_VERSION_UNSET),
@@ -93,8 +101,8 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
   "r24", "r25", "r26", "r27", "r28",  "r29", "r30", "r31",
   "sa0", "lc0", "sa1", "lc1", "p3_0", "c5",  "m0",  "m1",
   "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "c14", "c15",
-  "c16", "c17", "c18", "c19", "pkt_cnt",  "insn_cnt", "hvx_cnt", "c23",
-  "c24", "c25", "c26", "c27", "vframelimit", "vsp", "c30", "c31",
+   "c16", "c17", "c18", "c19", "c20", "c21", "c22", "c23",
+   "c24", "c25", "c26", "c27", "vframelimit", "vsp", "c30", "c31",
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -368,13 +376,37 @@ static vaddr hexagon_cpu_get_pc(CPUState *cs)
     return cpu_env(cs)->gpr[HEX_REG_PC];
 }
 
+static uint16_t hexagon_pmu_metrics(CPUHexagonState *env)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    uint16_t metrics = 0;
+
+#ifdef CONFIG_USER_ONLY
+    if (cpu->cfg.pmu) {
+        metrics = HEX_PMU_USER_METRICS;
+    }
+#else
+    if (cpu->pmu &&
+        GET_SYSCFG_FIELD(SYSCFG_PM,
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
+                                   env->threadId))) {
+        for (int i = 0; i < NUM_PMU_CTRS; i++) {
+            metrics |= hexagon_pmu_event_metrics(
+                hexagon_pmu_get_event(cpu->pmu, i));
+        }
+    }
+#endif
+    return metrics;
+}
+
 static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
     vaddr pc = env->gpr[HEX_REG_PC];
     uint32_t hex_flags = 0;
+    uint16_t pmu_metrics;
 #ifndef CONFIG_USER_ONLY
-    HexagonCPU *cpu;
+    HexagonCPU *cpu = env_archcpu(env);
 #endif
 
     if (pc == env->gpr[HEX_REG_SA0]) {
@@ -386,7 +418,6 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     }
 
 #ifndef CONFIG_USER_ONLY
-    cpu = env_archcpu(env);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED,
@@ -404,6 +435,9 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
+    pmu_metrics = hexagon_pmu_metrics(env);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PMU_ENABLED, pmu_metrics != 0);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PMU_METRICS, pmu_metrics);
 
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
@@ -467,6 +501,7 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
     env->cfi_active = 0;
     env->cfi_active_log = 0;
     env->cfi_updated = 0;
+    memset(&env->pmu, 0, sizeof(env->pmu));
     env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
@@ -511,6 +546,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->cfi_active = 0;
     env->cfi_active_log = 0;
     env->cfi_updated = 0;
+    memset(&env->pmu, 0, sizeof(env->pmu));
 #ifdef CONFIG_USER_ONLY
     memset(&env->hlx_user_ctx, 0, sizeof(env->hlx_user_ctx));
     env->hlx_ctx = &env->hlx_user_ctx;
@@ -524,7 +560,6 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
-
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
     if (cs->cpu_index == 0 && cpu->hlx) {
@@ -576,6 +611,13 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     cpu->cfg.hex_def = mcc->hex_def;
+
+#ifdef CONFIG_USER_ONLY
+    if (cpu->cfg.pmu && mcc->hex_def->hex_version < HEX_VER_V79) {
+        error_setg(errp, "the pmu property requires a v79 or later CPU");
+        return;
+    }
+#endif
 
     hmx_init_config(cpu);
 #ifdef CONFIG_USER_ONLY
@@ -1011,6 +1053,15 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
         return ssr_ce ?
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_PCYCLEHI,
                                    env->threadId) : 0;
+    case HEX_GREG_GPMUCNT0:
+    case HEX_GREG_GPMUCNT1:
+    case HEX_GREG_GPMUCNT2:
+    case HEX_GREG_GPMUCNT3:
+    case HEX_GREG_GPMUCNT4:
+    case HEX_GREG_GPMUCNT5:
+    case HEX_GREG_GPMUCNT6:
+    case HEX_GREG_GPMUCNT7:
+        return hexagon_get_pmu_greg(env, reg);
     default:
         return env->greg[reg];
     }
