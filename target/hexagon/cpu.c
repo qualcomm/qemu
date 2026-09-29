@@ -45,6 +45,7 @@
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
+#include "hw/hexagon/hexagon_pmu.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -74,6 +75,13 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
     DEFINE_PROP_LINK("hlx", HexagonCPU, hlx,
                      TYPE_HEXAGON_HLX, HexagonHLXState *),
+    /*
+     * Optional: only set when the machine was started with `pmu=on`. Like
+     * hvx-context[*], its absence is not an error -- it just means the PMU
+     * sregs read/write as 0/no-op (see IS_PMU_SREG() dispatch).
+     */
+    DEFINE_PROP_LINK("pmu", HexagonCPU, pmu, TYPE_HEXAGON_PMU,
+                     HexagonPMUState *),
 #endif
     DEFINE_PROP_UINT32("dma-version", HexagonCPU, dma_version,
                        HEX_DMA_VERSION_UNSET),
@@ -494,6 +502,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
+    memset(&env->pmu, 0, sizeof(env->pmu));
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
@@ -945,6 +954,15 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
         return ssr_ce ?
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_PCYCLEHI,
                                    env->threadId) : 0;
+    case HEX_GREG_GPMUCNT0:
+    case HEX_GREG_GPMUCNT1:
+    case HEX_GREG_GPMUCNT2:
+    case HEX_GREG_GPMUCNT3:
+    case HEX_GREG_GPMUCNT4:
+    case HEX_GREG_GPMUCNT5:
+    case HEX_GREG_GPMUCNT6:
+    case HEX_GREG_GPMUCNT7:
+        return hexagon_get_pmu_greg(env, reg);
     default:
         return env->greg[reg];
     }

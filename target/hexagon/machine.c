@@ -63,6 +63,25 @@ static const VMStateInfo vmstate_info_hlxvector = {
 
 #define VMSTATE_HLXVECTOR_ARRAY(_f, _s, _n) \
     VMSTATE_SUB_ARRAY(_f, _s, 0, _n, 0, vmstate_info_hlxvector, HLXVector)
+
+static const VMStateDescription vmstate_hexagon_pmu_counters = {
+    .name = "hexagon_pmu_counters",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(num_packets, PMUCounters),
+        VMSTATE_UINT32(committed_loads, PMUCounters),
+        VMSTATE_UINT32(committed_stores, PMUCounters),
+        VMSTATE_UINT32(committed_memops, PMUCounters),
+        VMSTATE_UINT32(hvx_packets, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_alu, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_mpy, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_shift, PMUCounters),
+        VMSTATE_UINT32(hvx_pipe_perm, PMUCounters),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
     .version_id = 3,
@@ -86,6 +105,8 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32_V(dma.status, HexagonCPU, 3),
         VMSTATE_UINT32_V(dma.syndrome, HexagonCPU, 3),
         VMSTATE_UINT32_V(dma.desc_ptr, HexagonCPU, 3),
+        VMSTATE_STRUCT(env.pmu, HexagonCPU, 3, vmstate_hexagon_pmu_counters,
+                      PMUCounters),
 
         VMSTATE_END_OF_LIST()
     },

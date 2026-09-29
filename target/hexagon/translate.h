@@ -112,6 +112,9 @@ typedef struct DisasContext {
     DECLARE_BITMAP(lregs_read, NUM_LREGS);
     bool hmx_coproc_enabled;
     bool hmx_check_emitted;
+#ifndef CONFIG_USER_ONLY
+    bool pmu_enabled;
+#endif
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
@@ -437,6 +440,21 @@ extern TCGv_ptr hex_hvx_ptr;
 #ifndef CONFIG_USER_ONLY
 extern TCGv_i32 hex_greg[NUM_GREGS];
 extern TCGv_i32 hex_t_sreg[NUM_SREGS];
+
+/*
+ * Per-vCPU PMU tallies, mapped onto CPUHexagonState's embedded PMUCounters
+ * (see cpu.h). Bumped directly at packet-commit time when PMU_ENABLED is
+ * set for this TB; see update_pmu_counters() in translate.c.
+ */
+extern TCGv_i32 hex_pmu_num_packets;
+extern TCGv_i32 hex_pmu_committed_loads;
+extern TCGv_i32 hex_pmu_committed_stores;
+extern TCGv_i32 hex_pmu_committed_memops;
+extern TCGv_i32 hex_pmu_hvx_packets;
+extern TCGv_i32 hex_pmu_hvx_pipe_alu;
+extern TCGv_i32 hex_pmu_hvx_pipe_mpy;
+extern TCGv_i32 hex_pmu_hvx_pipe_shift;
+extern TCGv_i32 hex_pmu_hvx_pipe_perm;
 #endif
 
 

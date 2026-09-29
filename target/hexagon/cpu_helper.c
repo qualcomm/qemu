@@ -12,6 +12,8 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
+#include "hw/hexagon/hexagon_pmu.h"
+#include "pmu.h"
 #include "hex_interrupts.h"
 #include "hex_mmu.h"
 #include "system/runstate.h"
@@ -88,9 +90,257 @@ void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,
 
 #endif
 
-uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
+/*
+ * PMU counters read as the sum of a per-counter software-visible offset
+ * (rebased whenever the guest writes PMUCNTn, or switches the counter to a
+ * different event -- see hexagon_set_pmu_counter()/hexagon_pmu_set_event())
+ * and a live tally of the selected event, computed here. QEMU has no
+ * cache/branch-predictor/bus/timing model, so only events derivable from
+ * packet decode/commit are implemented; anything else is accepted (the
+ * counter just stops advancing) but logged once via LOG_UNIMP.
+ *
+ * Events with an explicit "_ANY"/no-suffix-vs-"_THREAD" or "_T<n>" family
+ * (COMMITTED_PKT_ANY/_T0-7, HVX_PKT vs HVX_PKT_THREAD) are aggregated or
+ * thread-selected accordingly; events with no such family (COMMITTED_LD/
+ * ST/MEMOP, HVXPIPE_*) are read as the requesting thread's own tally.
+ */
+static uint32_t hexagon_pmu_event_stats(CPUHexagonState *env, int event)
 {
-    g_assert_not_reached();
+    CPUState *cs;
+
+    g_assert(bql_locked());
+
+    switch (event) {
+    case PMU_NO_EVENT:
+        return 0;
+
+    case COMMITTED_PKT_ANY: {
+        uint32_t total = 0;
+        CPU_FOREACH(cs) {
+            total += cpu_env(cs)->pmu.num_packets;
+        }
+        return total;
+    }
+    case HVX_PKT: {
+        uint32_t total = 0;
+        CPU_FOREACH(cs) {
+            total += cpu_env(cs)->pmu.hvx_packets;
+        }
+        return total;
+    }
+
+    case COMMITTED_PKT_T0:
+    case COMMITTED_PKT_T1:
+    case COMMITTED_PKT_T2:
+    case COMMITTED_PKT_T3:
+    case COMMITTED_PKT_T4:
+    case COMMITTED_PKT_T5:
+    case COMMITTED_PKT_T6:
+    case COMMITTED_PKT_T7: {
+        unsigned int tid = pmu_committed_pkt_thread(event);
+        CPU_FOREACH(cs) {
+            CPUHexagonState *e = cpu_env(cs);
+            if (e->threadId == tid) {
+                return e->pmu.num_packets;
+            }
+        }
+        return 0;
+    }
+
+    case COMMITTED_LD:
+        return env->pmu.committed_loads;
+    case COMMITTED_ST:
+        return env->pmu.committed_stores;
+    case COMMITTED_MEMOP:
+        return env->pmu.committed_memops;
+    case HVX_PKT_THREAD:
+        return env->pmu.hvx_packets;
+    case HVXPIPE_ALU:
+        return env->pmu.hvx_pipe_alu;
+    case HVXPIPE_MPY:
+        return env->pmu.hvx_pipe_mpy;
+    case HVXPIPE_SHIFT:
+        return env->pmu.hvx_pipe_shift;
+    case HVXPIPE_PERM:
+        return env->pmu.hvx_pipe_perm;
+
+    default:
+        return 0;
+    }
+}
+
+#define DECL_PMU_EVENT(name, val) case name:
+static bool hexagon_pmu_event_implemented(int event)
+{
+    switch (event) {
+    HEX_PMU_IMPLEMENTED_EVENTS
+        return true;
+    default:
+        return false;
+    }
+}
+#undef DECL_PMU_EVENT
+
+static void hexagon_pmu_log_if_unimplemented(int event)
+{
+    if (!hexagon_pmu_event_implemented(event)) {
+        qemu_log_mask(LOG_UNIMP,
+                     "PMU event 0x%x is not implemented; the counter "
+                     "watching it will not advance\n", event);
+    }
+}
+
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, int index)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    uint16_t event;
+
+    g_assert(bql_locked());
+    g_assert(index >= 0 && index < NUM_PMU_CTRS);
+    if (!cpu->pmu) {
+        return 0;
+    }
+    event = hexagon_pmu_get_event(cpu->pmu, index);
+    return hexagon_pmu_get_offset(cpu->pmu, index) +
+           hexagon_pmu_event_stats(env, event);
+}
+
+/* Guest wrote PMUCNTn directly: rebase without disturbing the live tally. */
+static void hexagon_set_pmu_counter(CPUHexagonState *env, uint32_t reg,
+                                    uint32_t val)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    unsigned int index = pmu_index_from_sreg(reg);
+    uint16_t event = hexagon_pmu_get_event(cpu->pmu, index);
+    uint32_t offset = val - hexagon_pmu_event_stats(env, event);
+
+    hexagon_pmu_set_offset(cpu->pmu, index, offset);
+}
+
+/*
+ * Guest switched counter @index to a new event: keep the counter's
+ * displayed value continuous across the switch (real HW counters aren't
+ * reset by re-pointing them at a different event).
+ */
+static void hexagon_set_pmu_event(CPUHexagonState *env, unsigned int index,
+                                  uint16_t event)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t old_value = hexagon_get_pmu_counter(env, index);
+    uint32_t new_offset;
+
+    hexagon_pmu_log_if_unimplemented(event);
+    hexagon_pmu_set_event(cpu->pmu, index, event);
+    new_offset = old_value - hexagon_pmu_event_stats(env, event);
+    hexagon_pmu_set_offset(cpu->pmu, index, new_offset);
+}
+
+uint32_t hexagon_pmu_sreg_read(CPUHexagonState *env, uint32_t reg)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+
+    g_assert(bql_locked());
+    if (!cpu->pmu) {
+        return 0;
+    }
+    if (IS_PMU_CNT_SREG(reg)) {
+        return hexagon_get_pmu_counter(env, pmu_index_from_sreg(reg));
+    }
+    switch (reg) {
+    case HEX_SREG_PMUEVTCFG:
+    case HEX_SREG_PMUEVTCFG1: {
+        uint32_t val = 0;
+        unsigned int base = (reg == HEX_SREG_PMUEVTCFG1) ? 4 : 0;
+        for (unsigned int i = 0; i < 4; i++) {
+            uint16_t event = hexagon_pmu_get_event(cpu->pmu, base + i);
+            val = deposit32(val, i * 8, 8, event & 0xff);
+        }
+        return val;
+    }
+    case HEX_SREG_PMUCFG: {
+        uint32_t val = 0;
+        for (unsigned int i = 0; i < NUM_PMU_CTRS; i++) {
+            uint16_t event = hexagon_pmu_get_event(cpu->pmu, i);
+            val = deposit32(val, i * 2, 2, (event >> 8) & 0x3);
+        }
+        val = deposit32(val, 16, 3, hexagon_pmu_get_thread_mask(cpu->pmu));
+        return val;
+    }
+    case HEX_SREG_PMUSTID0:
+        return hexagon_pmu_get_stid(cpu->pmu, 0);
+    case HEX_SREG_PMUSTID1:
+        return hexagon_pmu_get_stid(cpu->pmu, 1);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void hexagon_pmu_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+
+    g_assert(bql_locked());
+    if (!cpu->pmu) {
+        return;
+    }
+    if (IS_PMU_CNT_SREG(reg)) {
+        hexagon_set_pmu_counter(env, reg, val);
+        return;
+    }
+    switch (reg) {
+    case HEX_SREG_PMUEVTCFG:
+    case HEX_SREG_PMUEVTCFG1: {
+        unsigned int base = (reg == HEX_SREG_PMUEVTCFG1) ? 4 : 0;
+        for (unsigned int i = 0; i < 4; i++) {
+            unsigned int index = base + i;
+            uint16_t old_event = hexagon_pmu_get_event(cpu->pmu, index);
+            uint16_t new_event = deposit32(old_event, 0, 8,
+                                           extract32(val, i * 8, 8));
+            hexagon_set_pmu_event(env, index, new_event);
+        }
+        break;
+    }
+    case HEX_SREG_PMUCFG: {
+        uint32_t new_thmask = extract32(val, 16, 3);
+
+        if (new_thmask != 0) {
+            qemu_log_mask(LOG_UNIMP,
+                         "PMUCFG: only thread mask 0 is implemented\n");
+        }
+        hexagon_pmu_set_thread_mask(cpu->pmu, new_thmask);
+        for (unsigned int i = 0; i < NUM_PMU_CTRS; i++) {
+            uint16_t old_event = hexagon_pmu_get_event(cpu->pmu, i);
+            uint16_t new_event = deposit32(old_event, 8, 2,
+                                           extract32(val, i * 2, 2));
+            hexagon_set_pmu_event(env, i, new_event);
+        }
+        break;
+    }
+    case HEX_SREG_PMUSTID0:
+        if (val != 0) {
+            qemu_log_mask(LOG_UNIMP, "PMUSTID0 is not implemented\n");
+        }
+        hexagon_pmu_set_stid(cpu->pmu, 0, val);
+        break;
+    case HEX_SREG_PMUSTID1:
+        if (val != 0) {
+            qemu_log_mask(LOG_UNIMP, "PMUSTID1 is not implemented\n");
+        }
+        hexagon_pmu_set_stid(cpu->pmu, 1, val);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+uint32_t hexagon_get_pmu_greg(CPUHexagonState *env, uint32_t greg)
+{
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+
+    if (!GET_SSR_FIELD(SSR_CE, ssr)) {
+        return 0;
+    }
+    return hexagon_get_pmu_counter(env, pmu_index_from_greg(greg));
 }
 
 static void hexagon_resume_thread(CPUHexagonState *env)

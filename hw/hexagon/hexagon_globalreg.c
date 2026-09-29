@@ -453,14 +453,11 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     s->regs[HEX_SREG_PCYCLEHI] = INVALID_REG_VAL;
     s->regs[HEX_SREG_TIMERLO] = INVALID_REG_VAL;
     s->regs[HEX_SREG_TIMERHI] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT0] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT1] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT2] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT3] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT4] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT5] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT6] = INVALID_REG_VAL;
-    s->regs[HEX_SREG_PMUCNT7] = INVALID_REG_VAL;
+    /*
+     * The PMU counter and config registers are handled by the separate,
+     * optional "hexagon-pmu" device (see target/hexagon/pmu.h) rather than
+     * by this array -- see sreg_read()/HELPER(sreg_write_masked).
+     */
 }
 
 static void hexagon_globalreg_reset_hold(Object *obj, ResetType type)

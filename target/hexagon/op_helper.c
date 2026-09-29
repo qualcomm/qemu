@@ -47,6 +47,7 @@
 #endif
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "pmu.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/hex-l2vic.h"
@@ -1997,6 +1998,8 @@ void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
     BQL_LOCK_GUARD();
     if (reg < HEX_SREG_GLB_START) {
         env->t_sreg[reg] = val;
+    } else if (IS_PMU_SREG(reg)) {
+        hexagon_pmu_sreg_write(env, reg, val);
     } else {
         HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
@@ -2028,6 +2031,9 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
     }
     if (reg < HEX_SREG_GLB_START) {
         return env->t_sreg[reg];
+    }
+    if (IS_PMU_SREG(reg)) {
+        return hexagon_pmu_sreg_read(env, reg);
     }
     return cpu->globalregs ?
         hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;

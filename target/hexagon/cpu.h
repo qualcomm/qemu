@@ -42,6 +42,7 @@ typedef struct HexagonTLBState HexagonTLBState;
 typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 typedef struct HexagonHVXContextState HexagonHVXContextState;
 typedef struct HexagonHLXState HexagonHLXState;
+typedef struct HexagonPMUState HexagonPMUState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
@@ -151,6 +152,28 @@ typedef struct HexagonHVXContext {
     MMQReg QRegs[NUM_QREGS];
 } QEMU_ALIGNED(16) HexagonHVXContext;
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * Per-vCPU PMU tallies. Translated code addresses these fields directly
+ * (see hex_pmu_* TCG globals in translate.c), so they can't live in the
+ * "hexagon-pmu" QOM device -- that device only holds the guest-configurable,
+ * cross-thread state (which event each counter watches, and each counter's
+ * rebase offset). See target/hexagon/pmu.h for the event list and
+ * hexagon_get_pmu_counter() in cpu_helper.c for how the two combine.
+ */
+typedef struct PMUCounters {
+    uint32_t num_packets;
+    uint32_t committed_loads;
+    uint32_t committed_stores;
+    uint32_t committed_memops;
+    uint32_t hvx_packets;
+    uint32_t hvx_pipe_alu;
+    uint32_t hvx_pipe_mpy;
+    uint32_t hvx_pipe_shift;
+    uint32_t hvx_pipe_perm;
+} PMUCounters;
+#endif
+
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
@@ -177,6 +200,8 @@ typedef struct CPUArchState {
     hex_lock_state_t k0_lock_state;
     uint32_t tlb_lock_count;
     uint32_t k0_lock_count;
+
+    PMUCounters pmu;
 #endif
     uint32_t imprecise_exception;
     target_ulong new_value_usr;
@@ -273,6 +298,7 @@ struct ArchCPU {
     uint32_t htid;
     HexL2VicInterface *l2vic;
     HexagonHLXState *hlx;
+    HexagonPMUState *pmu;
 #endif
     HmxState *hmx;      /* HMX register state, allocated at realize */
     HmxConfig hmx_cfg;  /* Immutable per-revision HMX feature/shape config */
