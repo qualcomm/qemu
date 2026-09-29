@@ -22,6 +22,9 @@
 #include "qemu/rcu.h"
 #include "qemu/thread.h"
 #include "system/system.h"
+#include "qemu/config-file.h"
+#include "qemu/option.h"
+#include "qemu/error-report.h"
 #include "tcg/tcg.h"
 
 #include "callbacks.h"
@@ -42,6 +45,7 @@ struct LibQemuContext {
     LibQemuExports exports;
     QemuThread iothread;
     GMainContext *iothread_context;
+    bool default_gcontext_owner;
     int argc;
     char **argv;
 
@@ -68,19 +72,70 @@ struct LibQemuContext {
 static LibQemuContext context;
 
 /*
- * This function must be called by libqemu io threads when they
- * need a glib main context. It ensures that the default global
- * main context is acquired by one and only one instance.
- * The default main context must not be dangling because some
- * qemu features (VNC) will use it to handle network communicaitons
+ * GLib main context of this instance main loop.
+ *
+ * Several libqemu instances may be loaded in the same process. They share the
+ * GLib library, hence its process default main context, but each one has its
+ * own BQL. A lot of QEMU code (VNC, QIO watches, g_idle_add(), ...)
+ * implicitly attaches its sources to the process default context: those
+ * sources must be dispatched by the main loop, and under the BQL, of the
+ * instance they belong to. So exactly one instance, explicitly designated by
+ * the user with libqemu_set_default_gcontext_owner(), iterates the process
+ * default context. The other instances use a private one.
+ *
+ * Handing the default context to whichever instance acquired it first made
+ * a non-owner main loop dispatch the VNC sources of another instance, without
+ * that instance's BQL.
  */
-static GMainContext *get_context_conditional(void)
+void libqemu_set_default_gcontext_owner(bool owner)
 {
-    if (g_main_context_acquire(g_main_context_default()) == TRUE) {
-        return g_main_context_default();
+    context.default_gcontext_owner = owner;
+}
+
+static GMainContext *get_iothread_context(void)
+{
+    if (!context.default_gcontext_owner) {
+        return g_main_context_new();
     }
 
-    return g_main_context_new();
+    if (!g_main_context_acquire(g_main_context_default())) {
+        error_report("libqemu: this instance is the GLib default main context "
+                     "owner, but the context is already acquired by another "
+                     "thread (another libqemu instance flagged as owner, or "
+                     "foreign code iterating the default context)");
+        exit(1);
+    }
+
+    return g_main_context_default();
+}
+
+/*
+ * Same rule as vnc_display_get_addresses(): a display is only set up (hence
+ * sources attached) when its "vnc" address is present and not "none".
+ */
+static int vnc_display_is_active(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *addr = qemu_opt_get(opts, "vnc");
+
+    return addr && !g_str_equal(addr, "none");
+}
+
+/*
+ * VNC sources are attached to the process default context. On a non-owner
+ * instance they would be dispatched by the owner instance main loop, without
+ * our BQL (or never, if there is no owner).
+ */
+static void check_default_gcontext_users(void)
+{
+    QemuOptsList *vnc = qemu_find_opts_err("vnc", NULL);
+
+    if (!context.default_gcontext_owner && vnc &&
+        qemu_opts_foreach(vnc, vnc_display_is_active, NULL, NULL)) {
+        error_report("libqemu: VNC is enabled on an instance which is not the "
+                     "GLib default main context owner. Set the owner flag on "
+                     "this instance (libqemu_set_default_gcontext_owner())");
+        exit(1);
+    }
 }
 
 /* This is the entry function for the thread which call QEMU constructors and
@@ -91,20 +146,21 @@ static void *iothread_entry(void *arg)
 {
     LibQemuContext *context = (LibQemuContext *)arg;
 
-    context->iothread_context = get_context_conditional();
+    context->iothread_context = get_iothread_context();
     g_main_context_push_thread_default(context->iothread_context);
 
     libqemu_call_ctors();
 
     qemu_init(context->argc, context->argv);
+    check_default_gcontext_users();
     int status = qemu_main_loop();
     qemu_cleanup(status);
 
     g_main_context_pop_thread_default(context->iothread_context);
 
     /*
-     * The global defaults main context was acquired at
-     * get_context_conditional()
+     * The global default main context was acquired at
+     * get_iothread_context()
      */
     if (context->iothread_context == g_main_context_default()) {
         g_main_context_release(context->iothread_context);

@@ -1,4 +1,4 @@
 {
-    global: libqemu_init;
+    global: libqemu_init; libqemu_set_default_gcontext_owner;
     local: *;
 };

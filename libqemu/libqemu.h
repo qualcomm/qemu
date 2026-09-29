@@ -55,6 +55,18 @@ typedef LibQemuExports *(*LibQemuInitFct)(int argc, char **argv);
 
 LIBQEMU_API LibQemuExports *LIBQEMU_INIT_SYM(int argc, char **argv);
 
+/*
+ * Designate this instance as the owner of the GLib process default main
+ * context: its main loop iterates it, and dispatches the sources implicitly
+ * attached to it (VNC...). At most one instance per process may be the owner,
+ * and an instance with VNC enabled must be the owner.
+ * Must be called before LIBQEMU_INIT_SYM.
+ */
+#define LIBQEMU_SET_DEFAULT_GCONTEXT_OWNER_SYM_STR \
+    "libqemu_set_default_gcontext_owner"
+typedef void (*LibQemuSetDefaultGContextOwnerFct)(bool owner);
+LIBQEMU_API void libqemu_set_default_gcontext_owner(bool owner);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
