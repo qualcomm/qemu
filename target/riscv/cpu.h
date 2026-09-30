@@ -694,7 +694,7 @@ uint64_t riscv_cpu_get_mip(const CPURISCVState *env);
 /**
  * riscv_cpu_update_mip:
  * @env: CPURISCVState
- * @mask: Mask of the MIP bits to update
+ * @mask: Mask of the MIP bits to update (must be non-zero)
  * @value: New values for the bits set in @mask.
  *         Use BOOL_TO_MASK() for boolean values.
  *

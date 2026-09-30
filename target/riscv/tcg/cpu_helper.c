@@ -583,8 +583,12 @@ uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask, uint64_t value)
 {
     uint64_t old;
 
+    assert(mask);
+
     /* No need to update mip for VSTIP */
-    mask = ((mask == MIP_VSTIP) && env->vstime_irq) ? 0 : mask;
+    if (mask == MIP_VSTIP && env->vstime_irq) {
+        return riscv_cpu_get_mip(env);
+    }
 
     BQL_LOCK_GUARD();
 

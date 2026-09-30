@@ -39,7 +39,16 @@ static void riscv_accel_set_irq(RISCVCPU *cpu,
         uint64_t mask = irq_or_mask;
         uint64_t value = level_or_value;
 
-        riscv_cpu_update_mip(&cpu->env, mask, value);
+        if (!mask) {
+            /*
+             * The VS timer keeps VSTIP in env->vstime_irq rather than
+             * in mip, so callers pass a zero mask only to re-poll
+             * interrupts after updating it.
+             */
+            riscv_cpu_interrupt(&cpu->env);
+        } else {
+            riscv_cpu_update_mip(&cpu->env, mask, value);
+        }
     }
 }
 
