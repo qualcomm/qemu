@@ -111,10 +111,18 @@ static bool s390_bios_has_string(const char *needle)
 {
     const char *contents;
     gsize len;
-    bool found;
+    bool found = false;
 
     contents = s390_bios_load(&len);
-    found = memmem(contents, len, needle, strlen(needle)) != NULL;
+    gsize search_len = strlen(needle) + 1;
+    if (search_len <= len) {
+        for (gsize i = 0; i <= len - search_len; i++) {
+            if (memcmp(contents + i, needle, search_len) == 0) {
+                found = true;
+                break;
+            }
+        }
+    }
 
     g_test_message("\"%s\" %s in bios", needle, found ? "found" : "not found");
     return found;
