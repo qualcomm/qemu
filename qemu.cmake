@@ -82,6 +82,7 @@ if (APPLE)
         --disable-gtk
         --disable-sdl-image
         --disable-kvm
+        --disable-pvg
     )
 elseif(WIN32)
     set(QEMU_CONF_ARGS ${QEMU_CONF_ARGS}
