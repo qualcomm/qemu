@@ -101,6 +101,10 @@ There are usually three log files:
   differently if the test chooses to use a different identifier for
   the guest VM (e.g. when the test spins up multiple VMs).
 
+Whenever a test fails or errors, the last 200 lines of each of these log
+files are printed to stderr, which is useful when the log files themselves
+are not easily accessible (e.g. in CI).
+
 Introduction to writing tests
 -----------------------------
 
