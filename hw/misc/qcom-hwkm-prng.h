@@ -9,7 +9,6 @@
 #include "hw/core/sysbus.h"
 
 #define HWKM_PRNG_SIZE 0x1000
-#define HWKM_PRNG_BASE 0x010DA000
 #define TYPE_HWKM_PRNG "hwkm-prng"
 
 OBJECT_DECLARE_SIMPLE_TYPE(HwkmPrngState, HWKM_PRNG)

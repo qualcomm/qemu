@@ -83,6 +83,8 @@ blobs = [
   'npcm8xx_bootrom.bin',
   'vof.bin',
   'vof-nvram.bin',
+  'cmd_db_sc8480xp_nsp0.bin',
+  'cmd_db_header_sc8480xp_nsp0.bin',
 ]
 
 if get_option('install_blobs')
