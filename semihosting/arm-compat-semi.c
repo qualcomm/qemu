@@ -176,6 +176,55 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
 #include "semihosting/common-semi.h"
 
 /*
+ * Dispatch to the target-specific operations.  Looking them up through
+ * CPUClass, rather than linking against a single implementation, is what
+ * allows several Arm-compatible-semihosting targets to coexist in one
+ * binary.
+ */
+static const SemihostingCPUOps *semi_ops(CPUState *cs)
+{
+    const SemihostingCPUOps *ops = CPU_GET_CLASS(cs)->semihosting_ops;
+
+    assert(ops != NULL);
+    return ops;
+}
+
+static uint64_t common_semi_arg(CPUState *cs, int argno)
+{
+    return semi_ops(cs)->arg(cs, argno);
+}
+
+static void common_semi_set_ret(CPUState *cs, uint64_t ret)
+{
+    semi_ops(cs)->set_ret(cs, ret);
+}
+
+static void G_GNUC_UNUSED common_semi_set_err(CPUState *cs, int err)
+{
+    semi_ops(cs)->set_err(cs, err);
+}
+
+static bool is_64bit_semihosting(CPUState *cs)
+{
+    return semi_ops(cs)->is_64bit(cs);
+}
+
+static bool common_semi_sys_exit_is_extended(CPUState *cs)
+{
+    return semi_ops(cs)->sys_exit_is_extended(cs);
+}
+
+static uint64_t common_semi_stack_bottom(CPUState *cs)
+{
+    return semi_ops(cs)->stack_bottom(cs);
+}
+
+static bool common_semi_has_synccache(CPUState *cs)
+{
+    return semi_ops(cs)->has_synccache(cs);
+}
+
+/*
  * Read the input value from the argument block; fail the semihosting
  * call if the memory read fails. Eventually we could use a generic
  * CPUState helper function here.
@@ -188,7 +237,7 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
  */
 
 #define GET_ARG(n) do {                                 \
-    if (is_64bit_semihosting(env)) {                    \
+    if (is_64bit_semihosting(cs)) {                     \
         if (get_user_u64(arg ## n, args + (n) * 8)) {   \
             goto do_fault;                              \
         }                                               \
@@ -200,7 +249,7 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
 } while (0)
 
 #define SET_ARG(n, val)                                 \
-    (is_64bit_semihosting(env) ?                        \
+    (is_64bit_semihosting(cs) ?                         \
      put_user_u64(val, args + (n) * 8) :                \
      put_user_u32(val, args + (n) * 4))
 
@@ -385,7 +434,7 @@ void semihosting_arm_compatible_init(void)
  */
 void do_common_semihosting(CPUState *cs)
 {
-    CPUArchState *env = cpu_env(cs);
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     uint64_t args;
     uint64_t arg0, arg1, arg2, arg3;
     uint64_t ul_ret;
@@ -500,7 +549,7 @@ void do_common_semihosting(CPUState *cs)
     case TARGET_SYS_ISERROR:
     {
         GET_ARG(0);
-        bool ret = is_64bit_semihosting(env) ?
+        bool ret = is_64bit_semihosting(cs) ?
                    (int64_t)arg0 < 0 : (int32_t)arg0 < 0;
         common_semi_set_ret(cs, ret);
         break;
@@ -734,7 +783,7 @@ void do_common_semihosting(CPUState *cs)
             for (i = 0; i < ARRAY_SIZE(retvals); i++) {
                 bool fail;
 
-                if (is_64bit_semihosting(env)) {
+                if (is_64bit_semihosting(cs)) {
                     fail = put_user_u64(retvals[i], arg0 + i * 8);
                 } else {
                     fail = put_user_u32(retvals[i], arg0 + i * 4);
@@ -786,7 +835,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_ELAPSED:
         elapsed = get_clock() - clock_start;
-        if (is_64bit_semihosting(env)) {
+        if (is_64bit_semihosting(cs)) {
             if (SET_ARG(0, elapsed)) {
                 goto do_fault;
             }
@@ -810,7 +859,7 @@ void do_common_semihosting(CPUState *cs)
          * virtual address range. This is a nop for us since we don't
          * implement caches. This is only present on A64.
          */
-        if (common_semi_has_synccache(env)) {
+        if (common_semi_has_synccache(cs)) {
             common_semi_set_ret(cs, 0);
             break;
         }

@@ -2664,6 +2664,8 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_tcg_ops;
 #endif /* CONFIG_TCG */
+
+    cc->semihosting_ops = &arm_semihosting_ops;
 }
 
 static void arm_cpu_instance_init(Object *obj)

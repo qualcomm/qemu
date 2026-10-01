@@ -11,8 +11,7 @@ gen = [
 riscv_ss = ss.source_set()
 riscv_ss.add(gen)
 
-riscv_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
-		     if_true: files('common-semi-target.c'))
+riscv_ss.add(files('common-semi-target.c'))
 
 riscv_ss.add(files(
   'cpu.c',

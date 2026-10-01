@@ -98,6 +98,9 @@ struct AccelCPUClass;
 /* see sysemu-cpu-ops.h */
 struct SysemuCPUOps;
 
+/* see semihosting/common-semi.h */
+struct SemihostingCPUOps;
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -185,6 +188,12 @@ struct CPUClass {
 
     /* when TCG is not available, this pointer is NULL */
     const TCGCPUOps *tcg_ops;
+
+    /*
+     * when the target does not implement Arm-compatible semihosting,
+     * this pointer is NULL
+     */
+    const struct SemihostingCPUOps *semihosting_ops;
 
     /*
      * Keep non-pointer data at the end to minimize holes.

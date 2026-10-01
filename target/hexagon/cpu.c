@@ -841,6 +841,8 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &hexagon_tcg_ops;
 #endif
+
+    cc->semihosting_ops = &hexagon_semihosting_ops;
 }
 
 #ifndef CONFIG_USER_ONLY

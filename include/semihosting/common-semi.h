@@ -34,14 +34,30 @@
 #ifndef COMMON_SEMI_H
 #define COMMON_SEMI_H
 
+/*
+ * Target-specific operations needed by the Arm-compatible semihosting
+ * implementation.  Each target architecture supporting it provides one
+ * instance, reached at runtime through CPUClass::semihosting_ops, so that
+ * several targets can be linked into a single binary.
+ */
+typedef struct SemihostingCPUOps {
+    /* Return semihosting argument register @argno. */
+    uint64_t (*arg)(CPUState *cs, int argno);
+    /* Set the register holding the semihosting return value. */
+    void (*set_ret)(CPUState *cs, uint64_t ret);
+    /* Set the register holding the semihosting error value, if any. */
+    void (*set_err)(CPUState *cs, int err);
+    /* Return %true if the guest is using the 64-bit semihosting ABI. */
+    bool (*is_64bit)(CPUState *cs);
+    /* Return %true if SYS_EXIT takes an extended parameter block. */
+    bool (*sys_exit_is_extended)(CPUState *cs);
+    /* Return the address just above the semihosting scratch area. */
+    uint64_t (*stack_bottom)(CPUState *cs);
+    /* Return %true if SYS_SYNCCACHE is implemented. */
+    bool (*has_synccache)(CPUState *cs);
+} SemihostingCPUOps;
+
 void common_semi_cb(CPUState *cs, uint64_t ret, int err);
 void do_common_semihosting(CPUState *cs);
-uint64_t common_semi_arg(CPUState *cs, int argno);
-void common_semi_set_ret(CPUState *cs, uint64_t ret);
-void common_semi_set_err(CPUState *cs, int err);
-bool is_64bit_semihosting(CPUArchState *env);
-bool common_semi_sys_exit_is_extended(CPUState *cs);
-uint64_t common_semi_stack_bottom(CPUState *cs);
-bool common_semi_has_synccache(CPUArchState *env);
 
 #endif /* COMMON_SEMI_H */

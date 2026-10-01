@@ -54,4 +54,7 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
 extern const VMStateDescription vmstate_hexagon_cpu;
 #endif
 
+/* Arm-compatible semihosting operations, see semihosting/common-semi.h */
+extern const struct SemihostingCPUOps hexagon_semihosting_ops;
+
 #endif

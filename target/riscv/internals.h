@@ -266,4 +266,7 @@ static inline int insn_len(uint16_t first_word)
 int riscv_monitor_get_register_legacy(CPUState *cs, const char *name,
                                       int64_t *pval);
 
+/* Arm-compatible semihosting operations, see semihosting/common-semi.h */
+extern const struct SemihostingCPUOps riscv_semihosting_ops;
+
 #endif

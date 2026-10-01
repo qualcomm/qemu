@@ -2087,4 +2087,7 @@ bool arm_cpu_match_cpreg_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx,
  */
 void arm_set_cpu_power_state(ARMCPU *cpu, ARMPSCIState state);
 
+/* Arm-compatible semihosting operations, see semihosting/common-semi.h */
+extern const struct SemihostingCPUOps arm_semihosting_ops;
+
 #endif
