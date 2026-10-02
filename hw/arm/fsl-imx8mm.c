@@ -370,7 +370,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* UARTs */
     for (i = 0; i < FSL_IMX8MM_NUM_UARTS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } serial_table[FSL_IMX8MM_NUM_UARTS] = {
@@ -448,7 +448,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* I2Cs */
     for (i = 0; i < FSL_IMX8MM_NUM_I2CS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } i2c_table[FSL_IMX8MM_NUM_I2CS] = {
@@ -469,7 +469,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* GPIOs */
     for (i = 0; i < FSL_IMX8MM_NUM_GPIOS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq_low;
             unsigned int irq_high;
@@ -517,7 +517,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* USDHCs */
     for (i = 0; i < FSL_IMX8MM_NUM_USDHCS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } usdhc_table[FSL_IMX8MM_NUM_USDHCS] = {
@@ -537,7 +537,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* USBs */
     for (i = 0; i < FSL_IMX8MM_NUM_USBS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } usb_table[FSL_IMX8MM_NUM_USBS] = {
@@ -558,7 +558,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* ECSPIs */
     for (i = 0; i < FSL_IMX8MM_NUM_ECSPIS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } spi_table[FSL_IMX8MM_NUM_ECSPIS] = {
@@ -600,7 +600,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
 
     /* Watchdogs */
     for (i = 0; i < FSL_IMX8MM_NUM_WDTS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } wdog_table[FSL_IMX8MM_NUM_WDTS] = {

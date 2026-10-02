@@ -676,7 +676,7 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
 
     /* FlexCANs */
     for (i = 0; i < FSL_IMX8MP_NUM_CANS; i++) {
-        static const struct {
+        const struct {
             hwaddr addr;
             unsigned int irq;
         } flexcan_table[FSL_IMX8MP_NUM_CANS] = {
