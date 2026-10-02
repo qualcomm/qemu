@@ -31,6 +31,8 @@ PrivateInclude('qemu/main-loop.h')
 ExportedFct('qemu_mutex_lock_iothread', 'void', [], priv = 'libqemu_mutex_lock_iothread')
 ExportedFct('qemu_mutex_unlock_iothread', 'void', [],
             priv = 'libqemu_mutex_unlock_iothread')
+ExportedFct('qemu_iothread_locked', 'bool', [],
+            priv = 'libqemu_iothread_locked')
 
 PrivateInclude('libqemu/wrappers/rcu.h')
 ExportedFct('rcu_read_lock', 'void', [], priv = 'libqemu_rcu_read_lock')
@@ -462,3 +464,10 @@ ExportedFct(
 )
 ExportedFct('fw_cfg_find', 'FWCfgState *', [])
 ExportedFct('fw_cfg_set_dma_as', 'void', ['FWCfgState *', 'AddressSpace *'])
+
+ExportedFct('set_iommu_attrs_to_index_cb', 'void',
+        [ 'LibQemuIOMMUAttrsToIndexFn', 'void *' ],
+        priv = 'libqemu_set_iommu_attrs_to_index_cb')
+ExportedFct('set_iommu_num_indexes_cb', 'void',
+        [ 'LibQemuIOMMUNumIndexesFn', 'void *' ],
+        priv = 'libqemu_set_iommu_num_indexes_cb')

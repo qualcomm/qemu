@@ -311,7 +311,12 @@ void libqemu_iommu_memory_region_init(IOMMUMemoryRegion *mr, Object *owner,
 
 static int libqemu_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
 {
-    return 0;
+    return libqemu_iommu_attrs_to_index_cb(iommu, attrs);
+}
+
+static int libqemu_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    return libqemu_iommu_num_indexes_cb(iommu);
 }
 
 void libqemu_iommu_unmap(IOMMUMemoryRegion *mr, IOMMUTLBEntry *te)
@@ -337,6 +342,7 @@ static void libqemu_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = libqemu_iommu_translate_cb;
     imrc->attrs_to_index = libqemu_attrs_to_index;
+    imrc->num_indexes = libqemu_num_indexes;
 }
 
 static const TypeInfo libqemu_iommu_memory_region_info = {
