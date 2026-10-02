@@ -22,6 +22,6 @@
 
 void libqemu_mutex_lock_iothread(void);
 void libqemu_mutex_unlock_iothread(void);
+bool libqemu_iothread_locked(void);
 
 #endif
-
