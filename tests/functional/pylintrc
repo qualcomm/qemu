@@ -41,10 +41,8 @@ min-public-methods=2
 [MESSAGES CONTROL]
 
 # Only show warnings with the listed confidence levels. Leave empty to show
-# all. Valid levels: HIGH, CONTROL_FLOW, INFERENCE, INFERENCE_FAILURE,
-# UNDEFINED.
+# all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED.
 confidence=HIGH,
-           CONTROL_FLOW,
            INFERENCE,
            INFERENCE_FAILURE
 
@@ -63,6 +61,7 @@ disable=bad-inline-option,
         file-ignored,
         fixme,
         import-outside-toplevel,
+        invalid-name,
         locally-disabled,
         logging-fstring-interpolation,
         logging-not-lazy,

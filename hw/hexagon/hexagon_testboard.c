@@ -271,8 +271,6 @@ static void create_cdsp_turing_dsp_rsc_8480(struct hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "timeout-status-offset", 0x04);
     qdev_prop_set_uint32(dev, "timeout-val-offset", 0x00);
     qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
-    qdev_prop_set_uint32(dev, "num-br-addr", 8);
-    qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
@@ -304,8 +302,6 @@ static void create_cdsp_turing_rsc_8480(struct hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
     qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
     qdev_prop_set_uint32(dev, "cmd-base-in-tcs", 0x14);
-    qdev_prop_set_uint32(dev, "num-br-addr", 16);
-    qdev_prop_set_uint32(dev, "num-timestamp-units", 8);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
@@ -336,8 +332,6 @@ static void create_cdsp_turing_rsc_8775(struct hexagon_machine_config *cfg)
     qdev_prop_set_uint32(dev, "timeout-clr-offset", 0x04);
     qdev_prop_set_uint32(dev, "timeout-status-offset", 0x08);
     qdev_prop_set_uint32(dev, "timeout-val-offset", 0x0C);
-    qdev_prop_set_uint32(dev, "num-br-addr", 4);
-    qdev_prop_set_uint32(dev, "num-timestamp-units", 6);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
@@ -771,6 +765,7 @@ static void SA8775P_cdsp0_config_init(MachineState *machine)
 
     /* IPCC (Inter-Processor Communication Controller) */
     DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
+    qdev_prop_set_uint32(ipcc, "num-clients", 7);
     object_property_add_child(OBJECT(machine), "ipcc", OBJECT(ipcc));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ipcc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(ipcc), 0, 0x00400000);
@@ -1099,6 +1094,7 @@ static void sc8480xp_nsp0_config_init(MachineState *machine)
 
     /* IPCC (Inter-Processor Communication Controller) */
     DeviceState *ipcc = qdev_new(TYPE_QCOM_IPCC);
+    qdev_prop_set_uint32(ipcc, "num-clients", 7);
     object_property_add_child(OBJECT(machine), "ipcc", OBJECT(ipcc));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ipcc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(ipcc), 0, 0x03e00000);

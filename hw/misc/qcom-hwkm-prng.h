@@ -19,8 +19,8 @@ typedef struct HwkmPrngState HwkmPrngState;
 struct HwkmPrngState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-    uint32_t fifo_data;
-    bool data_avail;
+    uint32_t values[1];
+    bool flags[1];
 };
 
 #endif /* HWKM_PRNG_H */
