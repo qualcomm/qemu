@@ -11,11 +11,11 @@
 #ifndef HW_UFS_UFS_H
 #define HW_UFS_UFS_H
 
-#include "block/ufs.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci_device.h"
 #include "hw/scsi/scsi.h"
-#include "hw/core/sysbus.h"
-#include "system/dma.h"
+#include "block/ufs.h"
+#include "scsi/constants.h"
 
 #define UFS_MAX_LUS 32
 #define UFS_MAX_MCQ_QNUM 32
@@ -29,13 +29,11 @@ typedef struct UfsBusClass {
 
 typedef struct UfsBus {
     BusState parent_bus;
+    struct UfsHc *hc;
 } UfsBus;
 
 #define TYPE_UFS_BUS "ufs-bus"
 DECLARE_OBJ_CHECKERS(UfsBus, UfsBusClass, UFS_BUS, TYPE_UFS_BUS)
-
-#define TYPE_UFS_SYSBUS_BUS "ufs-sysbus-bus"
-DECLARE_OBJ_CHECKERS(UfsBus, UfsBusClass, UFS_SYSBUS_BUS, TYPE_UFS_SYSBUS_BUS)
 
 typedef enum UfsRequestState {
     UFS_REQUEST_IDLE = 0,
@@ -96,6 +94,8 @@ typedef struct UfsParams {
     bool mcq; /* Multiple Command Queue support */
     uint8_t mcq_qcfgptr; /* MCQ Queue Configuration Pointer in MCQCAP */
     uint8_t mcq_maxq; /* MCQ Maximum number of Queues */
+    uint32_t wb_max_size; /* WB Maximum allocation units */
+    uint32_t wb_min_size; /* WB Minimum allocation units */
 } UfsParams;
 
 /*
@@ -123,11 +123,27 @@ typedef struct UfsCq {
     QTAILQ_HEAD(, UfsRequest) req_list;
 } UfsCq;
 
+/*
+ * Extended features
+ */
+typedef struct UfsWb {
+    uint64_t max_bytes;
+    uint64_t min_bytes;
+    uint64_t curr_bytes;
+    uint64_t used_bytes;
+    uint64_t resize_bytes;
+
+    uint64_t fifo_max_bytes;
+    uint64_t fifo_curr_bytes;
+
+    uint64_t pinned_max_bytes;
+    uint64_t non_pinned_min_bytes;
+    uint64_t pinned_curr_bytes;
+    uint64_t pinned_used_bytes;
+    uint64_t pinned_total_written_bytes;
+} UfsWb;
+
 typedef struct UfsHc {
-    union {
-        PCIDevice parent_obj;
-        SysBusDevice busdev;
-    };
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
@@ -136,6 +152,8 @@ typedef struct UfsHc {
     UfsParams params;
     uint32_t reg_size;
     UfsRequest *req_list;
+    DeviceState *qdev;
+    AddressSpace *dma_as;
 
     UfsLu *lus[UFS_MAX_LUS];
     UfsLu report_wlu;
@@ -155,18 +173,27 @@ typedef struct UfsHc {
     UfsSq *sq[UFS_MAX_MCQ_QNUM];
     UfsCq *cq[UFS_MAX_MCQ_QNUM];
 
+    /* Extended features */
+    UfsWb wb;
+
     uint8_t temperature;
-    MemTxResult (*dma_read)(struct UfsHc *u, dma_addr_t addr, void *buf,
-                            dma_addr_t len);
-    MemTxResult (*dma_write)(struct UfsHc *u, dma_addr_t addr, const void *buf,
-                             dma_addr_t len);
-    void (*dma_sglist_init)(struct UfsHc *u, QEMUSGList *qsg, int alloc_hint);
-    void (*irq_raise)(struct UfsHc *u);
-    void (*irq_lower)(struct UfsHc *u);
-    /* Memory region that DMA operation access in sysbus device*/
-    MemoryRegion *mem_mr;
-    AddressSpace *mem_as;
+
+    QEMUTimer idle_timer;
+
+    uint32_t hid_fragment_count; /* Remaining fragmented 4KB units */
+    uint32_t hid_defrag_total; /* Requested units at defrag start */
+    uint32_t hid_defrag_remaining; /* Requested units left to move */
 } UfsHc;
+
+typedef struct UfsPciState {
+    PCIDevice parent_obj;
+    UfsHc ufs;
+} UfsPciState;
+
+typedef struct UfsSysBusState {
+    SysBusDevice parent_obj;
+    UfsHc ufs;
+} UfsSysBusState;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
 {
@@ -221,23 +248,49 @@ static inline bool ufs_mcq_cq_empty(UfsHc *u, uint32_t qid)
 static inline bool ufs_mcq_cq_full(UfsHc *u, uint32_t qid)
 {
     uint32_t tail = ufs_mcq_cq_tail(u, qid);
-    uint16_t cq_size = u->cq[qid]->size;
+    UfsCq *cq = u->cq[qid];
+    uint16_t cq_size;
+
+    if (!cq) {
+        return false;
+    }
+
+    cq_size = cq->size;
 
     tail = (tail + sizeof(UfsCqEntry)) % (sizeof(UfsCqEntry) * cq_size);
     return tail == ufs_mcq_cq_head(u, qid);
 }
 
-#define TYPE_UFS "ufs"
-#define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
+static inline uint64_t ufs_unit_to_byte(UfsHc *u, uint32_t unit)
+{
+    return (uint64_t)unit * u->geometry_desc.allocation_unit_size *
+           be32_to_cpu(u->geometry_desc.segment_size) * BDRV_SECTOR_SIZE;
+}
 
-#define TYPE_SYSBUS_UFS "ufs-sysbus"
-#define UFS_SYSBUS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_SYSBUS_UFS)
+static inline uint32_t ufs_byte_to_unit(UfsHc *u, uint64_t byte)
+{
+    return byte / BDRV_SECTOR_SIZE /
+           be32_to_cpu(u->geometry_desc.segment_size) /
+           u->geometry_desc.allocation_unit_size;
+}
+
+static inline bool ufs_is_write_req(UfsRequest *req)
+{
+    uint8_t cmd = req->req_upiu.sc.cdb[0];
+
+    /* UFS 4.1 Specifiaction doesn't support WRITE_12 */
+    return (cmd == WRITE_6) || (cmd == WRITE_10) || (cmd == WRITE_16);
+}
+
+#define TYPE_UFS "ufs"
+#define UFS_PCI(obj) OBJECT_CHECK(UfsPciState, (obj), TYPE_UFS)
+#define UFS(obj) (&UFS_PCI(obj)->ufs)
+
+#define TYPE_UFS_SYSBUS "ufs-sysbus"
+#define UFS_SYSBUS(obj) OBJECT_CHECK(UfsSysBusState, (obj), TYPE_UFS_SYSBUS)
 
 #define TYPE_UFS_LU "ufs-lu"
 #define UFSLU(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_LU)
-
-#define TYPE_UFS_SYSBUS_LU "ufs-sysbus-lu"
-#define UFSLU_SYSBUS(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_SYSBUS_LU)
 
 typedef enum UfsQueryFlagPerm {
     UFS_QUERY_FLAG_NONE = 0x0,
@@ -265,18 +318,6 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint16_t data_segment_length);
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
+void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
-uint64_t ufs_mmio_read(void *opaque, hwaddr addr, unsigned size);
-void ufs_mmio_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
-bool ufs_check_constraints(UfsHc *u, Error **errp);
-void ufs_init_state(UfsHc *u);
-void ufs_init_hc(UfsHc *u);
-void ufs_exit_common(UfsHc *u);
-void mem_reg_init_io(UfsHc *u, const char *name);
-void ufs_class_init_common(DeviceClass *dc);
-char *ufs_bus_get_dev_path(DeviceState *dev);
-void ufs_lu_realize_common(UfsLu *lu, BlockBackend *blk, UfsHc *u,
-                           Error **errp);
-void ufs_lu_unrealize(DeviceState *dev);
-void ufs_lu_class_init_common(DeviceClass *dc);
 #endif /* HW_UFS_UFS_H */
