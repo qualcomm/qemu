@@ -7,26 +7,17 @@
 #include "hw/core/resettable.h"
 #include "hw/core/sysbus.h"
 #include "hw/misc/qcom-turing-lmh.h"
-#include "migration/vmstate.h"
-#include "qemu/log.h"
 #include "qemu/module.h"
-
-#define REG0 0x0
-#define REG1 0x4
 
 static uint64_t turing_lmh_read(void *opaque, hwaddr offset, unsigned size)
 {
     TuringLmhState *s = opaque;
-
     switch (offset) {
-    case REG0:
-        return s->reg0;
-    case REG1:
-        return s->reg1;
+    case 0:
+        return s->values[0];
+    case 4:
+        return s->values[1];
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "turing-lmh: invalid read at offset 0x%" HWADDR_PRIx "\n",
-                      offset);
         return 0;
     }
 }
@@ -35,20 +26,12 @@ static void turing_lmh_write(void *opaque, hwaddr offset, uint64_t val,
                               unsigned size)
 {
     TuringLmhState *s = opaque;
-
     switch (offset) {
-    case REG0:
-        s->reg0 = (uint32_t)val;
-        s->reg1 = s->reg0 & BIT(0);
-        break;
-    case REG1:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "turing-lmh: write to read-only reg1\n");
+    case 0:
+        s->values[0] = (uint32_t)val;
+        s->values[1] = s->values[0] & 1;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "turing-lmh: invalid write at offset 0x%" HWADDR_PRIx "\n",
-                      offset);
         break;
     }
 }
@@ -67,8 +50,8 @@ static void turing_lmh_reset_hold(Object *obj, ResetType type)
 {
     TuringLmhState *s = TURING_LMH(obj);
 
-    s->reg0 = 0x1;
-    s->reg1 = 0x1;
+    s->values[0] = 1;
+    s->values[1] = 1;
 }
 
 static void turing_lmh_realize(DeviceState *dev, Error **errp)
@@ -80,24 +63,12 @@ static void turing_lmh_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
-static const VMStateDescription vmstate_turing_lmh = {
-    .name = "turing-lmh",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(reg0, TuringLmhState),
-        VMSTATE_UINT32(reg1, TuringLmhState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static void turing_lmh_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = turing_lmh_realize;
-    dc->vmsd = &vmstate_turing_lmh;
     rc->phases.hold = turing_lmh_reset_hold;
     dc->desc = "QCOM Turing register block";
 }

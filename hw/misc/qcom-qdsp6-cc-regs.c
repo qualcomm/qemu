@@ -30,51 +30,23 @@ static uint64_t clkctl_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    /* RCGR */
-    case CLKCTL_CORE_CMD_RCGR:
-        if (s->core_cmd_rcgr & CMD_RCGR_UPDATE_MSK) {
-            /* Simulate a clock update */
-            s->core_cmd_rcgr &= ~CMD_RCGR_UPDATE_MSK;
+    case 0x20:
+        if (s->values[0] & 1) {
+            s->values[0] &= ~1;
         }
-        return s->core_cmd_rcgr;
-    case CLKCTL_CORE_CFG_RCGR:
-        return s->core_cfg_rcgr;
+        return s->values[0];
+    case 0x24:
+        return s->values[1];
 
-    /* CBCR */
-    case CLKCTL_CORE_CBCR:
-        return s->core_cbcr;
-    case CLKCTL_SLPGEN_CBCR:
-        return s->slpgen_cbcr;
-    case CLKCTL_L2MEM_SLPGEN_CBCR:
-        return s->l2mem_slpgen_cbcr;
-    case CLKCTL_L2ITCM_SLPGEN_CBCR:
-        return s->l2itcm_slpgen_cbcr;
-    case CLKCTL_L2VTCM_SLPGEN_CBCR:
-        return s->l2vtcm_slpgen_cbcr;
-    case CLKCTL_MON_CBCR:
-        return s->mon_cbcr;
-    case CLKCTL_ACD_XO_CBCR:
-        return s->acd_xo_cbcr;
-    case CLKCTL_DEBUG_CBCR:
-        return s->debug_cbcr;
-    case CLKCTL_PLL_AHBS_CBCR:
-        return s->pll_ahbs_cbcr;
-    case CLKCTL_ACD_AHBS_CBCR:
-        return s->acd_ahbs_cbcr;
-    case CLKCTL_ACD_SCAN_CBCR:
-        return s->acd_scan_cbcr;
-    case CLKCTL_SM_OBS_CBCR:
-        return s->sm_obs_cbcr;
+    case 0x40:
+        return s->values[2];
+    case 0x100:
+        return s->values[3];
 
-    /* CDIVR */
-    case CLKCTL_MON_DIV_CDIVR:
-        return s->mon_div_cdivr;
-    case CLKCTL_DEBUG_DIV_CDIVR:
-        return s->debug_div_cdivr;
-    case CLKCTL_ACD_SCAN_DIV_CDIVR:
-        return s->acd_scan_div_cdivr;
-    case CLKCTL_SM_DIV_CDIVR:
-        return s->sm_div_cdivr;
+    case 0xe0:
+        return s->values[4];
+    case 0x1a8:
+        return s->values[5];
 
     default:
         clkctl_bad_access("read", addr, size);
@@ -97,64 +69,25 @@ static void clkctl_write(void *opaque, hwaddr addr, uint64_t value,
     }
 
     switch (addr) {
-    /* RCGR */
-    case CLKCTL_CORE_CMD_RCGR:
-        s->core_cmd_rcgr = v;
+    case 0x20:
+        s->values[0] = v;
         break;
-    case CLKCTL_CORE_CFG_RCGR:
-        s->core_cfg_rcgr = v;
-        break;
-
-    /* CBCR */
-    case CLKCTL_CORE_CBCR:
-        s->core_cbcr = v;
-        break;
-    case CLKCTL_SLPGEN_CBCR:
-        s->slpgen_cbcr = v;
-        break;
-    case CLKCTL_L2MEM_SLPGEN_CBCR:
-        s->l2mem_slpgen_cbcr = v;
-        break;
-    case CLKCTL_L2ITCM_SLPGEN_CBCR:
-        s->l2itcm_slpgen_cbcr = v;
-        break;
-    case CLKCTL_L2VTCM_SLPGEN_CBCR:
-        s->l2vtcm_slpgen_cbcr = v;
-        break;
-    case CLKCTL_MON_CBCR:
-        s->mon_cbcr = v;
-        break;
-    case CLKCTL_ACD_XO_CBCR:
-        s->acd_xo_cbcr = v;
-        break;
-    case CLKCTL_DEBUG_CBCR:
-        s->debug_cbcr = v;
-        break;
-    case CLKCTL_PLL_AHBS_CBCR:
-        s->pll_ahbs_cbcr = v;
-        break;
-    case CLKCTL_ACD_AHBS_CBCR:
-        s->acd_ahbs_cbcr = v;
-        break;
-    case CLKCTL_ACD_SCAN_CBCR:
-        s->acd_scan_cbcr = v;
-        break;
-    case CLKCTL_SM_OBS_CBCR:
-        s->sm_obs_cbcr = v;
+    case 0x24:
+        s->values[1] = v;
         break;
 
-    /* CDIVR */
-    case CLKCTL_MON_DIV_CDIVR:
-        s->mon_div_cdivr = v;
+    case 0x40:
+        s->values[2] = v;
         break;
-    case CLKCTL_DEBUG_DIV_CDIVR:
-        s->debug_div_cdivr = v;
+    case 0x100:
+        s->values[3] = v;
         break;
-    case CLKCTL_ACD_SCAN_DIV_CDIVR:
-        s->acd_scan_div_cdivr = v;
+
+    case 0xe0:
+        s->values[4] = v;
         break;
-    case CLKCTL_SM_DIV_CDIVR:
-        s->sm_div_cdivr = v;
+    case 0x1a8:
+        s->values[5] = v;
         break;
 
     default:
@@ -177,36 +110,12 @@ static void clkctl_reset_hold(Object *obj, ResetType type)
 {
     TuringQdsp6ClkctlState *s = QDSP6SS_CLKCTL(obj);
 
-    /* RCGR */
-    s->core_cmd_rcgr = 0x80000000;
-    s->core_cfg_rcgr = 0x00100000;
-
-    /* CBCR */
-    s->core_cbcr = 0x00000002;
-    s->slpgen_cbcr = 0x00000002;
-    s->l2mem_slpgen_cbcr = 0x00000002;
-    s->l2itcm_slpgen_cbcr = 0x00000002;
-    s->l2vtcm_slpgen_cbcr = 0x00000002;
-    s->mon_cbcr = 0x00000002;
-    s->acd_xo_cbcr = 0x00000002;
-    s->debug_cbcr = 0x00000000;
-    s->pll_ahbs_cbcr = 0x00000002;
-    s->acd_ahbs_cbcr = 0x00000002;
-    s->acd_scan_cbcr = 0x00000000;
-    s->sm_obs_cbcr = 0x00000002;
-
-    /* CDIVR */
-    s->mon_div_cdivr = 0x00000000;
-    s->debug_div_cdivr = 0x00000001;
-    s->acd_scan_div_cdivr = 0x00000000;
-    s->sm_div_cdivr = 0x00000001;
-
-    /* MUX */
-    s->debug_mux_muxr = 0x00000000;
-
-    /* STATUS / DIAG */
-    s->parity_status_reg = 0x00000000; /* RO */
-    s->fusa_status_register = 0x00000000;
+    s->values[0] = 0x80000000;
+    s->values[1] = 0x00100000;
+    s->values[2] = 0x00000002;
+    s->values[3] = 0x00000002;
+    s->values[4] = 0;
+    s->values[5] = 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -226,27 +135,7 @@ static const VMStateDescription vmstate_qdsp6_cc_regs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(core_cmd_rcgr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(core_cfg_rcgr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(core_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(slpgen_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(l2mem_slpgen_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(l2itcm_slpgen_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(l2vtcm_slpgen_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(mon_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(acd_xo_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(debug_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(pll_ahbs_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(acd_ahbs_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(acd_scan_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(sm_obs_cbcr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(mon_div_cdivr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(debug_div_cdivr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(acd_scan_div_cdivr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(sm_div_cdivr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(debug_mux_muxr, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(parity_status_reg, TuringQdsp6ClkctlState),
-        VMSTATE_UINT32(fusa_status_register, TuringQdsp6ClkctlState),
+        VMSTATE_UINT32_ARRAY(values, TuringQdsp6ClkctlState, 6),
         VMSTATE_END_OF_LIST()
     }
 };

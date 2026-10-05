@@ -19,8 +19,7 @@ typedef struct TuringLmhState TuringLmhState;
 struct TuringLmhState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-    uint32_t reg0;
-    uint32_t reg1;
+    uint32_t values[2];
 };
 
 #endif /* QCOM_TURING_LMH_H */
