@@ -22,6 +22,12 @@
 #define QDSP6SS_RET_CFG                       0x0001C
 #define QDSP6SS_NMI                           0x00040
 #define QDSP6SS_NMI_STATUS                    0x00044
+#define QDSP6SS_BOOT_ARG_0                    0x00060
+#define QDSP6SS_BOOT_ARG_1                    0x00064
+#define QDSP6SS_BOOT_ARG_2                    0x00068
+#define QDSP6SS_BOOT_ARG_3                    0x0006C
+#define QDSP6SS_BOOT_ARG_4                    0x00070
+#define QDSP6SS_BOOT_ARG_5                    0x00074
 #define QDSP6SS_STRAP_TCM_BASE_STATUS         0x00100
 #define QDSP6SS_STRAP_AHBUPPER_STATUS         0x00104
 #define QDSP6SS_STRAP_AHBLOWER_STATUS         0x00108
@@ -38,8 +44,14 @@
 #define QDSP6SS_CP_CLK_CTL                    0x00508
 #define QDSP6SS_CPMEM_STATUS                  0x00528
 #define QDSP6SS_L2ITCM_STATUS                 0x00538
+#define QDSP6SS_DPM_CTL                       0x00800
+#define QDSP6SS_DPM_STOP_STATUS               0x00804
+#define QDSP6SS_LMH_CTL                       0x00818
 #define QDSP6SS_LMH_STATUS                    0x0081C
+#define QDSP6SS_LMH_CFG                       0x00824
 #define QDSP6SS_ISENSE_STATUS                 0x00830
+#define QDSP6SS_HMX_LMH_CTL                   0x00838
+#define QDSP6SS_HMX_LMH_STATUS                0x0083C
 #define QDSP6SS_TEST_BUS_VALUE                0x02004
 #define QDSP6SS_HMX_STATUS                    0x02024
 #define QDSP6SS_CORE_STATUS                   0x02028
@@ -76,6 +88,11 @@ typedef struct DSPSS_PUBState {
     bool nmi_triggered;
     bool boot_core_start;
     bool boot_status;
+    uint32_t boot_args[6];
+    uint32_t dpm_ctl;
+    uint32_t lmh_ctl;
+    uint32_t lmh_cfg;
+    uint32_t hmx_lmh_ctl;
 } DSPSS_PUBState;
 
 static uint64_t dspss_pub_read(void *opaque, hwaddr offset, unsigned size)
@@ -115,6 +132,24 @@ static uint64_t dspss_pub_read(void *opaque, hwaddr offset, unsigned size)
     case QDSP6SS_BOOT_STATUS:
         value = s->boot_status ? 0x1 : 0x0;
         break;
+    case QDSP6SS_BOOT_ARG_0:
+        value = s->boot_args[0];
+        break;
+    case QDSP6SS_BOOT_ARG_1:
+        value = s->boot_args[1];
+        break;
+    case QDSP6SS_BOOT_ARG_2:
+        value = s->boot_args[2];
+        break;
+    case QDSP6SS_BOOT_ARG_3:
+        value = s->boot_args[3];
+        break;
+    case QDSP6SS_BOOT_ARG_4:
+        value = s->boot_args[4];
+        break;
+    case QDSP6SS_BOOT_ARG_5:
+        value = s->boot_args[5];
+        break;
     case QDSP6SS_MEM_STATUS:
         value = 0x1F001F;
         break;
@@ -128,8 +163,26 @@ static uint64_t dspss_pub_read(void *opaque, hwaddr offset, unsigned size)
     case QDSP6SS_L2ITCM_STATUS:
         value = 0x0;
         break;
+    case QDSP6SS_DPM_CTL:
+        value = s->dpm_ctl;
+        break;
+    case QDSP6SS_DPM_STOP_STATUS:
+        value = s->dpm_ctl & 0x1;
+        break;
+    case QDSP6SS_LMH_CTL:
+        value = s->lmh_ctl;
+        break;
     case QDSP6SS_LMH_STATUS:
-        value = 0x1;
+        value = s->lmh_ctl & 0x1;
+        break;
+    case QDSP6SS_LMH_CFG:
+        value = s->lmh_cfg;
+        break;
+    case QDSP6SS_HMX_LMH_CTL:
+        value = s->hmx_lmh_ctl;
+        break;
+    case QDSP6SS_HMX_LMH_STATUS:
+        value = s->hmx_lmh_ctl & 0x1;
         break;
     case QDSP6SS_ISENSE_STATUS:
     case QDSP6SS_TEST_BUS_VALUE:
@@ -185,6 +238,24 @@ static void dspss_pub_write(void *opaque, hwaddr offset, uint64_t value,
             s->nmi_triggered = false;
         }
         break;
+    case QDSP6SS_BOOT_ARG_0:
+        s->boot_args[0] = value;
+        break;
+    case QDSP6SS_BOOT_ARG_1:
+        s->boot_args[1] = value;
+        break;
+    case QDSP6SS_BOOT_ARG_2:
+        s->boot_args[2] = value;
+        break;
+    case QDSP6SS_BOOT_ARG_3:
+        s->boot_args[3] = value;
+        break;
+    case QDSP6SS_BOOT_ARG_4:
+        s->boot_args[4] = value;
+        break;
+    case QDSP6SS_BOOT_ARG_5:
+        s->boot_args[5] = value;
+        break;
     case QDSP6SS_BOOT_CORE_START:
         s->boot_core_start = (value & BOOT_CORE_MASK);
         break;
@@ -201,6 +272,18 @@ static void dspss_pub_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case QDSP6SS_CP_CLK_CTL:
         s->cp_clk_ctl = value;
+        break;
+    case QDSP6SS_DPM_CTL:
+        s->dpm_ctl = value;
+        break;
+    case QDSP6SS_LMH_CTL:
+        s->lmh_ctl = value;
+        break;
+    case QDSP6SS_LMH_CFG:
+        s->lmh_cfg = value;
+        break;
+    case QDSP6SS_HMX_LMH_CTL:
+        s->hmx_lmh_ctl = value;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "dspss_pub: write to unknown offset 0x%"
@@ -229,6 +312,10 @@ static void dspss_pub_reset_hold(Object *obj, ResetType type)
     s->dbg_cfg = 0;
     s->ret_cfg = 0;
     s->cp_clk_ctl = 0;
+    s->dpm_ctl = 0x1;
+    s->lmh_ctl = 0x1;
+    s->lmh_cfg = 0x3;
+    s->hmx_lmh_ctl = 0x1;
 
     /* Reset GPIO outputs if they've been initialized */
     if (s->nmi_out) {
@@ -257,6 +344,15 @@ static void dspss_pub_realize(DeviceState *dev, Error **errp)
     qemu_set_irq(s->hex_halt_out, 1); /* hex_halt is inverted boot_status */
 }
 
+static const Property dspss_properties[] = {
+    DEFINE_PROP_UINT32("boot-arg-0", DSPSS_PUBState, boot_args[0], 0),
+    DEFINE_PROP_UINT32("boot-arg-1", DSPSS_PUBState, boot_args[1], 0),
+    DEFINE_PROP_UINT32("boot-arg-2", DSPSS_PUBState, boot_args[2], 0),
+    DEFINE_PROP_UINT32("boot-arg-3", DSPSS_PUBState, boot_args[3], 0),
+    DEFINE_PROP_UINT32("boot-arg-4", DSPSS_PUBState, boot_args[4], 0),
+    DEFINE_PROP_UINT32("boot-arg-5", DSPSS_PUBState, boot_args[5], 0),
+};
+
 static const VMStateDescription vmstate_dspss_pub = {
     .name = "dspss-pub",
     .version_id = 1,
@@ -268,6 +364,11 @@ static const VMStateDescription vmstate_dspss_pub = {
         VMSTATE_BOOL(nmi_triggered, DSPSS_PUBState),
         VMSTATE_BOOL(boot_core_start, DSPSS_PUBState),
         VMSTATE_BOOL(boot_status, DSPSS_PUBState),
+        VMSTATE_UINT32_ARRAY(boot_args, DSPSS_PUBState, 6),
+        VMSTATE_UINT32(dpm_ctl, DSPSS_PUBState),
+        VMSTATE_UINT32(lmh_ctl, DSPSS_PUBState),
+        VMSTATE_UINT32(lmh_cfg, DSPSS_PUBState),
+        VMSTATE_UINT32(hmx_lmh_ctl, DSPSS_PUBState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -279,6 +380,7 @@ static void dspss_pub_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = dspss_pub_realize;
     dc->vmsd = &vmstate_dspss_pub;
+    device_class_set_props(dc, dspss_properties);
     rc->phases.hold = dspss_pub_reset_hold;
     dc->desc = "DSPSS pub";
 }
@@ -296,4 +398,3 @@ static void dspss_pub_register_types(void)
 }
 
 type_init(dspss_pub_register_types)
-
