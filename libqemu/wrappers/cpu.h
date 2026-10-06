@@ -31,6 +31,7 @@ void libqemu_cpu_register_thread(Object *cpu);
 void libqemu_cpu_reset(Object *cpu, bool reset);
 void libqemu_system_reset(void);
 void libqemu_cpu_halt(Object *cpu, bool halted);
+void libqemu_cpu_set_pc(Object *cpu, uint64_t pc);
 void libqemu_cpu_set_soft_stopped(Object *cpu, bool stopped);
 bool libqemu_cpu_get_soft_stopped(Object *cpu);
 void libqemu_cpu_set_unplug(Object *cpu, bool unplug);

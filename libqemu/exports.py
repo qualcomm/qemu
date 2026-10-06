@@ -338,6 +338,7 @@ ExportedFct('cpu_kick', 'void', [ 'Object *' ], priv = 'qemu_cpu_kick')
 ExportedFct('cpu_reset', 'void', [ 'Object *', 'bool' ],
         priv = 'libqemu_cpu_reset', on_iothread = True)
 ExportedFct('cpu_halt', 'void', [ 'Object *', 'bool', ], priv = 'libqemu_cpu_halt')
+ExportedFct('cpu_set_pc', 'void', [ 'Object *', 'uint64_t' ], priv = 'libqemu_cpu_set_pc')
 ExportedFct('cpu_set_soft_stopped', 'void', [ 'Object *', 'bool' ],
         priv = 'libqemu_cpu_set_soft_stopped')
 ExportedFct('cpu_get_soft_stopped', 'bool', [ 'Object *', ],

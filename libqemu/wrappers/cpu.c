@@ -198,6 +198,12 @@ void libqemu_async_safe_run_on_cpu(Object *obj,
     async_safe_run_on_cpu(cpu, do_async_cpu_job, RUN_ON_CPU_HOST_PTR(ha));
 }
 
+void libqemu_cpu_set_pc(Object *obj, uint64_t pc)
+{
+    CPUState *cpu = CPU(obj);
+    cpu_set_pc(cpu, pc);
+}
+
 void libqemu_cpu_set_soft_stopped(Object *obj, bool stopped)
 {
     CPUState *cpu = CPU(obj);
