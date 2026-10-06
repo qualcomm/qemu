@@ -29,6 +29,7 @@ int err;
 
 /* 32-byte descriptor's DescriptorType byte. */
 #define DESC_TYPE_UNSUPPORTED   0x7fu
+#define DESC_TYPE_CONSTANT_FILL 8u
 
 /* desc[0]=next desc[1]=ctrl desc[2]=src desc[3]=dst */
 typedef uint32_t type0_desc_t[4] __attribute__((aligned(16)));
@@ -207,6 +208,37 @@ static void test_type1_zero_stride(void)
     check32(dmpoll(), DM0_STATUS_IDLE);
     check32(dst[0], src[0]);
     check32(dst[UINT16_MAX + 1], src[UINT16_MAX + 1]);
+}
+
+static void test_constant_fill(void)
+{
+    static type1_desc_t desc;
+    static uint8_t dst[4 * 8];
+    const uint32_t width = 5, height = 3, dststride = 8;
+    const uint8_t fill = 0x5a;
+
+    memset(dst, 0, sizeof(dst));
+
+    desc[0] = 0;
+    desc[1] = DESC_DESCTYPE_TYPE1;
+    desc[2] = 0; /* Source fields are ignored for constant fill. */
+    desc[3] = (uint32_t)(uintptr_t)dst;
+    desc[4] = (fill << 8) | DESC_TYPE_CONSTANT_FILL;
+    desc[5] = (height << 16) | width;
+    desc[6] = dststride << 16;
+    desc[7] = 0;
+
+    dmstart((uint32_t)(uintptr_t)desc);
+
+    check32(dmpoll(), DM0_STATUS_IDLE);
+    for (uint32_t row = 0; row < height; row++) {
+        for (uint32_t col = 0; col < width; col++) {
+            check32(dst[row * dststride + col], fill);
+        }
+        for (uint32_t col = width; col < dststride; col++) {
+            check32(dst[row * dststride + col], 0);
+        }
+    }
 }
 
 static void test_dmpause_after_completion(void)
@@ -450,6 +482,7 @@ int main(void)
     test_type0_chain();
     test_type1_box();
     test_type1_zero_stride();
+    test_constant_fill();
     test_dmpause_after_completion();
     test_misaligned_descriptor();
     test_misaligned_type1_descriptor();
