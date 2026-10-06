@@ -8,7 +8,8 @@
 /*
  * This models the "User DMA" chapter of the Hexagon system-level
  * specification: the 16-byte linear and 32-byte Type 0 2D box-copy
- * descriptors, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
+ * descriptors, and the version-2 Type 8 destination constant-fill
+ * descriptor, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
  * instructions.  The monitor-mode commands are not implemented.
  *
  * The engine is synchronous: a chain runs to completion inside the
@@ -89,8 +90,10 @@ enum {
 
 /* DescriptorType byte (offset DESC_OFF_TYPE), 32-byte descriptors only. */
 #define DESC_TYPE_FIELD_MASK        0x000000FF
+#define DESC_TYPE_FILL_SHIFT        8
 enum {
     DESC_TYPE_2D = 0,
+    DESC_TYPE_CONSTANT_FILL = 8,
 };
 
 /* ROI word (offset DESC_OFF_ROI), type1 only */
@@ -111,6 +114,7 @@ typedef struct HexagonDMAMemory {
 
 typedef enum DMAKind {
     DMA_COPY,
+    DMA_FILL,
 } DMAKind;
 
 /* A decoded 2D transfer: height rows of width bytes. */
@@ -122,6 +126,7 @@ typedef struct DMATransfer {
     uint32_t height;
     uint32_t srcstride;
     uint32_t dststride;
+    uint8_t fill_value;
 } DMATransfer;
 
 void hexagon_dma_reset(HexagonDMAState *dma)
@@ -207,6 +212,26 @@ static void dma_copy(const HexagonDMAMemory *mem, target_ulong dst,
     }
 }
 
+static void dma_fill(const HexagonDMAMemory *mem, target_ulong dst,
+                     uint32_t length, uint8_t value)
+{
+    while (length != 0) {
+        uint32_t chunk = MIN(length, dma_page_left(dst));
+        void *dst_host = probe_write(mem->env, dst, chunk, mem->mmu_idx,
+                                     mem->ra);
+
+        if (dst_host) {
+            memset(dst_host, value, chunk);
+        } else {
+            for (uint32_t i = 0; i < chunk; i++) {
+                cpu_stb_data_ra(mem->env, dst + i, value, mem->ra);
+            }
+        }
+        dst += chunk;
+        length -= chunk;
+    }
+}
+
 /* Raise the guest fault, if any, for accessing [addr, addr + length). */
 static void dma_probe_range(const HexagonDMAMemory *mem, target_ulong addr,
                             uint32_t length, MMUAccessType access_type)
@@ -285,6 +310,27 @@ static uint32_t dma_decode_2d(HexagonCPU *cpu, const HexagonDMAMemory *mem,
     return 0;
 }
 
+/* Type 8: fill the destination box with a constant byte. */
+static uint32_t dma_decode_fill(HexagonCPU *cpu, const HexagonDMAMemory *mem,
+                                target_ulong desc_va, DMATransfer *xfer)
+{
+    uint32_t roi = dma_ldl(mem, desc_va + DESC_OFF_ROI);
+    uint32_t stride = dma_ldl(mem, desc_va + DESC_OFF_STRIDE);
+
+    if (hexagon_dma_version(cpu) < 2 ||
+        (stride & DESC_SRCSTRIDE_MASK) != 0) {
+        return DMA_SYNDROME_UNSUPPORTED;
+    }
+    xfer->kind = DMA_FILL;
+    xfer->width = roi & DESC_ROIWIDTH_MASK;
+    xfer->height = (roi & DESC_ROIHEIGHT_MASK) >> DESC_ROIHEIGHT_SHIFT;
+    xfer->dststride = dma_stride16((stride & DESC_DSTSTRIDE_MASK) >>
+                                   DESC_DSTSTRIDE_SHIFT, true);
+    xfer->fill_value = dma_ldl(mem, desc_va + DESC_OFF_TYPE) >>
+                       DESC_TYPE_FILL_SHIFT;
+    return 0;
+}
+
 /*
  * Decode a 32-byte descriptor into a transfer.  Returns 0, or the syndrome
  * for a descriptor the engine rejects.
@@ -308,6 +354,8 @@ static uint32_t dma_decode_type1(HexagonCPU *cpu, const HexagonDMAMemory *mem,
     switch (desc_type) {
     case DESC_TYPE_2D:
         return dma_decode_2d(cpu, mem, desc_va, xfer);
+    case DESC_TYPE_CONSTANT_FILL:
+        return dma_decode_fill(cpu, mem, desc_va, xfer);
     default:
         return DMA_SYNDROME_UNSUPPORTED;
     }
@@ -326,6 +374,9 @@ static bool dma_xfer_in_range(const DMATransfer *xfer)
                            xfer->width) &&
                dma_span_ok(xfer->dst, xfer->height, xfer->dststride,
                            xfer->width);
+    case DMA_FILL:
+        return dma_span_ok(xfer->dst, xfer->height, xfer->dststride,
+                           xfer->width);
     default:
         g_assert_not_reached();
     }
@@ -340,6 +391,9 @@ static void dma_execute(const HexagonDMAMemory *mem, const DMATransfer *xfer)
         switch (xfer->kind) {
         case DMA_COPY:
             dma_copy(mem, drow, srow, xfer->width);
+            break;
+        case DMA_FILL:
+            dma_fill(mem, drow, xfer->width, xfer->fill_value);
             break;
         default:
             g_assert_not_reached();
