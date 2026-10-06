@@ -8,10 +8,10 @@
 /*
  * This models the "User DMA" chapter of the Hexagon system-level
  * specification: the 16-byte linear and 32-byte Type 0 2D box-copy
- * descriptors, the version-2 Type 4 gather and Type 8 destination constant-
- * fill descriptors, and the version-4 Type 9 wide 2D descriptor, plus the
- * dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume instructions.  The monitor-
- * mode commands are not implemented.
+ * descriptors, the version-2 Type 3 L2Fetch, Type 4 gather and Type 8
+ * destination constant-fill descriptors, and the version-4 Type 9 wide 2D
+ * descriptor, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
+ * instructions.  The monitor-mode commands are not implemented.
  *
  * The engine is synchronous: a chain runs to completion inside the
  * instruction that starts it, so dmpoll/dmwait never observe a running
@@ -67,6 +67,8 @@ enum {
 
 /* CTRL word (offset DESC_OFF_CTRL) */
 #define DESC_DSTATE_MASK            0x80000000
+#define DESC_BYPASSSRC_MASK         0x20000000
+#define DESC_BYPASSDST_MASK         0x10000000
 #define DESC_SRCCOMP_MASK           0x08000000
 #define DESC_DSTCOMP_MASK           0x04000000
 /*
@@ -94,6 +96,7 @@ enum {
 #define DESC_TYPE_FILL_SHIFT        8
 enum {
     DESC_TYPE_2D = 0,
+    DESC_TYPE_L2FETCH = 3,
     DESC_TYPE_GATHER = 4,
     DESC_TYPE_CONSTANT_FILL = 8,
     DESC_TYPE_WIDE_2D = 9,
@@ -131,6 +134,7 @@ typedef enum DMAKind {
     DMA_COPY,
     DMA_FILL,
     DMA_GATHER,
+    DMA_L2FETCH,
 } DMAKind;
 
 /* A decoded 2D transfer: height rows of width bytes. */
@@ -374,6 +378,27 @@ static uint32_t dma_decode_gather(HexagonCPU *cpu, const HexagonDMAMemory *mem,
     return 0;
 }
 
+/* Type 3: prefetch rows into the L2 cache; there is no destination. */
+static uint32_t dma_decode_l2fetch(HexagonCPU *cpu, const HexagonDMAMemory *mem,
+                                   target_ulong desc_va, uint32_t ctrl,
+                                   DMATransfer *xfer)
+{
+    uint32_t roi = dma_ldl(mem, desc_va + DESC_OFF_ROI);
+    uint32_t stride = dma_ldl(mem, desc_va + DESC_OFF_STRIDE);
+
+    if (hexagon_dma_version(cpu) < 2 ||
+        (ctrl & (DESC_BYPASSSRC_MASK | DESC_BYPASSDST_MASK)) ||
+        (stride & DESC_DSTSTRIDE_MASK) != 0) {
+        return DMA_SYNDROME_UNSUPPORTED;
+    }
+    xfer->kind = DMA_L2FETCH;
+    xfer->src = dma_ldl(mem, desc_va + DESC_OFF_SRC);
+    xfer->width = roi & DESC_ROIWIDTH_MASK;
+    xfer->height = (roi & DESC_ROIHEIGHT_MASK) >> DESC_ROIHEIGHT_SHIFT;
+    xfer->srcstride = dma_stride16(stride & DESC_SRCSTRIDE_MASK, true);
+    return 0;
+}
+
 /* Type 9: 2D copy with 24-bit width, 16-bit height and 24-bit strides. */
 static uint32_t dma_decode_wide_2d(HexagonCPU *cpu, const HexagonDMAMemory *mem,
                                    target_ulong desc_va, uint32_t ctrl,
@@ -429,6 +454,8 @@ static uint32_t dma_decode_type1(HexagonCPU *cpu, const HexagonDMAMemory *mem,
         return dma_decode_fill(cpu, mem, desc_va, xfer);
     case DESC_TYPE_GATHER:
         return dma_decode_gather(cpu, mem, desc_va, xfer);
+    case DESC_TYPE_L2FETCH:
+        return dma_decode_l2fetch(cpu, mem, desc_va, ctrl, xfer);
     case DESC_TYPE_WIDE_2D:
         return dma_decode_wide_2d(cpu, mem, desc_va, ctrl, xfer);
     default:
@@ -456,6 +483,9 @@ static bool dma_xfer_in_range(const DMATransfer *xfer)
         return dma_span_ok(xfer->src, xfer->height, GATHER_LIST_ENTRY_SIZE,
                            GATHER_LIST_ENTRY_SIZE) &&
                dma_span_ok(xfer->dst, xfer->height, xfer->dststride,
+                           xfer->width);
+    case DMA_L2FETCH:
+        return dma_span_ok(xfer->src, xfer->height, xfer->srcstride,
                            xfer->width);
     default:
         g_assert_not_reached();
@@ -497,6 +527,13 @@ static void dma_execute(const HexagonDMAMemory *mem, const DMATransfer *xfer)
         case DMA_GATHER:
             srow = dma_ldl(mem, xfer->src + row * GATHER_LIST_ENTRY_SIZE);
             dma_copy(mem, drow, srow, xfer->width);
+            break;
+        case DMA_L2FETCH:
+            /*
+             * Cache residency is not observable without an L2 model, but
+             * the rows must still be readable.
+             */
+            dma_probe_range(mem, srow, xfer->width, MMU_DATA_LOAD);
             break;
         default:
             g_assert_not_reached();
