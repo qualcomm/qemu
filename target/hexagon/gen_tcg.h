@@ -1460,11 +1460,11 @@
     qemu_log_mask(LOG_UNIMP, "'%s' is not implemented\n", \
                   opcode_names[insn->opcode])
 #define fGEN_TCG_Y6_dmstart(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); RsV = RsV; } while (0)
+    gen_helper_dmstart(tcg_env, RsV)
 #define fGEN_TCG_Y6_dmresume(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); RsV = RsV; } while (0)
+    gen_helper_dmresume(tcg_env, RsV)
 #define fGEN_TCG_Y6_dmlink(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); RsV = RsV; RtV = RtV; } while (0)
+    gen_helper_dmlink(tcg_env, RsV, RtV)
 #define fGEN_TCG_Y6_dmcfgwr(SHORTCODE) \
     do { fGEN_TCG_DMA_UNIMP(); RsV = RsV; RtV = RtV; } while (0)
 #define fGEN_TCG_Y6_dmcfgrd(SHORTCODE) \
@@ -1474,11 +1474,11 @@
         tcg_gen_movi_tl(RdV, 0); \
     } while (0)
 #define fGEN_TCG_Y6_dmpoll(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
+    gen_helper_dmpoll(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmwait(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
+    gen_helper_dmwait(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmpause(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
+    gen_helper_dmpause(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmsyncht(SHORTCODE) \
     do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
 #define fGEN_TCG_Y6_dmtlbsynch(SHORTCODE) \

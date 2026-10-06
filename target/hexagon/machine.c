@@ -65,7 +65,7 @@ static const VMStateInfo vmstate_info_hlxvector = {
     VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_hlxvector, HLXVector)
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 2,
     .post_load = hexagon_cpu_post_load,
     .fields = (const VMStateField[]) {
@@ -83,6 +83,9 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
         VMSTATE_UINT32_V(env.cfi_active, HexagonCPU, 3),
         VMSTATE_HLXVECTOR_ARRAY_V(env.future_LRegs, HexagonCPU, NUM_LREGS, 4),
+        VMSTATE_UINT32_V(dma.status, HexagonCPU, 5),
+        VMSTATE_UINT32_V(dma.syndrome, HexagonCPU, 5),
+        VMSTATE_UINT32_V(dma.desc_ptr, HexagonCPU, 5),
 
         VMSTATE_END_OF_LIST()
     },
