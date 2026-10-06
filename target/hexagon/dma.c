@@ -8,8 +8,8 @@
 /*
  * This models the "User DMA" chapter of the Hexagon system-level
  * specification: the 16-byte linear and 32-byte Type 0 2D box-copy
- * descriptors, and the version-2 Type 4 gather and Type 8 destination
- * constant-fill descriptors, plus the
+ * descriptors, the version-2 Type 4 gather and Type 8 destination constant-
+ * fill descriptors, and the version-4 Type 9 wide 2D descriptor, plus the
  * dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume instructions.  The monitor-
  * mode commands are not implemented.
  *
@@ -96,6 +96,7 @@ enum {
     DESC_TYPE_2D = 0,
     DESC_TYPE_GATHER = 4,
     DESC_TYPE_CONSTANT_FILL = 8,
+    DESC_TYPE_WIDE_2D = 9,
 };
 
 /* ROI word (offset DESC_OFF_ROI), type1 only */
@@ -107,6 +108,13 @@ enum {
 #define DESC_SRCSTRIDE_MASK         0x0000FFFF
 #define DESC_DSTSTRIDE_MASK         0xFFFF0000
 #define DESC_DSTSTRIDE_SHIFT        16
+
+/* Type 9 (wide 2D) packs its ROI and stride words differently. */
+#define DESC_WIDE_WIDTH_MASK        0x00FFFFFF
+#define DESC_WIDE_HEIGHT_LO_SHIFT   24
+#define DESC_WIDE_HEIGHT_HI_MASK    0x000000FF
+#define DESC_WIDE_HEIGHT_HI_SHIFT   8
+#define DESC_WIDE_SRCSTRIDE_SHIFT   8
 
 /* Constraints of the Type 4 (gather) descriptor. */
 #define GATHER_LIST_ENTRY_SIZE      sizeof(uint32_t)
@@ -366,6 +374,34 @@ static uint32_t dma_decode_gather(HexagonCPU *cpu, const HexagonDMAMemory *mem,
     return 0;
 }
 
+/* Type 9: 2D copy with 24-bit width, 16-bit height and 24-bit strides. */
+static uint32_t dma_decode_wide_2d(HexagonCPU *cpu, const HexagonDMAMemory *mem,
+                                   target_ulong desc_va, uint32_t ctrl,
+                                   DMATransfer *xfer)
+{
+    uint32_t roi = dma_ldl(mem, desc_va + DESC_OFF_ROI);
+    uint32_t stride = dma_ldl(mem, desc_va + DESC_OFF_STRIDE);
+
+    if (hexagon_dma_version(cpu) < 4) {
+        return DMA_SYNDROME_UNSUPPORTED;
+    }
+    xfer->kind = DMA_COPY;
+    xfer->src = dma_ldl(mem, desc_va + DESC_OFF_SRC);
+    xfer->width = roi & DESC_WIDE_WIDTH_MASK;
+    xfer->height = (roi >> DESC_WIDE_HEIGHT_LO_SHIFT) |
+                   ((stride & DESC_WIDE_HEIGHT_HI_MASK) <<
+                    DESC_WIDE_HEIGHT_HI_SHIFT);
+    xfer->srcstride = stride >> DESC_WIDE_SRCSTRIDE_SHIFT;
+    xfer->dststride = ctrl & DESC_LENGTH_MASK;
+    if (xfer->srcstride == 0) {
+        xfer->srcstride = 1 << 24;
+    }
+    if (xfer->dststride == 0) {
+        xfer->dststride = 1 << 24;
+    }
+    return 0;
+}
+
 /*
  * Decode a 32-byte descriptor into a transfer.  Returns 0, or the syndrome
  * for a descriptor the engine rejects.
@@ -393,6 +429,8 @@ static uint32_t dma_decode_type1(HexagonCPU *cpu, const HexagonDMAMemory *mem,
         return dma_decode_fill(cpu, mem, desc_va, xfer);
     case DESC_TYPE_GATHER:
         return dma_decode_gather(cpu, mem, desc_va, xfer);
+    case DESC_TYPE_WIDE_2D:
+        return dma_decode_wide_2d(cpu, mem, desc_va, ctrl, xfer);
     default:
         return DMA_SYNDROME_UNSUPPORTED;
     }
