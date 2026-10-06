@@ -87,7 +87,8 @@ static void virt_init(MachineState *ms)
         start = load_bios(vms);
         have_start = true;
     }
-    hex_board_create_cpus(ms, have_start, start);
+    hex_board_create_cpus(ms, have_start, start,
+                          m_cfg->cfgtable.dma_version);
 
     hex_board_fdt_add_cpus(ms);
     hex_board_create_uart(ms, base_memmap[VIRT_UART0].base,

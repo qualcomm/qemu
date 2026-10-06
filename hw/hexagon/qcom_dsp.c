@@ -362,7 +362,8 @@ static void qcom_dsp_init(MachineState *ms)
     }
 
     have_start = qcom_dsp_load_images(qms, &start);
-    hex_board_create_cpus(ms, have_start, start);
+    hex_board_create_cpus(ms, have_start, start,
+                          info->cfg->cfgtable.dma_version);
 
     if (ms->kernel_filename && qms->firmware_path) {
         hex_board_load_fdt(ms, qms->fdt_size, qms->fdt_addr);

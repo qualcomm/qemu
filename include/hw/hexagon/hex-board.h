@@ -60,6 +60,7 @@ void hex_board_load_fdt(MachineState *ms, int fdt_size, hwaddr addr);
  * Create the machine's CPUs, with CPU 0 starting at @start if @have_start,
  * and realize the cluster.
  */
-void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start);
+void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start,
+                           uint32_t dma_version);
 
 #endif /* HW_HEXAGON_HEX_BOARD_H */
