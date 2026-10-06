@@ -62,3 +62,15 @@ void HELPER(dmcfgwr)(CPUHexagonState *env, uint32_t index, uint32_t value)
 {
     hexagon_dma_cfg_write(env_archcpu(env), index, value);
 }
+
+uint32_t HELPER(dmsyncht)(CPUHexagonState *env)
+{
+    /* Synchronous DMA leaves no posted transactions to drain. */
+    return env_archcpu(env)->dma.status;
+}
+
+uint32_t HELPER(dmtlbsynch)(CPUHexagonState *env)
+{
+    /* Synchronous DMA leaves no TLB-associated transactions to drain. */
+    return env_archcpu(env)->dma.status;
+}
