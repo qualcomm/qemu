@@ -83,6 +83,9 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
         VMSTATE_UINT32_V(env.cfi_active, HexagonCPU, 3),
         VMSTATE_HLXVECTOR_ARRAY(env.future_LRegs, HexagonCPU, NUM_LREGS),
+        VMSTATE_UINT32_V(dma.status, HexagonCPU, 3),
+        VMSTATE_UINT32_V(dma.syndrome, HexagonCPU, 3),
+        VMSTATE_UINT32_V(dma.desc_ptr, HexagonCPU, 3),
 
         VMSTATE_END_OF_LIST()
     },

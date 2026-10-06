@@ -75,6 +75,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_LINK("hlx", HexagonCPU, hlx,
                      TYPE_HEXAGON_HLX, HexagonHLXState *),
 #endif
+    DEFINE_PROP_UINT32("dma-version", HexagonCPU, dma_version,
+                       HEX_DMA_VERSION_UNSET),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, cfg.lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, cfg.lldb_stack_adjust,
                          0, qdev_prop_uint32, target_ulong),
@@ -455,6 +457,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         mcc->parent_phases.hold(obj, type);
     }
 
+    hexagon_dma_reset(&HEXAGON_CPU(obj)->dma);
+
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     /* Default NaN value: sign bit set, all frac bits set */
@@ -536,10 +540,20 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              hexagon_hlx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hlx.xml"));
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    /* There is no config table to take the DMA version from. */
+    if (cpu->dma_version == HEX_DMA_VERSION_UNSET) {
+        cpu->dma_version = hexagon_dma_model_version(cpu);
+    }
+#else
     gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
                              hexagon_sys_gdb_write_register,
                              gdb_find_static_feature("hexagon-sys.xml"));
+
+    /* User DMA is an optional feature: a core without the property has none. */
+    if (cpu->dma_version == HEX_DMA_VERSION_UNSET) {
+        cpu->dma_version = 0;
+    }
 
     if (!HEXAGON_CPU(dev)->tlb) {
         error_setg(errp, "hexagon cpu requires 'tlb' link property to be set");

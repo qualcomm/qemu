@@ -145,6 +145,14 @@ DEF_HELPER_FLAGS_4(gvec_sabsdiff_w, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(gvec_uabsdiff_b, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(gvec_uabsdiff_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
+/* User-DMA: dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume. */
+DEF_HELPER_2(dmstart, void, env, i32)
+DEF_HELPER_3(dmlink, void, env, i32, i32)
+DEF_HELPER_1(dmpoll, i32, env)
+DEF_HELPER_1(dmwait, i32, env)
+DEF_HELPER_1(dmpause, i32, env)
+DEF_HELPER_2(dmresume, void, env, i32)
+
 #if defined(CONFIG_USER_ONLY)
 DEF_HELPER_FLAGS_0(utimer, TCG_CALL_NO_RWG, i64)
 DEF_HELPER_5(insn_cache_op, void, env, i32, int, int, i32)

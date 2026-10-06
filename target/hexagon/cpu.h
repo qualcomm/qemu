@@ -248,12 +248,18 @@ typedef struct HexagonCPUClass {
 } HexagonCPUClass;
 
 #include "cpu_bits.h"
+#include "target/hexagon/dma.h"
 
 struct ArchCPU {
     CPUState parent_obj;
 
     CPUHexagonState env;
     HexagonCPUConfig cfg;
+
+    /* One user-DMA engine per hardware thread, in linux-user and softmmu. */
+    HexagonDMAState dma;
+    /* User-DMA architecture version, from the config table; 0 means none. */
+    uint32_t dma_version;
 #ifndef CONFIG_USER_ONLY
     HexagonHVXContextState *hvx_ctx[HVX_CONTEXTS_MAX];
     HexagonTLBState *tlb;

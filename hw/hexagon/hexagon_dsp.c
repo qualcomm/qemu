@@ -51,7 +51,12 @@ struct HexagonDspMachineState {
     hwaddr isdb_trusted_flag;
     uint32_t subsystem_base;
     struct hexagon_machine_config config;
+
+    /* Overrides the config table's DMA version unless DMA_VERSION_TABLE. */
+    uint32_t dma_version;
 };
+
+#define DMA_VERSION_TABLE UINT32_MAX
 
 static HexagonDspMachineState *current_dms;
 
@@ -166,6 +171,7 @@ static void hexagon_dsp_init(Object *obj)
     HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(obj);
 
     dms->subsystem_base = HEXAGON_DSP_SUBSYSTEM_BASE;
+    dms->dma_version = DMA_VERSION_TABLE;
 }
 
 static void hexagon_common_init(MachineState *machine, Rev_t rev,
@@ -187,8 +193,12 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     dms->config.l2vic_base = dms->subsystem_base + HEXAGON_L2VIC_OFFSET;
     dms->config.qtmr_region = dms->subsystem_base + HEXAGON_QTIMER_OFFSET;
     dms->config.cfgtable.subsystem_base = dms->subsystem_base >> 16;
+    if (dms->dma_version != DMA_VERSION_TABLE) {
+        dms->config.cfgtable.dma_version = dms->dma_version;
+    }
+    m_cfg = &dms->config;
 
-    hex_subsys_create(hms, &dms->config, rev);
+    hex_subsys_create(hms, m_cfg, rev);
 
     g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, machine->smp.cpus);
 
@@ -205,6 +215,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qemu_register_reset(do_cpu_reset, cpu);
 
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
+        qdev_prop_set_uint32(DEVICE(cpu), "dma-version",
+                             m_cfg->cfgtable.dma_version);
 
         /*
          * CPU #0 is the only CPU running at boot, others must be
@@ -225,6 +237,33 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     for (int i = 0; i < machine->smp.cpus; i++) {
         hex_subsys_realize_cpu(hms, DEVICE(cpus[i]), (i == 0));
     }
+}
+
+static void hexagon_dsp_get_dma_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(obj);
+
+    visit_type_uint32(v, name, &dms->dma_version, errp);
+}
+
+static void hexagon_dsp_set_dma_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(obj);
+
+    visit_type_uint32(v, name, &dms->dma_version, errp);
+}
+
+static void hexagon_dsp_machine_class_init(ObjectClass *oc, const void *data)
+{
+    object_class_property_add(oc, "dma-version", "uint32",
+                              hexagon_dsp_get_dma_version,
+                              hexagon_dsp_set_dma_version, NULL, NULL);
+    object_class_property_set_description(oc, "dma-version",
+        "Override the User DMA version in the config table (1, 2, 4, 6, 8)");
 }
 
 static void init_mc(MachineClass *mc)
@@ -396,6 +435,7 @@ static const TypeInfo hexagon_machine_types[] = {
         .parent = TYPE_HEXAGON_COMMON_MACHINE,
         .instance_size = sizeof(HexagonDspMachineState),
         .instance_init = hexagon_dsp_init,
+        .class_init = hexagon_dsp_machine_class_init,
         .abstract = true,
     },
     {

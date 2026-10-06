@@ -240,7 +240,8 @@ static void hex_board_cpu_reset(void *opaque)
     cpu_reset(CPU(opaque));
 }
 
-void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start)
+void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start,
+                           uint32_t dma_version)
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
     g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, ms->smp.cpus);
@@ -253,6 +254,7 @@ void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start)
             qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", start);
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
+        qdev_prop_set_uint32(DEVICE(cpu), "dma-version", dma_version);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", i != 0);
         hex_subsys_add_cpu(hms, DEVICE(cpu));
         cpus[i] = cpu;

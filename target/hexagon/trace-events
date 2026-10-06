@@ -1,2 +1,13 @@
+# See docs/devel/tracing.rst for syntax documentation.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# dma.c
+hexagon_dma_start(uint32_t htid, uint32_t desc_va) "htid=%u desc=0x%08x"
+hexagon_dma_resume(uint32_t htid, uint32_t desc_va) "htid=%u desc=0x%08x"
+hexagon_dma_link(uint32_t htid, uint32_t new_va, uint32_t tail_va) "htid=%u new=0x%08x tail=0x%08x"
+hexagon_dma_desc(uint32_t htid, uint32_t desc_va, uint32_t desctype, uint32_t next) "htid=%u desc=0x%08x type=%u next=0x%08x"
+hexagon_dma_done(uint32_t htid, uint32_t desc_va) "htid=%u last_desc=0x%08x"
+hexagon_dma_error(uint32_t htid, uint32_t desc_va, uint32_t syndrome) "htid=%u desc=0x%08x syndrome=%u"
+
 # HLX instruction tracing
 hexagon_hlx_op(int opcode, const char *name) "opcode: 0x%x (%s)"
