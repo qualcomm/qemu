@@ -19,6 +19,7 @@
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
+#include "qemu/lockable.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -137,6 +138,7 @@ static void hexagon_globalreg_init(Object *obj)
     HexagonGlobalRegState *s = HEXAGON_GLOBALREG(obj);
 
     memset(s->regs, 0, sizeof(s->regs));
+    qemu_mutex_init(&s->dma_lock);
 }
 
 static inline uint32_t apply_write_mask(uint32_t new_val, uint32_t cur_val,
@@ -350,6 +352,65 @@ void hexagon_globalreg_set_pcycle_base(HexagonGlobalRegState *s,
     s->g_pcycle_base = value;
 }
 
+uint32_t hexagon_dma_config_read(HexagonGlobalRegState *s, uint32_t index)
+{
+    QEMU_LOCK_GUARD(&s->dma_lock);
+
+    switch (index) {
+    case HEX_DM2_CTRL:
+    case HEX_DM4_ERROR:
+    case HEX_DM5_ERROR_ADDR:
+    case HEX_DM8_CFG ... HEX_DM12_CFG:
+        return s->dma[index];
+    default:
+        return 0;
+    }
+}
+
+void hexagon_dma_config_write(HexagonGlobalRegState *s, uint32_t index,
+                              uint32_t value)
+{
+    QEMU_LOCK_GUARD(&s->dma_lock);
+
+    switch (index) {
+    case HEX_DM2_CTRL:
+        s->dma[index] = value & ~HEX_DM2_WRITE_CLEAR_MASK;
+        break;
+    case HEX_DM4_ERROR:
+        /* Any write acknowledges the error and re-arms the capture. */
+        s->dma[index] = 0;
+        break;
+    case HEX_DM8_CFG:
+        s->dma[index] = value & HEX_DM8_WRITABLE_MASK;
+        break;
+    case HEX_DM9_CFG:
+    case HEX_DM10_CFG:
+    case HEX_DM12_CFG:
+        s->dma[index] = value;
+        break;
+    case HEX_DM11_CFG:
+        s->dma[index] = value & HEX_DM11_WRITABLE_MASK;
+        break;
+    default:
+        /* DM5 is read-only and DM3 reads as zero; other writes are ignored. */
+        break;
+    }
+}
+
+void hexagon_dma_capture_error(HexagonGlobalRegState *s, uint32_t htid,
+                               uint32_t syndrome, uint32_t address)
+{
+    QEMU_LOCK_GUARD(&s->dma_lock);
+
+    /* Only the first error is recorded until DM4 is cleared. */
+    if (!(s->dma[HEX_DM4_ERROR] & HEX_DM4_ERROR_VALID)) {
+        s->dma[HEX_DM4_ERROR] = HEX_DM4_ERROR_VALID |
+                                (htid << HEX_DM4_ERROR_HTID_SHIFT) |
+                                (syndrome << HEX_DM4_ERROR_SYNDROME_SHIFT);
+        s->dma[HEX_DM5_ERROR_ADDR] = address;
+    }
+}
+
 static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
 {
     uint32_t isdben_val = 0;
@@ -359,6 +420,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
 
     s->g_pcycle_base = 0;
     s->pcycle_running = false;
+    memset(s->dma, 0, sizeof(s->dma));
 
     s->regs[HEX_SREG_EVB] = s->boot_evb;
     s->regs[HEX_SREG_CFGBASE] = HEXAGON_CFG_ADDR_BASE(s->config_table_addr);
@@ -445,13 +507,15 @@ static int hexagon_globalreg_post_load(void *opaque,
 
 static const VMStateDescription vmstate_hexagon_globalreg = {
     .name = "hexagon_globalreg",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = hexagon_globalreg_pre_save,
     .post_load = hexagon_globalreg_post_load,
     .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(regs, HexagonGlobalRegState, NUM_SREGS),
         VMSTATE_UINT64(g_pcycle_base, HexagonGlobalRegState),
+        VMSTATE_UINT32_ARRAY_V(dma, HexagonGlobalRegState,
+                               HEX_DMA_NUM_CFG_REGS, 2),
         VMSTATE_UINT32(boot_evb, HexagonGlobalRegState),
         VMSTATE_UINT64(config_table_addr, HexagonGlobalRegState),
         VMSTATE_UINT32(dsp_rev, HexagonGlobalRegState),

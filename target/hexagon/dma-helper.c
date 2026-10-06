@@ -52,3 +52,13 @@ uint32_t HELPER(dmpause)(CPUHexagonState *env)
 {
     return hexagon_dma_pause(env_archcpu(env));
 }
+
+uint32_t HELPER(dmcfgrd)(CPUHexagonState *env, uint32_t index)
+{
+    return hexagon_dma_cfg_read(env_archcpu(env), index);
+}
+
+void HELPER(dmcfgwr)(CPUHexagonState *env, uint32_t index, uint32_t value)
+{
+    hexagon_dma_cfg_write(env_archcpu(env), index, value);
+}

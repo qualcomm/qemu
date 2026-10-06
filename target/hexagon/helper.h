@@ -152,6 +152,8 @@ DEF_HELPER_1(dmpoll, i32, env)
 DEF_HELPER_1(dmwait, i32, env)
 DEF_HELPER_1(dmpause, i32, env)
 DEF_HELPER_2(dmresume, void, env, i32)
+DEF_HELPER_2(dmcfgrd, i32, env, i32)
+DEF_HELPER_3(dmcfgwr, void, env, i32, i32)
 
 #if defined(CONFIG_USER_ONLY)
 DEF_HELPER_FLAGS_0(utimer, TCG_CALL_NO_RWG, i64)

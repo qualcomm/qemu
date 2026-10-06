@@ -60,4 +60,8 @@ void hexagon_dma_link(HexagonCPU *cpu, target_ulong tail_va,
 /* DMPause: return the status and return the engine to idle. */
 uint32_t hexagon_dma_pause(HexagonCPU *cpu);
 
+/* Monitor-mode config-space access (DMCfgRd/DMCfgWr). */
+uint32_t hexagon_dma_cfg_read(HexagonCPU *cpu, uint32_t index);
+void hexagon_dma_cfg_write(HexagonCPU *cpu, uint32_t index, uint32_t value);
+
 #endif /* HEXAGON_DMA_H */

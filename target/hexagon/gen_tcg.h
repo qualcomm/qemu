@@ -1466,13 +1466,9 @@
 #define fGEN_TCG_Y6_dmlink(SHORTCODE) \
     gen_helper_dmlink(tcg_env, RsV, RtV)
 #define fGEN_TCG_Y6_dmcfgwr(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); RsV = RsV; RtV = RtV; } while (0)
+    gen_helper_dmcfgwr(tcg_env, RsV, RtV)
 #define fGEN_TCG_Y6_dmcfgrd(SHORTCODE) \
-    do { \
-        fGEN_TCG_DMA_UNIMP(); \
-        RsV = RsV; \
-        tcg_gen_movi_tl(RdV, 0); \
-    } while (0)
+    gen_helper_dmcfgrd(RdV, tcg_env, RsV)
 #define fGEN_TCG_Y6_dmpoll(SHORTCODE) \
     gen_helper_dmpoll(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmwait(SHORTCODE) \

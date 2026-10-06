@@ -11,7 +11,9 @@
  * descriptors, the version-2 Type 3 L2Fetch, Type 4 gather and Type 8
  * destination constant-fill descriptors, and the version-4 Type 9 wide 2D
  * descriptor, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
- * instructions.  The monitor-mode commands are not implemented.
+ * instructions.  Monitor-mode config-space access implements DM2, DM4, DM5
+ * and DM8-DM12.  The monitor-mode synchronization commands are not
+ * implemented.
  *
  * The engine is synchronous: a chain runs to completion inside the
  * instruction that starts it, so dmpoll/dmwait never observe a running
@@ -32,6 +34,9 @@
 #include "accel/tcg/probe.h"
 #include "qemu/log.h"
 #include "trace.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/hexagon/hexagon_globalreg.h"
+#endif
 
 /* Error syndrome codes: the subset of DM4's encoding this model produces. */
 enum {
@@ -303,6 +308,11 @@ static void dma_set_error(HexagonCPU *cpu, target_ulong desc_va,
     dma->status = DM0_STATUS_ERROR;
     dma->syndrome = syndrome;
     dma->desc_ptr = desc_va;
+#ifndef CONFIG_USER_ONLY
+    if (cpu->globalregs) {
+        hexagon_dma_capture_error(cpu->globalregs, htid, syndrome, desc_va);
+    }
+#endif
     trace_hexagon_dma_error(htid, desc_va, syndrome);
 }
 
@@ -701,4 +711,26 @@ uint32_t hexagon_dma_pause(HexagonCPU *cpu)
     dma->status = DM0_STATUS_IDLE;
     dma->desc_ptr = 0;
     return status;
+}
+
+uint32_t hexagon_dma_cfg_read(HexagonCPU *cpu, uint32_t index)
+{
+    if (index == 0) {
+        return cpu->dma.status;
+    }
+#ifndef CONFIG_USER_ONLY
+    if (cpu->globalregs) {
+        return hexagon_dma_config_read(cpu->globalregs, index);
+    }
+#endif
+    return 0;
+}
+
+void hexagon_dma_cfg_write(HexagonCPU *cpu, uint32_t index, uint32_t value)
+{
+#ifndef CONFIG_USER_ONLY
+    if (cpu->globalregs) {
+        hexagon_dma_config_write(cpu->globalregs, index, value);
+    }
+#endif
 }
