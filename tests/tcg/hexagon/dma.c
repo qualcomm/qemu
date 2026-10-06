@@ -32,6 +32,7 @@ int err;
 #define DESC_TYPE_GATHER        4u
 #define DESC_TYPE_CONSTANT_FILL 8u
 #define DESC_TYPE_WIDE_2D       9u
+#define DESC_TYPE_L2FETCH       3u
 
 /* desc[0]=next desc[1]=ctrl desc[2]=src desc[3]=dst */
 typedef uint32_t type0_desc_t[4] __attribute__((aligned(16)));
@@ -311,6 +312,28 @@ static void test_wide_2d(void)
     }
 }
 
+static void test_l2fetch(void)
+{
+    static type1_desc_t desc;
+    static uint8_t src[4 * 16];
+    const uint32_t width = 5, height = 3, srcstride = 16;
+
+    memset(src, 0x5a, sizeof(src));
+    desc[0] = 0;
+    desc[1] = DESC_DESCTYPE_TYPE1;
+    desc[2] = (uint32_t)(uintptr_t)src;
+    desc[3] = 0; /* L2Fetch has no destination. */
+    desc[4] = DESC_TYPE_L2FETCH;
+    desc[5] = (height << 16) | width;
+    desc[6] = srcstride;
+    desc[7] = 0;
+
+    dmstart((uint32_t)(uintptr_t)desc);
+
+    check32(dmpoll(), DM0_STATUS_IDLE);
+    check32(desc[1] >> 31, 1);
+}
+
 static void test_dmpause_after_completion(void)
 {
     static type0_desc_t desc;
@@ -573,6 +596,7 @@ int main(void)
     test_constant_fill();
     test_gather();
     test_wide_2d();
+    test_l2fetch();
     test_dmpause_after_completion();
     test_misaligned_descriptor();
     test_misaligned_type1_descriptor();
