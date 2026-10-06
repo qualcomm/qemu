@@ -1456,9 +1456,6 @@
 #define fGEN_TCG_Y2_syncht(SHORTCODE) \
     do { } while (0)
 
-#define fGEN_TCG_DMA_UNIMP() \
-    qemu_log_mask(LOG_UNIMP, "'%s' is not implemented\n", \
-                  opcode_names[insn->opcode])
 #define fGEN_TCG_Y6_dmstart(SHORTCODE) \
     gen_helper_dmstart(tcg_env, RsV)
 #define fGEN_TCG_Y6_dmresume(SHORTCODE) \
@@ -1476,9 +1473,9 @@
 #define fGEN_TCG_Y6_dmpause(SHORTCODE) \
     gen_helper_dmpause(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmsyncht(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
+    gen_helper_dmsyncht(RdV, tcg_env)
 #define fGEN_TCG_Y6_dmtlbsynch(SHORTCODE) \
-    do { fGEN_TCG_DMA_UNIMP(); tcg_gen_movi_tl(RdV, 0); } while (0)
+    gen_helper_dmtlbsynch(RdV, tcg_env)
 #define fGEN_TCG_Y2_dcfetchbo(SHORTCODE) \
     do { \
         RsV = RsV; \
