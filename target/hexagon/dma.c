@@ -12,8 +12,7 @@
  * destination constant-fill descriptors, and the version-4 Type 9 wide 2D
  * descriptor, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
  * instructions.  Monitor-mode config-space access implements DM2, DM4, DM5
- * and DM8-DM12.  The monitor-mode synchronization commands are not
- * implemented.
+ * and DM8-DM12.  The monitor-mode synchronization commands are no-ops.
  *
  * The engine is synchronous: a chain runs to completion inside the
  * instruction that starts it, so dmpoll/dmwait never observe a running
