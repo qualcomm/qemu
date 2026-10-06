@@ -8,9 +8,10 @@
 /*
  * This models the "User DMA" chapter of the Hexagon system-level
  * specification: the 16-byte linear and 32-byte Type 0 2D box-copy
- * descriptors, and the version-2 Type 8 destination constant-fill
- * descriptor, plus the dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume
- * instructions.  The monitor-mode commands are not implemented.
+ * descriptors, and the version-2 Type 4 gather and Type 8 destination
+ * constant-fill descriptors, plus the
+ * dmstart/dmlink/dmpoll/dmwait/dmpause/dmresume instructions.  The monitor-
+ * mode commands are not implemented.
  *
  * The engine is synchronous: a chain runs to completion inside the
  * instruction that starts it, so dmpoll/dmwait never observe a running
@@ -93,6 +94,7 @@ enum {
 #define DESC_TYPE_FILL_SHIFT        8
 enum {
     DESC_TYPE_2D = 0,
+    DESC_TYPE_GATHER = 4,
     DESC_TYPE_CONSTANT_FILL = 8,
 };
 
@@ -106,6 +108,11 @@ enum {
 #define DESC_DSTSTRIDE_MASK         0xFFFF0000
 #define DESC_DSTSTRIDE_SHIFT        16
 
+/* Constraints of the Type 4 (gather) descriptor. */
+#define GATHER_LIST_ENTRY_SIZE      sizeof(uint32_t)
+#define GATHER_DST_ALIGNMENT        128
+#define GATHER_SRC_ALIGNMENT        32
+
 typedef struct HexagonDMAMemory {
     CPUHexagonState *env;
     int mmu_idx;
@@ -115,6 +122,7 @@ typedef struct HexagonDMAMemory {
 typedef enum DMAKind {
     DMA_COPY,
     DMA_FILL,
+    DMA_GATHER,
 } DMAKind;
 
 /* A decoded 2D transfer: height rows of width bytes. */
@@ -331,6 +339,33 @@ static uint32_t dma_decode_fill(HexagonCPU *cpu, const HexagonDMAMemory *mem,
     return 0;
 }
 
+/* Type 4: copy rows named by a list of source addresses. */
+static uint32_t dma_decode_gather(HexagonCPU *cpu, const HexagonDMAMemory *mem,
+                                  target_ulong desc_va, DMATransfer *xfer)
+{
+    uint32_t roi = dma_ldl(mem, desc_va + DESC_OFF_ROI);
+    uint32_t stride = dma_ldl(mem, desc_va + DESC_OFF_STRIDE);
+
+    xfer->kind = DMA_GATHER;
+    xfer->src = dma_ldl(mem, desc_va + DESC_OFF_SRC);
+    xfer->dst = dma_ldl(mem, desc_va + DESC_OFF_DST);
+    xfer->width = roi & DESC_ROIWIDTH_MASK;
+    xfer->height = (roi & DESC_ROIHEIGHT_MASK) >> DESC_ROIHEIGHT_SHIFT;
+    xfer->srcstride = stride & DESC_SRCSTRIDE_MASK;
+    xfer->dststride = (stride & DESC_DSTSTRIDE_MASK) >> DESC_DSTSTRIDE_SHIFT;
+
+    if (hexagon_dma_version(cpu) < 2 ||
+        xfer->src % GATHER_LIST_ENTRY_SIZE != 0 ||
+        xfer->dst % GATHER_DST_ALIGNMENT != 0 ||
+        xfer->srcstride != GATHER_LIST_ENTRY_SIZE ||
+        xfer->dststride != GATHER_DST_ALIGNMENT ||
+        (xfer->width != 32 && xfer->width != 64 && xfer->width != 96 &&
+         xfer->width != 128)) {
+        return DMA_SYNDROME_UNSUPPORTED;
+    }
+    return 0;
+}
+
 /*
  * Decode a 32-byte descriptor into a transfer.  Returns 0, or the syndrome
  * for a descriptor the engine rejects.
@@ -356,6 +391,8 @@ static uint32_t dma_decode_type1(HexagonCPU *cpu, const HexagonDMAMemory *mem,
         return dma_decode_2d(cpu, mem, desc_va, xfer);
     case DESC_TYPE_CONSTANT_FILL:
         return dma_decode_fill(cpu, mem, desc_va, xfer);
+    case DESC_TYPE_GATHER:
+        return dma_decode_gather(cpu, mem, desc_va, xfer);
     default:
         return DMA_SYNDROME_UNSUPPORTED;
     }
@@ -377,9 +414,33 @@ static bool dma_xfer_in_range(const DMATransfer *xfer)
     case DMA_FILL:
         return dma_span_ok(xfer->dst, xfer->height, xfer->dststride,
                            xfer->width);
+    case DMA_GATHER:
+        return dma_span_ok(xfer->src, xfer->height, GATHER_LIST_ENTRY_SIZE,
+                           GATHER_LIST_ENTRY_SIZE) &&
+               dma_span_ok(xfer->dst, xfer->height, xfer->dststride,
+                           xfer->width);
     default:
         g_assert_not_reached();
     }
+}
+
+/*
+ * Every gather source row must be 32-byte aligned and stay inside the
+ * address space; check before copying.
+ */
+static bool dma_gather_list_valid(const HexagonDMAMemory *mem,
+                                  const DMATransfer *xfer)
+{
+    for (uint32_t row = 0; row < xfer->height; row++) {
+        uint32_t entry = dma_ldl(mem, xfer->src +
+                                 row * GATHER_LIST_ENTRY_SIZE);
+
+        if (entry % GATHER_SRC_ALIGNMENT != 0 ||
+            dma_range_wraps(entry, xfer->width)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void dma_execute(const HexagonDMAMemory *mem, const DMATransfer *xfer)
@@ -394,6 +455,10 @@ static void dma_execute(const HexagonDMAMemory *mem, const DMATransfer *xfer)
             break;
         case DMA_FILL:
             dma_fill(mem, drow, xfer->width, xfer->fill_value);
+            break;
+        case DMA_GATHER:
+            srow = dma_ldl(mem, xfer->src + row * GATHER_LIST_ENTRY_SIZE);
+            dma_copy(mem, drow, srow, xfer->width);
             break;
         default:
             g_assert_not_reached();
@@ -490,6 +555,10 @@ void hexagon_dma_run_chain(HexagonCPU *cpu, target_ulong desc_va,
             return;
         }
         if (!dma_xfer_in_range(&xfer)) {
+            dma_set_error(cpu, desc_va, DMA_SYNDROME_UNSUPPORTED);
+            return;
+        }
+        if (xfer.kind == DMA_GATHER && !dma_gather_list_valid(&mem, &xfer)) {
             dma_set_error(cpu, desc_va, DMA_SYNDROME_UNSUPPORTED);
             return;
         }

@@ -29,6 +29,7 @@ int err;
 
 /* 32-byte descriptor's DescriptorType byte. */
 #define DESC_TYPE_UNSUPPORTED   0x7fu
+#define DESC_TYPE_GATHER        4u
 #define DESC_TYPE_CONSTANT_FILL 8u
 
 /* desc[0]=next desc[1]=ctrl desc[2]=src desc[3]=dst */
@@ -238,6 +239,40 @@ static void test_constant_fill(void)
         for (uint32_t col = width; col < dststride; col++) {
             check32(dst[row * dststride + col], 0);
         }
+    }
+}
+
+static void test_gather(void)
+{
+    static type1_desc_t desc;
+    static uint8_t src0[32] __attribute__((aligned(32)));
+    static uint8_t src1[32] __attribute__((aligned(32)));
+    static uint32_t list[2] __attribute__((aligned(4)));
+    static uint8_t dst[2 * 128] __attribute__((aligned(128)));
+
+    for (int i = 0; i < sizeof(src0); i++) {
+        src0[i] = i + 1;
+        src1[i] = 0x80 + i;
+    }
+    memset(dst, 0, sizeof(dst));
+    list[0] = (uint32_t)(uintptr_t)src0;
+    list[1] = (uint32_t)(uintptr_t)src1;
+
+    desc[0] = 0;
+    desc[1] = DESC_DESCTYPE_TYPE1;
+    desc[2] = (uint32_t)(uintptr_t)list;
+    desc[3] = (uint32_t)(uintptr_t)dst;
+    desc[4] = DESC_TYPE_GATHER;
+    desc[5] = (2u << 16) | sizeof(src0);
+    desc[6] = (128u << 16) | sizeof(uint32_t);
+    desc[7] = 0;
+
+    dmstart((uint32_t)(uintptr_t)desc);
+
+    check32(dmpoll(), DM0_STATUS_IDLE);
+    for (int i = 0; i < sizeof(src0); i++) {
+        check32(dst[i], src0[i]);
+        check32(dst[128 + i], src1[i]);
     }
 }
 
@@ -483,6 +518,7 @@ int main(void)
     test_type1_box();
     test_type1_zero_stride();
     test_constant_fill();
+    test_gather();
     test_dmpause_after_completion();
     test_misaligned_descriptor();
     test_misaligned_type1_descriptor();
