@@ -10,8 +10,9 @@ from qemu_test import LinuxKernelTest, Asset
 class Imx8mpEvkMachine(LinuxKernelTest):
 
     ASSET_IMAGE = Asset(
-        ('https://cloud.debian.org/images/cloud/bookworm/20231210-1590/'
-         'debian-12-generic-arm64-20231210-1590.tar.xz'),
+        #('https://cloud.debian.org/images/cloud/bookworm/20231210-1590/'
+        # 'debian-12-generic-arm64-20231210-1590.tar.xz'),
+        ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/7ebf1577b32d5af6204df74b54ca2e4675de9b5a9fa14f3ff70b88eeb7b3b359.tar.xz'),
         '7ebf1577b32d5af6204df74b54ca2e4675de9b5a9fa14f3ff70b88eeb7b3b359')
 
     KERNEL_OFFSET = 0x51000000
