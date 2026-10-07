@@ -13,5 +13,11 @@
 void hexagon_cpu_do_interrupt(CPUState *cpu);
 void register_trap_exception(CPUHexagonState *env, int type, int imm,
                              uint32_t PC);
+void hexagon_vmrte(CPUHexagonState *env);
+
+/* Offsets of the guest event vectors from GEVB, as the VM interface has them */
+#define HEX_GEVB_ERROR      8
+#define HEX_GEVB_TRAP0      20
+#define HEX_GEVB_INTERRUPT  28
 
 #endif /* HEXSWI_H */

@@ -87,8 +87,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_INT, "%s: 0x%08" PRIx32 ", @ %08" PRIx32 "\n",
                   __func__, exception, PC);
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
-
     env->gpr[HEX_REG_PC] = PC;
     cs->exception_index = exception;
     cpu_loop_exit_restore(cs, retaddr);
