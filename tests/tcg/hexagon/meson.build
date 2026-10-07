@@ -70,6 +70,7 @@ tests += {
     'cflags': [cflags, '-mhvx', '-Wno-gnu-folding-constant',
                files('hvx_histogram_row.S')]
   },
+  'hmx_fxp.c': {'cflags': [cflags, '-mv81']},
   'invalid-encoding.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
   'invalid-slots.c': {'cflags': cflags},
   'icinva.c': {'cflags': cflags},
