@@ -2416,7 +2416,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
             MemoryRegion *mr = address_space_translate(as, ipa, &xlat,
                                                        NULL, true,
                                                        MEMTXATTRS_UNSPECIFIED);
-            if (memory_region_is_ram(mr)) {
+            if (memory_region_is_ram(mr) && !s1ptw) {
                 uintptr_t page_size = qemu_real_host_page_size();
                 intptr_t page_mask = -(intptr_t)page_size;
                 uint64_t ipa_page = ipa & page_mask;
