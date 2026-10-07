@@ -9,9 +9,10 @@
  * their own target, such as callrh or unpause -- can be written as
  * themselves in a file built for v66. The v79 non-temporal hints
  * (":nt") aren't known to the assembler at any target yet, so those
- * would need .word regardless. The revision-gated decoder must reject
- * representative instructions from each family, and linux-user must
- * deliver SIGILL.
+ * would need .word regardless, as do the HMX (matrix) instructions:
+ * the assembler doesn't know the HMX mnemonics at all yet. The
+ * revision-gated decoder must reject representative instructions from
+ * each family, and linux-user must deliver SIGILL.
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -160,6 +161,16 @@ TRY_FUNC(v85hlx_assign_r,
 TRY_FUNC(v85hlx_zero_store,
          ".word 0xa480c001    /* mem(r0) = L1.new */\n")
 
+/* HMX (matrix) coprocessor extension, introduced at v75. */
+TRY_FUNC(v75hmx_mxclracc,
+         ".word 0xa6e0c011    /* mxclracc */\n")
+TRY_FUNC(v75hmx_mxclracc_hf,
+         ".word 0xa6e0c013    /* mxclracc.hf */\n")
+TRY_FUNC(v75hmx_mxswapacc,
+         ".word 0xa6e0c014    /* mxswapacc */\n")
+TRY_FUNC(v75hmx_mxswapacc_hf,
+         ".word 0xa6e0c015    /* mxswapacc.hf */\n")
+
 int main(void)
 {
     struct sigaction act;
@@ -217,6 +228,11 @@ int main(void)
 
     assert(try_v85hlx_assign_r() == SIGILL);
     assert(try_v85hlx_zero_store() == SIGILL);
+
+    assert(try_v75hmx_mxclracc() == SIGILL);
+    assert(try_v75hmx_mxclracc_hf() == SIGILL);
+    assert(try_v75hmx_mxswapacc() == SIGILL);
+    assert(try_v75hmx_mxswapacc_hf() == SIGILL);
 
     assert(signals_handled == expected_signals);
 
