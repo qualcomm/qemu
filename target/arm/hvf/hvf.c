@@ -2421,6 +2421,19 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 intptr_t page_mask = -(intptr_t)page_size;
                 uint64_t ipa_page = ipa & page_mask;
 
+                if (!hvf_gpa_page_is_mapped(ipa_page)) {
+                    /*
+                     * HVF has no mapping: emulate and advance PC.
+                     *
+                     * Instead of matching on DFSC, we should re-check whether
+                     * the faulting condition persists after acquiring the BQL.
+                     * FIXME: Track or re-check whether the RAM page is
+                     * actually mapped by HVF, and emulate only when FlatView
+                     * resolves RAM ???
+                     */
+                    goto emulate_mmio;
+                }
+
                 /* TODO: Inject exception to the guest. */
                 assert(!mr->readonly);
 
@@ -2452,8 +2465,9 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
          */
         assert(isv);
 
+        emulate_mmio:
         /*
-         * Emulate MMIO.
+         * Emulate MMIO and avance $pc.
          * TODO: Inject faults for errors.
          */
         if (iswrite) {
