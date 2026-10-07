@@ -113,8 +113,8 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 
     if (!QEMU_IS_ALIGNED(size, page_size) ||
         !QEMU_IS_ALIGNED(gpa, page_size)) {
-        /* Not page aligned, so we can not map as RAM */
-        add = false;
+        /* Not host-page aligned, so do not map or unmap it. */
+        return;
     }
 
     if (!add) {
