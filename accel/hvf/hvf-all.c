@@ -10,6 +10,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/interval-tree.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
 #include "accel/accel-ops.h"
@@ -88,6 +90,57 @@ void hvf_unprotect_dirty_range(hwaddr addr, size_t size)
                      HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC);
 }
 
+static IntervalTreeRoot *hvf_ram_mappings;
+
+static IntervalTreeNode *find_node(uint64_t start, uint64_t last)
+{
+    IntervalTreeNode *node;
+
+    for (node = interval_tree_iter_first(hvf_ram_mappings, start, last);
+         node;
+         node = interval_tree_iter_next(node, start, last)) {
+        if (node->start == start && node->last == last) {
+            return node;
+        }
+    }
+
+    return NULL;
+}
+
+static IntervalTreeNode *find_range(uint64_t start, uint64_t end)
+{
+    uint64_t covered = start; /* first byte not yet covered */
+    IntervalTreeNode *node;
+
+    for (node = interval_tree_iter_first(hvf_ram_mappings, start, end);
+         node;
+         node = interval_tree_iter_next(node, start, end)) {
+        if (node->start > covered) {
+            /* hole before this node */
+            break;
+        }
+        if (node->last >= end) {
+            /* coverage reaches page end */
+            return node;
+        }
+        covered = MAX(covered, node->last + 1);
+    }
+
+    return NULL;
+}
+
+bool hvf_gpa_page_is_mapped(uint64_t gpa)
+{
+    uint64_t page_size = qemu_real_host_page_size();
+    bool mapped;
+
+    assert(bql_locked());
+    mapped = !!find_range(gpa, gpa + page_size - 1);
+
+    trace_hvf_vm_page_mapped(gpa, page_size, mapped);
+    return mapped;
+}
+
 static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 {
     MemoryRegion *area = section->mr;
@@ -98,6 +151,10 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     uint64_t size = int128_get64(section->size);
     hv_return_t ret;
     void *mem;
+    if (!hvf_ram_mappings) {
+        hvf_ram_mappings = g_new0(IntervalTreeRoot, 1);
+        /* TODO teardown/reset of the global on VM destroy */
+    }
 
     if (!memory_region_is_ram(area)) {
         if (writable) {
@@ -117,10 +174,17 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         return;
     }
 
+    IntervalTreeNode *node;
+
     if (!add) {
         trace_hvf_vm_unmap(gpa, size);
         ret = hv_vm_unmap(gpa, size);
         assert_hvf_ok(ret);
+        node = find_node(gpa, gpa + size - 1);
+        if (node) {
+            interval_tree_remove(node, hvf_ram_mappings);
+            g_free(node);
+        } /* otherwise non-RAM / non-writable / not-in-romd-mode */
         return;
     }
 
@@ -133,6 +197,10 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
                      flags & HV_MEMORY_EXEC ?  'X' : '-');
     ret = hv_vm_map(mem, gpa, size, flags);
     assert_hvf_ok(ret);
+    node = g_new0(IntervalTreeNode, 1);
+    node->start = gpa;
+    node->last = gpa + size - 1;
+    interval_tree_insert(node, hvf_ram_mappings);
 }
 
 static void hvf_log_start(MemoryListener *listener,

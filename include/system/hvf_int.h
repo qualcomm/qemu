@@ -78,6 +78,8 @@ void hvf_arch_update_guest_debug(CPUState *cpu);
 
 void hvf_protect_clean_range(hwaddr addr, size_t size);
 void hvf_unprotect_dirty_range(hwaddr addr, size_t size);
+/* caller must hold the BQL */
+bool hvf_gpa_page_is_mapped(uint64_t gpa);
 
 struct hvf_sw_breakpoint {
     vaddr pc;
