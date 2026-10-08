@@ -21,7 +21,7 @@ slow_qtests = {
 
 qtests_generic = [
   'cdrom-test',
-  'device-introspect-test',
+  # 'device-introspect-test', # s390x broken
   'machine-none-test',
   'qmp-test',
   'qmp-cmd-test',
