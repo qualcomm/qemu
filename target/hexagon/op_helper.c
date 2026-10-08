@@ -39,7 +39,9 @@
 #include "cpu_helper.h"
 #include "pmu.h"
 #include "translate.h"
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+#include "user/cpu_loop.h"
+#else
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
@@ -475,12 +477,35 @@ int32_t HELPER(cabacdecbin_pred)(int64_t RssV, int64_t RttV)
     return p0;
 }
 
+/*
+ * Scalar accesses must be naturally aligned.  The probes run before any
+ * store in the packet commits, so check alignment here to keep the
+ * exception precise.
+ */
+static void check_align(CPUHexagonState *env, target_ulong va, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        uintptr_t retaddr)
+{
+    if (va & (size - 1)) {
+        CPUState *cs = env_cpu(env);
+#ifdef CONFIG_USER_ONLY
+        cpu_loop_exit_sigbus(cs, va, access_type, retaddr);
+#else
+        CPUClass *cc = CPU_GET_CLASS(cs);
+
+        cc->tcg_ops->do_unaligned_access(cs, va, access_type, mmu_idx,
+                                         retaddr);
+#endif
+    }
+}
+
 static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
                         bool is_predicated, uintptr_t retaddr)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         uint32_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
+        check_align(env, va, width, MMU_DATA_STORE, mmu_idx, retaddr);
         probe_write(env, va, width, mmu_idx, retaddr);
     }
 }
@@ -493,6 +518,7 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
                                int size, int mmu_idx)
 {
     uintptr_t retaddr = GETPC();
+    check_align(env, va, size, MMU_DATA_LOAD, mmu_idx, retaddr);
     probe_read(env, va, size, mmu_idx, retaddr);
 }
 
