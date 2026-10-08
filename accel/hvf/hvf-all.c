@@ -247,6 +247,16 @@ static void hvf_region_del(MemoryListener *listener,
     hvf_set_phys_mem(section, false);
 }
 
+static void hvf_begin(MemoryListener *listener)
+{
+    /* TODO: Called at the beginning of an address space update transaction */
+}
+
+static void hvf_commit(MemoryListener *listener)
+{
+    /* TODO: Called at the end of an address space update transaction */
+}
+
 static MemoryListener hvf_memory_listener = {
     .name = "hvf",
     .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
@@ -255,6 +265,8 @@ static MemoryListener hvf_memory_listener = {
     .log_start = hvf_log_start,
     .log_stop = hvf_log_stop,
     .log_clear = hvf_log_clear,
+    .begin = hvf_begin,
+    .commit = hvf_commit,
 };
 
 static int hvf_accel_init(AccelState *as, MachineState *ms)
