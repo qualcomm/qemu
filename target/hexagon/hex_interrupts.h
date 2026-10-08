@@ -12,5 +12,6 @@ void hex_clear_interrupts(CPUHexagonState *env, uint32_t mask, uint32_t type);
 void hex_raise_interrupts(CPUHexagonState *env, uint32_t mask, uint32_t type);
 void hex_interrupt_update(CPUHexagonState *env);
 bool hex_deliver_pending(CPUHexagonState *env);
+bool hex_has_unmasked_pending(CPUHexagonState *env);
 
 #endif

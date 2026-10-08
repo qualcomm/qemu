@@ -428,8 +428,13 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
      * This handles the case where an interrupt arrived while the
      * thread was running with GIE=0 and couldn't be delivered,
      * but now in WAIT mode it can be.
+     *
+     * Only bail when the pending interrupt is actually assigned to
+     * this thread (IMASK=0, IAD=0).  Interrupts routed to another
+     * thread via iassignw have IMASK=1 here and must not prevent
+     * this thread from entering WAIT/halted state.
      */
-    if (arch_get_system_reg(env, HEX_SREG_IPEND) != 0) {
+    if (hex_has_unmasked_pending(env)) {
         cpu_interrupt(cs, CPU_INTERRUPT_SWI);
         return;
     }
