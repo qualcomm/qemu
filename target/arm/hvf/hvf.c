@@ -2427,6 +2427,12 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 if (memory_region_get_dirty_log_mask(mr)) {
                     memory_region_set_dirty(mr, xlat, page_size);
                     hvf_unprotect_dirty_range(ipa_page, page_size);
+                } else {
+                    /*
+                     * A zero mask may mean dirty logging stopped after
+                     * permission was already restored, so retry is still
+                     * required.
+                     */
                 }
 
                 /* Retry with page writes enabled. */
