@@ -14,6 +14,7 @@
 #define HVF_H
 
 #include "qemu/accel.h"
+#include "qemu/typedefs.h"
 
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_HVF
@@ -37,6 +38,19 @@ extern bool hvf_nested_virt;
 #endif /* !CONFIG_HVF_IS_POSSIBLE */
 
 void hvf_nested_virt_enable(bool nested_virt);
+
+/**
+ * hvf_cpu_address_space_register:
+ * @as: CPU address space being initialized
+ * @asidx: integer index of the address space
+ */
+void hvf_cpu_address_space_register(AddressSpace *as, int asidx);
+
+/**
+ * hvf_cpu_address_space_unregister:
+ * @as: CPU address space being destroyed
+ */
+void hvf_cpu_address_space_unregister(AddressSpace *as);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 

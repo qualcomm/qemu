@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu/interval-tree.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
@@ -93,57 +92,238 @@ void hvf_unprotect_dirty_range(hwaddr addr, size_t size)
                      HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC);
 }
 
-static IntervalTreeRoot *hvf_ram_mappings;
 static uint64_t hvf_memory_transaction_id;
 static uint64_t hvf_memory_transaction;
 
-static IntervalTreeNode *find_node(uint64_t start, uint64_t last)
+typedef struct HvfMapping {
+    hwaddr gpa;
+    uintptr_t hva;
+    hv_memory_flags_t flags;
+    GPtrArray *owners; /* MemoryListener* */
+} HvfMapping;
+
+static GHashTable *hvf_mappings;
+
+static HvfMapping *hvf_mapping_lookup(hwaddr gpa)
 {
-    IntervalTreeNode *node;
-
-    for (node = interval_tree_iter_first(hvf_ram_mappings, start, last);
-         node;
-         node = interval_tree_iter_next(node, start, last)) {
-        if (node->start == start && node->last == last) {
-            return node;
-        }
+    if (!hvf_mappings) {
+        return NULL;
     }
-
-    return NULL;
+    return g_hash_table_lookup(hvf_mappings, &gpa);
 }
 
-static IntervalTreeNode *find_range(uint64_t start, uint64_t end)
+static void hvf_mapping_free(gpointer opaque)
 {
-    uint64_t covered = start; /* first byte not yet covered */
-    IntervalTreeNode *node;
+    HvfMapping *mapping = opaque;
 
-    for (node = interval_tree_iter_first(hvf_ram_mappings, start, end);
-         node;
-         node = interval_tree_iter_next(node, start, end)) {
-        if (node->start > covered) {
-            /* hole before this node */
-            break;
+    g_ptr_array_unref(mapping->owners);
+    g_free(mapping);
+}
+
+static void hvf_mapping_insert(hwaddr gpa, uintptr_t hva,
+                               hv_memory_flags_t flags,
+                               MemoryListener *listener)
+{
+    HvfMapping *mapping = g_new0(HvfMapping, 1);
+    gint64 *key = g_new(gint64, 1);
+
+    *key = gpa;
+    mapping->gpa = gpa;
+    mapping->hva = hva;
+    mapping->flags = flags;
+    mapping->owners = g_ptr_array_new();
+    g_ptr_array_add(mapping->owners, listener);
+
+    if (!hvf_mappings) {
+        hvf_mappings = g_hash_table_new_full(g_int64_hash, g_int64_equal,
+                                             g_free, hvf_mapping_free);
+    }
+    g_hash_table_insert(hvf_mappings, key, mapping);
+}
+
+static void hvf_mapping_remove(hwaddr gpa)
+{
+    gint64 key = gpa;
+
+    g_hash_table_remove(hvf_mappings, &key);
+}
+
+static bool hvf_mapping_owned_by(HvfMapping *mapping, MemoryListener *listener)
+{
+    guint i;
+
+    for (i = 0; i < mapping->owners->len; i++) {
+        if (g_ptr_array_index(mapping->owners, i) == listener) {
+            return true;
         }
-        if (node->last >= end) {
-            /* coverage reaches page end */
-            return node;
+    }
+    return false;
+}
+
+static void hvf_mapping_add_owner(HvfMapping *mapping, MemoryListener *listener)
+{
+    if (!hvf_mapping_owned_by(mapping, listener)) {
+        g_ptr_array_add(mapping->owners, listener);
+    }
+}
+
+static bool hvf_mapping_remove_owner(HvfMapping *mapping,
+                                     MemoryListener *listener)
+{
+    guint i;
+
+    for (i = 0; i < mapping->owners->len; i++) {
+        if (g_ptr_array_index(mapping->owners, i) == listener) {
+            g_ptr_array_remove_index(mapping->owners, i);
+            return true;
         }
-        covered = MAX(covered, node->last + 1);
+    }
+    return false;
+}
+
+static void hvf_mapping_check(HvfMapping *mapping, hwaddr gpa, uintptr_t hva,
+                              hv_memory_flags_t flags, const char *name)
+{
+    if (mapping->hva == hva && mapping->flags == flags) {
+        return;
     }
 
-    return NULL;
+    error_report("HVF: conflicting mapping for gpa 0x%" HWADDR_PRIx
+                 " (%s): existing host %p/0x%" PRIx64
+                 ", requested host %p/0x%" PRIx64,
+                 gpa, name, (void *)mapping->hva, (uint64_t)mapping->flags,
+                 (void *)hva, (uint64_t)flags);
+    abort();
 }
 
 bool hvf_gpa_page_is_mapped(uint64_t gpa)
 {
     uint64_t page_size = qemu_real_host_page_size();
+    hwaddr page = gpa & ~(hwaddr)(page_size - 1);
     bool mapped;
 
     assert(bql_locked());
-    mapped = !!find_range(gpa, gpa + page_size - 1);
+    mapped = hvf_mapping_lookup(page) != NULL;
 
-    trace_hvf_vm_page_mapped(gpa, page_size, mapped);
+    trace_hvf_vm_page_mapped(page, page_size, mapped);
     return mapped;
+}
+
+static void hvf_map_section(MemoryListener *listener,
+                            MemoryRegionSection *section,
+                            uintptr_t hva, hv_memory_flags_t flags)
+{
+    uint64_t page_size = qemu_real_host_page_size();
+    uint64_t gpa = section->offset_within_address_space;
+    uint64_t size = int128_get64(section->size);
+    uint64_t nr_pages = size / page_size;
+    const char *name = memory_region_name(section->mr);
+    uint64_t i = 0;
+    bool reused = false;
+
+    while (i < nr_pages) {
+        hwaddr page_gpa = gpa + i * page_size;
+        HvfMapping *mapping = hvf_mapping_lookup(page_gpa);
+        uint64_t run;
+        hv_return_t ret;
+
+        if (mapping) {
+            hvf_mapping_check(mapping, page_gpa, hva + i * page_size, flags,
+                              name);
+            hvf_mapping_add_owner(mapping, listener);
+            reused = true;
+            i++;
+            continue;
+        }
+
+        for (run = 1; i + run < nr_pages; run++) {
+            if (hvf_mapping_lookup(page_gpa + run * page_size)) {
+                break;
+            }
+        }
+
+        trace_hvf_vm_map(page_gpa, run * page_size,
+                         (void *)(hva + i * page_size), flags,
+                         flags & HV_MEMORY_READ  ? 'R' : '-',
+                         flags & HV_MEMORY_WRITE ? 'W' : '-',
+                         flags & HV_MEMORY_EXEC  ? 'X' : '-');
+        ret = hv_vm_map((void *)(hva + i * page_size), page_gpa,
+                        run * page_size, flags);
+        hvf_test_trace_set_phys_mem(listener, section, true,
+                                    hvf_memory_transaction,
+                                    ret == HV_SUCCESS ? "map-success" :
+                                    "map-failed", ret);
+        assert_hvf_ok(ret);
+
+        for (uint64_t j = 0; j < run; j++) {
+            hvf_mapping_insert(page_gpa + j * page_size,
+                               hva + (i + j) * page_size, flags, listener);
+        }
+        i += run;
+    }
+
+    if (reused) {
+        hvf_test_trace_set_phys_mem(listener, section, true,
+                                    hvf_memory_transaction, "map-success",
+                                    HV_SUCCESS);
+    }
+}
+
+static void hvf_unmap_section(MemoryListener *listener,
+                              MemoryRegionSection *section)
+{
+    uint64_t page_size = qemu_real_host_page_size();
+    uint64_t gpa = section->offset_within_address_space;
+    uint64_t size = int128_get64(section->size);
+    uint64_t nr_pages = size / page_size;
+    uint64_t i = 0;
+
+    while (i < nr_pages) {
+        hwaddr page_gpa = gpa + i * page_size;
+        HvfMapping *mapping = hvf_mapping_lookup(page_gpa);
+        uint64_t run;
+        hv_return_t ret;
+
+        if (!mapping || !hvf_mapping_owned_by(mapping, listener)) {
+            /* Not owned by this listener (e.g. forced delete of a page that
+             * was never mapped): nothing to remove. */
+            i++;
+            continue;
+        }
+
+        hvf_mapping_remove_owner(mapping, listener);
+        if (mapping->owners->len) {
+            /* Other listeners still need this page: keep it mapped. */
+            hvf_test_trace_set_phys_mem(listener, section, false,
+                                        hvf_memory_transaction, "unmap-retain",
+                                        HV_SUCCESS);
+            i++;
+            continue;
+        }
+
+        for (run = 1; i + run < nr_pages; run++) {
+            HvfMapping *next = hvf_mapping_lookup(page_gpa + run * page_size);
+
+            if (!next || !hvf_mapping_owned_by(next, listener) ||
+                next->owners->len != 1) {
+                break;
+            }
+            hvf_mapping_remove_owner(next, listener);
+        }
+
+        trace_hvf_vm_unmap(page_gpa, run * page_size);
+        ret = hv_vm_unmap(page_gpa, run * page_size);
+        hvf_test_trace_set_phys_mem(listener, section, false,
+                                    hvf_memory_transaction,
+                                    ret == HV_SUCCESS ? "unmap-success" :
+                                    "unmap-failed", ret);
+        assert_hvf_ok(ret);
+
+        for (uint64_t j = 0; j < run; j++) {
+            hvf_mapping_remove(page_gpa + j * page_size);
+        }
+        i += run;
+    }
 }
 
 static void hvf_set_phys_mem(MemoryListener *listener,
@@ -155,15 +335,10 @@ static void hvf_set_phys_mem(MemoryListener *listener,
     uint64_t page_size = qemu_real_host_page_size();
     uint64_t gpa = section->offset_within_address_space;
     uint64_t size = int128_get64(section->size);
-    hv_return_t ret;
-    void *mem;
+    uintptr_t hva;
 
     hvf_test_trace_set_phys_mem(listener, section, add,
                                 hvf_memory_transaction, "enter", HV_SUCCESS);
-    if (!hvf_ram_mappings) {
-        hvf_ram_mappings = g_new0(IntervalTreeRoot, 1);
-        /* TODO teardown/reset of the global on VM destroy */
-    }
 
     if (!memory_region_is_ram(area)) {
         if (writable) {
@@ -196,54 +371,23 @@ static void hvf_set_phys_mem(MemoryListener *listener,
         return;
     }
 
-    IntervalTreeNode *node;
-
     if (!add) {
-        /*
-         * A range may be absent from the mirror, for example when a
-         * non-RAM / non-writable / not-in-romd-mode section forces
-         * 'add = false' without having been mapped first.
-         */
-
         hvf_test_trace_set_phys_mem(listener, section, add,
                                     hvf_memory_transaction, "unmap-attempt",
                                     -1);
         hvf_test_trace_map(gpa, size, "unmap", memory_region_name(area));
-        trace_hvf_vm_unmap(gpa, size);
-        ret = hv_vm_unmap(gpa, size);
-        hvf_test_trace_set_phys_mem(listener, section, add,
-                                    hvf_memory_transaction,
-                                    ret == HV_SUCCESS ? "unmap-success" :
-                                    "unmap-failed", ret);
-        assert_hvf_ok(ret);
-        node = find_node(gpa, gpa + size - 1);
-        if (node) {
-            interval_tree_remove(node, hvf_ram_mappings);
-            g_free(node);
-        } /* otherwise non-RAM / non-writable / not-in-romd-mode */
+        hvf_unmap_section(listener, section);
         return;
     }
 
     flags = HV_MEMORY_READ | HV_MEMORY_EXEC | (writable ? HV_MEMORY_WRITE : 0);
-    mem = memory_region_get_ram_ptr(area) + section->offset_within_region;
+    hva = (uintptr_t)memory_region_get_ram_ptr(area) +
+          section->offset_within_region;
 
     hvf_test_trace_set_phys_mem(listener, section, add,
                                 hvf_memory_transaction, "map-attempt", -1);
     hvf_test_trace_map(gpa, size, "map", memory_region_name(area));
-    trace_hvf_vm_map(gpa, size, mem, flags,
-                     flags & HV_MEMORY_READ ?  'R' : '-',
-                     flags & HV_MEMORY_WRITE ? 'W' : '-',
-                     flags & HV_MEMORY_EXEC ?  'X' : '-');
-    ret = hv_vm_map(mem, gpa, size, flags);
-    hvf_test_trace_set_phys_mem(listener, section, add,
-                                hvf_memory_transaction,
-                                ret == HV_SUCCESS ? "map-success" :
-                                "map-failed", ret);
-    assert_hvf_ok(ret);
-    node = g_new0(IntervalTreeNode, 1);
-    node->start = gpa;
-    node->last = gpa + size - 1;
-    interval_tree_insert(node, hvf_ram_mappings);
+    hvf_map_section(listener, section, hva, flags);
 }
 
 static void hvf_log_start(MemoryListener *listener,
@@ -318,17 +462,61 @@ static void hvf_commit(MemoryListener *listener)
     hvf_memory_transaction = 0;
 }
 
+#define HVF_MEMORY_LISTENER_FIELDS(_name) \
+    .name = (_name), \
+    .priority = MEMORY_LISTENER_PRIORITY_ACCEL, \
+    .region_add = hvf_region_add, \
+    .region_del = hvf_region_del, \
+    .log_start = hvf_log_start, \
+    .log_stop = hvf_log_stop, \
+    .log_clear = hvf_log_clear, \
+    .begin = hvf_begin, \
+    .commit = hvf_commit
+
 static MemoryListener hvf_memory_listener = {
-    .name = "hvf",
-    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
-    .region_add = hvf_region_add,
-    .region_del = hvf_region_del,
-    .log_start = hvf_log_start,
-    .log_stop = hvf_log_stop,
-    .log_clear = hvf_log_clear,
-    .begin = hvf_begin,
-    .commit = hvf_commit,
+    HVF_MEMORY_LISTENER_FIELDS("hvf"),
 };
+
+static GHashTable *hvf_cpu_listeners;
+
+void hvf_cpu_address_space_register(AddressSpace *as, int asidx)
+{
+    MemoryListener *listener;
+
+    if (!hvf_enabled() || asidx != 0) {
+        return;
+    }
+
+    if (!hvf_cpu_listeners) {
+        hvf_cpu_listeners = g_hash_table_new(g_direct_hash, g_direct_equal);
+    }
+    if (g_hash_table_contains(hvf_cpu_listeners, as)) {
+        return;
+    }
+
+    listener = g_new(MemoryListener, 1);
+    *listener = (MemoryListener) {
+        HVF_MEMORY_LISTENER_FIELDS(as->name),
+    };
+    memory_listener_register(listener, as);
+    g_hash_table_insert(hvf_cpu_listeners, as, listener);
+}
+
+void hvf_cpu_address_space_unregister(AddressSpace *as)
+{
+    MemoryListener *listener;
+
+    if (!hvf_cpu_listeners) {
+        return;
+    }
+    listener = g_hash_table_lookup(hvf_cpu_listeners, as);
+    if (!listener) {
+        return;
+    }
+    g_hash_table_steal(hvf_cpu_listeners, as);
+    memory_listener_unregister(listener);
+    g_free(listener);
+}
 
 static int hvf_accel_init(AccelState *as, MachineState *ms)
 {

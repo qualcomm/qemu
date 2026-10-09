@@ -2464,24 +2464,15 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 uintptr_t page_size = qemu_real_host_page_size();
                 intptr_t page_mask = -(intptr_t)page_size;
                 uint64_t ipa_page = ipa & page_mask;
-                bool page_mapped = mapping_known ? mapped :
-                    hvf_gpa_page_is_mapped(ipa_page);
+                bool ram_mapped = mapping_known ? mapped
+                                                : hvf_gpa_page_is_mapped(ipa_page);
 
                 if (hvf_test_pa_matches(ipa)) {
                     mapping_known = true;
-                    mapped = page_mapped;
+                    mapped = ram_mapped;
                 }
 
-                if (!page_mapped) {
-                    /*
-                     * HVF has no mapping: emulate and advance PC.
-                     *
-                     * Instead of matching on DFSC, we should re-check whether
-                     * the faulting condition persists after acquiring the BQL.
-                     * FIXME: Track or re-check whether the RAM page is
-                     * actually mapped by HVF, and emulate only when FlatView
-                     * resolves RAM ???
-                     */
+                if (!ram_mapped) {
                     goto emulate_mmio;
                 }
 

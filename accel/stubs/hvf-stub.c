@@ -22,3 +22,11 @@ void hvf_nested_virt_enable(bool nested_virt)
      * As such, do nothing here instead of marking as unreachable.
      */
 }
+
+void hvf_cpu_address_space_register(AddressSpace *as, int asidx)
+{
+}
+
+void hvf_cpu_address_space_unregister(AddressSpace *as)
+{
+}

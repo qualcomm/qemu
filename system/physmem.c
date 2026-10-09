@@ -782,6 +782,7 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
         newas->tcg_as_listener.name = "tcg";
         memory_listener_register(&newas->tcg_as_listener, as);
     }
+    hvf_cpu_address_space_register(as, asidx);
 }
 
 void cpu_destroy_address_spaces(CPUState *cpu)
@@ -803,6 +804,7 @@ void cpu_destroy_address_spaces(CPUState *cpu)
         if (tcg_enabled()) {
             memory_listener_unregister(&cpuas->tcg_as_listener);
         }
+        hvf_cpu_address_space_unregister(cpuas->as);
         g_clear_pointer(&cpuas->as, address_space_destroy_free);
     }
 
