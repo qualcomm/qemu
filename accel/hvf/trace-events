@@ -8,3 +8,13 @@ hvf_vm_unmap(uint64_t paddr, uint64_t size) "paddr:0x%016"PRIx64" size:0x%08"PRI
 hvf_vm_protect(uint64_t paddr, size_t size, uint8_t flags, const char r, const char w, const char e) "paddr:0x%016"PRIx64" size:0x%08zx flags:0x%02x/%c%c%c"
 hvf_vm_page_mapped(uint64_t paddr, uint64_t size, bool mapped) "paddr:0x%016"PRIx64" size:0x%"PRIx64" mapped:%u"
 hvf_memory_transaction(uint64_t transaction, const char *as_name, const char *action) "target-transaction id=%"PRIu64" as=%s action=%s"
+
+hvf_test_set_phys_mem(uint64_t transaction, const char *as_name, bool add, const char *action, uint64_t paddr, uint64_t size, uint64_t offset, void *mr, const char *mr_name, int ret) "target-set-phys-mem id=%"PRIu64" as=%s add=%d action=%s paddr:0x%016"PRIx64" size:0x%08"PRIx64" offset:0x%016"PRIx64" mr=%p/%s ret=%d"
+hvf_test_set_phys_mem_state(uint64_t transaction, uint64_t page_size, bool ram, bool readonly, bool rom_device, bool writable, bool aligned) "target-set-phys-mem-state id=%"PRIu64" page=0x%"PRIx64" ram=%d readonly=%d rom-device=%d writable=%d aligned=%d"
+hvf_test_log(uint64_t transaction, const char *as_name, const char *action, uint64_t paddr, uint64_t size, uint64_t offset, void *mr, const char *mr_name, int old, int new) "target-log id=%"PRIu64" as=%s action=%s paddr:0x%016"PRIx64" size:0x%08"PRIx64" offset:0x%016"PRIx64" mr=%p/%s old=%d new=%d"
+hvf_test_log_state(uint64_t transaction, uint8_t dirty_log_mask) "target-log-state id=%"PRIu64" dirty=0x%02x"
+hvf_test_map(uint64_t paddr, uint64_t size, const char *action, const char *name) "target-map paddr:0x%016"PRIx64" size:0x%08"PRIx64" action=%s mr=%s"
+hvf_test_protect(uint64_t paddr, uint64_t size, uint8_t flags, const char *action) "target-protect paddr:0x%016"PRIx64" size:0x%08"PRIx64" flags=0x%02x action=%s"
+hvf_test_gate(const char *state, unsigned cpu, uint64_t pc, uint64_t pa) "target-gate state=%s cpu=%u pc=0x%016"PRIx64" pa=0x%016"PRIx64
+hvf_test_dirty_log(const char *action) "target-dirty-log action=%s"
+hvf_test_unmap(uint64_t paddr, uint64_t size, int ret) "target-unmap paddr:0x%016"PRIx64" size:0x%08"PRIx64" ret=%d"

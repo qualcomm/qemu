@@ -13,9 +13,11 @@
 
 #include "qemu/queue.h"
 #include "exec/vaddr.h"
+#include "system/memory.h"
 #include "gdbstub/enums.h"
 #include "qom/object.h"
 #include "accel/accel-ops.h"
+#include "exec/hwaddr.h"
 
 #ifdef __aarch64__
 #include <Hypervisor/Hypervisor.h>
@@ -99,6 +101,32 @@ int hvf_arch_insert_gdbstub_hw_breakpoint(vaddr addr, vaddr len,
 int hvf_arch_remove_gdbstub_hw_breakpoint(vaddr addr, vaddr len,
                                           GdbBreakpointType type);
 void hvf_arch_remove_all_gdbstub_hw_breakpoints(void);
+
+/* Local-only HVF race and unmapped-RAM diagnostic hooks. */
+#define HVF_TEST_TARGET_PAGE UINT64_C(0x40200000)
+
+void hvf_test_init(void);
+bool hvf_test_pa_matches(uint64_t pa);
+void hvf_test_register_qmp_commands(void);
+bool hvf_test_target_page_overlaps(hwaddr start, uint64_t size);
+void hvf_test_trace_set_phys_mem(MemoryListener *listener,
+                                 MemoryRegionSection *section, bool add,
+                                 uint64_t transaction, const char *action,
+                                 int ret);
+void hvf_test_trace_log(MemoryListener *listener, MemoryRegionSection *section,
+                        uint64_t transaction, int old, int new,
+                        const char *action);
+void hvf_test_trace_map(hwaddr start, uint64_t size, const char *action,
+                        const char *name);
+void hvf_test_trace_protect(hwaddr start, uint64_t size,
+                            hv_memory_flags_t flags, const char *action);
+bool hvf_test_record_abort(CPUState *cpu, uint64_t pc, uint64_t va,
+                           uint64_t pa, uint64_t syndrome, uint32_t dfsc,
+                           AddressSpace *as, MemoryRegion *mr,
+                           bool mapping_known, bool mapped, hwaddr xlat,
+                           uint8_t dirty_mask, const char *action);
+bool hvf_test_gate(CPUState *cpu, bool matching, uint64_t pc, uint64_t pa);
+void hvf_test_mark_done(void);
 
 /*
  * hvf_update_guest_debug:

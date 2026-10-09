@@ -2400,6 +2400,36 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         uint64_t val = 0;
         uint64_t ipa = excp->physical_address;
         AddressSpace *as = cpu_get_address_space(cpu, ARMASIdx_NS);
+        uint32_t fsc = FIELD_EX32(syndrome, DABORT_ISS, DFSC);
+        MemoryRegion *mr = NULL;
+        hwaddr xlat = 0;
+        uint8_t dirty_mask = 0;
+        bool mr_is_ram;
+        bool mr_readonly;
+        bool mr_rom_device;
+        bool mapping_known = false;
+        bool mapped = false;
+        const char *test_action = "emulate";
+        uint64_t trace_pc = env->pc;
+
+        mr = address_space_translate(as, ipa, &xlat, NULL, true,
+                                      MEMTXATTRS_UNSPECIFIED);
+        mr_is_ram = mr && memory_region_is_ram(mr);
+        mr_readonly = mr && mr->readonly;
+        mr_rom_device = mr && mr->rom_device;
+        dirty_mask = mr ? memory_region_get_dirty_log_mask(mr) : 0;
+
+        if (hvf_test_pa_matches(ipa)) {
+            r = hv_vcpu_get_reg(cpu->accel->fd, HV_REG_PC, &trace_pc);
+            assert_hvf_ok(r);
+            if (mr_is_ram) {
+                uintptr_t page_size = qemu_real_host_page_size();
+                intptr_t page_mask = -(intptr_t)page_size;
+
+                mapping_known = true;
+                mapped = hvf_gpa_page_is_mapped(ipa & page_mask);
+            }
+        }
 
         trace_hvf_data_abort(excp->virtual_address, ipa, isv,
                              iswrite, s1ptw, len, srt);
@@ -2407,21 +2437,42 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         if (cm) {
             /* We don't cache MMIO regions */
             advance_pc = true;
+            if (hvf_test_pa_matches(ipa)) {
+                if (hvf_test_record_abort(cpu, trace_pc,
+                                          excp->virtual_address, ipa,
+                                          syndrome, fsc, as, mr,
+                                          mapping_known, mapped, xlat,
+                                          dirty_mask, test_action)) {
+                    trace_hvf_test_data_abort(cpu->cpu_index, trace_pc,
+                                               excp->virtual_address, ipa,
+                                               syndrome, fsc, as, as->name, mr,
+                                               mr ? memory_region_name(mr) :
+                                               "(none)");
+                    trace_hvf_test_data_abort_state(cpu->cpu_index, mr,
+                                                    mr_is_ram, mr_readonly,
+                                                    mr_rom_device, mapping_known,
+                                                    mapped, xlat, dirty_mask,
+                                                    test_action);
+                }
+            }
             break;
         }
 
         /* Handle dirty page logging for ram. */
         if (iswrite) {
-            hwaddr xlat;
-            MemoryRegion *mr = address_space_translate(as, ipa, &xlat,
-                                                       NULL, true,
-                                                       MEMTXATTRS_UNSPECIFIED);
-            if (memory_region_is_ram(mr) && !s1ptw) {
+            if (mr_is_ram && !s1ptw) {
                 uintptr_t page_size = qemu_real_host_page_size();
                 intptr_t page_mask = -(intptr_t)page_size;
                 uint64_t ipa_page = ipa & page_mask;
+                bool page_mapped = mapping_known ? mapped :
+                    hvf_gpa_page_is_mapped(ipa_page);
 
-                if (!hvf_gpa_page_is_mapped(ipa_page)) {
+                if (hvf_test_pa_matches(ipa)) {
+                    mapping_known = true;
+                    mapped = page_mapped;
+                }
+
+                if (!page_mapped) {
                     /*
                      * HVF has no mapping: emulate and advance PC.
                      *
@@ -2449,6 +2500,26 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 }
 
                 /* Retry with page writes enabled. */
+                test_action = dirty_mask ? "retry-dirty-mask" :
+                    "retry-zero-mask";
+                if (hvf_test_pa_matches(ipa)) {
+                    if (hvf_test_record_abort(cpu, trace_pc,
+                                              excp->virtual_address, ipa,
+                                              syndrome, fsc, as, mr,
+                                              mapping_known, mapped, xlat,
+                                              dirty_mask, test_action)) {
+                        trace_hvf_test_data_abort(cpu->cpu_index, trace_pc,
+                                                  excp->virtual_address, ipa,
+                                                  syndrome, fsc, as, as->name,
+                                                  mr, memory_region_name(mr));
+                        trace_hvf_test_data_abort_state(cpu->cpu_index, mr,
+                                                        mr_is_ram, mr_readonly,
+                                                        mr_rom_device,
+                                                        mapping_known, mapped,
+                                                        xlat, dirty_mask,
+                                                        test_action);
+                    }
+                }
                 break;
             }
         }
@@ -2481,6 +2552,22 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
             hvf_set_reg(cpu, srt, val);
         }
         advance_pc = true;
+        if (hvf_test_pa_matches(ipa)) {
+            if (hvf_test_record_abort(cpu, trace_pc, excp->virtual_address,
+                                      ipa, syndrome, fsc, as, mr,
+                                      mapping_known, mapped, xlat, dirty_mask,
+                                      test_action)) {
+                trace_hvf_test_data_abort(cpu->cpu_index, trace_pc,
+                                          excp->virtual_address, ipa,
+                                          syndrome, fsc, as, as->name, mr,
+                                          mr ? memory_region_name(mr) :
+                                          "(none)");
+                trace_hvf_test_data_abort_state(cpu->cpu_index, mr, mr_is_ram,
+                                                mr_readonly, mr_rom_device,
+                                                mapping_known, mapped, xlat,
+                                                dirty_mask, test_action);
+            }
+        }
         break;
     }
     case EC_SYSTEMREGISTERTRAP: {
@@ -2640,10 +2727,28 @@ int hvf_arch_vcpu_exec(CPUState *cpu)
         cpu_exec_start(cpu);
         r = hv_vcpu_run(cpu->accel->fd);
         cpu_exec_end(cpu);
+
+        if (r == HV_SUCCESS && cpu->accel->exit->reason ==
+            HV_EXIT_REASON_EXCEPTION &&
+            syn_get_ec(cpu->accel->exit->exception.syndrome) == EC_DATAABORT &&
+            FIELD_EX32(cpu->accel->exit->exception.syndrome, DABORT_ISS, WNR) &&
+            hvf_test_pa_matches(cpu->accel->exit->exception.physical_address)) {
+            uint64_t pc;
+
+            r = hv_vcpu_get_reg(cpu->accel->fd, HV_REG_PC, &pc);
+            assert_hvf_ok(r);
+            trace_hvf_test_exit(cpu->cpu_index, pc,
+                                cpu->accel->exit->exception.virtual_address,
+                                cpu->accel->exit->exception.physical_address,
+                                cpu->accel->exit->exception.syndrome);
+            hvf_test_gate(cpu, true, pc,
+                          cpu->accel->exit->exception.physical_address);
+        }
         bql_lock();
         switch (r) {
         case HV_SUCCESS:
             ret = hvf_handle_vmexit(cpu, cpu->accel->exit);
+            hvf_test_mark_done();
             break;
         case HV_ILLEGAL_GUEST_STATE:
             trace_hvf_illegal_guest_state();

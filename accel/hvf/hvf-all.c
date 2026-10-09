@@ -72,6 +72,9 @@ static void do_hv_vm_protect(hwaddr start, size_t size,
                          flags & HV_MEMORY_READ  ? 'R' : '-',
                          flags & HV_MEMORY_WRITE ? 'W' : '-',
                          flags & HV_MEMORY_EXEC  ? 'X' : '-');
+    hvf_test_trace_protect(start, size, flags,
+                           flags & HV_MEMORY_WRITE ? "unprotect-dirty" :
+                           "protect-clean");
     g_assert(!((uintptr_t)start & ~page_mask));
     g_assert(!(size & ~page_mask));
 
@@ -143,7 +146,8 @@ bool hvf_gpa_page_is_mapped(uint64_t gpa)
     return mapped;
 }
 
-static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
+static void hvf_set_phys_mem(MemoryListener *listener,
+                             MemoryRegionSection *section, bool add)
 {
     MemoryRegion *area = section->mr;
     bool writable = !area->readonly && !area->rom_device;
@@ -153,6 +157,9 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     uint64_t size = int128_get64(section->size);
     hv_return_t ret;
     void *mem;
+
+    hvf_test_trace_set_phys_mem(listener, section, add,
+                                hvf_memory_transaction, "enter", HV_SUCCESS);
     if (!hvf_ram_mappings) {
         hvf_ram_mappings = g_new0(IntervalTreeRoot, 1);
         /* TODO teardown/reset of the global on VM destroy */
@@ -160,12 +167,20 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 
     if (!memory_region_is_ram(area)) {
         if (writable) {
+            hvf_test_trace_set_phys_mem(listener, section, add,
+                                        hvf_memory_transaction, "skip-nonram",
+                                        HV_SUCCESS);
+            hvf_test_trace_map(gpa, size, "skip-nonram",
+                               memory_region_name(area));
             return;
         } else if (!memory_region_is_romd(area)) {
             /*
              * If the memory device is not in romd_mode, then we actually want
              * to remove the hvf memory slot so all accesses will trap.
              */
+            hvf_test_trace_set_phys_mem(listener, section, add,
+                                        hvf_memory_transaction, "force-delete",
+                                        HV_SUCCESS);
              add = false;
         }
     }
@@ -173,14 +188,33 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     if (!QEMU_IS_ALIGNED(size, page_size) ||
         !QEMU_IS_ALIGNED(gpa, page_size)) {
         /* Not host-page aligned, so do not map or unmap it. */
+        hvf_test_trace_set_phys_mem(listener, section, add,
+                                    hvf_memory_transaction, "skip-unaligned",
+                                    HV_SUCCESS);
+        hvf_test_trace_map(gpa, size, "skip-unaligned",
+                           memory_region_name(area));
         return;
     }
 
     IntervalTreeNode *node;
 
     if (!add) {
+        /*
+         * A range may be absent from the mirror, for example when a
+         * non-RAM / non-writable / not-in-romd-mode section forces
+         * 'add = false' without having been mapped first.
+         */
+
+        hvf_test_trace_set_phys_mem(listener, section, add,
+                                    hvf_memory_transaction, "unmap-attempt",
+                                    -1);
+        hvf_test_trace_map(gpa, size, "unmap", memory_region_name(area));
         trace_hvf_vm_unmap(gpa, size);
         ret = hv_vm_unmap(gpa, size);
+        hvf_test_trace_set_phys_mem(listener, section, add,
+                                    hvf_memory_transaction,
+                                    ret == HV_SUCCESS ? "unmap-success" :
+                                    "unmap-failed", ret);
         assert_hvf_ok(ret);
         node = find_node(gpa, gpa + size - 1);
         if (node) {
@@ -193,11 +227,18 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     flags = HV_MEMORY_READ | HV_MEMORY_EXEC | (writable ? HV_MEMORY_WRITE : 0);
     mem = memory_region_get_ram_ptr(area) + section->offset_within_region;
 
+    hvf_test_trace_set_phys_mem(listener, section, add,
+                                hvf_memory_transaction, "map-attempt", -1);
+    hvf_test_trace_map(gpa, size, "map", memory_region_name(area));
     trace_hvf_vm_map(gpa, size, mem, flags,
                      flags & HV_MEMORY_READ ?  'R' : '-',
                      flags & HV_MEMORY_WRITE ? 'W' : '-',
                      flags & HV_MEMORY_EXEC ?  'X' : '-');
     ret = hv_vm_map(mem, gpa, size, flags);
+    hvf_test_trace_set_phys_mem(listener, section, add,
+                                hvf_memory_transaction,
+                                ret == HV_SUCCESS ? "map-success" :
+                                "map-failed", ret);
     assert_hvf_ok(ret);
     node = g_new0(IntervalTreeNode, 1);
     node->start = gpa;
@@ -208,6 +249,8 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 static void hvf_log_start(MemoryListener *listener,
                           MemoryRegionSection *section, int old, int new)
 {
+    hvf_test_trace_log(listener, section, hvf_memory_transaction,
+                       old, new, "log-start");
     assert(new != 0);
     if (old == 0) {
         hvf_protect_clean_range(section->offset_within_address_space,
@@ -218,6 +261,8 @@ static void hvf_log_start(MemoryListener *listener,
 static void hvf_log_stop(MemoryListener *listener,
                          MemoryRegionSection *section, int old, int new)
 {
+    hvf_test_trace_log(listener, section, hvf_memory_transaction,
+                       old, new, "log-stop");
     assert(old != 0);
     if (new == 0) {
         hvf_unprotect_dirty_range(section->offset_within_address_space,
@@ -228,6 +273,8 @@ static void hvf_log_stop(MemoryListener *listener,
 static void hvf_log_clear(MemoryListener *listener,
                           MemoryRegionSection *section)
 {
+    hvf_test_trace_log(listener, section, hvf_memory_transaction,
+                       -1, -1, "log-clear");
     /*
      * The dirty page bits within section are being cleared.
      * Some number of those pages may have been dirtied and
@@ -240,13 +287,13 @@ static void hvf_log_clear(MemoryListener *listener,
 static void hvf_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
-    hvf_set_phys_mem(section, true);
+    hvf_set_phys_mem(listener, section, true);
 }
 
 static void hvf_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
-    hvf_set_phys_mem(section, false);
+    hvf_set_phys_mem(listener, section, false);
 }
 
 static void hvf_begin(MemoryListener *listener)
@@ -319,6 +366,8 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
     QTAILQ_INIT(&s->hvf_sw_breakpoints);
 
     hvf_state = s;
+    hvf_test_init();
+    hvf_test_register_qmp_commands();
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
 
     return hvf_arch_init();
