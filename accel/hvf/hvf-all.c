@@ -91,6 +91,8 @@ void hvf_unprotect_dirty_range(hwaddr addr, size_t size)
 }
 
 static IntervalTreeRoot *hvf_ram_mappings;
+static uint64_t hvf_memory_transaction_id;
+static uint64_t hvf_memory_transaction;
 
 static IntervalTreeNode *find_node(uint64_t start, uint64_t last)
 {
@@ -250,11 +252,23 @@ static void hvf_region_del(MemoryListener *listener,
 static void hvf_begin(MemoryListener *listener)
 {
     /* TODO: Called at the beginning of an address space update transaction */
+    hvf_memory_transaction = ++hvf_memory_transaction_id;
+    trace_hvf_memory_transaction(hvf_memory_transaction,
+                                 listener->address_space &&
+                                 listener->address_space->name ?
+                                 listener->address_space->name : "(none)",
+                                 "begin");
 }
 
 static void hvf_commit(MemoryListener *listener)
 {
     /* TODO: Called at the end of an address space update transaction */
+    trace_hvf_memory_transaction(hvf_memory_transaction,
+                                 listener->address_space &&
+                                 listener->address_space->name ?
+                                 listener->address_space->name : "(none)",
+                                 "commit");
+    hvf_memory_transaction = 0;
 }
 
 static MemoryListener hvf_memory_listener = {
