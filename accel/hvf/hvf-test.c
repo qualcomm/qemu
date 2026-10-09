@@ -80,7 +80,7 @@ void hvf_test_init(void)
     }
     qemu_mutex_init(&hvf_test.lock);
     qemu_cond_init(&hvf_test.cond);
-    hvf_test.target_page = HVF_TEST_TARGET_PAGE;
+    hvf_test.target_page = 0x0a00001000;
     hvf_test.target_size = qemu_real_host_page_size();
     hvf_test.initialized = true;
 }
