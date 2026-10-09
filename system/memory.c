@@ -44,6 +44,7 @@ static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
 unsigned int global_dirty_tracking;
+static uint64_t memory_region_transaction_id;
 
 static QTAILQ_HEAD(, MemoryListener) memory_listeners
     = QTAILQ_HEAD_INITIALIZER(memory_listeners);
@@ -970,13 +971,29 @@ flat_range_coalesced_io_notify_listener_add_del(FlatRange *fr,
     }
 }
 
+static void memory_listener_update_trace(uint64_t transaction,
+                                         const AddressSpace *as,
+                                         const char *action, FlatRange *fr)
+{
+    trace_memory_listener_update(transaction, as->name, action,
+                                 int128_get64(fr->addr.start),
+                                 int128_get64(fr->addr.size),
+                                 fr->offset_in_region, fr->mr,
+                                 memory_region_name(fr->mr));
+    trace_memory_listener_update_state(transaction, fr->dirty_log_mask,
+                                       memory_region_is_ram(fr->mr),
+                                       fr->readonly);
+}
+
 static void address_space_update_topology_pass(AddressSpace *as,
                                                const FlatView *old_view,
                                                const FlatView *new_view,
-                                               bool adding)
+                                               bool adding,
+                                               uint64_t transaction)
 {
     unsigned iold, inew;
     FlatRange *frold, *frnew;
+    bool have_listeners = !QTAILQ_EMPTY(&as->listeners);
 
     /* Generate a symmetric difference of the old and new memory maps.
      * Kill ranges in the old map, and instantiate ranges in the new map.
@@ -1002,8 +1019,15 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {
-                flat_range_coalesced_io_del(frold, as);
-                MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
+                if (have_listeners) {
+                    flat_range_coalesced_io_del(frold, as);
+                }
+                memory_listener_update_trace(transaction, as, "region-del",
+                                             frold);
+                if (have_listeners) {
+                    MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse,
+                                                  region_del);
+                }
             }
 
             ++iold;
@@ -1011,16 +1035,31 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In both and unchanged (except logging may have changed) */
 
             if (adding) {
-                MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
+                memory_listener_update_trace(transaction, as, "region-nop",
+                                             frnew);
+                if (have_listeners) {
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward,
+                                                  region_nop);
+                }
                 if (frnew->dirty_log_mask & ~frold->dirty_log_mask) {
-                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start,
-                                                  frold->dirty_log_mask,
-                                                  frnew->dirty_log_mask);
+                    memory_listener_update_trace(transaction, as, "log-start",
+                                                 frnew);
+                    if (have_listeners) {
+                        MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward,
+                                                      log_start,
+                                                      frold->dirty_log_mask,
+                                                      frnew->dirty_log_mask);
+                    }
                 }
                 if (frold->dirty_log_mask & ~frnew->dirty_log_mask) {
-                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse, log_stop,
-                                                  frold->dirty_log_mask,
-                                                  frnew->dirty_log_mask);
+                    memory_listener_update_trace(transaction, as, "log-stop",
+                                                 frnew);
+                    if (have_listeners) {
+                        MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse,
+                                                      log_stop,
+                                                      frold->dirty_log_mask,
+                                                      frnew->dirty_log_mask);
+                    }
                 }
             }
 
@@ -1030,8 +1069,13 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In new */
 
             if (adding) {
-                MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_add);
-                flat_range_coalesced_io_add(frnew, as);
+                memory_listener_update_trace(transaction, as, "region-add",
+                                             frnew);
+                if (have_listeners) {
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward,
+                                                  region_add);
+                    flat_range_coalesced_io_add(frnew, as);
+                }
             }
 
             ++inew;
@@ -1081,7 +1125,7 @@ static void flatviews_reset(void)
     }
 }
 
-static void address_space_set_flatview(AddressSpace *as)
+static void address_space_set_flatview(AddressSpace *as, uint64_t transaction)
 {
     FlatView *old_view = address_space_to_flatview(as);
     MemoryRegion *physmr = memory_region_get_flatview_root(as->root);
@@ -1099,14 +1143,16 @@ static void address_space_set_flatview(AddressSpace *as)
 
     flatview_ref(new_view);
 
-    if (!QTAILQ_EMPTY(&as->listeners)) {
+    {
         FlatView tmpview = { .nr = 0 }, *old_view2 = old_view;
 
         if (!old_view2) {
             old_view2 = &tmpview;
         }
-        address_space_update_topology_pass(as, old_view2, new_view, false);
-        address_space_update_topology_pass(as, old_view2, new_view, true);
+        address_space_update_topology_pass(as, old_view2, new_view, false,
+                                           transaction);
+        address_space_update_topology_pass(as, old_view2, new_view, true,
+                                           transaction);
     }
 
     /* Writes are protected by the BQL.  */
@@ -1134,7 +1180,7 @@ static void address_space_update_topology(AddressSpace *as)
     if (!g_hash_table_lookup(flat_views, physmr)) {
         generate_memory_topology(physmr);
     }
-    address_space_set_flatview(as);
+    address_space_set_flatview(as, 0);
 }
 
 void memory_region_transaction_begin(void)
@@ -1153,12 +1199,14 @@ void memory_region_transaction_commit(void)
     --memory_region_transaction_depth;
     if (!memory_region_transaction_depth) {
         if (memory_region_update_pending) {
+            uint64_t transaction = ++memory_region_transaction_id;
+
             flatviews_reset();
 
             MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
 
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-                address_space_set_flatview(as);
+                address_space_set_flatview(as, transaction);
                 address_space_update_ioeventfds(as);
             }
             memory_region_update_pending = false;

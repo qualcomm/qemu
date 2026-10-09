@@ -21,6 +21,8 @@ memory_region_ops_write(int cpu_index, void *mr, uint64_t addr, uint64_t value, 
 memory_region_subpage_read(int cpu_index, void *mr, uint64_t offset, uint64_t value, unsigned size) "cpu %d mr %p offset 0x%"PRIx64" value 0x%"PRIx64" size %u"
 memory_region_subpage_write(int cpu_index, void *mr, uint64_t offset, uint64_t value, unsigned size) "cpu %d mr %p offset 0x%"PRIx64" value 0x%"PRIx64" size %u"
 memory_region_sync_dirty(const char *mr, const char *listener, int global) "mr '%s' listener '%s' synced (global=%d)"
+memory_listener_update(uint64_t transaction, const char *as_name, const char *action, uint64_t paddr, uint64_t size, uint64_t offset, void *mr, const char *mr_name) "memory-listener id=%"PRIu64" as=%s action=%s paddr:0x%016"PRIx64" size:0x%08"PRIx64" offset:0x%016"PRIx64" mr=%p/%s"
+memory_listener_update_state(uint64_t transaction, uint8_t dirty_log_mask, bool ram, bool readonly) "memory-listener-state id=%"PRIu64" dirty=0x%02x ram=%d readonly=%d"
 flatview_new(void *view, void *root) "%p (root %p)"
 flatview_destroy(void *view, void *root) "%p (root %p)"
 flatview_destroy_rcu(void *view, void *root) "%p (root %p)"
