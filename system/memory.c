@@ -975,9 +975,12 @@ static void memory_listener_update_trace(uint64_t transaction,
                                          const AddressSpace *as,
                                          const char *action, FlatRange *fr)
 {
+    uint64_t size = int128_gethi(fr->addr.size) ? UINT64_MAX :
+                    int128_get64(fr->addr.size);
+
     trace_memory_listener_update(transaction, as->name, action,
                                  int128_get64(fr->addr.start),
-                                 int128_get64(fr->addr.size),
+                                 size,
                                  fr->offset_in_region, fr->mr,
                                  memory_region_name(fr->mr));
     trace_memory_listener_update_state(transaction, fr->dirty_log_mask,
