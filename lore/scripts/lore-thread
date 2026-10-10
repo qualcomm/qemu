@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Print a whole qemu-devel thread, quote-stripped and chronological.
+
+Examples:
+  lore-thread 20240115103000.12345-1-someone@example.org
+  lore-thread --diffs -m 10 '<20240115103000.12345-1-someone@example.org>'
+"""
+
+import argparse
+import json
+import sys
+
+import lore_lib
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("message_id", help="Message-ID of any message in the thread")
+    ap.add_argument(
+        "-m",
+        "--max-messages",
+        type=int,
+        default=25,
+        help="max messages to print (default 25)",
+    )
+    ap.add_argument(
+        "--diffs",
+        action="store_true",
+        help="include diff hunks verbatim instead of summarising them",
+    )
+    ap.add_argument(
+        "--max-chars",
+        type=int,
+        default=2000,
+        help="truncate each message body to this many chars (0 = no limit)",
+    )
+    ap.add_argument(
+        "--quote-context",
+        type=int,
+        default=3,
+        help="quoted lines kept around each block of new text (0 = strip all)",
+    )
+    ap.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    ap.add_argument("--inbox", help="override mirror path")
+    args = ap.parse_args()
+
+    try:
+        msgs = lore_lib.thread(
+            args.message_id,
+            max_messages=max(1, args.max_messages),
+            include_diffs=args.diffs,
+            max_chars=max(0, args.max_chars),
+            quote_context=max(0, args.quote_context),
+            inbox=args.inbox,
+        )
+    except (lore_lib.LeiError, ValueError) as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 1
+
+    if not msgs:
+        print("no thread found for: %s" % args.message_id)
+        print("(the message may predate this mirror's epochs; try its lore URL)")
+        return 0
+
+    if args.json:
+        json.dump(msgs, sys.stdout, indent=1)
+        sys.stdout.write("\n")
+        return 0
+
+    for m in msgs:
+        if "note" in m:
+            print("\n-- %s" % m["note"])
+            continue
+        print("=" * 72)
+        print("From: %s" % (m.get("from") or "?"))
+        print("Date: %s" % (m.get("date") or "?"))
+        print("Subj: %s" % (m.get("subject") or "(none)"))
+        print("Id:   %s" % (m.get("message_id") or "?"))
+        print("-" * 72)
+        print(m.get("body") or "(empty after quote stripping)")
+        if m.get("body_truncated"):
+            print("\n[... body truncated; re-run with --max-chars 0 ...]")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
