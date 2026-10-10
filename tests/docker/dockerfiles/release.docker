@@ -1,0 +1,82 @@
+ARG UBUNTU_VERSION="UBUNTU_VERSION_build_arg_must_be_set"
+FROM ubuntu:$UBUNTU_VERSION as build
+ARG UBUNTU_VERSION
+
+# add deb-src for apt build-dep
+RUN sed -e 's/Types: deb/Types: deb deb-src/' -i /etc/apt/sources.list.d/* || true
+RUN sed -e 's/# deb-src/deb-src/' -i /etc/apt/sources.list
+# archive.canonical.com is not reachable anymore, and cause a long timeout
+RUN sed -e '/archive.canonical.com/d' -i /etc/apt/sources.list
+# LTS < 14.04 are hosted on https://old-releases.ubuntu.com/releases/
+RUN if [ $(echo $UBUNTU_VERSION | cut -f 1 -d '.') -lt 14 ]; then \
+    sed -e 's/archive/old-releases/g' -i /etc/apt/sources.list; \
+fi
+
+# use apt-get since apt was missing -y option in some ancient distro
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get install -y git build-essential
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get build-dep -y --arch-only qemu
+# additional dependencies that are missing at some point in history
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get install -y ninja-build flex bison libpixman-1-dev
+# python3-venv didn't exist in ancient ubuntu distro
+RUN apt-get update && \
+if apt-cache show python3-venv; then \
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv; \
+fi
+# for some releases, we expect to have latest python2 installed
+RUN apt-get update && \
+if apt-cache show python2.7; then \
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y python2.7; \
+fi
+
+# patch cc and c++ to inject warning suppression options
+RUN mv /usr/bin/cc /usr/bin/cc.real
+RUN echo "#!/usr/bin/env bash" > /usr/bin/cc && \
+echo "exec /usr/bin/cc.real \"\$@\" -Wno-error -Wno-int-conversion" >> /usr/bin/cc && \
+chmod +x /usr/bin/cc
+RUN mv /usr/bin/c++ /usr/bin/c++.real
+RUN echo "#!/usr/bin/env bash" > /usr/bin/c++ && \
+echo "exec /usr/bin/c++.real \"\$@\" -Wno-error -Wno-int-conversion" >> /usr/bin/c++ && \
+chmod +x /usr/bin/c++
+
+# 2.9.0 => 3.1.0: clone git submodules from expired url, replace them with gitlab.
+# 2.9.0 => 2.11.0: issue with libfdt version, solved with dtc submodule, which
+#                  was removed later.
+# Ubuntu < 14.04: git has no --single-branch, so perform manual fetch.
+ARG QEMU_VERSION
+RUN echo "QEMU_VERSION=${QEMU_VERSION:?QEMU_VERSION build arg must be set}"
+RUN cd /tmp && \
+mkdir qemu && cd qemu && git init && \
+git remote add origin https://gitlab.com/qemu-project/qemu.git && \
+git fetch origin "${QEMU_VERSION}" --depth 1 && \
+git checkout FETCH_HEAD && \
+sed -e 's#git://git.qemu.org#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#git://git.qemu-project.org#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#https://git.qemu.org/git/#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#git://github.com#https://github.com#' -i .gitmodules && \
+if grep -q dtc .gitmodules; then git submodule update --init dtc; fi && \
+./configure --prefix=/opt/qemu --disable-docs && \
+make install -j $(nproc) && \
+strip /opt/qemu/bin/* && \
+rm -rf /tmp/*
+
+# retrieve runtime dependencies (libs)
+RUN ldd /opt/qemu/bin/* | grep '=>' | sed -e 's/.*=>//' -e 's/(.*//' | sort -u > /opt/qemu/libs
+# store them in /deps/lib
+RUN mkdir -p /deps/lib && cp --preserve --dereference $(cat /opt/qemu/libs) /deps/lib
+# copy loader (with its original path)
+RUN cp --preserve --parents --dereference /lib*/ld-linux* /deps/
+
+################################################################################
+FROM scratch
+
+COPY --from=build /deps /
+# copy qemu and all associated artifacts (roms, ...)
+COPY --from=build /opt/qemu /usr
+
+# build with:
+# podman build -f release.docker --build-arg QEMU_VERSION=v11.1.0 --build-arg UBUNTU_VERSION=24.04 -t qemu/v11.1.0
+# run with:
+# podman run -it --rm qemu/v11.1.0 qemu-system-aarch64 --version
