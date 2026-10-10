@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""Search a local public-inbox mirror of qemu-devel.
+
+Examples:
+  lore-search 'dfn:accel/tcg/cputlb.c AND rt:2024-01-01..'
+  lore-search -n 5 's:"plugin" AND f:alex.bennee'
+  lore-search --json 'nq:"memory region" AND dfa:tlb_fill'
+
+Query syntax is public-inbox/lei search syntax; see --syntax for a cheat sheet.
+"""
+
+import argparse
+import json
+import sys
+
+import lore_lib
+
+SYNTAX = """\
+qemu-devel search prefixes (combine with AND / OR / NOT, quote phrases):
+
+  s:TEXT        subject                  f:ADDR       From:
+  t:ADDR        To:                      c:ADDR       Cc:
+  b:TEXT        body (incl. quotes)      nq:TEXT      body, quoted text EXCLUDED
+  q:TEXT        quoted text only         m:MSGID      exact Message-ID
+  dfn:PATH      diff touches this file   dfhh:TEXT    diff hunk header
+  dfa:TEXT      line ADDED by a diff     dfb:TEXT     line REMOVED by a diff
+  patchid:HASH  git patch-id             l:LIST       list address
+  rt:A..B       received date range      dt:A..B      Date: header range
+
+Dates are YYYY-MM-DD; open-ended ranges work (rt:2024-06-01..).
+
+Useful idioms:
+  dfn:hw/arm/virt.c AND rt:2024-01-01..        recent patches to a file
+  dfa:qemu_log_mask                            who added a call to it
+  s:(reduce vdso alignment)                    several words in one subject
+  f:you@example.org AND rt:2025-01-01..        your own recent mail
+  nq:regression                                discussion, ignoring quotes
+
+Traps (each fails SILENTLY, with zero hits -- an empty result usually means a
+malformed query, not a topic nobody discussed):
+
+  * ANDing two term prefixes matches NOTHING:
+        s:foo AND s:bar                  f:alice AND dfn:hw/arm/virt.c
+        dfa:x AND NOT s:PULL
+    Use one term prefix per query and narrow by reading the hits.  A term
+    prefix AND a date range (rt:/dt:) is the one combination that works.
+  * For several words in one field, group them under a single prefix with
+    SPACES -- s:(reduce vdso alignment) -- never AND inside the group.
+  * s:"quoted" is not a phrase match: it matches loosely and returns unrelated
+    mail.  Use the s:(...) group form.
+  * Only plain words are reliable terms.  Identifiers (qxl_phys2virt) and path
+    prefixes (hw/display/qxl) behave like phrases and zero out a group; reach
+    for dfa:/dfn: for those instead of s:.
+  * nq: is less reliable than b:; retry an empty nq: query with b:.
+  * dfn: misses files ADDED by a patch -- there is no a/ side to match.
+"""
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("query", nargs="?", help="lei/public-inbox search query")
+    ap.add_argument("-n", "--limit", type=int, default=20, help="max hits (default 20)")
+    ap.add_argument(
+        "-t",
+        "--threads",
+        action="store_true",
+        help="expand each hit to its whole thread (metadata only)",
+    )
+    ap.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    ap.add_argument("--inbox", help="override mirror path")
+    ap.add_argument(
+        "--syntax", action="store_true", help="print the query cheat sheet and exit"
+    )
+    args = ap.parse_args()
+
+    if args.syntax:
+        print(SYNTAX)
+        return 0
+    if not args.query:
+        ap.error("a query is required (or pass --syntax)")
+
+    # A runaway limit is the main way this tool wrecks an agent's context.
+    limit = max(1, min(args.limit, 200))
+
+    try:
+        hits = lore_lib.search(
+            args.query, limit=limit, threads=args.threads, inbox=args.inbox
+        )
+    except lore_lib.LeiError as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 1
+
+    if args.json:
+        json.dump(hits, sys.stdout, indent=1)
+        sys.stdout.write("\n")
+        return 0
+
+    if not hits:
+        print("no matches for: %s" % args.query)
+        return 0
+
+    for i, h in enumerate(hits, 1):
+        pct = "[%s%%] " % h["relevance"] if "relevance" in h else ""
+        date = (h.get("date") or "")[:10]
+        who = ", ".join(h.get("from") or []) or "?"
+        print("%d. %s%s  %s" % (i, pct, date, who))
+        print("   %s" % (h.get("subject") or "(no subject)"))
+        print("   id:%s" % (h.get("message_id") or "?"))
+    print("\n%d hit(s). Read one with: lore-thread <id>" % len(hits))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

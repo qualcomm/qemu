@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Find the qemu-devel discussion that produced a merged commit.
+
+Answers "why is this code like this": git records what changed, the list records
+why it was accepted, reworked or argued over.
+
+Examples:
+  lore-dig                          # HEAD
+  lore-dig 8efec0ef8bb
+  lore-dig --thread v8.2.0~50       # read the review, not just find it
+  lore-dig --json HEAD~3
+
+The commit is matched two ways, because neither alone suffices: by git patch-id
+(survives a maintainer rewording the subject) and by subject phrase (survives
+the diff changing in flight, which changes the patch-id).  Each hit says which
+lookup found it.
+"""
+
+import argparse
+import json
+import sys
+
+import lore_lib
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("rev", nargs="?", default="HEAD", help="git revision (default HEAD)")
+    ap.add_argument("-n", "--limit", type=int, default=10, help="max hits (default 10)")
+    ap.add_argument(
+        "--thread",
+        action="store_true",
+        help="also print the full discussion of the best hit",
+    )
+    ap.add_argument(
+        "-m",
+        "--max-messages",
+        type=int,
+        default=25,
+        help="with --thread: max messages to print (default 25)",
+    )
+    ap.add_argument(
+        "--quote-context",
+        type=int,
+        default=3,
+        help="with --thread: quoted lines kept around new text (0 = strip)",
+    )
+    ap.add_argument(
+        "--max-chars",
+        type=int,
+        default=2000,
+        help="with --thread: truncate each body to this many chars (0 = no limit)",
+    )
+    ap.add_argument(
+        "--diffs",
+        action="store_true",
+        help="with --thread: include diff hunks verbatim instead of summarising",
+    )
+    ap.add_argument("--repo", help="git repository to resolve rev in (default: the checkout)")
+    ap.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    ap.add_argument("--inbox", help="override mirror path")
+    args = ap.parse_args()
+
+    try:
+        res = lore_lib.dig(
+            args.rev,
+            repo=args.repo,
+            limit=max(1, min(args.limit, 100)),
+            inbox=args.inbox,
+        )
+    except (lore_lib.GitError, lore_lib.LeiError, ValueError) as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 1
+
+    if args.json:
+        json.dump(res, sys.stdout, indent=1)
+        sys.stdout.write("\n")
+        return 0
+
+    print("commit  %s" % res["commit"])
+    print("subject %s" % res["subject"])
+    print("patchid %s" % (res["patch_id"] or "(none: merge commit)"))
+    print()
+
+    hits = res["hits"]
+    if not hits:
+        print("no list discussion found.")
+        print("(the posting may predate this mirror's epochs, or the commit may")
+        print(" have reached master without review mail -- e.g. a pull merge)")
+        return 0
+
+    for i, h in enumerate(hits, 1):
+        print("%d. [%s]  %s  %s" % (
+            i,
+            ",".join(h.get("matched_by") or []),
+            (h.get("date") or "")[:10],
+            ", ".join(h.get("from") or []) or "?",
+        ))
+        print("   %s" % (h.get("subject") or "(no subject)"))
+        print("   id:%s" % (h.get("message_id") or "?"))
+    print("\n%d hit(s). Read one with: lore-thread <id>" % len(hits))
+
+    if args.thread:
+        best = lore_lib.best_review_hit(hits)
+        msgs = lore_lib.thread(
+            best["message_id"],
+            max_messages=max(1, args.max_messages),
+            include_diffs=args.diffs,
+            max_chars=max(0, args.max_chars),
+            quote_context=max(0, args.quote_context),
+            inbox=args.inbox,
+        )
+        print("\n%s\nthread for id:%s\n" % ("#" * 72, best["message_id"]))
+        for m in msgs:
+            if "note" in m:
+                print("\n-- %s" % m["note"])
+                continue
+            print("=" * 72)
+            print("From: %s" % (m.get("from") or "?"))
+            print("Date: %s" % (m.get("date") or "?"))
+            print("Subj: %s" % (m.get("subject") or "(none)"))
+            print("Id:   %s" % (m.get("message_id") or "?"))
+            print("-" * 72)
+            print(m.get("body") or "(empty after quote stripping)")
+            if m.get("body_truncated"):
+                print("\n[... body truncated ...]")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

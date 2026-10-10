@@ -1,0 +1,247 @@
+#!/bin/sh
+# Create the local qemu-devel public-inbox mirror, or backfill missing epochs.
+#
+# Epochs are discovered from the upstream manifest, so this picks up new ones
+# (epoch 4, 5, ...) as lore adds them. Already-populated epochs are left alone,
+# which makes the script idempotent and safe to re-run after an interruption.
+#
+# Expect several hours and ~25 GB for the full history. Once bootstrapped, use
+# lore-update for incremental fetches.
+set -e
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+# The scripts live in <checkout>/lore; the mirror is tens of GB of cloned git
+# epochs, so it lives under <checkout>/.cache/lore, which QEMU's .gitignore
+# already covers via /.cache/ -- no ignore rule of our own to maintain.
+DATA=${EMAIL_LORE_DIR:-$(dirname -- "$ROOT")/.cache/lore}
+INBOX=${EMAIL_INBOX:-$DATA/qemu-devel}
+LORE_URL=${LORE_URL:-https://lore.kernel.org/qemu-devel}
+LIST_ADDR=${LORE_LIST_ADDR:-qemu-devel@nongnu.org}
+LIST_NAME=${LORE_LIST_NAME:-qemu-devel}
+MIN_FREE_GB=${MIN_FREE_GB:-25}
+
+WANT=all
+DO_INDEX=yes
+DRY_RUN=no
+FORCE=no
+LIST_ONLY=no
+
+usage() {
+    cat <<EOF
+Usage: lore-bootstrap [options]
+
+Clone every qemu-devel epoch that is missing or empty, then build the Xapian
+index. Safe to re-run; populated epochs are skipped.
+
+Options:
+  --epochs LIST   only these epochs (comma-separated, e.g. --epochs 0,1)
+  --list          show epoch status (local vs upstream) and exit
+  --dry-run       print what would be cloned, do nothing
+  --force         re-clone epochs even if already populated
+  --no-index      skip public-inbox-index (run it yourself later)
+  -h, --help      this message
+
+Environment:
+  EMAIL_LORE_DIR  mirror parent dir   (default $DATA)
+  EMAIL_INBOX     mirror path         (default $INBOX)
+  LORE_URL        upstream archive    (default $LORE_URL)
+  MIN_FREE_GB     refuse below this   (default $MIN_FREE_GB)
+
+Examples:
+  lore-bootstrap --list            # what am I missing?
+  lore-bootstrap --epochs 0,1      # backfill the old history only
+  lore-bootstrap                   # everything, then index
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --epochs) WANT=${2:?--epochs needs a value}; shift 2 ;;
+        --epochs=*) WANT=${1#*=}; shift ;;
+        --list) LIST_ONLY=yes; shift ;;
+        --dry-run) DRY_RUN=yes; shift ;;
+        --force) FORCE=yes; shift ;;
+        --no-index) DO_INDEX=no; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+need_cmd() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "error: $1 not found in PATH${2:+ -- $2}" >&2
+        exit 1
+    }
+}
+
+# Only git/curl/python3 are needed to inspect or clone; the public-inbox tools
+# are checked where they are actually used, so --list and --dry-run work
+# without them.
+for cmd in git curl python3; do
+    need_cmd "$cmd"
+done
+
+# Upstream epochs, newest last. Falls back to the mirror's own manifest when
+# offline, so --list still works on a plane.
+upstream_epochs() {
+    if curl -sfS --max-time 60 "$LORE_URL/manifest.js.gz" -o "$TMPDIR_RUN/manifest.js.gz" 2>/dev/null; then
+        :
+    elif [ -f "$INBOX/manifest.js.gz" ]; then
+        echo "warning: cannot reach $LORE_URL -- using the local manifest" >&2
+        cp "$INBOX/manifest.js.gz" "$TMPDIR_RUN/manifest.js.gz"
+    else
+        echo "error: cannot reach $LORE_URL and no local manifest to fall back on" >&2
+        return 1
+    fi
+    python3 - "$TMPDIR_RUN/manifest.js.gz" <<'PY'
+import gzip, json, re, sys
+with gzip.open(sys.argv[1]) as fh:
+    manifest = json.load(fh)
+epochs = set()
+for key in manifest:
+    m = re.search(r'/(\d+)\.git$', key)
+    if m:
+        epochs.add(int(m.group(1)))
+print(' '.join(str(e) for e in sorted(epochs)))
+PY
+}
+
+# An epoch placeholder created by `git init --bare` has no refs; treat it as
+# missing so the real clone replaces it.
+epoch_populated() {
+    d=$1
+    [ -d "$d" ] || return 1
+    [ -n "$(git -C "$d" for-each-ref --count=1 2>/dev/null)" ]
+}
+
+# df needs a path that exists; walk up until one does (the mirror may not
+# have been created yet).
+free_gb() {
+    d=$1
+    while [ ! -d "$d" ] && [ "$d" != / ] && [ -n "$d" ]; do
+        d=$(dirname -- "$d")
+    done
+    df -Pk "$d" 2>/dev/null | awk 'NR==2 {printf "%d", $4 / 1048576}'
+}
+
+# public-inbox-index -v reports "# <done>/<total>" per checkpoint on stderr;
+# lore_progress.py turns that into a bar on a terminal and passes it through
+# verbatim everywhere else. Indexing must not depend on the bar, so fall back
+# to a plain run if python3 is somehow missing.
+run_index() {
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$ROOT/scripts/lore_progress.py" --label indexing -- \
+            public-inbox-index -v "$INBOX"
+    else
+        public-inbox-index "$INBOX"
+    fi
+}
+
+TMPDIR_RUN=$(mktemp -d "${TMPDIR:-/tmp}/lore-bootstrap.XXXXXX")
+CLONE_TMP=
+cleanup() {
+    [ -n "$CLONE_TMP" ] && rm -rf "$CLONE_TMP"
+    rm -rf "$TMPDIR_RUN"
+}
+trap cleanup EXIT HUP INT TERM
+
+EPOCHS=$(upstream_epochs)
+[ -n "$EPOCHS" ] || { echo "error: no epochs found in manifest" >&2; exit 1; }
+
+if [ "$WANT" != all ]; then
+    selected=$(echo "$WANT" | tr ',' ' ')
+    for e in $selected; do
+        case " $EPOCHS " in
+            *" $e "*) ;;
+            *) echo "error: epoch $e is not in the upstream manifest ($EPOCHS)" >&2
+               exit 1 ;;
+        esac
+    done
+    EPOCHS=$selected
+fi
+
+if [ "$LIST_ONLY" = yes ]; then
+    printf '%-8s %-12s %s\n' EPOCH STATUS SIZE
+    for e in $EPOCHS; do
+        d=$INBOX/git/$e.git
+        if epoch_populated "$d"; then
+            printf '%-8s %-12s %s\n' "$e" populated "$(du -sh "$d" 2>/dev/null | cut -f1)"
+        elif [ -d "$d" ]; then
+            printf '%-8s %-12s %s\n' "$e" placeholder -
+        else
+            printf '%-8s %-12s %s\n' "$e" missing -
+        fi
+    done
+    exit 0
+fi
+
+# Fresh bootstrap: register the inbox before any epoch lands in it.
+if [ ! -d "$INBOX" ]; then
+    echo "==> initialising a new v2 inbox at $INBOX"
+    if [ "$DRY_RUN" = yes ]; then
+        echo "    [dry-run] public-inbox-init -V2 $LIST_NAME $INBOX $LORE_URL/ $LIST_ADDR"
+    else
+        need_cmd public-inbox-init "install public-inbox"
+        mkdir -p "$(dirname -- "$INBOX")"
+        public-inbox-init -V2 "$LIST_NAME" "$INBOX" "$LORE_URL/" "$LIST_ADDR"
+    fi
+fi
+
+TODO=
+for e in $EPOCHS; do
+    if [ "$FORCE" = no ] && epoch_populated "$INBOX/git/$e.git"; then
+        echo "==> epoch $e already populated, skipping"
+        continue
+    fi
+    TODO="$TODO $e"
+done
+
+if [ -z "${TODO# }" ]; then
+    echo "==> nothing to clone; all requested epochs are present"
+else
+    free=$(free_gb "${INBOX%/*}")
+    if [ -n "$free" ] && [ "$free" -lt "$MIN_FREE_GB" ]; then
+        echo "error: only ${free}G free, need about ${MIN_FREE_GB}G" >&2
+        echo "       override with MIN_FREE_GB=<n> if you know better" >&2
+        exit 1
+    fi
+    echo "==> cloning epochs:${TODO} (${free:-?}G free; this takes hours)"
+fi
+
+for e in $TODO; do
+    dest=$INBOX/git/$e.git
+    if [ "$DRY_RUN" = yes ]; then
+        echo "    [dry-run] git clone --mirror $LORE_URL/$e $dest"
+        continue
+    fi
+    echo "==> cloning epoch $e from $LORE_URL/$e"
+    mkdir -p "$INBOX/git"
+    # Clone aside and move into place, so an interrupted run leaves no
+    # half-cloned epoch for public-inbox-index to choke on.
+    CLONE_TMP=$INBOX/git/.$e.git.tmp
+    rm -rf "$CLONE_TMP"
+    git clone --mirror "$LORE_URL/$e" "$CLONE_TMP"
+    rm -rf "$dest"
+    mv "$CLONE_TMP" "$dest"
+    CLONE_TMP=
+    echo "    epoch $e: $(du -sh "$dest" | cut -f1)"
+done
+
+if [ "$DO_INDEX" = no ]; then
+    echo "==> skipping index (--no-index); run: public-inbox-index $INBOX"
+    exit 0
+fi
+
+if [ "$DRY_RUN" = yes ]; then
+    echo "    [dry-run] public-inbox-index $INBOX"
+    exit 0
+fi
+
+# Incremental: only the newly cloned epochs get indexed.
+need_cmd public-inbox-index "install public-inbox"
+echo "==> indexing $INBOX (slow; Xapian does the real work here)"
+run_index
+
+echo "==> done; mirror is $(du -sh "$INBOX" | cut -f1)"
+echo "    try: $ROOT/scripts/lore-search -n 5 's:\"single-binary\"'"
+echo "    keep it fresh with: $ROOT/scripts/lore-update"
