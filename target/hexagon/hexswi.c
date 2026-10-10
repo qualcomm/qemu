@@ -821,6 +821,7 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     uint32_t gevb = arch_get_system_reg(env, HEX_SREG_GEVB);
     uint32_t old_ssr = ssr;
     uint32_t gsr = 0;
+    bool from_non_guest = !GET_SSR_FIELD(SSR_GM, ssr);
 
     /* Build GSR from current state */
     gsr = deposit32(gsr, reg_field_info[GSR_CAUSE].offset,
@@ -829,20 +830,29 @@ void guest_event_entry(CPUHexagonState *env, uint32_t cause,
                     reg_field_info[GSR_SS].width,
                     GET_SSR_FIELD(SSR_SS, ssr));
     gsr = deposit32(gsr, reg_field_info[GSR_UM].offset,
-                    reg_field_info[GSR_UM].width,
-                    !GET_SSR_FIELD(SSR_GM, ssr));
+                    reg_field_info[GSR_UM].width, from_non_guest);
     gsr = deposit32(gsr, reg_field_info[GSR_IE].offset,
                     reg_field_info[GSR_IE].width,
                     GET_FIELD(CCR_GIE, ccr));
     env->greg[HEX_GREG_GSR] = gsr;
 
-    /* SSR.SS = 0, SSR.GM = 1, SSR.UM = 0 (enter guest-kernel mode) */
+    /* SSR.SS = 0 and SSR.GM = 1 (enter Guest mode). */
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
-    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_UM, 0);
+    /* SSR.UM is preserved; Guest mode is a superset of User mode. */
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_UM,
+                     GET_SSR_FIELD(SSR_UM, ssr));
+
     hexagon_modify_ssr(env,
                        arch_get_system_reg(env, HEX_SREG_SSR),
                        old_ssr);
+
+    if (from_non_guest) {
+        target_ulong tmp = env->gpr[HEX_REG_SP];
+
+        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
+        env->greg[HEX_GREG_GOSP] = tmp;
+    }
 
     /* CCR.GIE = 0 */
     SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, 0);
@@ -914,9 +924,20 @@ void hexagon_vmrte(CPUHexagonState *env)
     /* SSR.SS = GSR.SS */
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
                      extract32(gsr, reg_field_info[GSR_SS].offset, 1));
-    /* SSR.GM = !GSR.UM */
-    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
-                     !extract32(gsr, reg_field_info[GSR_UM].offset, 1));
+    /* GSR.UM selects whether VMRTE returns to ordinary User mode. */
+    bool return_to_user = extract32(gsr, reg_field_info[GSR_UM].offset, 1);
+
+    /* Restore the mode selected by the event record. */
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, return_to_user ? 0 : 1);
+
+    if (return_to_user) {
+        target_ulong tmp = env->gpr[HEX_REG_SP];
+
+        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
+        env->greg[HEX_GREG_GOSP] = tmp;
+    }
+
+    /* The event-entry exchange is undone exactly once here. */
 
     bql_lock();
     hexagon_modify_ssr(env,

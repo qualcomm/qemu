@@ -99,7 +99,7 @@
 #define fVIRTINSN_SPSWAP(IMM, REG) \
     do { \
         uint32_t gsr_val = env->greg[HEX_GREG_GSR]; \
-        if (extract32(gsr_val, 31, 1)) { \
+        if (extract32(gsr_val, reg_field_info[GSR_UM].offset, 1)) { \
             uint32_t tmp = (REG); \
             (REG) = env->greg[HEX_GREG_GOSP]; \
             env->greg[HEX_GREG_GOSP] = tmp; \
