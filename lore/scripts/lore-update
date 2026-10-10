@@ -1,0 +1,86 @@
+#!/bin/sh
+# Incrementally fetch new qemu-devel messages and update the search index.
+# Safe to run from cron; public-inbox-fetch is a no-op when nothing is new.
+#
+# With no mirror yet (first run, or the directory went away) this hands over to
+# lore-bootstrap, which clones every epoch and indexes them -- hours and ~25 GB.
+# Pass --no-bootstrap to fail instead, which is what you want from cron.
+set -e
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+# The scripts live in <checkout>/lore; the mirror is tens of GB of cloned git
+# epochs, so it lives under <checkout>/.cache/lore, which QEMU's .gitignore
+# already covers via /.cache/ -- no ignore rule of our own to maintain.
+DATA=${EMAIL_LORE_DIR:-$(dirname -- "$ROOT")/.cache/lore}
+INBOX=${EMAIL_INBOX:-$DATA/qemu-devel}
+BOOTSTRAP=${LORE_BOOTSTRAP:-yes}
+
+usage() {
+    cat <<EOF
+Usage: lore-update [--no-bootstrap] [-h]
+
+Fetch new messages into $INBOX and reindex. If the mirror does not exist yet,
+run lore-bootstrap first (hours, ~25 GB).
+
+Options:
+  --no-bootstrap  error out instead of bootstrapping a missing mirror
+  -h, --help      this message
+
+Environment:
+  EMAIL_LORE_DIR  mirror parent dir  (default $DATA)
+  EMAIL_INBOX     mirror path  (default $INBOX)
+  LORE_BOOTSTRAP  set to "no" for the same effect as --no-bootstrap
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --no-bootstrap) BOOTSTRAP=no; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# A mirror whose epochs are all ref-less placeholders (what public-inbox-init
+# leaves behind) has nothing for public-inbox-fetch to update, so treat it the
+# same as no mirror at all.
+have_mirror() {
+    [ -d "$INBOX/git" ] || return 1
+    for d in "$INBOX"/git/*.git; do
+        [ -d "$d" ] || continue
+        [ -n "$(git -C "$d" for-each-ref --count=1 2>/dev/null)" ] && return 0
+    done
+    return 1
+}
+
+# public-inbox-index -v reports "# <done>/<total>" per checkpoint on stderr;
+# lore_progress.py turns that into a bar on a terminal and passes it through
+# verbatim everywhere else (so cron logs stay readable). Indexing must not
+# depend on the bar, so fall back to a plain run if python3 is missing.
+run_index() {
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$ROOT/scripts/lore_progress.py" --label indexing -- \
+            public-inbox-index -v "$INBOX"
+    else
+        public-inbox-index "$INBOX"
+    fi
+}
+
+if ! have_mirror; then
+    if [ "$BOOTSTRAP" = no ]; then
+        echo "error: no mirror at $INBOX -- run lore-bootstrap first" >&2
+        exit 1
+    fi
+    echo "==> no mirror at $INBOX yet; bootstrapping (hours, ~25 GB)"
+    # Bootstrap clones *and* indexes, so there is nothing left to fetch after
+    # it; exec hands over the exit status directly.
+    exec "$ROOT/scripts/lore-bootstrap"
+fi
+
+echo "==> fetching new messages into $INBOX"
+public-inbox-fetch -C "$INBOX"
+
+echo "==> updating index"
+run_index
+
+echo "==> done"
