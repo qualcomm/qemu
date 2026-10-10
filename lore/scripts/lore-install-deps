@@ -1,0 +1,85 @@
+#!/bin/sh
+# Install the tools the mirror needs: public-inbox, lei, b4.
+#
+# Separate from lore-bootstrap because this is the only step that needs root
+# and touches the system outside the checkout. Run it once, then lore-bootstrap.
+#
+# Note the two packages: `public-inbox` ships the server-side tools
+# (public-inbox-init / -index / -fetch) but NOT the lei binary, which lives in
+# its own `lei` package. Installing only the first leaves the MCP server
+# failing with "No such file or directory: 'lei'".
+set -e
+
+DRY_RUN=no
+
+usage() {
+    cat <<EOF
+Usage: lore-install-deps [--dry-run] [-h]
+
+Install public-inbox, lei and b4 (whatever is missing), then verify that every
+command the mirror needs is on PATH.
+
+Options:
+  --dry-run   print what would be installed, do nothing
+  -h, --help  this message
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --dry-run) DRY_RUN=yes; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# public-inbox-{init,index,fetch} come from public-inbox; lei from lei; b4 is
+# only needed by get_patch_series and may already be a pip install.
+MISSING=
+command -v public-inbox-index >/dev/null 2>&1 || MISSING="$MISSING public-inbox"
+command -v lei               >/dev/null 2>&1 || MISSING="$MISSING lei"
+command -v b4                >/dev/null 2>&1 || MISSING="$MISSING b4"
+
+if [ -z "${MISSING# }" ]; then
+    echo "==> nothing to do; public-inbox, lei and b4 are all installed"
+else
+    echo "==> missing:${MISSING}"
+    if [ "$DRY_RUN" = yes ]; then
+        echo "    [dry-run] apt-get install -y${MISSING}"
+    else
+        SUDO=
+        if [ "$(id -u)" -ne 0 ]; then
+            command -v sudo >/dev/null 2>&1 || {
+                echo "error: need root to install packages, and sudo is not available" >&2
+                echo "       re-run as root, or: apt-get install -y${MISSING}" >&2
+                exit 1
+            }
+            SUDO=sudo
+        fi
+        $SUDO apt-get update
+        # shellcheck disable=SC2086
+        $SUDO apt-get install -y $MISSING
+    fi
+fi
+
+[ "$DRY_RUN" = yes ] && exit 0
+
+echo "==> verifying"
+rc=0
+for cmd in git curl python3 perl public-inbox-init public-inbox-index \
+           public-inbox-fetch lei b4; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        printf '    %-20s %s\n' "$cmd" "$(command -v "$cmd")"
+    else
+        printf '    %-20s MISSING\n' "$cmd"
+        rc=1
+    fi
+done
+
+[ "$rc" -eq 0 ] || {
+    echo "error: some tools are still missing (see MISSING above)" >&2
+    exit 1
+}
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+echo "==> ready; next: $ROOT/scripts/lore-bootstrap --list"
