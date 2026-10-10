@@ -1,0 +1,67 @@
+ARG UBUNTU_VERSION="UBUNTU_VERSION_build_arg_must_be_set"
+FROM ubuntu:$UBUNTU_VERSION as build
+
+# add deb-src for apt build-dep
+RUN sed -e 's/Types: deb/Types: deb deb-src/' -i /etc/apt/sources.list.d/* || true
+RUN sed -e 's/# deb-src/deb-src/' -e '/archive.canonical.com/d' -i /etc/apt/sources.list
+# archive.canonical.com is not reachable anymore, and cause a long timeout
+RUN sed -e '/archive.canonical.com/d' -i /etc/apt/sources.list
+
+# use apt-get since apt was missing -y option in some ancient distro
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get install -y git build-essential
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get build-dep -y --arch-only qemu
+# additional dependencies that are missing at some point in history
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get install -y ninja-build flex bison
+# python3-venv didn't exist in ancient ubuntu distro
+RUN apt-get update && \
+env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv || true
+
+# patch cc and c++ to inject warning suppression options
+RUN mv /usr/bin/cc /usr/bin/cc.real
+RUN echo "#!/usr/bin/env bash" > /usr/bin/cc && \
+echo "exec /usr/bin/cc.real \"\$@\" -Wno-error -Wno-int-conversion" >> /usr/bin/cc && \
+chmod +x /usr/bin/cc
+RUN mv /usr/bin/c++ /usr/bin/c++.real
+RUN echo "#!/usr/bin/env bash" > /usr/bin/c++ && \
+echo "exec /usr/bin/c++.real \"\$@\" -Wno-error -Wno-int-conversion" >> /usr/bin/c++ && \
+chmod +x /usr/bin/c++
+
+# 2.9.0 => 3.1.0: clone git submodules from expired url, replace them with gitlab.
+# 2.9.0 => 2.11.0: issue with libfdt version, solved with dtc submodule, which
+#                  was removed later.
+ARG QEMU_VERSION
+RUN echo "QEMU_VERSION=${QEMU_VERSION:?QEMU_VERSION build arg must be set}"
+RUN cd /tmp && \
+git clone https://gitlab.com/qemu-project/qemu --depth 1 --single-branch --branch "${QEMU_VERSION}" && \
+cd qemu && \
+sed -e 's#git://git.qemu.org#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#git://git.qemu-project.org#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#https://git.qemu.org/git/#https://gitlab.com/qemu-project/#' -i .gitmodules && \
+sed -e 's#git://github.com#https://github.com#' -i .gitmodules && \
+(git submodule update --init dtc || true) && \
+./configure --prefix=/opt/qemu --disable-docs && \
+make install -j $(nproc) && \
+strip /opt/qemu/bin/* && \
+rm -rf /tmp/*
+
+# retrieve runtime dependencies (libs + loader)
+RUN ldd /opt/qemu/bin/* | grep '=>' | sed -e 's/.*=>//' -e 's/(.*//' | sort -u > /opt/qemu/libs.links
+RUN find /lib*/ld-linux* >> /opt/qemu/libs.links
+RUN cat /opt/qemu/libs.links | xargs -n1 readlink -f > /opt/qemu/libs.realpath
+# store them in /deps
+RUN mkdir /deps && cp --parents $(cat /opt/qemu/libs.*) /deps/
+
+################################################################################
+FROM scratch
+
+# copy qemu and all associated artifacts (roms, ...)
+COPY --from=build /opt/qemu /usr
+COPY --from=build /deps /
+
+# build with:
+# podman build -f release.docker --build-arg QEMU_VERSION=v11.1.0 --build-arg UBUNTU_VERSION=24.04 -t qemu/v11.1.0
+# run with:
+# podman run -it --rm qemu/v11.1.0 qemu-system-aarch64 --version
