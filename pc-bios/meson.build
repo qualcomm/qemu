@@ -78,6 +78,7 @@ blobs = [
   'hexagon_loadlinux_v68',
   'hexagon_loadlinux_v73',
   'hexagon_loadlinux_v81',
+  'hexagon_loadlinux_qcs6490_cdsp',
   'booter_v68',
   'booter_v73',
   'booter_v81',

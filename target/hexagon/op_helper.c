@@ -90,17 +90,19 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     /*
      * Per section 7.3.1 of the V67 Programmer's Reference,
      * stack limit exception isn't raised in monitor mode.
-     * Monitor mode is: SSR.EX=1, or SSR.EX=0 && SSR.UM=0.
+     * Guest-kernel mode has SSR.GM=1 and SSR.UM=0.
      */
     CPUState *cs = env_cpu(env);
     uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
 
-    if (GET_SSR_FIELD(SSR_EX, ssr) || !GET_SSR_FIELD(SSR_UM, ssr)) {
+    if (GET_SSR_FIELD(SSR_EX, ssr) ||
+        (!GET_SSR_FIELD(SSR_UM, ssr) && !GET_SSR_FIELD(SSR_GM, ssr))) {
         return;
     }
 
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
+    arch_set_system_reg(env, HEX_SREG_BADVA, badva);
 
     if (slot == 0) {
         arch_set_system_reg(env, HEX_SREG_BADVA0, badva);

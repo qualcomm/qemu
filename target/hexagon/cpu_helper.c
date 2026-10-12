@@ -669,6 +669,9 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
+
+    BQL_LOCK_GUARD();
+
     CPU_FOREACH(cs) {
         CPUHexagonState *env = cpu_env(cs);
         if (!(mask & (0x1 << env->threadId))) {
@@ -676,6 +679,12 @@ void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
         }
 
         if (current_env->threadId != env->threadId) {
+            /*
+             * The enable bit is set when the start instruction retires, not
+             * when the thread gets around to running: software reads MODECTL
+             * right after start to learn which threads it has.
+             */
+            set_enable_mask(env);
             async_safe_run_on_cpu(cs, do_start_thread, RUN_ON_CPU_NULL);
         }
     }

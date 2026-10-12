@@ -467,6 +467,25 @@ void hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index, uint64_t value,
     tlb->entries[wrapped_index] = value;
 }
 
+/*
+ * Continue the walk that hexagon_tlb_find_match() stopped at, looking for a
+ * second mapping of the same VA in entries [@first, @last).  The JTLB and the
+ * DMA TLB are separate structures -- an entry in each covering the same VA is
+ * a normal configuration, not a multi-match -- so the caller only ever scans
+ * the set its own match came from, as hex_tlb_lookup_by_asid() does.
+ */
+static bool hex_tlb_second_match(HexagonTLBState *tlb, uint8_t asid,
+                                 target_ulong VA, int first, int last,
+                                 bool dma)
+{
+    for (int i = first; i < last; i++) {
+        if (hex_tlb_entry_match_noperm(tlb->entries[i], asid, VA, dma)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
                             target_ulong VA, MMUAccessType access_type,
                             hwaddr *PA, int *prot, uint64_t *size,
@@ -489,6 +508,12 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match(entry, asid, VA, access_type, PA, prot,
                                 size, excp, cause_code, mmu_idx, false)) {
+            if (*excp == 0 &&
+                hex_tlb_second_match(tlb, asid, VA, i + 1, tlb->num_entries,
+                                     false)) {
+                *excp = HEX_EVENT_IMPRECISE;
+                *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+            }
             return true;
         }
     }
@@ -498,6 +523,13 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint8_t asid,
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match(entry, asid, VA, access_type, PA, prot,
                                 size, excp, cause_code, mmu_idx, true)) {
+            if (*excp == 0 &&
+                hex_tlb_second_match(tlb, asid, VA, i + 1,
+                                     DMA_TLB_OFFSET + tlb->dma_entries,
+                                     true)) {
+                *excp = HEX_EVENT_IMPRECISE;
+                *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+            }
             return true;
         }
     }
