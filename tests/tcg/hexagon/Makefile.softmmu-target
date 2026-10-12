@@ -68,6 +68,7 @@ QEMU_OPTS+=$(QEMU_BASE_MACHINE) -kernel
 TESTS += \
 	standalone_hw \
 	tlb-miss-tlblock \
+	pagecross-tlbmissx \
 	sysreg-tb-end \
 	$()
 
@@ -103,8 +104,9 @@ run-sysreg-tb-end: sysreg-tb-end
 		grep -q '^PASS' $<.uart, \
 		TEST, $< via UART)
 
-# tlb-miss-tlblock uses its own entry point and memory layout
-tlb-miss-tlblock: tlb-miss-tlblock.o
+# These use their own entry point and memory layout
+tlb-miss-tlblock pagecross-tlbmissx: %: %.o
 	$(CC) $(CFLAGS) $< -o $@ \
+		--ld-path=hexagon-unknown-none-elf-ld.lld \
 		-nostartfiles -nodefaultlibs \
 		-Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
