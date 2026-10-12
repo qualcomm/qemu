@@ -2950,12 +2950,24 @@ void ufs_class_init_common(DeviceClass *dc)
     dc->vmsd = &ufs_vmstate;
 }
 
+static void ufs_sysbus_reset(DeviceState *dev)
+{
+    UfsHc *u = UFS_SYSBUS(dev);
+
+    ufs_hce_reset(u);
+    /* ufs_init_hc() re-initialises and re-arms the idle timer */
+    timer_del(&u->idle_timer);
+    ufs_init_hc(u, false);
+    ufs_irq_check(u);
+}
+
 static void ufs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ufs_realize_sysbus;
     dc->unrealize = ufs_exit_sysbus;
+    device_class_set_legacy_reset(dc, ufs_sysbus_reset);
 
     ufs_class_init_common(dc);
 }
