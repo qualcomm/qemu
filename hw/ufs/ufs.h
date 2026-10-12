@@ -202,6 +202,9 @@ typedef struct UfsHc {
     /* Memory region that DMA operation access in sysbus device*/
     MemoryRegion *mem_mr;
     AddressSpace *mem_as;
+    /* Optional DMA target */
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
