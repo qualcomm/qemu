@@ -2643,8 +2643,14 @@ static void ufs_init_sysbus(DeviceState *dev)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &u->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &u->irq);
 
-    u->mem_as = &address_space_memory;
-    u->mem_mr = get_system_memory();
+    if (u->dma_mr) {
+        address_space_init(&u->dma_as, u->dma_mr, "ufs-dma");
+        u->mem_as = &u->dma_as;
+        u->mem_mr = u->dma_mr;
+    } else {
+        u->mem_as = &address_space_memory;
+        u->mem_mr = get_system_memory();
+    }
 /**
  * FIXME: disbale io memory reentrancy guard for now to prevent this sporadic
  * warning "libqbox: warning: Blocked re-entrant IO on MemoryRegion: ufs-sysbus
@@ -2914,6 +2920,9 @@ static void ufs_exit_sysbus(DeviceState *dev)
     UfsHc *u = UFS_SYSBUS(dev);
 
     ufs_exit_common(u);
+    if (u->dma_mr) {
+        address_space_destroy(&u->dma_as);
+    }
 }
 
 static const Property ufs_props[] = {
@@ -2925,6 +2934,7 @@ static const Property ufs_props[] = {
     DEFINE_PROP_UINT32("wb-max-size", UfsHc, params.wb_max_size, 0x400),
     DEFINE_PROP_UINT32("wb-min-size", UfsHc, params.wb_min_size, 0x100),
     DEFINE_PROP_UINT32("mmio-size", UfsHc, sysbus_mmio_size, 0),
+    DEFINE_PROP_LINK("dma", UfsHc, dma_mr, TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static const VMStateDescription ufs_vmstate = {
