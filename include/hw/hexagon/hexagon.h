@@ -23,6 +23,7 @@ typedef enum {
     v66_rev = 0xa666,
     v67_rev = 0x2667,
     v68_rev = 0x8d68,
+    v68_qcs6490_rev = 0x8a68,
     v69_rev = 0x8c69,
     v71_rev = 0x8c71,
     v73_rev = 0x8c73,
@@ -149,6 +150,8 @@ typedef  union {
 } hexagon_config_table;
 
 typedef struct {
+    /* Base address of the main DDR region (0 unless the SoC maps it higher) */
+    uint32_t ddr_base;
     /* Base address of config table */
     uint32_t cfgbase;
     /* Size of L2 TCM */

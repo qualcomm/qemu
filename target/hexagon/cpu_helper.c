@@ -428,8 +428,13 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
      * This handles the case where an interrupt arrived while the
      * thread was running with GIE=0 and couldn't be delivered,
      * but now in WAIT mode it can be.
+     *
+     * Only bail when the pending interrupt is actually assigned to
+     * this thread (IMASK=0, IAD=0).  Interrupts routed to another
+     * thread via iassignw have IMASK=1 here and must not prevent
+     * this thread from entering WAIT/halted state.
      */
-    if (arch_get_system_reg(env, HEX_SREG_IPEND) != 0) {
+    if (hex_has_unmasked_pending(env)) {
         cpu_interrupt(cs, CPU_INTERRUPT_SWI);
         return;
     }
@@ -669,6 +674,9 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
+
+    BQL_LOCK_GUARD();
+
     CPU_FOREACH(cs) {
         CPUHexagonState *env = cpu_env(cs);
         if (!(mask & (0x1 << env->threadId))) {
@@ -676,6 +684,12 @@ void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
         }
 
         if (current_env->threadId != env->threadId) {
+            /*
+             * The enable bit is set when the start instruction retires, not
+             * when the thread gets around to running: software reads MODECTL
+             * right after start to learn which threads it has.
+             */
+            set_enable_mask(env);
             async_safe_run_on_cpu(cs, do_start_thread, RUN_ON_CPU_NULL);
         }
     }

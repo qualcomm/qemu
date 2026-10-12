@@ -99,6 +99,31 @@ static bool get_imask_bit(CPUHexagonState *env, int int_num)
     return extract32(imask, int_num, 1);
 }
 
+/*
+ * Returns true if any pending interrupt could be delivered to (or wake)
+ * this thread: IPEND[i]=1, IAD[i]=0, and IMASK[i]=0 for this thread.
+ *
+ * IPEND and IAD are global registers (shared across all threads); IMASK
+ * is per-thread and is set by iassignw to route each interrupt to exactly
+ * one thread.  Idle threads 2-7 have IMASK=1 for interrupts assigned to
+ * thread 0 and must not be woken up or kept spinning on their behalf.
+ */
+bool hex_has_unmasked_pending(CPUHexagonState *env)
+{
+    uint32_t ipend = get_ipend(env);
+    if (!ipend) {
+        return false;
+    }
+    for (int i = 0; i < 32; i++) {
+        if ((ipend >> i) & 1) {
+            if (!get_iad_bit(env, i) && !get_imask_bit(env, i)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static uint32_t get_prio(CPUHexagonState *env)
 {
     target_ulong stid = arch_get_system_reg(env, HEX_SREG_STID);
@@ -328,21 +353,29 @@ bool hex_check_interrupts(CPUHexagonState *env)
          * the interrupt cannot be dispatched (e.g. GIE=0).  The thread
          * resumes execution at the instruction after WAIT without
          * taking the exception.
+         *
+         * Only wake if at least one pending interrupt is actually
+         * directed at this thread (IPEND=1, IAD=0, IMASK=0 for this
+         * thread).  Interrupts assigned to another thread via iassignw
+         * have IMASK=1 here and must not prevent this thread from
+         * staying halted.
          */
-        if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+        if (get_exe_mode(env) == HEX_EXE_MODE_WAIT &&
+            hex_has_unmasked_pending(env)) {
             env->gpr[HEX_REG_PC] = env->wait_next_pc;
             clear_wait_mode(env);
             cs->halted = false;
         }
 
         /*
-         * Keep CPU_INTERRUPT_SWI armed while IPEND has bits set.
-         * In MTTCG, a temporary condition (GIE=0 during a scheduler
-         * critical section) can block delivery.  By retaining the
-         * interrupt request, the thread re-checks on each TB boundary
-         * and delivers as soon as the condition clears (GIE=1).
-         * Without this, all threads drop their interrupt_request while
-         * GIE=0, causing permanent deadlock.
+         * Keep CPU_INTERRUPT_SWI armed only while this thread has an
+         * unmasked interrupt pending.  Previously the condition was
+         * simply "IPEND != 0", which broadcast the SWI to every thread
+         * even when the pending interrupt was assigned to a different
+         * thread (IMASK=1).  Under icount that caused idle threads to
+         * spin instead of halting, burning virtual-time budget and
+         * starving the thread that owns the interrupt by ~62 ms per
+         * timer tick.
          *
          * A thread stalled on a lock (k0lock/tlblock) is the exception:
          * it cannot service interrupts and must stay halted until the
@@ -351,7 +384,7 @@ bool hex_check_interrupts(CPUHexagonState *env)
          * CPU_INTERRUPT_HARD if the woken thread still has pending
          * interrupts, so nothing is lost.
          */
-        if (get_ipend(env) == 0 || should_not_exec(env)) {
+        if (!hex_has_unmasked_pending(env) || should_not_exec(env)) {
             restore_state(env, false);
         }
     } else if (!int_handled && ssr_ex) {

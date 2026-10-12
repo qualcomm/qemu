@@ -1261,21 +1261,18 @@ static void update_exec_counters(DisasContext *ctx)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void check_imprecise_exception(Packet *pkt)
+/*
+ * A tlbp instruction or an ordinary translation may detect multiple TLB
+ * matches and set a pending imprecise exception.  Raise it after the packet.
+ */
+static void check_imprecise_exception(DisasContext *ctx)
 {
-    for (int i = 0; i < pkt->num_insns; i++) {
-        Insn *insn = &pkt->insn[i];
-        if (insn->opcode == Y2_tlbp) {
-            TCGv PC = tcg_constant_tl(pkt->pc);
-            TCGLabel *label = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception,
-                               0, label);
-            gen_helper_raise_exception(tcg_env,
-                                       hex_imprecise_exception, PC);
-            gen_set_label(label);
-            return;
-        }
-    }
+    TCGv PC = tcg_constant_tl(ctx->pkt.pc);
+    TCGLabel *label = gen_new_label();
+
+    tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception, 0, label);
+    gen_helper_raise_exception(tcg_env, hex_imprecise_exception, PC);
+    gen_set_label(label);
 }
 #endif
 
@@ -1384,7 +1381,7 @@ static void gen_commit_packet(DisasContext *ctx)
     }
 
 #ifndef CONFIG_USER_ONLY
-    check_imprecise_exception(&ctx->pkt);
+    check_imprecise_exception(ctx);
 #endif
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
@@ -1488,17 +1485,31 @@ static void hexagon_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     tcg_gen_insn_start(ctx->base.pc_next, 0, 0);
 }
 
+/*
+ * Look ahead at the packet starting at ctx->base.pc_next to find out whether
+ * it reaches the end of the page.  If it does, the caller ends the TB here so
+ * that the packet is translated as the first packet of the next TB.
+ *
+ * This must not fetch beyond the end of the page.  A fetch fault raised here
+ * would be reported with ELR pointing at the first packet of the current TB
+ * rather than at the packet that straddles the boundary, and the TLB miss
+ * handler would then fill in the wrong page and fault forever.  Not fetching
+ * the word costs us nothing: a packet that has not ended by the last word of
+ * the page necessarily continues into the next one.
+ */
 static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
 {
     target_ulong page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
+    target_ulong page_end = page_start + TARGET_PAGE_SIZE;
     bool found_end = false;
     int nwords;
 
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
-        uint32_t word = translator_ldl_end(env, &ctx->base,
-                                           ctx->base.pc_next
-                                           + nwords * sizeof(uint32_t),
-                                           MO_LE);
+        target_ulong addr = ctx->base.pc_next + nwords * sizeof(uint32_t);
+        if (addr >= page_end) {
+            return true;
+        }
+        uint32_t word = translator_ldl_end(env, &ctx->base, addr, MO_LE);
         found_end = is_packet_end(word);
     }
     uint32_t next_ptr =  ctx->base.pc_next + nwords * sizeof(uint32_t);

@@ -97,9 +97,21 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
         uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
         uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
         int32_t cause_code = 0;
-        bool result = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
-                                             PA, prot, size, excp, &cause_code,
-                                             mmu_idx);
+        bool result;
+
+        env->imprecise_exception = 0;
+        result = hexagon_tlb_find_match(cpu->tlb, asid, VA, access_type,
+                                        PA, prot, size, excp, &cause_code,
+                                        mmu_idx);
+        /*
+         * A multi-TLB match is imprecise: keep the first entry's translation
+         * for this access and leave the exception pending for the end of the
+         * packet, rather than failing the fill as a precise fault.
+         */
+        if (*excp == HEX_EVENT_IMPRECISE) {
+            env->imprecise_exception = *excp;
+            *excp = 0;
+        }
         if (cause_code) {
             env->cause_code = cause_code;
         }

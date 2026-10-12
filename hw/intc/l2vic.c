@@ -158,11 +158,21 @@ static bool l2vic_update(L2VICState *s, int irq)
     return false;
 }
 
+/*
+ * Deliver the lowest-numbered pending, enabled irq, unless a vid is already
+ * active: once it is, no-one else can set it until ciad.  Scanning a word at
+ * a time matters, since this runs on every L2VIC write and every ciad.
+ */
 static void l2vic_update_all(L2VICState *s)
 {
-    for (int i = 0; i < L2VIC_INTERRUPT_MAX; i++) {
-        if (l2vic_update(s, i)) {
-            /* once vid is active, no-one else can set it until ciad */
+    if (vid_active(s)) {
+        return;
+    }
+    for (int i = 0; i < SLICE_MAX; i++) {
+        uint32_t ready = s->int_pending[i] & s->int_enable[i];
+
+        if (ready) {
+            l2vic_update(s, i * 32 + ctz32(ready));
             return;
         }
     }

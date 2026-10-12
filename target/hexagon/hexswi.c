@@ -1177,6 +1177,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_IMPRECISE:
+        env->imprecise_exception = 0;
         /*
          * Imprecise events (NMI) can be delivered to a thread in WAIT
          * mode.  Clear WAIT and adjust PC so set_addresses computes

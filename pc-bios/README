@@ -114,3 +114,19 @@
   roms/README.hexagon-loadlinux for details. The H2 hypervisor is
   distributed under the 3-clause BSD license (SPDX: BSD-3-Clause), see
   roms/hexagon-hypervisor/LICENSE.txt.
+
+- hexagon_loadlinux_qcs6490_cdsp is the firmware image for the hexagon
+  qcs6490-cdsp machine when booting Linux
+  (-bios hexagon_loadlinux_qcs6490_cdsp -kernel vmlinux). It is the same
+  "loadlinux" bootloader, built for Hexagon v68 and the QCS6490 CDSP memory
+  layout: the hypervisor is linked at physical address 0x88f00000, where the
+  board's CDSP firmware puts it, and it jumps to a Linux kernel loaded at
+  physical address 0xa1000000, passing the device tree address in r1:0. It
+  gives the kernel a virtual CPU for each running hardware thread and lets
+  it enable its coprocessors. It was built from h2 commit 51a0c10d (branch
+  bcain/qemu_boot) with
+  "make USE_PKW=0 ARCHV=68 TARGET=opt NULL_ANGEL_TRAP=1
+  SHUTDOWN_AFTER_GUEST_EXIT=1 H2K_LOAD_ADDR=0x88f00000" followed by
+  "make -C linux ... NO_LOAD=1 LINUX_LINK_ADDR=0xa1000000 loadlinux".
+  The H2 hypervisor is distributed under the 3-clause BSD license
+  (SPDX: BSD-3-Clause).
