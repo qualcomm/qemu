@@ -216,18 +216,10 @@ void hexagon_write_memory_block(CPUHexagonState *env, target_ulong addr,
     while (byte_count > 0) {
         unsigned copy_byte_count = (bytes_left_in_page > byte_count) ?
              byte_count : bytes_left_in_page;
-        unsigned char *host_addr = (unsigned char *)probe_write(
-            env, addr, copy_byte_count, mmu_idx, CPU_MEMOP_PC(env));
 
         byte_count -= copy_byte_count;
-        if (host_addr) {
-            memcpy(host_addr, srcbuf, copy_byte_count);
-            addr += copy_byte_count;
-            srcbuf += copy_byte_count;
-        } else {
-            while (copy_byte_count-- > 0) {
-                cpu_stb_mmuidx_ra(env, addr++, *srcbuf++, mmu_idx, CPU_MEMOP_PC(env));
-            }
+        while (copy_byte_count-- > 0) {
+            cpu_stb_mmuidx_ra(env, addr++, *srcbuf++, mmu_idx, CPU_MEMOP_PC(env));
         }
         bytes_left_in_page = BYTES_LEFT_IN_PAGE(addr);
     }

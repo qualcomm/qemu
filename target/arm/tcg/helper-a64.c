@@ -834,6 +834,21 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
     set_helper_retaddr(ra);
     memset(mem, 0, blocklen);
     clear_helper_retaddr();
+
+    /*
+     * The memset above bypasses softMMU write hooks (dirty tracking,
+     * memory-region callbacks, cross-initiator DMI invalidation).  In a
+     * multi-initiator setup like qbox, another vCPU reading the same
+     * host-physical page via its own DMI alias may observe stale bytes if
+     * softMMU didn't register the write.  Re-emit zero through softMMU for
+     * every block byte so the dirty bookkeeping and MR write callback fire
+     * on every page we touched.  Semantically a no-op (bytes are already
+     * zero in host memory); needed only for cross-initiator correctness.
+     * Mirrors the Hexagon fix in commit_hvx_stores' fast path.
+     */
+    for (int i = 0; i < blocklen; i++) {
+        cpu_stb_mmuidx_ra(env, vaddr + i, 0, mmu_idx, ra);
+    }
 }
 
 void HELPER(arm_unaligned_access)(CPUARMState *env, uint64_t addr,
@@ -985,6 +1000,16 @@ static uint64_t set_step(CPUARMState *env, uint64_t toaddr,
     set_helper_retaddr(ra);
     memset(mem, data, setsize);
     clear_helper_retaddr();
+    /*
+     * Re-emit through softMMU so dirty tracking, memory-region write
+     * callbacks, and cross-initiator DMI invalidation (qbox) all fire for
+     * the just-written bytes.  Semantically a no-op since the memset
+     * already placed `data` in host memory.  Mirrors the same correctness
+     * fix in the Hexagon target.
+     */
+    for (uint64_t k = 0; k < setsize; k++) {
+        cpu_stb_mmuidx_ra(env, toaddr + k, data, memidx, ra);
+    }
     return setsize;
 }
 
@@ -1031,6 +1056,15 @@ static uint64_t set_step_tags(CPUARMState *env, uint64_t toaddr,
     memset(mem, data, setsize);
     clear_helper_retaddr();
     mte_mops_set_tags(env, toaddr, setsize, *mtedesc);
+    /*
+     * Re-emit through softMMU so dirty tracking, memory-region write
+     * callbacks, and cross-initiator DMI invalidation (qbox) all fire for
+     * the just-written bytes.  Mirrors the same correctness fix in the
+     * Hexagon target.
+     */
+    for (uint64_t k = 0; k < setsize; k++) {
+        cpu_stb_mmuidx_ra(env, toaddr + k, data, memidx, ra);
+    }
     return setsize;
 }
 
@@ -1356,6 +1390,8 @@ static uint64_t copy_step(CPUARMState *env, uint64_t toaddr, uint64_t fromaddr,
         }
         if (wmem) {
             *(uint8_t *)wmem = byte;
+            /* softMMU re-emit for cross-initiator correctness */
+            cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
         } else {
             cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
         }
@@ -1366,6 +1402,15 @@ static uint64_t copy_step(CPUARMState *env, uint64_t toaddr, uint64_t fromaddr,
     set_helper_retaddr(ra);
     memmove(wmem, rmem, copysize);
     clear_helper_retaddr();
+    /*
+     * Re-emit the destination bytes through softMMU so dirty tracking,
+     * memory-region write callbacks, and cross-initiator DMI invalidation
+     * (qbox) all fire.  Read back from host memory (now the destination,
+     * since the memmove completed) to avoid an extra softMMU load.
+     */
+    for (uint64_t k = 0; k < copysize; k++) {
+        cpu_stb_mmuidx_ra(env, toaddr + k, ((uint8_t *)wmem)[k], wmemidx, ra);
+    }
     return copysize;
 }
 
@@ -1430,6 +1475,8 @@ static uint64_t copy_step_rev(CPUARMState *env, uint64_t toaddr,
         }
         if (wmem) {
             *(uint8_t *)wmem = byte;
+            /* softMMU re-emit for cross-initiator correctness */
+            cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
         } else {
             cpu_stb_mmuidx_ra(env, toaddr, byte, wmemidx, ra);
         }
@@ -1443,6 +1490,18 @@ static uint64_t copy_step_rev(CPUARMState *env, uint64_t toaddr,
     set_helper_retaddr(ra);
     memmove(wmem - (copysize - 1), rmem - (copysize - 1), copysize);
     clear_helper_retaddr();
+    /*
+     * Re-emit the destination bytes through softMMU so dirty tracking,
+     * memory-region write callbacks, and cross-initiator DMI invalidation
+     * (qbox) all fire.  toaddr points at the last byte copied; walk back.
+     */
+    {
+        uint8_t *wbase = (uint8_t *)wmem - (copysize - 1);
+        for (uint64_t k = 0; k < copysize; k++) {
+            cpu_stb_mmuidx_ra(env, toaddr - (copysize - 1) + k,
+                              wbase[k], wmemidx, ra);
+        }
+    }
     return copysize;
 }
 
