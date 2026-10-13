@@ -194,7 +194,7 @@ static bool trans_fadd_d(DisasContext *ctx, arg_fadd_d *a)
     TCGv_i64 src2 = get_fpr_d(ctx, a->rs2);
 
     gen_set_rm(ctx, a->rm);
-    gen_helper_fadd_d(dest, tcg_env, src1, src2);
+    gen_helper_riscv_fadd_d(dest, tcg_env, src1, src2);
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
     return true;
@@ -211,7 +211,7 @@ static bool trans_fsub_d(DisasContext *ctx, arg_fsub_d *a)
     TCGv_i64 src2 = get_fpr_d(ctx, a->rs2);
 
     gen_set_rm(ctx, a->rm);
-    gen_helper_fsub_d(dest, tcg_env, src1, src2);
+    gen_helper_riscv_fsub_d(dest, tcg_env, src1, src2);
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
     return true;
@@ -245,7 +245,7 @@ static bool trans_fdiv_d(DisasContext *ctx, arg_fdiv_d *a)
     TCGv_i64 src2 = get_fpr_d(ctx, a->rs2);
 
     gen_set_rm(ctx, a->rm);
-    gen_helper_fdiv_d(dest, tcg_env, src1, src2);
+    gen_helper_riscv_fdiv_d(dest, tcg_env, src1, src2);
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
     return true;
@@ -261,7 +261,7 @@ static bool trans_fsqrt_d(DisasContext *ctx, arg_fsqrt_d *a)
     TCGv_i64 src1 = get_fpr_d(ctx, a->rs1);
 
     gen_set_rm(ctx, a->rm);
-    gen_helper_fsqrt_d(dest, tcg_env, src1);
+    gen_helper_riscv_fsqrt_d(dest, tcg_env, src1);
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
     return true;
