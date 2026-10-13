@@ -260,6 +260,7 @@ void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
     uint32_t pagelen = TARGET_PAGE_SIZE;
     uint32_t addr = page_start(start_addr);
+    length += start_addr - addr; /* adjust length to include the first page */
 
     while (length > 0) {
         uint32_t cur_len = MIN(length, pagelen);
