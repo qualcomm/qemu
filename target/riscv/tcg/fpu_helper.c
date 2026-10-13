@@ -230,14 +230,14 @@ uint64_t helper_fnmadd_h(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
                       float_muladd_negate_c | float_muladd_negate_product);
 }
 
-uint64_t helper_fadd_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+uint64_t helper_riscv_fadd_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
     return nanbox_s(env, float32_add(frs1, frs2, &env->fp_status));
 }
 
-uint64_t helper_fsub_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+uint64_t helper_riscv_fsub_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
@@ -251,7 +251,7 @@ uint64_t helper_fmul_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_s(env, float32_mul(frs1, frs2, &env->fp_status));
 }
 
-uint64_t helper_fdiv_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+uint64_t helper_riscv_fdiv_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
@@ -292,7 +292,7 @@ uint64_t helper_fmaxm_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_s(env, ret);
 }
 
-uint64_t helper_fsqrt_s(CPURISCVState *env, uint64_t rs1)
+uint64_t helper_riscv_fsqrt_s(CPURISCVState *env, uint64_t rs1)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     return nanbox_s(env, float32_sqrt(frs1, &env->fp_status));
@@ -434,12 +434,12 @@ uint64_t helper_froundnx_s(CPURISCVState *env, uint64_t rs1)
     return nanbox_s(env, frs1);
 }
 
-uint64_t helper_fadd_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+uint64_t helper_riscv_fadd_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_add(frs1, frs2, &env->fp_status);
 }
 
-uint64_t helper_fsub_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+uint64_t helper_riscv_fsub_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_sub(frs1, frs2, &env->fp_status);
 }
@@ -449,7 +449,7 @@ uint64_t helper_fmul_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
     return float64_mul(frs1, frs2, &env->fp_status);
 }
 
-uint64_t helper_fdiv_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+uint64_t helper_riscv_fdiv_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_div(frs1, frs2, &env->fp_status);
 }
@@ -489,7 +489,7 @@ uint64_t helper_fcvt_d_s(CPURISCVState *env, uint64_t rs1)
     return float32_to_float64(frs1, &env->fp_status);
 }
 
-uint64_t helper_fsqrt_d(CPURISCVState *env, uint64_t frs1)
+uint64_t helper_riscv_fsqrt_d(CPURISCVState *env, uint64_t frs1)
 {
     return float64_sqrt(frs1, &env->fp_status);
 }
