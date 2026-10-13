@@ -4293,6 +4293,7 @@ multi_target_supported_targets = [
   'm68k-softmmu',
   'microblaze-softmmu',
   'or1k-softmmu',
+  'riscv64-softmmu',
   'rx-softmmu',
   'tricore-softmmu',
 ]
