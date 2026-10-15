@@ -40,6 +40,13 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h)
     return g_intern_static_string("Invalid");
 }
 
+/* vCPU run state. User mode has no machine to stop, so no global pause. */
+
+bool qemu_plugin_vcpus_globally_paused(void)
+{
+    return false;
+}
+
 /*
  * Time control - for user mode the only real time is wall clock time
  * so realistically all you can do in user mode is slow down execution
