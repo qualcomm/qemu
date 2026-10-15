@@ -252,6 +252,8 @@ bool s390_cpu_has_work(CPUState *cs);
 
 int s390_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
                        const GuestPhysBlockList *guest_phys_blocks);
+ssize_t s390_get_note_size(const CPUState *cs, int class, int machine,
+                           int nr_cpus);
 #endif /* CONFIG_USER_ONLY */
 
 

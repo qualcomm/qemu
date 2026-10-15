@@ -469,7 +469,8 @@ int s390_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
     return 0;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+ssize_t s390_get_note_size(const CPUState *cs, int class, int machine,
+                           int nr_cpus)
 {
     int name_size = 8; /* "LINUX" or "CORE" + pad */
     size_t elf_note_size = 0;
@@ -494,4 +495,9 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     }
 
     return (elf_note_size) * nr_cpus;
+}
+
+ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    return s390_get_note_size(first_cpu, class, machine, nr_cpus);
 }
