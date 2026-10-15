@@ -32,6 +32,7 @@
 #include "migration/blocker.h"
 #include "migration/misc.h"
 #include "hw/core/cpu.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #include "win_dump.h"
 #include "qemu/range.h"
 
@@ -1793,7 +1794,6 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     VMCoreInfoState *vmci = vmcoreinfo_find();
     CPUState *cpu;
     int nr_cpus;
-    int ret;
 
     if (target_heterogeneous()) {
         error_setg(errp,
@@ -1858,12 +1858,16 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         goto cleanup;
     }
 
-    /* get dump info: endian, class and architecture.
-     * If the target architecture is not supported, cpu_get_dump_info() will
-     * return -1.
+    /*
+     * get dump info: endian, class and architecture.
+     * If the cpu does not support dumping this information, get_dump_info
+     * returns -1.
      */
-    ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
-    if (ret < 0) {
+    const SysemuCPUOps *sysemu_ops =
+        first_cpu ? CPU_GET_CLASS(first_cpu)->sysemu_ops : NULL;
+    if (!sysemu_ops || !sysemu_ops->get_dump_info ||
+        sysemu_ops->get_dump_info(first_cpu, &s->dump_info,
+                                  &s->guest_phys_blocks) < 0) {
         error_setg(errp,
                    "dumping guest memory is not supported on this target");
         goto cleanup;
