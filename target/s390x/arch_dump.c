@@ -449,8 +449,8 @@ static void arch_cleanup(DumpState *s)
     }
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
-                      const struct GuestPhysBlockList *guest_phys_blocks)
+int s390_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
+                       const GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_S390;
     info->d_endian = ELFDATA2MSB;
@@ -467,6 +467,12 @@ int cpu_get_dump_info(ArchDumpInfo *info,
         info->arch_cleanup_fn = *arch_cleanup;
     }
     return 0;
+}
+
+int cpu_get_dump_info(ArchDumpInfo *info,
+                      const struct GuestPhysBlockList *guest_phys_blocks)
+{
+    return s390_get_dump_info(first_cpu, info, guest_phys_blocks);
 }
 
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
