@@ -399,14 +399,34 @@ void qemu_plugin_cpu_request_pause(unsigned int vcpu_index)
     CPUState *cpu = qemu_get_cpu(vcpu_index);
     g_assert(cpu);
     cpu->stop = true;
-    qemu_cpu_kick(cpu);
+    /*
+     * cpu_exit() rather than a bare kick, matching cpu_pause(): a kick only
+     * reaches an already idle vCPU, not one busy in translated code.
+     */
+    cpu_exit(cpu);
 }
 
-void qemu_plugin_cpu_resume(unsigned int vcpu_index)
+static void resume_cpu(CPUState *cpu, run_on_cpu_data d)
+{
+    /*
+     * A resume clears cpu->stop whoever set it, so one issued during a global
+     * pause would undo it. Dropping it is safe: resume_all_vcpus() restarts us.
+     */
+    if (qemu_plugin_vcpus_globally_paused()) {
+        return;
+    }
+    cpu_resume(cpu);
+}
+
+/*
+ * cpu_resume() clears fields owned by the vCPU thread, so the clear runs as
+ * work on the target. Caller holds the BQL: the kick is a bare broadcast.
+ */
+void qemu_plugin_cpu_request_resume(unsigned int vcpu_index)
 {
     CPUState *cpu = qemu_get_cpu(vcpu_index);
     g_assert(cpu);
-    cpu_resume(cpu);
+    async_run_on_cpu(cpu, resume_cpu, RUN_ON_CPU_NULL);
 }
 
 bool qemu_plugin_cpu_stop(unsigned int vcpu_index)

@@ -1045,20 +1045,26 @@ QEMU_PLUGIN_API
 int qemu_plugin_num_vcpus(void);
 
 /**
- * Pause execution of a specific virtual CPU.
+ * Request that a specific virtual CPU pause.
  *
  * @vcpu_index: Index of the vCPU to pause.
+ *
+ * A request, not a synchronous pause: the vCPU acknowledges it on its own
+ * thread, after which qemu_plugin_cpu_stopped() reports true.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_cpu_request_pause(unsigned int vcpu_index);
 
 /**
- * Resume execution of a specific virtual CPU.
+ * Request that a specific virtual CPU resume.
  *
  * @vcpu_index: Index of the vCPU to resume.
+ *
+ * Safe to call from any thread; the clear is queued as work on the target's
+ * own thread. The caller must hold the BQL, the kick being a bare broadcast.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_cpu_resume(unsigned int vcpu_index);
+void qemu_plugin_cpu_request_resume(unsigned int vcpu_index);
 
 /**
  * Acquire the Big QEMU Lock (BQL).
