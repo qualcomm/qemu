@@ -1428,6 +1428,30 @@ QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
 
 /**
+ * qemu_plugin_cpu_stop() - is this vCPU pause-requested (cpu->stop)?
+ * @vcpu_index: the vCPU to query
+ *
+ * Reports the flag, not who set it: a plugin's own pauses and the reset and
+ * vm-stop paths all set it. See qemu_plugin_vcpus_globally_paused().
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_stop(unsigned int vcpu_index);
+
+/**
+ * qemu_plugin_cpu_stopped() - is this vCPU already paused (cpu->stopped)?
+ * @vcpu_index: the vCPU to query
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_stopped(unsigned int vcpu_index);
+
+/**
+ * qemu_plugin_cpu_halted() - is this vCPU halted (cpu->halted, WFI/WFE/off)?
+ * @vcpu_index: the vCPU to query
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_cpu_halted(unsigned int vcpu_index);
+
+/**
  * qemu_plugin_vcpus_globally_paused() - is a system-wide vCPU pause in effect?
  *
  * True between a pause_all_vcpus() and its pairing resume_all_vcpus(). A

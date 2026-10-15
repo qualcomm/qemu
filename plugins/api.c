@@ -409,6 +409,24 @@ void qemu_plugin_cpu_resume(unsigned int vcpu_index)
     cpu_resume(cpu);
 }
 
+bool qemu_plugin_cpu_stop(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->stop;
+}
+
+bool qemu_plugin_cpu_stopped(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->stopped;
+}
+
+bool qemu_plugin_cpu_halted(unsigned int vcpu_index)
+{
+    CPUState *cpu = qemu_get_cpu(vcpu_index);
+    return cpu && cpu->halted;
+}
+
 void qemu_plugin_bql_lock(void)
 {
     bql_lock();

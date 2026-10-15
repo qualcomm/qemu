@@ -485,11 +485,15 @@ void qemu_process_cpu_events(CPUState *cpu)
         }
 #endif
     }
+    /*
+     * Acknowledge the stop and drain the queued work before reporting the
+     * resume: until then both still describe the state the vCPU is leaving.
+     */
+    qemu_process_cpu_events_common(cpu);
+
     if (slept) {
         qemu_plugin_vcpu_resume_cb(cpu);
     }
-
-    qemu_process_cpu_events_common(cpu);
 }
 
 void cpus_kick_thread(CPUState *cpu)
