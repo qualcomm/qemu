@@ -1866,6 +1866,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     const SysemuCPUOps *sysemu_ops =
         first_cpu ? CPU_GET_CLASS(first_cpu)->sysemu_ops : NULL;
     if (!sysemu_ops || !sysemu_ops->get_dump_info ||
+        !sysemu_ops->get_note_size ||
         sysemu_ops->get_dump_info(first_cpu, &s->dump_info,
                                   &s->guest_phys_blocks) < 0) {
         error_setg(errp,
@@ -1877,8 +1878,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         s->dump_info.page_size = qemu_target_page_size();
     }
 
-    s->note_size = cpu_get_note_size(s->dump_info.d_class,
-                                     s->dump_info.d_machine, nr_cpus);
+    s->note_size = sysemu_ops->get_note_size(first_cpu, s->dump_info.d_class,
+                                             s->dump_info.d_machine, nr_cpus);
     assert(s->note_size >= 0);
 
     /*
