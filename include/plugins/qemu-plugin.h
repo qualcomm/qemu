@@ -1427,6 +1427,15 @@ void qemu_plugin_u64_set(qemu_plugin_u64 entry, unsigned int vcpu_index,
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
 
+/**
+ * qemu_plugin_vcpus_globally_paused() - is a system-wide vCPU pause in effect?
+ *
+ * True between a pause_all_vcpus() and its pairing resume_all_vcpus(). A
+ * resume clears cpu->stop whoever set it, so check this before issuing one.
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_vcpus_globally_paused(void);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

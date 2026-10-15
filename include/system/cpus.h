@@ -28,6 +28,11 @@ bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
 void pause_all_vcpus(void);
+/*
+ * True while a pause_all_vcpus() is in effect. Safe to call from any thread.
+ * cpu->stop says a vCPU is stopped, not who stopped it, hence this.
+ */
+bool vcpus_are_globally_paused(void);
 void cpu_stop_current(void);
 
 /* Unblock cpu */
