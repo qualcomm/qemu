@@ -4311,7 +4311,7 @@ multi_target_supported_targets = [
   'microblaze-softmmu',
   # 'mips-softmmu',
   # 'mips64-softmmu',
-  # 'mips64el-softmmu',
+  'mips64el-softmmu',
   # 'mipsel-softmmu',
   'or1k-softmmu',
   # 'ppc-softmmu',
