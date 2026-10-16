@@ -80,6 +80,10 @@ config OPENCORES_ETH
     bool
     default y
 
+config DWMAC_STMMAC
+    bool
+    default y
+
 config ALLWINNER_EMAC
     bool
 
