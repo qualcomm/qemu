@@ -112,9 +112,9 @@ static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
                                     pa & ~(hwaddr)segmask);
 }
 
-int get_physical_address(CPUMIPSState *env, hwaddr *physical,
-                         int *prot, target_ulong real_address,
-                         MMUAccessType access_type, int mmu_idx)
+int mips_get_physical_address(CPUMIPSState *env, hwaddr *physical,
+                              int *prot, target_ulong real_address,
+                              MMUAccessType access_type, int mmu_idx)
 {
     /* User mode can only access useg/xuseg */
 #if defined(TARGET_MIPS64)
@@ -233,8 +233,8 @@ hwaddr mips_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     hwaddr phys_addr;
     int prot;
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
-                             mips_env_mmu_index(env)) != 0) {
+    if (mips_get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
+                                  mips_env_mmu_index(env)) != 0) {
         return -1;
     }
     return phys_addr;
