@@ -1323,7 +1323,7 @@ void generate_exception_err(DisasContext *ctx, int excp, int err)
 
 void generate_exception(DisasContext *ctx, int excp)
 {
-    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
+    gen_helper_mips_raise_exception(tcg_env, tcg_constant_i32(excp));
 }
 
 void generate_exception_end(DisasContext *ctx, int excp)
@@ -8622,7 +8622,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         if (!env->tlb->helper_tlbwr) {
             goto die;
         }
-        gen_helper_tlbwr(tcg_env);
+        gen_helper_mips_tlbwr(tcg_env);
         break;
     case OPC_TLBP:
         opn = "tlbp";
@@ -8684,7 +8684,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         ctx->base.pc_next += 4;
         save_cpu_state(ctx, 1);
         ctx->base.pc_next -= 4;
-        gen_helper_wait(tcg_env);
+        gen_helper_mips_wait(tcg_env);
         ctx->base.is_jmp = DISAS_NORETURN;
         break;
     default:
@@ -9305,7 +9305,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
-            gen_helper_float_add_s(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_add_s(fp0, tcg_env, fp0, fp1);
             gen_store_fpr32(ctx, fp0, fd);
         }
         break;
@@ -9316,7 +9316,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
-            gen_helper_float_sub_s(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_sub_s(fp0, tcg_env, fp0, fp1);
             gen_store_fpr32(ctx, fp0, fd);
         }
         break;
@@ -9327,7 +9327,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
-            gen_helper_float_mul_s(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_mul_s(fp0, tcg_env, fp0, fp1);
             gen_store_fpr32(ctx, fp0, fd);
         }
         break;
@@ -9338,7 +9338,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
-            gen_helper_float_div_s(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_div_s(fp0, tcg_env, fp0, fp1);
             gen_store_fpr32(ctx, fp0, fd);
         }
         break;
@@ -9778,7 +9778,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_add_d(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_add_d(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -9790,7 +9790,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_sub_d(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_sub_d(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -9802,7 +9802,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_mul_d(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_mul_d(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -9814,7 +9814,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_div_d(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_div_d(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -10301,7 +10301,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_add_ps(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_add_ps(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -10313,7 +10313,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_sub_ps(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_sub_ps(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -10325,7 +10325,7 @@ static void gen_farith(DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
-            gen_helper_float_mul_ps(fp0, tcg_env, fp0, fp1);
+            gen_helper_mips_float_mul_ps(fp0, tcg_env, fp0, fp1);
             gen_store_fpr64(ctx, fp0, fd);
         }
         break;
@@ -10685,7 +10685,7 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
             gen_load_fpr32(ctx, fp2, fr);
-            gen_helper_float_madd_s(fp2, tcg_env, fp0, fp1, fp2);
+            gen_helper_mips_float_madd_s(fp2, tcg_env, fp0, fp1, fp2);
             gen_store_fpr32(ctx, fp2, fd);
         }
         break;
@@ -10700,7 +10700,7 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_madd_d(fp2, tcg_env, fp0, fp1, fp2);
+            gen_helper_mips_float_madd_d(fp2, tcg_env, fp0, fp1, fp2);
             gen_store_fpr64(ctx, fp2, fd);
         }
         break;
@@ -10714,7 +10714,7 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_madd_ps(fp2, tcg_env, fp0, fp1, fp2);
+            gen_helper_mips_float_madd_ps(fp2, tcg_env, fp0, fp1, fp2);
             gen_store_fpr64(ctx, fp2, fd);
         }
         break;
@@ -12366,7 +12366,7 @@ static void gen_mipsdsp_bitinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
         switch (op2) {
         case OPC_BITREV:
             check_dsp(ctx);
-            gen_helper_bitrev(cpu_gpr[ret], val_t);
+            gen_helper_mips_bitrev(cpu_gpr[ret], val_t);
             break;
         case OPC_REPL_QB:
             check_dsp(ctx);
@@ -13465,9 +13465,9 @@ void gen_crc32(DisasContext *ctx, int rd, int rs, int rt, int sz,
     gen_load_gpr(t1, rs);
 
     if (crc32c) {
-        gen_helper_crc32c(cpu_gpr[rd], t0, t1, tsz);
+        gen_helper_mips_crc32c(cpu_gpr[rd], t0, t1, tsz);
     } else {
-        gen_helper_crc32(cpu_gpr[rd], t0, t1, tsz);
+        gen_helper_mips_crc32(cpu_gpr[rd], t0, t1, tsz);
     }
 }
 
@@ -14313,7 +14313,7 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
             TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rs);
-            gen_helper_yield(t0, tcg_env, t0);
+            gen_helper_mips_yield(t0, tcg_env, t0);
             gen_store_gpr(t0, rd);
         }
         break;

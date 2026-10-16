@@ -161,7 +161,7 @@ DEF_HELPER_1(evp, tl, env)
 
 /* TLB */
 DEF_HELPER_1(tlbwi, void, env)
-DEF_HELPER_1(tlbwr, void, env)
+DEF_HELPER_1(mips_tlbwr, void, env)
 DEF_HELPER_1(tlbp, void, env)
 DEF_HELPER_1(tlbr, void, env)
 DEF_HELPER_1(tlbinv, void, env)

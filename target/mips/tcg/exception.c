@@ -50,7 +50,7 @@ void helper_raise_exception_err(CPUMIPSState *env, uint32_t exception,
     do_raise_exception_err(env, exception, error_code, 0);
 }
 
-void helper_raise_exception(CPUMIPSState *env, uint32_t exception)
+void helper_mips_raise_exception(CPUMIPSState *env, uint32_t exception)
 {
     do_raise_exception(env, exception, GETPC());
 }
@@ -65,7 +65,7 @@ static void raise_exception(CPUMIPSState *env, uint32_t exception)
     do_raise_exception(env, exception, 0);
 }
 
-void helper_wait(CPUMIPSState *env)
+void helper_mips_wait(CPUMIPSState *env)
 {
     CPUState *cs = env_cpu(env);
 

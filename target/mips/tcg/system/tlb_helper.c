@@ -278,7 +278,7 @@ void helper_tlbwi(CPUMIPSState *env)
     env->tlb->helper_tlbwi(env);
 }
 
-void helper_tlbwr(CPUMIPSState *env)
+void helper_mips_tlbwr(CPUMIPSState *env)
 {
     env->tlb->helper_tlbwr(env);
 }

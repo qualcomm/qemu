@@ -61,7 +61,7 @@ target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
             if (env->CP0_Config5 & (1 << CP0C5_UFE)) {
                 arg1 = (env->CP0_Config5 >> CP0C5_FRE) & 1;
             } else {
-                helper_raise_exception(env, EXCP_RI);
+                helper_mips_raise_exception(env, EXCP_RI);
             }
         }
         break;
@@ -120,7 +120,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
             env->CP0_Config5 &= ~(1 << CP0C5_FRE);
             compute_hflags(env);
         } else {
-            helper_raise_exception(env, EXCP_RI);
+            helper_mips_raise_exception(env, EXCP_RI);
         }
         break;
     case 6:
@@ -132,7 +132,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
             env->CP0_Config5 |= (1 << CP0C5_FRE);
             compute_hflags(env);
         } else {
-            helper_raise_exception(env, EXCP_RI);
+            helper_mips_raise_exception(env, EXCP_RI);
         }
         break;
     case 25:
@@ -1212,8 +1212,8 @@ uint32_t helper_float_class_s(CPUMIPSState *env, uint32_t arg)
 
 /* binary operations */
 
-uint64_t helper_float_add_d(CPUMIPSState *env,
-                            uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_add_d(CPUMIPSState *env,
+                                 uint64_t fdt0, uint64_t fdt1)
 {
     uint64_t dt2;
 
@@ -1222,8 +1222,8 @@ uint64_t helper_float_add_d(CPUMIPSState *env,
     return dt2;
 }
 
-uint32_t helper_float_add_s(CPUMIPSState *env,
-                            uint32_t fst0, uint32_t fst1)
+uint32_t helper_mips_float_add_s(CPUMIPSState *env,
+                                 uint32_t fst0, uint32_t fst1)
 {
     uint32_t wt2;
 
@@ -1232,8 +1232,8 @@ uint32_t helper_float_add_s(CPUMIPSState *env,
     return wt2;
 }
 
-uint64_t helper_float_add_ps(CPUMIPSState *env,
-                             uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_add_ps(CPUMIPSState *env,
+                                  uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fstl0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -1248,8 +1248,8 @@ uint64_t helper_float_add_ps(CPUMIPSState *env,
     return ((uint64_t)wth2 << 32) | wtl2;
 }
 
-uint64_t helper_float_sub_d(CPUMIPSState *env,
-                            uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_sub_d(CPUMIPSState *env,
+                                 uint64_t fdt0, uint64_t fdt1)
 {
     uint64_t dt2;
 
@@ -1258,8 +1258,8 @@ uint64_t helper_float_sub_d(CPUMIPSState *env,
     return dt2;
 }
 
-uint32_t helper_float_sub_s(CPUMIPSState *env,
-                            uint32_t fst0, uint32_t fst1)
+uint32_t helper_mips_float_sub_s(CPUMIPSState *env,
+                                 uint32_t fst0, uint32_t fst1)
 {
     uint32_t wt2;
 
@@ -1268,8 +1268,8 @@ uint32_t helper_float_sub_s(CPUMIPSState *env,
     return wt2;
 }
 
-uint64_t helper_float_sub_ps(CPUMIPSState *env,
-                             uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_sub_ps(CPUMIPSState *env,
+                                  uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fstl0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -1284,8 +1284,8 @@ uint64_t helper_float_sub_ps(CPUMIPSState *env,
     return ((uint64_t)wth2 << 32) | wtl2;
 }
 
-uint64_t helper_float_mul_d(CPUMIPSState *env,
-                            uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_mul_d(CPUMIPSState *env,
+                                 uint64_t fdt0, uint64_t fdt1)
 {
     uint64_t dt2;
 
@@ -1294,8 +1294,8 @@ uint64_t helper_float_mul_d(CPUMIPSState *env,
     return dt2;
 }
 
-uint32_t helper_float_mul_s(CPUMIPSState *env,
-                            uint32_t fst0, uint32_t fst1)
+uint32_t helper_mips_float_mul_s(CPUMIPSState *env,
+                                 uint32_t fst0, uint32_t fst1)
 {
     uint32_t wt2;
 
@@ -1304,8 +1304,8 @@ uint32_t helper_float_mul_s(CPUMIPSState *env,
     return wt2;
 }
 
-uint64_t helper_float_mul_ps(CPUMIPSState *env,
-                             uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_mul_ps(CPUMIPSState *env,
+                                  uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fstl0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -1320,8 +1320,8 @@ uint64_t helper_float_mul_ps(CPUMIPSState *env,
     return ((uint64_t)wth2 << 32) | wtl2;
 }
 
-uint64_t helper_float_div_d(CPUMIPSState *env,
-                            uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_div_d(CPUMIPSState *env,
+                                 uint64_t fdt0, uint64_t fdt1)
 {
     uint64_t dt2;
 
@@ -1330,8 +1330,8 @@ uint64_t helper_float_div_d(CPUMIPSState *env,
     return dt2;
 }
 
-uint32_t helper_float_div_s(CPUMIPSState *env,
-                            uint32_t fst0, uint32_t fst1)
+uint32_t helper_mips_float_div_s(CPUMIPSState *env,
+                                 uint32_t fst0, uint32_t fst1)
 {
     uint32_t wt2;
 
@@ -1340,8 +1340,8 @@ uint32_t helper_float_div_s(CPUMIPSState *env,
     return wt2;
 }
 
-uint64_t helper_float_div_ps(CPUMIPSState *env,
-                             uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_mips_float_div_ps(CPUMIPSState *env,
+                                  uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fstl0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -1546,8 +1546,8 @@ uint64_t helper_float_mina_d(CPUMIPSState *env, uint64_t fs, uint64_t ft)
 
 /* ternary operations */
 
-uint64_t helper_float_madd_d(CPUMIPSState *env, uint64_t fst0,
-                             uint64_t fst1, uint64_t fst2)
+uint64_t helper_mips_float_madd_d(CPUMIPSState *env, uint64_t fst0,
+                                  uint64_t fst1, uint64_t fst2)
 {
     fst0 = float64_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float64_add(fst0, fst2, &env->active_fpu.fp_status);
@@ -1556,8 +1556,8 @@ uint64_t helper_float_madd_d(CPUMIPSState *env, uint64_t fst0,
     return fst0;
 }
 
-uint32_t helper_float_madd_s(CPUMIPSState *env, uint32_t fst0,
-                             uint32_t fst1, uint32_t fst2)
+uint32_t helper_mips_float_madd_s(CPUMIPSState *env, uint32_t fst0,
+                                  uint32_t fst1, uint32_t fst2)
 {
     fst0 = float32_mul(fst0, fst1, &env->active_fpu.fp_status);
     fst0 = float32_add(fst0, fst2, &env->active_fpu.fp_status);
@@ -1566,8 +1566,8 @@ uint32_t helper_float_madd_s(CPUMIPSState *env, uint32_t fst0,
     return fst0;
 }
 
-uint64_t helper_float_madd_ps(CPUMIPSState *env, uint64_t fdt0,
-                              uint64_t fdt1, uint64_t fdt2)
+uint64_t helper_mips_float_madd_ps(CPUMIPSState *env, uint64_t fdt0,
+                                   uint64_t fdt1, uint64_t fdt2)
 {
     uint32_t fstl0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;

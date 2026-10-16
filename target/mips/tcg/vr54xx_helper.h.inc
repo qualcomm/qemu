@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-DEF_HELPER_3(muls, tl, env, tl, tl)
+DEF_HELPER_3(mips_muls, tl, env, tl, tl)
 DEF_HELPER_3(mulsu, tl, env, tl, tl)
 DEF_HELPER_3(macc, tl, env, tl, tl)
 DEF_HELPER_3(maccu, tl, env, tl, tl)

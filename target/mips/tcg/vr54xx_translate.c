@@ -59,7 +59,7 @@ TRANS(MSACHIU,  trans_mult_acc, gen_helper_msachiu);
 TRANS(MSACU,    trans_mult_acc, gen_helper_msacu);
 TRANS(MULHI,    trans_mult_acc, gen_helper_mulhi);
 TRANS(MULHIU,   trans_mult_acc, gen_helper_mulhiu);
-TRANS(MULS,     trans_mult_acc, gen_helper_muls);
+TRANS(MULS,     trans_mult_acc, gen_helper_mips_muls);
 TRANS(MULSHI,   trans_mult_acc, gen_helper_mulshi);
 TRANS(MULSHIU,  trans_mult_acc, gen_helper_mulshiu);
 TRANS(MULSU,    trans_mult_acc, gen_helper_mulsu);

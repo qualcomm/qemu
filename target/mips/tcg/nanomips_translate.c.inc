@@ -1485,7 +1485,7 @@ static void gen_pool32a0_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rs);
-            gen_helper_yield(t0, tcg_env, t0);
+            gen_helper_mips_yield(t0, tcg_env, t0);
             gen_store_gpr(t0, rt);
         }
         break;
@@ -2088,7 +2088,7 @@ static void gen_pool32axf_4_nanomips_insn(DisasContext *ctx, uint32_t opc,
         break;
     case NM_BITREV:
         check_dsp(ctx);
-        gen_helper_bitrev(v0_t, v0_t);
+        gen_helper_mips_bitrev(v0_t, v0_t);
         gen_store_gpr(v0_t, ret);
         break;
     case NM_INSV:

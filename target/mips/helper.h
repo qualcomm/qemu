@@ -1,5 +1,5 @@
 DEF_HELPER_3(raise_exception_err, noreturn, env, i32, int)
-DEF_HELPER_2(raise_exception, noreturn, env, i32)
+DEF_HELPER_2(mips_raise_exception, noreturn, env, i32)
 DEF_HELPER_1(raise_exception_debug, noreturn, env)
 
 #ifdef TARGET_MIPS64
@@ -21,8 +21,8 @@ DEF_HELPER_FLAGS_1(bitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 #endif
 
-DEF_HELPER_3(crc32, tl, tl, tl, i32)
-DEF_HELPER_3(crc32c, tl, tl, tl, i32)
+DEF_HELPER_3(mips_crc32, tl, tl, tl, i32)
+DEF_HELPER_3(mips_crc32c, tl, tl, tl, i32)
 DEF_HELPER_FLAGS_4(rotx, TCG_CALL_NO_RWG_SE, tl, tl, i32, i32, i32)
 
 /* Octeon COP2 selector operation helpers. */
@@ -86,7 +86,7 @@ DEF_HELPER_4(sdm, void, env, tl, tl, i32)
 #endif
 
 DEF_HELPER_2(fork, void, tl, tl)
-DEF_HELPER_2(yield, tl, env, tl)
+DEF_HELPER_2(mips_yield, tl, env, tl)
 
 /* CP1 functions */
 DEF_HELPER_2(cfc1, tl, env, i32)
@@ -167,26 +167,26 @@ FOP_PROTO(recip1)
 FOP_PROTO(rsqrt1)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                  \
-DEF_HELPER_3(float_ ## op ## _s, i32, env, i32, i32)   \
-DEF_HELPER_3(float_ ## op ## _d, i64, env, i64, i64)   \
-DEF_HELPER_3(float_ ## op ## _ps, i64, env, i64, i64)
-FOP_PROTO(add)
-FOP_PROTO(sub)
-FOP_PROTO(mul)
-FOP_PROTO(div)
-FOP_PROTO(recip2)
-FOP_PROTO(rsqrt2)
+#define FOP_PROTO(op)                          \
+DEF_HELPER_3(op ## _s, i32, env, i32, i32)     \
+DEF_HELPER_3(op ## _d, i64, env, i64, i64)     \
+DEF_HELPER_3(op ## _ps, i64, env, i64, i64)
+FOP_PROTO(mips_float_add)
+FOP_PROTO(mips_float_sub)
+FOP_PROTO(mips_float_mul)
+FOP_PROTO(mips_float_div)
+FOP_PROTO(float_recip2)
+FOP_PROTO(float_rsqrt2)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                      \
-DEF_HELPER_4(float_ ## op ## _s, i32, env, i32, i32, i32)  \
-DEF_HELPER_4(float_ ## op ## _d, i64, env, i64, i64, i64)  \
-DEF_HELPER_4(float_ ## op ## _ps, i64, env, i64, i64, i64)
-FOP_PROTO(madd)
-FOP_PROTO(msub)
-FOP_PROTO(nmadd)
-FOP_PROTO(nmsub)
+#define FOP_PROTO(op)                              \
+DEF_HELPER_4(op ## _s, i32, env, i32, i32, i32)    \
+DEF_HELPER_4(op ## _d, i64, env, i64, i64, i64)    \
+DEF_HELPER_4(op ## _ps, i64, env, i64, i64, i64)
+FOP_PROTO(mips_float_madd)
+FOP_PROTO(float_msub)
+FOP_PROTO(float_nmadd)
+FOP_PROTO(float_nmsub)
 #undef FOP_PROTO
 
 #define FOP_PROTO(op)                                    \
@@ -250,7 +250,7 @@ DEF_HELPER_1(rdhwr_xnp, tl, env)
 DEF_HELPER_1(rdhwr_chord, tl, env)
 DEF_HELPER_1(rdhwr_cvmcount, tl, env)
 DEF_HELPER_2(pmon, void, env, int)
-DEF_HELPER_1(wait, void, env)
+DEF_HELPER_1(mips_wait, void, env)
 
 #ifdef TARGET_MIPS64
 DEF_HELPER_FLAGS_2(lcsr_cpucfg, TCG_CALL_NO_RWG_SE, tl, env, tl)
@@ -571,7 +571,7 @@ DEF_HELPER_FLAGS_4(dmsubu, 0, void, tl, tl, i32, env)
 #endif
 
 /* DSP Bit/Manipulation Sub-class insns */
-DEF_HELPER_FLAGS_1(bitrev, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(mips_bitrev, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_3(insv, 0, tl, env, tl, tl)
 #if defined(TARGET_MIPS64)
 DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl)

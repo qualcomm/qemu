@@ -44,8 +44,8 @@ static inline target_ulong set_HI_LOT0(CPUMIPSState *env, uint64_t HILO)
 }
 
 /* Multiplication variants of the vr54xx. */
-target_ulong helper_muls(CPUMIPSState *env, target_ulong arg1,
-                         target_ulong arg2)
+target_ulong helper_mips_muls(CPUMIPSState *env, target_ulong arg1,
+                              target_ulong arg2)
 {
     return set_HI_LOT0(env, 0 - ((int64_t)(int32_t)arg1 *
                                  (int64_t)(int32_t)arg2));

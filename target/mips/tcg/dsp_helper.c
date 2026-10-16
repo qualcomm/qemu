@@ -2900,7 +2900,7 @@ DM_OPERATE(dmsubu, mul_u32_u32, 0, 0);
 #endif
 
 /** DSP Bit/Manipulation Sub-class insns **/
-target_ulong helper_bitrev(target_ulong rt)
+target_ulong helper_mips_bitrev(target_ulong rt)
 {
     int32_t temp;
     uint32_t rd;
