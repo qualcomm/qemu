@@ -86,7 +86,7 @@ struct mips_def_t {
 };
 
 extern const char regnames[32][3];
-extern const char fregnames[32][4];
+extern const char mips_fregnames[32][4];
 
 extern const struct mips_def_t mips_defs[];
 extern const int mips_defs_number;
