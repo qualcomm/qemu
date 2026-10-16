@@ -719,7 +719,7 @@ G_NORETURN void loongarch_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
      * that impose alignment requirements on memory operands.
      */
     sys->CSR_BADV = vaddr;
-    do_raise_exception(env, EXCCODE_ALE, retaddr);
+    loongarch_do_raise_exception(env, EXCCODE_ALE, retaddr);
 }
 
 static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,

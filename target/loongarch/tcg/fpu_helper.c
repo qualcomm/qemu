@@ -79,7 +79,7 @@ static void update_fcsr0_mask(CPULoongArchState *env, uintptr_t pc, int mask)
     }
 
     if (GET_FP_ENABLES(env->fcsr0) & flags) {
-        do_raise_exception(env, EXCCODE_FPE, pc);
+        loongarch_do_raise_exception(env, EXCCODE_FPE, pc);
     } else {
         UPDATE_FP_FLAGS(env->fcsr0, flags);
     }
