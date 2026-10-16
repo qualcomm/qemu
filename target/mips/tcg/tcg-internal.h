@@ -45,7 +45,7 @@ void do_raise_exception(CPUMIPSState *env,
 void mips_cpu_do_interrupt(CPUState *cpu);
 bool mips_cpu_exec_interrupt(CPUState *cpu, int int_req);
 
-void mmu_init(CPUMIPSState *env, const mips_def_t *def);
+void mips_mmu_init(CPUMIPSState *env, const mips_def_t *def);
 
 uint32_t compute_pagemask(uint32_t val);
 
