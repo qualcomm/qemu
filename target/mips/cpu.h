@@ -1394,7 +1394,7 @@ static inline bool cpu_type_is_64bit(const char *cpu_type)
     return cpu_type_supports_isa(cpu_type, CPU_MIPS64);
 }
 
-void cpu_set_exception_base(int vp_index, target_ulong address);
+void mips_cpu_set_exception_base(int vp_index, target_ulong address);
 
 /* addr.c */
 uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr);
