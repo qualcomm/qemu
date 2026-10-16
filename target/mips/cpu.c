@@ -115,7 +115,7 @@ static void mips_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-void cpu_set_exception_base(int vp_index, target_ulong address)
+void mips_cpu_set_exception_base(int vp_index, target_ulong address)
 {
     MIPSCPU *vp = MIPS_CPU(qemu_get_cpu(vp_index));
     vp->env.exception_base = address;

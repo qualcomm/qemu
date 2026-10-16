@@ -142,13 +142,13 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
         break;
     case MIPS_CLCB_OFS + GCR_CL_RESETBASE_OFS:
         current_vps->reset_base = data & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(current_cpu->cpu_index,
-                               get_exception_base(current_vps));
+        mips_cpu_set_exception_base(current_cpu->cpu_index,
+                                    get_exception_base(current_vps));
         break;
     case MIPS_COCB_OFS + GCR_CL_RESETBASE_OFS:
         other_vps->reset_base = data & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(current_vps->other,
-                               get_exception_base(other_vps));
+        mips_cpu_set_exception_base(current_vps->other,
+                                    get_exception_base(other_vps));
         break;
     case MIPS_CLCB_OFS + GCR_CL_OTHER_OFS:
         if ((data & GCR_CL_OTHER_MSK) < gcr->num_vps) {
@@ -197,7 +197,7 @@ static void mips_gcr_reset(DeviceState *dev)
     for (i = 0; i < s->num_vps; i++) {
         s->vps[i].other = 0;
         s->vps[i].reset_base = 0xBFC00000 & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(i, get_exception_base(&s->vps[i]));
+        mips_cpu_set_exception_base(i, get_exception_base(&s->vps[i]));
     }
 }
 
