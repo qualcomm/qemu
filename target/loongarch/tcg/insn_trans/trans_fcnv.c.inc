@@ -3,8 +3,8 @@
  * Copyright (c) 2021 Loongson Technology Corporation Limited
  */
 
-TRANS(fcvt_s_d, FP_DP, gen_ff, gen_helper_fcvt_s_d)
-TRANS(fcvt_d_s, FP_DP, gen_ff, gen_helper_fcvt_d_s)
+TRANS(fcvt_s_d, FP_DP, gen_ff, gen_helper_loongarch_fcvt_s_d)
+TRANS(fcvt_d_s, FP_DP, gen_ff, gen_helper_loongarch_fcvt_d_s)
 TRANS(ftintrm_w_s, FP_SP, gen_ff, gen_helper_ftintrm_w_s)
 TRANS(ftintrm_w_d, FP_DP, gen_ff, gen_helper_ftintrm_w_d)
 TRANS(ftintrm_l_s, FP_SP, gen_ff, gen_helper_ftintrm_l_s)

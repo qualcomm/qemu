@@ -90,7 +90,7 @@ static void update_fcsr0(CPULoongArchState *env, uintptr_t pc)
     update_fcsr0_mask(env, pc, 0);
 }
 
-uint64_t helper_fadd_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fadd_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -99,7 +99,7 @@ uint64_t helper_fadd_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fadd_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fadd_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -108,7 +108,7 @@ uint64_t helper_fadd_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fsub_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fsub_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -117,7 +117,7 @@ uint64_t helper_fsub_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fsub_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fsub_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -126,7 +126,7 @@ uint64_t helper_fsub_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmul_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmul_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -135,7 +135,7 @@ uint64_t helper_fmul_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmul_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmul_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -144,7 +144,7 @@ uint64_t helper_fmul_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fdiv_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fdiv_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -153,7 +153,7 @@ uint64_t helper_fdiv_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fdiv_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fdiv_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -162,7 +162,7 @@ uint64_t helper_fdiv_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmax_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmax_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -171,7 +171,7 @@ uint64_t helper_fmax_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmax_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmax_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -180,7 +180,7 @@ uint64_t helper_fmax_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmin_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmin_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -189,7 +189,7 @@ uint64_t helper_fmin_s(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fmin_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
+uint64_t helper_loongarch_fmin_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
 {
     uint64_t fd;
 
@@ -262,7 +262,7 @@ uint64_t helper_fscaleb_d(CPULoongArchState *env, uint64_t fj, uint64_t fk)
     return fd;
 }
 
-uint64_t helper_fsqrt_s(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fsqrt_s(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
@@ -271,7 +271,7 @@ uint64_t helper_fsqrt_s(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-uint64_t helper_fsqrt_d(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fsqrt_d(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
@@ -319,7 +319,7 @@ uint64_t helper_frsqrt_d(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-uint64_t helper_flogb_s(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_flogb_s(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
     uint32_t fp;
@@ -334,7 +334,7 @@ uint64_t helper_flogb_s(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-uint64_t helper_flogb_d(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_flogb_d(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
     float_status *status = &env->fp_status;
@@ -348,7 +348,7 @@ uint64_t helper_flogb_d(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-uint64_t helper_fclass_s(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fclass_s(CPULoongArchState *env, uint64_t fj)
 {
     float32 f = fj;
     bool sign = float32_is_neg(f);
@@ -366,7 +366,7 @@ uint64_t helper_fclass_s(CPULoongArchState *env, uint64_t fj)
     }
 }
 
-uint64_t helper_fclass_d(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fclass_d(CPULoongArchState *env, uint64_t fj)
 {
     float64 f = fj;
     bool sign = float64_is_neg(f);
@@ -466,7 +466,7 @@ uint64_t helper_fcmp_s_d(CPULoongArchState *env, uint64_t fj,
 }
 
 /* floating point conversion */
-uint64_t helper_fcvt_s_d(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fcvt_s_d(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
@@ -475,7 +475,7 @@ uint64_t helper_fcvt_s_d(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-uint64_t helper_fcvt_d_s(CPULoongArchState *env, uint64_t fj)
+uint64_t helper_loongarch_fcvt_d_s(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
@@ -878,7 +878,7 @@ uint64_t helper_ftint_w_d(CPULoongArchState *env, uint64_t fj)
     return fd;
 }
 
-void helper_set_rounding_mode(CPULoongArchState *env)
+void helper_loongarch_set_rounding_mode(CPULoongArchState *env)
 {
     set_float_rounding_mode(ieee_rm[(env->fcsr0 >> FCSR0_RM) & 0x3],
                             &env->fp_status);
