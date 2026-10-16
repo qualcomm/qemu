@@ -125,3 +125,8 @@ bool target_riscv64(void)
 {
     return target_arch() == SYS_EMU_TARGET_RISCV64;
 }
+
+bool target_loongarch64(void)
+{
+    return target_arch() == SYS_EMU_TARGET_LOONGARCH64;
+}
