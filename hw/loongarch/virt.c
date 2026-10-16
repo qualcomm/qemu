@@ -8,6 +8,7 @@
 #include "qemu/units.h"
 #include "qemu/datadir.h"
 #include "qemu/cutils.h"
+#include "qemu/target-info.h"
 #include "qapi/error.h"
 #include "exec/target_page.h"
 #include "hw/core/boards.h"
@@ -1541,6 +1542,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
         .parent = TYPE_LOONGARCH_VIRT_MACHINE, \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
         .secure = true, \
+        .is_available = target_loongarch64, \
     }; \
     static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
     { \
@@ -1575,6 +1577,7 @@ static const TypeInfo virt_machine_info = {
     .class_init     = virt_class_init,
     .instance_init  = virt_initfn,
     .instance_finalize = virt_instance_finalize,
+    .is_available   = target_loongarch64,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
