@@ -78,7 +78,7 @@ specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_XIVE'],
 
 specific_ss.add(when: 'CONFIG_HEX_L2VIC', if_true: files('hex-l2vic.c'))
 specific_ss.add(when: 'CONFIG_M68K_IRQC', if_true: files('m68k_irqc.c'))
-specific_ss.add(when: 'CONFIG_LOONGSON_IPI_COMMON', if_true: files('loongson_ipi_common.c'))
+system_ss.add(when: 'CONFIG_LOONGSON_IPI_COMMON', if_true: files('loongson_ipi_common.c'))
 specific_ss.add(when: 'CONFIG_LOONGSON_IPI', if_true: files('loongson_ipi.c'))
 specific_ss.add(when: 'CONFIG_LOONGARCH_IPI', if_true: files('loongarch_ipi.c'))
 specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_LOONGARCH_IPI'],
