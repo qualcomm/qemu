@@ -85,7 +85,7 @@ struct mips_def_t {
     enum mips_mmu_types mmu_type;
 };
 
-extern const char regnames[32][3];
+extern const char mips_regnames[32][3];
 extern const char mips_fregnames[32][4];
 
 extern const struct mips_def_t mips_defs[];

@@ -36,7 +36,7 @@
 #include "semihosting/semihost.h"
 #endif
 
-const char regnames[32][3] = {
+const char mips_regnames[32][3] = {
     "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
     "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
     "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
@@ -94,7 +94,7 @@ static void mips_cpu_dump_state(CPUState *cs, FILE *f, int flags)
             qemu_fprintf(f, "GPR%02d:", i);
         }
         qemu_fprintf(f, " %s " TARGET_FMT_lx,
-                     regnames[i], env->active_tc.gpr[i]);
+                     mips_regnames[i], env->active_tc.gpr[i]);
         if ((i & 3) == 3) {
             qemu_fprintf(f, "\n");
         }
