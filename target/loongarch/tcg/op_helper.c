@@ -19,7 +19,7 @@
 /* Exceptions helpers */
 void helper_loongarch_raise_exception(CPULoongArchState *env, uint32_t exception)
 {
-    do_raise_exception(env, exception, GETPC());
+    loongarch_do_raise_exception(env, exception, GETPC());
 }
 
 /* loongarch assert op */
@@ -29,7 +29,7 @@ void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 
     if (rj > rk) {
         sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        loongarch_do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
 }
 
@@ -39,7 +39,7 @@ void helper_asrtgt_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 
     if (rj <= rk) {
         sys->CSR_BADV = rj;
-        do_raise_exception(env, EXCCODE_BCE, GETPC());
+        loongarch_do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
 }
 
@@ -78,7 +78,7 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
 
     plv = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
     if (extract64(sys->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv, 1)) {
-        do_raise_exception(env, EXCCODE_IPE, GETPC());
+        loongarch_do_raise_exception(env, EXCCODE_IPE, GETPC());
     }
 
     return cpu_loongarch_get_timer_counter(timer);
@@ -120,6 +120,6 @@ void helper_idle(CPULoongArchState *env)
     CPUState *cs = env_cpu(env);
 
     cs->halted = 1;
-    do_raise_exception(env, EXCP_HLT, 0);
+    loongarch_do_raise_exception(env, EXCP_HLT, 0);
 }
 #endif

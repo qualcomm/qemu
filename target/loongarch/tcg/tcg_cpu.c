@@ -59,9 +59,9 @@ static const char *loongarch_exception_name(int32_t exception)
     return "Unknown";
 }
 
-void G_NORETURN do_raise_exception(CPULoongArchState *env,
-                                   uint32_t exception,
-                                   uintptr_t pc)
+void G_NORETURN loongarch_do_raise_exception(CPULoongArchState *env,
+                                             uint32_t exception,
+                                             uintptr_t pc)
 {
     CPUState *cs = env_cpu(env);
 
@@ -232,9 +232,9 @@ static void loongarch_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 
     sys->CSR_BADV = addr;
     if (access_type == MMU_INST_FETCH) {
-        do_raise_exception(env, EXCCODE_ADEF, retaddr);
+        loongarch_do_raise_exception(env, EXCCODE_ADEF, retaddr);
     } else {
-        do_raise_exception(env, EXCCODE_ADEM, retaddr);
+        loongarch_do_raise_exception(env, EXCCODE_ADEM, retaddr);
     }
 }
 
