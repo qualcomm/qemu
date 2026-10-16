@@ -115,9 +115,9 @@ enum {
     TLBRET_MATCH = 0
 };
 
-int get_physical_address(CPUMIPSState *env, hwaddr *physical,
-                         int *prot, target_ulong real_address,
-                         MMUAccessType access_type, int mmu_idx);
+int mips_get_physical_address(CPUMIPSState *env, hwaddr *physical,
+                              int *prot, target_ulong real_address,
+                              MMUAccessType access_type, int mmu_idx);
 bool mips_cpu_translate_for_debug(CPUState *cpu, vaddr addr,
                                   TranslateForDebugResult *result);
 

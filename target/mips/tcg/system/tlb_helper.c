@@ -644,8 +644,8 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
     uint64_t lsb = 0;
     uint64_t w = 0;
 
-    if (get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
-                             ptw_mmu_idx) != TLBRET_MATCH) {
+    if (mips_get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
+                                  ptw_mmu_idx) != TLBRET_MATCH) {
         /* wrong base address */
         return 0;
     }
@@ -671,8 +671,9 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
             } else {
                 *pw_entrylo0 = entry;
             }
-            if (get_physical_address(env, &paddr, &prot, vaddr2, MMU_DATA_LOAD,
-                                     ptw_mmu_idx) != TLBRET_MATCH) {
+            if (mips_get_physical_address(env, &paddr, &prot, vaddr2,
+                                          MMU_DATA_LOAD,
+                                          ptw_mmu_idx) != TLBRET_MATCH) {
                 return 0;
             }
             if (!get_pte(env, vaddr2, leaf_mop, &entry, ptw_mmu_idx)) {
@@ -826,8 +827,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
 
     /* Leaf Level Page Table - First half of PTE pair */
     vaddr |= ptoffset0;
-    if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             ptw_mmu_idx) != TLBRET_MATCH) {
+    if (mips_get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
+                                  ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
     if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
@@ -838,8 +839,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
 
     /* Leaf Level Page Table - Second half of PTE pair */
     vaddr |= ptoffset1;
-    if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             ptw_mmu_idx) != TLBRET_MATCH) {
+    if (mips_get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
+                                  ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
     if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
@@ -917,8 +918,8 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     /* data access */
     /* XXX: put correct access by using cpu_restore_state() correctly */
-    ret = get_physical_address(env, &physical, &prot, address,
-                               access_type, mmu_idx);
+    ret = mips_get_physical_address(env, &physical, &prot, address,
+                                    access_type, mmu_idx);
     switch (ret) {
     case TLBRET_MATCH:
         qemu_log_mask(CPU_LOG_MMU,
@@ -947,8 +948,8 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                            MMU_ERL_IDX : MMU_KERNEL_IDX);
 
         if (page_table_walk_refill(env, address, ptw_mmu_idx)) {
-            ret = get_physical_address(env, &physical, &prot, address,
-                                       access_type, mmu_idx);
+            ret = mips_get_physical_address(env, &physical, &prot, address,
+                                            access_type, mmu_idx);
             if (ret == TLBRET_MATCH) {
                 tlb_set_page(cs, address & TARGET_PAGE_MASK,
                              physical & TARGET_PAGE_MASK, prot,
@@ -975,8 +976,8 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
     CPUState *cs = env_cpu(env);
 
     /* data access */
-    ret = get_physical_address(env, &physical, &prot, address, access_type,
-                               mips_env_mmu_index(env));
+    ret = mips_get_physical_address(env, &physical, &prot, address, access_type,
+                                    mips_env_mmu_index(env));
     if (ret == TLBRET_MATCH) {
         return physical;
     }
