@@ -134,4 +134,11 @@ bool target_base_riscv(void);
  */
 bool target_riscv64(void);
 
+/**
+ * target_loongarch64:
+ *
+ * Returns whether the target architecture is loongarch64
+ */
+bool target_loongarch64(void);
+
 #endif
