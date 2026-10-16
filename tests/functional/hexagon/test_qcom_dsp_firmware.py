@@ -2,6 +2,11 @@
 #
 # Boot the production DSP firmware on the Qualcomm DSP machines
 #
+# The images are the QuRT firmware that Qualcomm ships in linux-firmware for
+# each SoC's compute or neural signal processor.  Most of the SoC around the
+# DSP is not modelled, so the firmware cannot get far: these tests only check
+# that each one starts QuRT and its root task, and gets as far as main().
+#
 # Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
@@ -79,6 +84,8 @@ class Sa8797pNsp0FirmwareTest(QcomDspFirmwareTest):
 @skipUntrustedTest()
 class Sm8975NspFirmwareTest(QcomDspFirmwareTest):
     MACHINE = 'sm8975-nsp'
+    # The SM8975 is the Hawi SoC.  Its firmware stops in the root task,
+    # before main().
     MILESTONE = 'QURT root task started'
     ASSET = Asset('https://gitlab.com/kernel-firmware/linux-firmware/-/raw/'
                   '20261019/qcom/hawi/cdsp.mbn',
