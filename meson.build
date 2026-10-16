@@ -4291,7 +4291,7 @@ multi_target_supported_targets = [
   'hexagon-softmmu',
   'hppa-softmmu',
   # 'i386-softmmu',
-  # 'loongarch64-softmmu',
+  'loongarch64-softmmu',
   'm68k-softmmu',
   'microblaze-softmmu',
   # 'mips-softmmu',
