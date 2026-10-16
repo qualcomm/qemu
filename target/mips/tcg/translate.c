@@ -15286,12 +15286,12 @@ void mips_tcg_init(void)
         cpu_gpr[i] = tcg_global_mem_new(tcg_env,
                                         offsetof(CPUMIPSState,
                                                  active_tc.gpr[i]),
-                                        regnames[i]);
+                                        mips_regnames[i]);
 #if defined(TARGET_MIPS64)
     cpu_gpr_hi[0] = NULL;
 
     for (unsigned i = 1; i < 32; i++) {
-        g_autofree char *rname = g_strdup_printf("%s[hi]", regnames[i]);
+        g_autofree char *rname = g_strdup_printf("%s[hi]", mips_regnames[i]);
 
         cpu_gpr_hi[i] = tcg_global_mem_new_i64(tcg_env,
                                                offsetof(CPUMIPSState,
