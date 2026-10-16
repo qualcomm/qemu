@@ -23,7 +23,7 @@
 #include "vec.h"
 
 /* Global register indices */
-TCGv cpu_gpr[32], cpu_pc;
+static TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval, cpu_llval_high, cpu_llbit_scq;
 
 #define HELPER_H "helper.h"
@@ -92,7 +92,7 @@ static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
     tcg_gen_ori_i64(out, in, MAKE_64BIT_MASK(32, 32));
 }
 
-void generate_exception(DisasContext *ctx, int excp)
+static void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
     gen_helper_loongarch_raise_exception(tcg_env, tcg_constant_i32(excp));
