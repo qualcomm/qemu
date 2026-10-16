@@ -74,7 +74,7 @@ static void fpu_dump_state(CPUMIPSState *env, FILE *f, int flags)
                  env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64,
                  get_float_exception_flags(&env->active_fpu.fp_status));
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
-        qemu_fprintf(f, "%3s: ", fregnames[i]);
+        qemu_fprintf(f, "%3s: ", mips_fregnames[i]);
         fpu_dump_fpr(&env->active_fpu.fpr[i], f, is_fpu64);
     }
 }

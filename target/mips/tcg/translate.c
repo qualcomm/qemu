@@ -15318,7 +15318,7 @@ void mips_tcg_init(void)
     for (unsigned i = 0; i < 32; i++) {
         int off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[0]);
 
-        fpu_f64[i] = tcg_global_mem_new_i64(tcg_env, off, fregnames[i]);
+        fpu_f64[i] = tcg_global_mem_new_i64(tcg_env, off, mips_fregnames[i]);
     }
     msa_translate_init();
     cpu_PC = tcg_global_mem_new(tcg_env,
