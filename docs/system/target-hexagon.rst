@@ -87,6 +87,22 @@ and executing from the indicated start address::
 
     $ qemu-system-hexagon -kernel ./prog -append 'arg1 arg2'
 
+Booting Linux under the H2 hypervisor
+-------------------------------------
+The ``virt`` machine can boot a guest under the H2 hypervisor.  Pass the
+bundled ``hexagon_loadlinux_v81`` firmware with ``-bios``; it initializes H2
+and jumps to a kernel loaded at physical address ``0xa0000000``, passing the
+device tree address in ``r1:0``.  ``hexagon_loadlinux_v68`` and
+``hexagon_loadlinux_v73`` are also bundled::
+
+    $ qemu-system-hexagon -M virt -bios hexagon_loadlinux_v81 \
+          -kernel vmlinux -initrd rootfs.cpio -append 'console=ttyAMA0'
+
+The firmware is built from the ``roms/hexagon-hypervisor`` submodule, see
+:ref:`Hexagon-Booter` and ``roms/README.hexagon-loadlinux``.  See
+``Documentation/arch/hexagon/qemu-boot.rst`` in the Linux source tree for
+kernel build instructions.
+
 Semihosting
 -----------
 Hexagon supports a semihosting interface similar to other architectures'.
@@ -102,4 +118,5 @@ Hexagon Features
 .. toctree::
    hexagon/emulation
    hexagon/cdsp
+   hexagon/booter
 
