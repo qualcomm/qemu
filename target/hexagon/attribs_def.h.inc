@@ -112,6 +112,7 @@ DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
 DEF_ATTRIB(CVI_VA_2SRC, "Execs on multimedia vector engine; requires two srcs", "", "")
 
 DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers.", "", "")
+DEF_ATTRIB(VDBG, "Vector debugging instruction", "", "")
 
 /* Change-of-flow attributes */
 DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
