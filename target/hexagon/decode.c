@@ -23,6 +23,7 @@
 #include "insn.h"
 #include "printinsn.h"
 #include "mmvec/decode_ext_mmvec.h"
+#include "hlx/decode_ext_hlx.h"
 
 #define fZXTN(N, M, VAL) ((VAL) & ((1LL << (N)) - 1))
 
@@ -69,6 +70,7 @@ static int shift_left(DisasContext *ctx, int x, int n, int immno)
 /* Include the generated decoder for 32 bit insn */
 #include "decode_normal_generated.c.inc"
 #include "decode_hvx_generated.c.inc"
+#include "decode_hlx_generated.c.inc"
 
 /* Include the generated decoder for 16 bit insn */
 #include "decode_subinsn_a_generated.c.inc"
@@ -422,7 +424,12 @@ static void decode_remove_extenders(Packet *packet)
 static SlotMask get_valid_slots(const Packet *pkt, unsigned int slot)
 {
     if (GET_ATTRIB(pkt->insn[slot].opcode, A_EXTENSION)) {
-        return mmvec_ext_decode_find_iclass_slots(pkt->insn[slot].opcode);
+        if (GET_ATTRIB(pkt->insn[slot].opcode, A_HLX)) {
+            return hlx_ext_decode_find_iclass_slots(
+                       pkt->insn[slot].opcode);
+        }
+        return mmvec_ext_decode_find_iclass_slots(
+                   pkt->insn[slot].opcode);
     } else {
         return find_iclass_slots(pkt->insn[slot].opcode,
                                  pkt->insn[slot].iclass);
@@ -491,7 +498,8 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 {
     if (parse_bits(encoding) != 0) {
         if (decode_normal(ctx, encoding) ||
-            decode_hvx(ctx, encoding)) {
+            decode_hvx(ctx, encoding) ||
+            decode_hlx(ctx, encoding)) {
             insn->generate = opcode_genptr[insn->opcode];
             insn->iclass = iclass_bits(encoding);
             return 1;
@@ -611,8 +619,17 @@ decode_set_slot_number(Packet *pkt)
         }
     }
 
-    /* Fix the exceptions - mem insns to slot 0,1 */
+    /*
+     * Fix the exceptions - mem insns to slot 0,1
+     *
+     * HLX instructions are skipped: HLX has its own slot constraints
+     * enforced by hlx_ext_decode_find_iclass_slots(), and this fixup would
+     * override the correct HLX slot assignments.
+     */
     for (i = pkt->num_insns - 1; i >= 0; i--) {
+        if (GET_ATTRIB(pkt->insn[i].opcode, A_HLX)) {
+            continue;
+        }
         /* First memory instruction always goes to slot 0 */
         if ((GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE) ||
              GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE_PACKET_RULES)) &&
@@ -770,9 +787,12 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
+    pkt->pkt_has_hlx = false;
     for (i = 0; i < num_insns; i++) {
         pkt->pkt_has_hvx |=
             GET_ATTRIB(pkt->insn[i].opcode, A_CVI);
+        pkt->pkt_has_hlx |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_HLX);
     }
 
     /*
@@ -809,6 +829,10 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
     if (pkt->pkt_has_hvx) {
         mmvec_ext_decode_checks(pkt, disas_only);
+    }
+    if (pkt->pkt_has_hlx && !hlx_ext_decode_checks(pkt, disas_only)) {
+        /* Invalid packet */
+        return 0;
     }
 
     if (!disas_only) {

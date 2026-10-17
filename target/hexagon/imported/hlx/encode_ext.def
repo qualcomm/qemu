@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#define CONCAT(A,B) A##B
+#define EXTEXTNAME(X) CONCAT(EXT_,X)
+#define DEF_ENC(TAG,STR) DEF_EXT_ENC(TAG,EXTEXTNAME(EXTNAME),STR)
+
+/*
+ * HLX Load encodings
+ * ICLASS_LD (1001) + LENC (100) + encoding
+ * Pattern: "- --- sssss PP -10 -- --000 dddd"
+ */
+DEF_ENC(LX_L16b_tmp,"1001100----sssssPP-10----000dddd")
+DEF_ENC(LX_L16b_p_tmp,"1001100----sssssPP-10vv--100dddd")
+
+/*
+ * HLX Store encodings
+ * ICLASS_ST (1010) + SENC (-1001) + encoding
+ * Pattern: "-- sssss PP 000 ----0 00 uuuu"
+ */
+DEF_ENC(LX_S16b_new,"1010-1001--sssssPP000----000uuuu")
+DEF_ENC(LX_S16b_p_new,"1010-1001--sssssPP000vv--100uuuu")
+
+#undef DEF_ENC
+#undef EXTEXTNAME
+#undef CONCAT
