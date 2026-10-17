@@ -366,3 +366,161 @@ const GVecGen2 hlx_abs_op[4] = {
       .prefer_i64 = true,
       .vece    = MO_64 },
 };
+
+/* -----------------------------------------------------------------------
+ * signed-to-unsigned saturating add/sub and absolute saturating
+ *
+ * ushsat_add: d[i] = clamp(s16(a[i]) + s16(b[i]), 0, 65535)
+ * ushsat_sub: d[i] = clamp(s16(a[i]) - s16(b[i]), 0, 65535)
+ * abs_uh_sat: d[i] = min(abs(s16(a[i])), 32767)
+ *             (i.e. INT16_MIN -> INT16_MAX, all others -> abs)
+ *
+ * Approach for ushsat_add/sub:
+ *   The signed-saturating primitives (ssadd/sssub) clamp to [-32768, 32767],
+ *   which when clamped to 0 via smax gives [0, 32767] - correct for most
+ *   inputs but loses the range [32768, 65534] when both operands are positive
+ *   and their true sum exceeds 32767.
+ *
+ *   Correct algorithm (fniv path for small vectors; fno fallback for HLX's
+ *   2048-byte vectors which exceed gvec's MAX_UNROLL limit):
+ *     wrap = a + b  (modular MO_16)
+ *     ssat = max(ssadd(a, b), 0)           -> [0, 32767] for non-pos-ovf
+ *     pos_ovf = (a >= 0) AND (b >= 0) AND (wrap < 0)
+ *               - true sum in [32768, 65534], wrap as u16 == true sum
+ *     result = pos_ovf ? wrap : ssat
+ *
+ *   The neg_ovf case (both a, b < 0, true sum < -32768) is handled by
+ *   ssadd clamping the result to the negative range and smax to 0.
+ *
+ * Approach for abs_uh_sat:
+ *   abs_vec(INT16_MIN) wraps to INT16_MIN (0x8000).
+ *   umin(0x8000, 0x7FFF) = 0x7FFF.
+ *   All other inputs produce abs in [0, 32767] <= 0x7FFF, unchanged by umin.
+ * ----------------------------------------------------------------------- */
+
+/* opt_opc lists for saturating descriptors */
+static const TCGOpcode hlx_vecop_ushsat_add[] = {
+    INDEX_op_add_vec,
+    INDEX_op_ssadd_vec,
+    INDEX_op_smax_vec,
+    INDEX_op_cmp_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_ushsat_sub[] = {
+    INDEX_op_sub_vec,
+    INDEX_op_sssub_vec,
+    INDEX_op_smax_vec,
+    INDEX_op_cmp_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_abs_uh_sat[] = {
+    INDEX_op_abs_vec,
+    INDEX_op_umin_vec,
+    0
+};
+
+static void hlx_fniv_ushsat_add(unsigned vece, TCGv_vec r,
+                                 TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec wrap    = tcg_temp_new_vec_matching(r);
+    TCGv_vec ssat    = tcg_temp_new_vec_matching(r);
+    TCGv_vec pos_ovf = tcg_temp_new_vec_matching(r);
+    TCGv_vec pa      = tcg_temp_new_vec_matching(r);
+    TCGv_vec pb      = tcg_temp_new_vec_matching(r);
+    TCGv_vec zero    = tcg_constant_vec_matching(r, vece, 0);
+
+    /* wrap = a + b  (modular MO_16) */
+    tcg_gen_add_vec(vece, wrap, a, b);
+
+    /* ssat = max(ssadd(a, b), 0)  -> [0, 32767] when no positive overflow */
+    tcg_gen_ssadd_vec(vece, ssat, a, b);
+    tcg_gen_smax_vec(vece, ssat, ssat, zero);
+
+    /* pos_ovf mask: a >= 0 AND b >= 0 AND wrap < 0
+     * When true, the true sum is in [32768, 65534] and wrap (as u16) == true sum. */
+    tcg_gen_cmp_vec(TCG_COND_GE, vece, pa, a, zero);         /* 0xFFFF if a >= 0 */
+    tcg_gen_cmp_vec(TCG_COND_GE, vece, pb, b, zero);         /* 0xFFFF if b >= 0 */
+    tcg_gen_cmp_vec(TCG_COND_LT, vece, pos_ovf, wrap, zero); /* 0xFFFF if wrap < 0 */
+    tcg_gen_and_vec(vece, pos_ovf, pos_ovf, pa);
+    tcg_gen_and_vec(vece, pos_ovf, pos_ovf, pb);
+
+    /* select: pos_ovf ? wrap : ssat */
+    tcg_gen_bitsel_vec(vece, r, pos_ovf, wrap, ssat);
+
+    tcg_temp_free_vec(pb);
+    tcg_temp_free_vec(pa);
+    tcg_temp_free_vec(pos_ovf);
+    tcg_temp_free_vec(ssat);
+    tcg_temp_free_vec(wrap);
+}
+
+static void hlx_fniv_ushsat_sub(unsigned vece, TCGv_vec r,
+                                 TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec wrap    = tcg_temp_new_vec_matching(r);
+    TCGv_vec ssat    = tcg_temp_new_vec_matching(r);
+    TCGv_vec pos_ovf = tcg_temp_new_vec_matching(r);
+    TCGv_vec pa      = tcg_temp_new_vec_matching(r);
+    TCGv_vec nb      = tcg_temp_new_vec_matching(r);
+    TCGv_vec zero    = tcg_constant_vec_matching(r, vece, 0);
+
+    /* wrap = a - b  (modular MO_16) */
+    tcg_gen_sub_vec(vece, wrap, a, b);
+
+    /* ssat = max(sssub(a, b), 0)  -> [0, 32767] when no positive overflow */
+    tcg_gen_sssub_vec(vece, ssat, a, b);
+    tcg_gen_smax_vec(vece, ssat, ssat, zero);
+
+    /* pos_ovf mask: a >= 0 AND b < 0 AND wrap < 0
+     * When true, the true diff is in [32768, 65535] and wrap (as u16) == true diff. */
+    tcg_gen_cmp_vec(TCG_COND_GE, vece, pa, a, zero);         /* 0xFFFF if a >= 0 */
+    tcg_gen_cmp_vec(TCG_COND_LT, vece, nb, b, zero);         /* 0xFFFF if b < 0  */
+    tcg_gen_cmp_vec(TCG_COND_LT, vece, pos_ovf, wrap, zero); /* 0xFFFF if wrap < 0 */
+    tcg_gen_and_vec(vece, pos_ovf, pos_ovf, pa);
+    tcg_gen_and_vec(vece, pos_ovf, pos_ovf, nb);
+
+    /* select: pos_ovf ? wrap : ssat */
+    tcg_gen_bitsel_vec(vece, r, pos_ovf, wrap, ssat);
+
+    tcg_temp_free_vec(nb);
+    tcg_temp_free_vec(pa);
+    tcg_temp_free_vec(pos_ovf);
+    tcg_temp_free_vec(ssat);
+    tcg_temp_free_vec(wrap);
+}
+
+static void hlx_fniv_abs_uh_sat(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    /*
+     * abs(INT16_MIN) wraps to INT16_MIN (0x8000) in MO_16 lanes.
+     * Treating 0x8000 as unsigned (32768) and applying umin with
+     * 0x7FFF (32767) gives 0x7FFF = INT16_MAX.
+     * For all other inputs abs in [0, 32767] <= 0x7FFF, umin is a no-op.
+     */
+    TCGv_vec imax = tcg_constant_vec_matching(r, vece, 0x7FFF);
+    tcg_gen_abs_vec(vece, r, a);
+    tcg_gen_umin_vec(vece, r, r, imax);
+}
+
+const GVecGen3 hlx_ushsat_add_op = {
+    .fniv    = hlx_fniv_ushsat_add,
+    .opt_opc = hlx_vecop_ushsat_add,
+    .fno     = gen_helper_hlx_gvec_ushsat_add16,
+    .vece    = MO_16,
+};
+
+const GVecGen3 hlx_ushsat_sub_op = {
+    .fniv    = hlx_fniv_ushsat_sub,
+    .opt_opc = hlx_vecop_ushsat_sub,
+    .fno     = gen_helper_hlx_gvec_ushsat_sub16,
+    .vece    = MO_16,
+};
+
+const GVecGen2 hlx_abs_uh_sat_op = {
+    .fniv    = hlx_fniv_abs_uh_sat,
+    .opt_opc = hlx_vecop_abs_uh_sat,
+    .fno     = gen_helper_hlx_gvec_abs_uh_sat16,
+    .vece    = MO_16,
+};

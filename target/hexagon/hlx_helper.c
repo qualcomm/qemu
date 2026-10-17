@@ -134,3 +134,75 @@ void HELPER(hlx_commit_tmp_reg)(CPUHexagonState *env, uint32_t rnum)
     memcpy(&env->hlx_ctx->LRegs[rnum], &env->tmp_LRegs[rnum],
            sizeof(HLXVector));
 }
+
+/*
+ * GVec out-of-line (fno) helpers for signed-to-unsigned saturating
+ * arithmetic.  These are needed because HLX vectors are 2048 bytes -
+ * far beyond gvec's MAX_UNROLL limit - so the fniv path is never taken
+ * and the fno fallback is always used.
+ *
+ * All three helpers follow the standard gvec helper ABI:
+ *   void helper(void *d, [void *a,] void *b, uint32_t desc)
+ * where desc encodes oprsz / maxsz via simd_oprsz() / simd_maxsz().
+ */
+
+/*
+ * hlx_gvec_ushsat_add16 - d[i] = clamp(s16(a[i]) + s16(b[i]), 0, 65535)
+ */
+void HELPER(hlx_gvec_ushsat_add16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int32_t r = (int32_t)(*(int16_t *)((char *)a + i))
+                  + (int32_t)(*(int16_t *)((char *)b + i));
+        if (r < 0) {
+            r = 0;
+        } else if (r > 0xFFFF) {
+            r = 0xFFFF;
+        }
+        *(uint16_t *)((char *)d + i) = (uint16_t)r;
+    }
+}
+
+/*
+ * hlx_gvec_ushsat_sub16 - d[i] = clamp(s16(a[i]) - s16(b[i]), 0, 65535)
+ */
+void HELPER(hlx_gvec_ushsat_sub16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int32_t r = (int32_t)(*(int16_t *)((char *)a + i))
+                  - (int32_t)(*(int16_t *)((char *)b + i));
+        if (r < 0) {
+            r = 0;
+        } else if (r > 0xFFFF) {
+            r = 0xFFFF;
+        }
+        *(uint16_t *)((char *)d + i) = (uint16_t)r;
+    }
+}
+
+/*
+ * hlx_gvec_abs_uh_sat16 - d[i] = min(abs(s16(a[i])), INT16_MAX)
+ *
+ * For all inputs except INT16_MIN: abs(a) in [0, 32767] -> unchanged.
+ * For INT16_MIN (-32768): abs wraps to -32768 in i16; clamp to INT16_MAX.
+ */
+void HELPER(hlx_gvec_abs_uh_sat16)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t v = *(int16_t *)((char *)a + i);
+        int32_t r = (v < 0) ? -(int32_t)v : (int32_t)v;
+        if (r > INT16_MAX) {
+            r = INT16_MAX;  /* saturate INT16_MIN -> INT16_MAX */
+        }
+        *(int16_t *)((char *)d + i) = (int16_t)r;
+    }
+}
