@@ -1,0 +1,2 @@
+# HLX instruction tracing
+hexagon_hlx_op(int opcode, const char *name) "opcode: 0x%x (%s)"
