@@ -345,6 +345,77 @@ HLX_INLINE_TAGS = {
     # combine: pair dest, two single sources
     # Ldd.l = Lv, Ldd.h = Lu
     "LX_combine_w":  {"op": "combine_pair", "vece": "MO_64"},
+    # saturating add/sub: single L-reg (MO_16)
+    "LX_add_h_sat":  {"op": "gvec3_arr", "table": "hlx_ssadd_op", "vece": "MO_16"},
+    "LX_add_uh_sat": {"op": "gvec3_arr", "table": "hlx_usadd_op", "vece": "MO_16"},
+    "LX_sub_h_sat":  {"op": "gvec3_arr", "table": "hlx_sssub_op", "vece": "MO_16"},
+    "LX_sub_uh_sat": {"op": "gvec3_arr", "table": "hlx_ussub_op", "vece": "MO_16"},
+    # saturating add/sub: pair L-regs (MO_32, size = 2 * sizeof(HLXVector))
+    #
+    # NOTE: LX_add_w_sat, LX_add_uw_sat, LX_sub_w_sat, LX_sub_uw_sat are NOT
+    # inlined here.  The HLX word-pair physical layout interleaves elements:
+    # lo L-reg holds the low 16 bits of each word, hi L-reg holds the high 16
+    # bits.  A plain MO_32 gvec call on the lo or hi register alone treats
+    # adjacent lo-halfwords as a single 32-bit entity, giving wrong results for
+    # saturating addition where carry from lo to hi matters.  These ops are
+    # correctly handled by the C helper (helper_funcs_generated.c.inc) which
+    # uses hlx_interleave_pair / hlx_deinterleave_pair.
+    # saturating add/sub: paired halfword (MO_16, size = 2 *
+    # sizeof(HLXVector))
+    "LX_add_hp_sat": {"op": "gvec3_arr", "table": "hlx_ssadd_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_add_uhp_sat":{"op": "gvec3_arr", "table": "hlx_usadd_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_sub_hp_sat": {"op": "gvec3_arr", "table": "hlx_sssub_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_sub_uhp_sat":{"op": "gvec3_arr", "table": "hlx_ussub_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    # element-wise logicals: single L-reg
+    "LX_and":        {"op": "gvec3",     "table": "hlx_and_op",  "vece": "MO_64"},
+    "LX_or":         {"op": "gvec3",     "table": "hlx_or_op",   "vece": "MO_64"},
+    "LX_xor":        {"op": "gvec3",     "table": "hlx_xor_op",  "vece": "MO_64"},
+    "LX_andn":       {"op": "gvec3",     "table": "hlx_andc_op", "vece": "MO_64"},
+    "LX_orn":        {"op": "gvec3",     "table": "hlx_orc_op",  "vece": "MO_64"},
+    # element-wise logicals: pair L-regs
+    "LX_and_w":      {"op": "gvec3",     "table": "hlx_and_op",  "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_or_w":       {"op": "gvec3",     "table": "hlx_or_op",   "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_xor_w":      {"op": "gvec3",     "table": "hlx_xor_op",  "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_andn_w":     {"op": "gvec3",     "table": "hlx_andc_op", "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_orn_w":      {"op": "gvec3",     "table": "hlx_orc_op",  "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    # min/max: single L-reg (MO_16 signed/unsigned halfword)
+    #
+    # NOTE: LX_min_w, LX_max_w, LX_min_uw, LX_max_uw are NOT inlined.
+    # The HLX word-pair physical layout interleaves elements (lo L-reg holds
+    # the low halfwords of each word, hi L-reg holds the high halfwords).
+    # A MO_32 gvec min/max on the lo register alone would treat adjacent
+    # lo-halfwords as a single 32-bit entity and compare them as 32-bit
+    # values, which is semantically wrong for the interleaved layout.
+    "LX_min_h":      {"op": "gvec3_arr", "table": "hlx_smin_op", "vece": "MO_16"},
+    "LX_max_h":      {"op": "gvec3_arr", "table": "hlx_smax_op", "vece": "MO_16"},
+    "LX_min_uh":     {"op": "gvec3_arr", "table": "hlx_umin_op", "vece": "MO_16"},
+    "LX_max_uh":     {"op": "gvec3_arr", "table": "hlx_umax_op", "vece": "MO_16"},
+    # min/max: paired halfword (pair L-regs, MO_16 elements)
+    # These are safe: MO_16 halfwords are independent across both L-regs.
+    "LX_min_hp":     {"op": "gvec3_arr", "table": "hlx_smin_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_max_hp":     {"op": "gvec3_arr", "table": "hlx_smax_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_min_uhp":    {"op": "gvec3_arr", "table": "hlx_umin_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    "LX_max_uhp":    {"op": "gvec3_arr", "table": "hlx_umax_op", "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
+    # abs: single L-reg (MO_16 unsigned abs of signed halfword)
+    # LX_abs_uh: Ld.uh = abs(Lu.h)  - single dest, single src
+    "LX_abs_uh":     {"op": "gvec2_arr", "table": "hlx_abs_op",  "vece": "MO_16"},
+    # abs: paired halfword (pair L-regs, MO_16 elements)
+    # LX_abs_uhp: Ldd.uh = abs(Luu.h) - pair dest, pair src
+    "LX_abs_uhp":    {"op": "gvec2_arr", "table": "hlx_abs_op",  "vece": "MO_16",
+                      "size": "2 * sizeof(HLXVector)"},
 }
 
 def is_hlx_inline_tag(tag):
