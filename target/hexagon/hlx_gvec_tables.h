@@ -89,4 +89,26 @@ extern const GVecGen3 hlx_avg_sh_rnd_op;
 extern const GVecGen3 hlx_avg_uh_op;
 extern const GVecGen3 hlx_avg_uh_rnd_op;
 
+/*
+ * halfword absdiff ops (GVecGen3, MO_16).
+ *
+ * hlx_absdiff_sh_op:
+ *   d[i] = (uint16_t)(max(s16(a[i]), s16(b[i])) - min(s16(a[i]), s16(b[i])))
+ *
+ * hlx_absdiff_uh_op:
+ *   d[i] = max(u16(a[i]), u16(b[i])) - min(u16(a[i]), u16(b[i]))
+ */
+extern const GVecGen3 hlx_absdiff_sh_op;
+extern const GVecGen3 hlx_absdiff_uh_op;
+
+/*
+ * sari-by-15 on halfwords (GVecGen2, MO_16).
+ *
+ * hlx_sari15_h_op:
+ *   d[i] = (int16_t)a[i] >> 15
+ *   Result is 0x0000 for non-negative lanes, 0xFFFF for negative lanes.
+ *   Used for the high L-reg of LX_conv_w_h (sxt halfword-to-word-pair).
+ */
+extern const GVecGen2 hlx_sari15_h_op;
+
 #endif /* HLX_GVEC_TABLES_H */

@@ -47,6 +47,17 @@ DEF_HELPER_FLAGS_4(hlx_gvec_avg_sh16_rnd, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, 
 DEF_HELPER_FLAGS_4(hlx_gvec_avg_uh16,     TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(hlx_gvec_avg_uh16_rnd, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
+/* GVec fno helpers for halfword absdiff ops (MO_16) */
+DEF_HELPER_FLAGS_4(hlx_gvec_absdiff_sh16, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(hlx_gvec_absdiff_uh16, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
+
+/*
+ * GVec fno helper for sari-by-15 on halfwords (MO_16).
+ * d[i] = (int16_t)a[i] >> 15  (0x0000 for non-negative, 0xFFFF for negative)
+ * Used to compute the high L-reg of a sxt halfword-to-word-pair conversion.
+ */
+DEF_HELPER_FLAGS_3(hlx_gvec_sari15_h16, TCG_CALL_NO_RWG, void, ptr, ptr, i32)
+
 /* Floating point */
 DEF_HELPER_3(conv_sf2df, f64, env, f32, i32)
 DEF_HELPER_3(conv_df2sf, f32, env, f64, i32)

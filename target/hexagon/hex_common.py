@@ -462,6 +462,28 @@ HLX_INLINE_TAGS = {
                          "vece": "MO_16"},
     "LX_avg_uh_rnd":    {"op": "gvec3", "table": "hlx_avg_uh_rnd_op",
                          "vece": "MO_16"},
+    # halfword absdiff ops: single L-reg (MO_16)
+    # LX_absdiff_h:  Ld.uh = absdiff(Lu.h,  Lv.h)   signed absdiff
+    # LX_absdiff_uh: Ld.uh = absdiff(Lu.uh, Lv.uh)  unsigned absdiff
+    # NOTE: LX_absdiff_w and LX_absdiff_uw stay as helpers - halfword-
+    # interleaved word-pair layout defeats per-L-reg MO_32 inlining.
+    "LX_absdiff_h":     {"op": "gvec3", "table": "hlx_absdiff_sh_op",
+                         "vece": "MO_16"},
+    "LX_absdiff_uh":    {"op": "gvec3", "table": "hlx_absdiff_uh_op",
+                         "vece": "MO_16"},
+
+    # halfword-to-word-pair conversions.
+    # Dest is a pair (4096 bytes total); source is a single halfword vector
+    # (2048 bytes).  Physical word-pair layout: lo L-reg holds the low
+    # halfword of each word element, hi L-reg holds the high halfword.
+    #   zxt (LX_conv_uw_uh): lo = source verbatim, hi = zero
+    #   sxt (LX_conv_w_h):   lo = source verbatim, hi = sari(source, 15)
+    # These use the special "conv_h_to_w_pair" op type - not "pair_dst" -
+    # because the source is a single vector, not a pair.
+    "LX_conv_uw_uh":    {"op": "conv_h_to_w_pair", "sign_extend": False,
+                         "vece": "MO_16"},
+    "LX_conv_w_h":      {"op": "conv_h_to_w_pair", "sign_extend": True,
+                         "vece": "MO_16", "table": "hlx_sari15_h_op"},
 }
 
 def is_hlx_inline_tag(tag):
