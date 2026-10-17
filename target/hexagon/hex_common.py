@@ -76,10 +76,10 @@ def uniquify(seq):
     return [x for x in seq if x not in seen and not seen_add(x)]
 
 
-regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZA])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)")
+regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZALK])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)")
 immre = re.compile(r"[#]([rRsSuUm])(\d+)(?:[:](\d+))?")
 reg_or_immre = re.compile(
-    r"(((?<!DUP)[MNRCOPQXSGVZA])([stuvwxyzdefg]+)"
+    r"(((?<!DUP)[MNRCOPQXSGVZALK])([stuvwxyzdefg]+)"
     r"([.]?[LlHh]?)(\d+S?))|([#]([rRsSuUm])(\d+)[:]?(\d+)?)"
 )
 relimmre = re.compile(r"[#]([rR])(\d+)(?:[:](\d+))?")
@@ -305,6 +305,349 @@ def skip_qemu_helper(tag):
     return tag in overrides.keys()
 
 
+# Per-tag override: HLX instructions that should emit inline gvec TCG IR
+# instead of a helper call.
+#
+# "size" controls oprsz/maxsz passed to the gvec _var helpers:
+#   "sizeof(HLXVector)"     - single L-reg (2048 bytes)
+#   "2 * sizeof(HLXVector)" - pair of L-regs (4096 bytes)
+# Default (when omitted) is "sizeof(HLXVector)".
+#
+# "combine_pair" op: dest is a pair, src regs are two singles (Lu, Lv).
+#   Ldd.l = Lv  (low half)
+#   Ldd.h = Lu  (high half, offset by sizeof(HLXVector))
+#
+# "gvec3" op: calls tcg_gen_gvec_3_var with a single GVecGen3 descriptor.
+#   "table" - name of the (non-indexed) extern const GVecGen3 in hlx_gvec_tables.h
+#
+# "gvec3_arr" op: calls tcg_gen_gvec_3_var with a descriptor from a GVecGen3[4]
+#   array indexed by MemOp element size.
+#   "table" - name of the extern const GVecGen3[4] array in hlx_gvec_tables.h
+#   "vece"  - MemOp constant used as the array index (e.g. "MO_16")
+HLX_INLINE_TAGS = {
+    "LX_add_h":      {"op": "add",          "vece": "MO_16"},
+    # single-register ops
+    "LX_sub_h":      {"op": "sub",          "vece": "MO_16"},
+    "LX_assign":     {"op": "mov",          "vece": "MO_64"},
+    # pair-register ops (size = 2 * sizeof(HLXVector))
+    #
+    # NOTE: LX_add_w and LX_sub_w are NOT inlined here.  The HLX word-pair
+    # physical layout has lo L-reg holding low halfwords of each word and hi
+    # L-reg holding high halfwords.  A MO_32 gvec add/sub on the lo register
+    # alone treats adjacent lo-halfwords as a single 32-bit entity and loses
+    # the carry/borrow between lo and hi.  The test value WORD_A=1000,
+    # WORD_B=2000 (add) passes by coincidence (no carry), but WORD_A - WORD_B
+    # (sub) fails because borrow from lo to hi is dropped.
+    # These ops use the C helper (helper_funcs_generated.c.inc) which correctly
+    # interleaves the pair before and after the operation.
+    "LX_assign_w":   {"op": "mov",          "vece": "MO_64",
+                      "size": "2 * sizeof(HLXVector)"},
+    # combine: pair dest, two single sources
+    # Ldd.l = Lv, Ldd.h = Lu
+    "LX_combine_w":  {"op": "combine_pair", "vece": "MO_64"},
+}
+
+def is_hlx_inline_tag(tag):
+    return tag in HLX_INLINE_TAGS
+
+def gen_hlx_inline(f, tag, regs):
+    """Emit an inline gvec call for HLX instructions in HLX_INLINE_TAGS.
+
+    regs is the list of (regtype, regid, ...) tuples from the insn
+    dictionary. For LX_add_h: [('L','d',...), ('L','u',...), ('L','v',...)].
+
+    The optional "size" key in HLX_INLINE_TAGS selects the gvec oprsz/maxsz:
+      "sizeof(HLXVector)"     - single L-reg (default)
+      "2 * sizeof(HLXVector)" - pair of L-regs
+
+    When size is "2 * sizeof(HLXVector)" (pair dest), gvec's 8-bit maxsz
+    field cannot represent 4096 bytes (max 2048).  Instead we emit TWO
+    separate gvec calls of sizeof(HLXVector) each: one at offset +0 (low
+    half) and one at offset +sizeof(HLXVector) (high half).  All operands
+    are pairs for every pair-dst op we inline, so both source offsets
+    advance by the same amount.
+    """
+    desc = HLX_INLINE_TAGS[tag]
+    op = desc["op"]
+    vece = desc["vece"]
+    sz = desc.get("size", "sizeof(HLXVector)")
+    pair_dst = (sz == "2 * sizeof(HLXVector)")
+    single = "sizeof(HLXVector)"
+    oprsz = single if pair_dst else desc.get("oprsz", sz)
+    maxsz = single if pair_dst else desc.get("maxsz", sz)
+
+    def reg(i):
+        regtype, regid, *_ = regs[i]
+        return f"{regtype}{regid}V"
+
+    if op == "add":
+        d, a, b = reg(0), reg(1), reg(2)
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_add_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
+                /* high half of pair */
+                tcg_gen_gvec_add_var({vece},
+                                     {d}_base, {d}_off + sizeof(HLXVector),
+                                     {a}_base, {a}_off + sizeof(HLXVector),
+                                     {b}_base, {b}_off + sizeof(HLXVector),
+                                     {oprsz}, {maxsz});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_add_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
+            """))
+    elif op == "sub":
+        d, a, b = reg(0), reg(1), reg(2)
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_sub_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
+                /* high half of pair */
+                tcg_gen_gvec_sub_var({vece},
+                                     {d}_base, {d}_off + sizeof(HLXVector),
+                                     {a}_base, {a}_off + sizeof(HLXVector),
+                                     {b}_base, {b}_off + sizeof(HLXVector),
+                                     {oprsz}, {maxsz});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_sub_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
+            """))
+    elif op == "mov":
+        d, a = reg(0), reg(1)
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_mov_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {oprsz}, {maxsz});
+                /* high half of pair */
+                tcg_gen_gvec_mov_var({vece},
+                                     {d}_base, {d}_off + sizeof(HLXVector),
+                                     {a}_base, {a}_off + sizeof(HLXVector),
+                                     {oprsz}, {maxsz});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_mov_var({vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {oprsz}, {maxsz});
+            """))
+    elif op == "dup_imm":
+        d = reg(0)
+        imm = desc["imm"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_dup_imm_var({vece},
+                                         {d}_base, {d}_off,
+                                         {oprsz}, {maxsz}, {imm});
+                /* high half of pair */
+                tcg_gen_gvec_dup_imm_var({vece},
+                                         {d}_base, {d}_off + sizeof(HLXVector),
+                                         {oprsz}, {maxsz}, {imm});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_dup_imm_var({vece},
+                                         {d}_base, {d}_off,
+                                         {oprsz}, {maxsz}, {imm});
+            """))
+    elif op == "gvec3":
+        d, a, b = reg(0), reg(1), reg(2)
+        table = desc["table"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {b}_base, {b}_off,
+                                   {oprsz}, {maxsz}, &{table});
+                /* high half of pair */
+                tcg_gen_gvec_3_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off + sizeof(HLXVector),
+                                   {b}_base, {b}_off + sizeof(HLXVector),
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {b}_base, {b}_off,
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+    elif op == "gvec3_arr":
+        # Like gvec3, but table is a GVecGen3[4] indexed by vece.
+        d, a, b = reg(0), reg(1), reg(2)
+        table = desc["table"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {b}_base, {b}_off,
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                /* high half of pair */
+                tcg_gen_gvec_3_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off + sizeof(HLXVector),
+                                   {b}_base, {b}_off + sizeof(HLXVector),
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {b}_base, {b}_off,
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+            """))
+    elif op == "combine_pair":
+        # Ldd16 = combine(Lu16, Lv16)
+        # The pair dest is stored as [Ldd.l, Ldd.h] i.e. two consecutive
+        # L-regs.  The hardware semantics are:
+        #   Ldd.l (low half,  offset +0)              = Lv
+        #   Ldd.h (high half, offset +sizeof(HLXVector)) = Lu
+        dd, u, v = reg(0), reg(1), reg(2)
+        single = "sizeof(HLXVector)"
+        f.write(code_fmt(f"""\
+            /* combine_pair: Ldd.l = Lv, Ldd.h = Lu */
+            tcg_gen_gvec_mov_var({vece},
+                                 {dd}_base, {dd}_off,
+                                 {v}_base, {v}_off,
+                                 {single}, {single});
+            tcg_gen_gvec_mov_var({vece},
+                                 {dd}_base,
+                                 {dd}_off + sizeof(HLXVector),
+                                 {u}_base, {u}_off,
+                                 {single}, {single});
+        """))
+    elif op == "gvec2":
+        # Two-operand op: dest and one source.  table is a const GVecGen2.
+        d, a = reg(0), reg(1)
+        table = desc["table"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_2_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table});
+                /* high half of pair */
+                tcg_gen_gvec_2_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off + sizeof(HLXVector),
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_2_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+    elif op == "gvec2_arr":
+        # Like gvec2, but table is a GVecGen2[4] indexed by vece.
+        d, a = reg(0), reg(1)
+        table = desc["table"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair */
+                tcg_gen_gvec_2_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                /* high half of pair */
+                tcg_gen_gvec_2_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off + sizeof(HLXVector),
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                tcg_gen_gvec_2_var({d}_base, {d}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+            """))
+    elif op == "cmp_gt":
+        # Compare greater-than: d = (a > b) ? ~0 : 0 per element.
+        # Implemented as LT with args swapped: (b < a) == (a > b).
+        # table is the LT descriptor (hlx_cmp_slt_h_op or hlx_cmp_ult_h_op).
+        d, a, b = reg(0), reg(1), reg(2)
+        table = desc["table"]
+        if pair_dst:
+            f.write(code_fmt(f"""\
+                /* low half of pair: cmp_gt via swapped LT */
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {b}_base, {b}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table});
+                /* high half of pair */
+                tcg_gen_gvec_3_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {b}_base, {b}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off + sizeof(HLXVector),
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                /* cmp_gt via swapped LT: b < a means a > b */
+                tcg_gen_gvec_3_var({d}_base, {d}_off,
+                                   {b}_base, {b}_off,
+                                   {a}_base, {a}_off,
+                                   {oprsz}, {maxsz}, &{table});
+            """))
+    elif op == "conv_h_to_w_pair":
+        # Halfword->word-pair conversion.
+        # Dest is a pair: lo L-reg at offset +0, hi L-reg at +sizeof(HLXVector).
+        # Source is a single halfword vector (2048 bytes).
+        #   zxt: lo = verbatim copy of source; hi = all zeros.
+        #   sxt: lo = verbatim copy of source; hi = sari(source, 15) per halfword
+        #        (0x0000 for non-negative lanes, 0xFFFF for negative).
+        d, a = reg(0), reg(1)
+        single = "sizeof(HLXVector)"
+        sign_extend = desc.get("sign_extend", False)
+        if sign_extend:
+            table = desc["table"]
+            f.write(code_fmt(f"""\
+                /* lo L-reg: verbatim copy of the halfword source */
+                tcg_gen_gvec_mov_var(MO_64,
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {single}, {single});
+                /* hi L-reg: arithmetic shift-right-by-15 per halfword
+                 * (sign-replicate: 0x0000 for non-negative, 0xFFFF for negative) */
+                tcg_gen_gvec_2_var({d}_base, {d}_off + sizeof(HLXVector),
+                                   {a}_base, {a}_off,
+                                   {single}, {single}, &{table});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                /* lo L-reg: verbatim copy of the halfword source */
+                tcg_gen_gvec_mov_var(MO_64,
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {single}, {single});
+                /* hi L-reg: zero fill (zero-extend has no sign bits) */
+                tcg_gen_gvec_dup_imm_var(MO_64,
+                                         {d}_base, {d}_off + sizeof(HLXVector),
+                                         {single}, {single}, 0);
+            """))
+    else:
+        raise Exception(f"unknown HLX inline op {op!r} for tag {tag!r}")
+
+
 def is_idef_parser_enabled(tag):
     return tag in idef_parser_enabled
 
@@ -408,6 +751,8 @@ class Scalar:
         return True
     def is_hvx_reg(self):
         return False
+    def is_hlx_reg(self):
+        return False
     def helper_arg_name(self):
         return self.reg_tcg()
 
@@ -432,6 +777,8 @@ class Hvx:
         return False
     def is_hvx_reg(self):
         return True
+    def is_hlx_reg(self):
+        return False
     def hvx_off(self):
         return f"{self.reg_tcg()}_off"
     def hvx_base(self):
@@ -1203,6 +1550,310 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
                                insn_has_hvx_helper);
         """))
 
+#
+# HLX (Hexagon eLement-wise eXtensions) register classes
+# HLX has 16 registers (L0-L15) of 2048 bytes each
+#
+class Hlx:
+    def is_scalar_reg(self):
+        return False
+    def is_hvx_reg(self):
+        return False
+    def is_hlx_reg(self):
+        return True
+    def hlx_off(self):
+        return f"{self.reg_tcg()}_off"
+    def helper_proto_type(self):
+        return "ptr"
+    def helper_arg_type(self):
+        return "void *"
+    def helper_arg_name(self):
+        return f"{self.reg_tcg()}_void"
+
+class LRegDest(Hlx, Register, Single, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        if "A_HLX_TMP" in attribdict[tag]:
+            storage = "tmp_LRegs"
+        else:
+            storage = "future_LRegs"
+        f.write(code_fmt(f"""\
+            const intptr_t {self.hlx_off()} =
+                offsetof(CPUHexagonState, {storage}[{self.reg_num}]);
+        """))
+        if "A_HLX_TMP" in attribdict[tag] and "A_CONDEXEC" in attribdict[tag]:
+            f.write(code_fmt(f"""\
+                gen_helper_hlx_copy_live_to_tmp(tcg_env,
+                    tcg_constant_i32({self.reg_num}));
+            """))
+        if is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()}_base = tcg_env;
+            """))
+        elif not skip_qemu_helper(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def gen_write(self, f, tag):
+        pass
+    def helper_hlx_desc(self, f):
+        desc = f"*(HLXVector *)({self.helper_arg_name()})"
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is {desc} */
+        """))
+    def analyze_write(self, f, tag, regno):
+        if "A_HLX_TMP" in attribdict[tag]:
+            f.write(code_fmt(f"""\
+                ctx_log_lreg_tmp_write(ctx, {self.reg_num});
+            """))
+        else:
+            f.write(code_fmt(f"""\
+                ctx_log_lreg_write(ctx, {self.reg_num});
+            """))
+
+class LRegSource(Hlx, Register, Single, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_ptr {self.reg_tcg()}_base;
+            intptr_t {self.reg_tcg()}_off;
+            if (test_bit({self.reg_num}, ctx->lregs_updated_tmp)) {{
+                {self.reg_tcg()}_base = tcg_env;
+                {self.reg_tcg()}_off =
+                    offsetof(CPUHexagonState, tmp_LRegs[{self.reg_num}]);
+            }} else {{
+                {self.reg_tcg()}_base = ctx_get_hlx_base(ctx);
+                {self.reg_tcg()}_off =
+                    offsetof(HexagonHLXContext, LRegs[{self.reg_num}]);
+            }}
+        """))
+        if not is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, {self.reg_tcg()}_base,
+                                 {self.reg_tcg()}_off);
+            """))
+    def helper_hlx_desc(self, f):
+        desc = f"*(HLXVector *)({self.helper_arg_name()})"
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is {desc} */
+        """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_read(ctx, {self.reg_num});
+        """))
+
+class LRegNewSource(Hlx, Register, Single, NewSource):
+    def decl_tcg(self, f, tag, regno):
+        if skip_qemu_helper(tag):
+            self.decl_reg_num(f, regno)
+            f.write(code_fmt(f"""\
+                const intptr_t {self.hlx_off()} =
+                    offsetof(CPUHexagonState, future_LRegs[{self.reg_num}]);
+            """))
+        else:
+            # For helpers, create offset and pointer without reg_num variable
+            # to avoid name collision with TCGv_ptr
+            f.write(code_fmt(f"""\
+                const intptr_t {self.hlx_off()} =
+                    offsetof(CPUHexagonState, future_LRegs[insn->regno[{regno}]]);
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def helper_hlx_desc(self, f):
+        desc = f"*(HLXVector *)({self.helper_arg_name()})"
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is {desc} */
+        """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_read(ctx, {self.reg_num});
+        """))
+
+class LRegReadWrite(Hlx, Register, Single, ReadWrite):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            const intptr_t {self.hlx_off()} =
+                offsetof(CPUHexagonState, future_LRegs[{self.reg_num}]);
+            if (test_bit({self.reg_num}, ctx->lregs_updated_tmp)) {{
+                tcg_gen_gvec_mov(MO_64, {self.hlx_off()},
+                                 offsetof(CPUHexagonState,
+                                          tmp_LRegs[{self.reg_num}]),
+                                 sizeof(HLXVector), sizeof(HLXVector));
+            }} else {{
+                gen_helper_hlx_copy_live_to_future(tcg_env,
+                    tcg_constant_i32({self.reg_num}));
+            }}
+        """))
+        if not skip_qemu_helper(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def gen_write(self, f, tag):
+        pass
+    def helper_hlx_desc(self, f):
+        desc = f"*(HLXVector *)({self.helper_arg_name()})"
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is {desc} */
+        """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_read(ctx, {self.reg_num});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_write(ctx, {self.reg_num});
+        """))
+
+class LRegTmp(Hlx, Register, Single, ReadWrite):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            const intptr_t {self.hlx_off()} =
+                offsetof(CPUHexagonState, tmp_LRegs[{self.reg_num}]);
+        """))
+        if is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()}_base = tcg_env;
+            """))
+        elif not skip_qemu_helper(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def gen_write(self, f, tag):
+        pass
+    def helper_hlx_desc(self, f):
+        desc = f"*(HLXVector *)({self.helper_arg_name()})"
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is {desc} */
+        """))
+    def analyze_read(self, f, regno):
+        pass
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_tmp_write(ctx, {self.reg_num});
+        """))
+
+# LRegPairDest, LRegPairSource, LRegPairReadWrite expose
+# {reg}_base / {reg}_off for inline tags, mirroring LRegDest/LRegSource/LRegTmp.
+class LRegPairDest(Hlx, Register, Pair, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            const intptr_t {self.hlx_off()} =
+                offsetof(CPUHexagonState, future_LRegs[{self.reg_num}]);
+        """))
+        if is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()}_base = tcg_env;
+            """))
+        elif not skip_qemu_helper(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def gen_write(self, f, tag):
+        pass
+    def helper_hlx_desc(self, f):
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is *(HLXVectorPair *)({self.helper_arg_name()}) */
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_write_pair(ctx, {self.reg_num});
+        """))
+
+class LRegPairSource(Hlx, Register, Pair, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_ptr {self.reg_tcg()}_base;
+            intptr_t {self.reg_tcg()}_off;
+            if (test_bit({self.reg_num}, ctx->lregs_updated_tmp) ||
+                test_bit({self.reg_num} + 1, ctx->lregs_updated_tmp)) {{
+                /*
+                 * A pair is read from one contiguous block, so fill in the
+                 * half that was not written by a .tmp load from the live
+                 * register.
+                 */
+                if (!test_bit({self.reg_num}, ctx->lregs_updated_tmp)) {{
+                    gen_helper_hlx_copy_live_to_tmp(tcg_env,
+                        tcg_constant_i32({self.reg_num}));
+                }}
+                if (!test_bit({self.reg_num} + 1, ctx->lregs_updated_tmp)) {{
+                    gen_helper_hlx_copy_live_to_tmp(tcg_env,
+                        tcg_constant_i32({self.reg_num} + 1));
+                }}
+                {self.reg_tcg()}_base = tcg_env;
+                {self.reg_tcg()}_off =
+                    offsetof(CPUHexagonState, tmp_LRegs[{self.reg_num}]);
+            }} else {{
+                {self.reg_tcg()}_base = ctx_get_hlx_base(ctx);
+                {self.reg_tcg()}_off =
+                    offsetof(HexagonHLXContext, LRegs[{self.reg_num}]);
+            }}
+        """))
+        if not is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, {self.reg_tcg()}_base,
+                                 {self.reg_tcg()}_off);
+            """))
+    def helper_hlx_desc(self, f):
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is *(HLXVectorPair *)({self.helper_arg_name()}) */
+        """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_read_pair(ctx, {self.reg_num});
+        """))
+
+class LRegPairReadWrite(Hlx, Register, Pair, ReadWrite):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            const intptr_t {self.hlx_off()} =
+                offsetof(CPUHexagonState, future_LRegs[{self.reg_num}]);
+            if (test_bit({self.reg_num}, ctx->lregs_updated_tmp)) {{
+                tcg_gen_gvec_mov(MO_64, {self.hlx_off()},
+                                 offsetof(CPUHexagonState,
+                                          tmp_LRegs[{self.reg_num}]),
+                                 sizeof(HLXVector) * 2, sizeof(HLXVector) * 2);
+            }} else {{
+                gen_helper_hlx_copy_live_to_future(tcg_env,
+                    tcg_constant_i32({self.reg_num}));
+                gen_helper_hlx_copy_live_to_future(tcg_env,
+                    tcg_constant_i32({self.reg_num} + 1));
+            }}
+        """))
+        if is_hlx_inline_tag(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()}_base = tcg_env;
+            """))
+        elif not skip_qemu_helper(tag):
+            f.write(code_fmt(f"""\
+                TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
+                tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hlx_off()});
+            """))
+    def gen_write(self, f, tag):
+        pass
+    def helper_hlx_desc(self, f):
+        f.write(code_fmt(f"""\
+            /* {self.reg_tcg()} is *(HLXVectorPair *)({self.helper_arg_name()}) */
+        """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_read_pair(ctx, {self.reg_num});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_lreg_write_pair(ctx, {self.reg_num});
+        """))
+
 class GuestRegister(Register):
     def gen_check_impl(self, f, regno):
         if self.is_written():
@@ -1385,6 +2036,20 @@ def init_registers():
         QRegSource("Q", "v"),
         QRegReadWrite("Q", "x"),
 
+        # HLX regs
+        LRegDest("L", "d"),
+        LRegSource("L", "s"),
+        LRegSource("L", "u"),
+        LRegSource("L", "v"),
+        LRegSource("L", "w"),
+        LRegReadWrite("L", "x"),
+        LRegTmp("L", "y"),
+        LRegPairDest("L", "dd"),
+        LRegPairSource("L", "uu"),
+        LRegPairSource("L", "vv"),
+        LRegPairSource("L", "ss"),
+        LRegPairReadWrite("L", "xx"),
+
         # system regs
         GuestDest("G", "d"),
         GuestSource("G", "s"),
@@ -1405,12 +2070,13 @@ def init_registers():
         PredNewSource("P", "u"),
         PredNewSource("P", "v"),
         VRegNewSource("O", "s"),
+        LRegNewSource("K", "u"),
     }
     for reg in new_regs:
         new_registers[f"{reg.regtype}{reg.regid}"] = reg
 
 def is_new_reg(tag, regid):
-    if regid[0] in "NO":
+    if regid[0] in "NOK":
         return True
     return regid[0] == "P" and \
            f"{regid}N" in semdict[tag] and \
@@ -1457,19 +2123,22 @@ def helper_args(tag, regs, imms):
     if is_predicated(tag):
         for regtype, regid in regs:
             reg = get_register(tag, regtype, regid)
-            if reg.is_writeonly() and not reg.is_hvx_reg():
+            is_vector = reg.is_hvx_reg() or reg.is_hlx_reg()
+            if reg.is_writeonly() and not is_vector:
                 args.append(reg.helper_arg())
 
     ## Pass the HVX destination registers
     for regtype, regid in regs:
         reg = get_register(tag, regtype, regid)
-        if reg.is_written() and reg.is_hvx_reg():
+        if reg.is_written() and (reg.is_hvx_reg() or reg.is_hlx_reg()):
             args.append(reg.helper_arg())
 
     ## Pass the source registers
     for regtype, regid in regs:
         reg = get_register(tag, regtype, regid)
-        if reg.is_read() and not (reg.is_hvx_reg() and reg.is_readwrite()):
+        is_vector_readwrite = ((reg.is_hvx_reg() or reg.is_hlx_reg()) and
+                               reg.is_readwrite())
+        if reg.is_read() and not is_vector_readwrite:
             args.append(reg.helper_arg())
 
     ## Pass the immediates

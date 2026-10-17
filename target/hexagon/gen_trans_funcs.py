@@ -33,7 +33,7 @@ encs = {
 }
 
 
-regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZA])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)")
+regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZALK])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)")
 immre = re.compile(r"[#]([rRsSuUm])(\d+)(?:[:](\d+))?")
 
 
