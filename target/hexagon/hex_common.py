@@ -432,6 +432,36 @@ HLX_INLINE_TAGS = {
     # saturating abs: Ld.h = abs(Lu.h):sat  (INT16_MIN -> INT16_MAX)
     "LX_abs_uh_sat":    {"op": "gvec2", "table": "hlx_abs_uh_sat_op",
                          "vece": "MO_16"},
+    # compare GT: single L-reg (MO_16)
+    # LX_cmp_gt_h and LX_cmp_gt_uh: single dest, two single sources.
+    # Produces all-1s (0xFFFF per lane) if a > b, else all-0s.
+    # Implementation: use LT descriptor with args swapped ((b < a) == (a > b)).
+    # NOTE: LX_cmp_gt_w and LX_cmp_gt_uw are NOT inlined - word-pair
+    # interleaved layout makes MO_32 gvec cmp semantically wrong.
+    "LX_cmp_gt_h":   {"op": "cmp_gt",    "table": "hlx_cmp_slt_h_op",
+                      "vece": "MO_16"},
+    "LX_cmp_gt_uh":  {"op": "cmp_gt",    "table": "hlx_cmp_ult_h_op",
+                      "vece": "MO_16"},
+    # compare GT: paired halfword (pair L-regs, MO_16 elements)
+    "LX_cmp_gt_hp":  {"op": "cmp_gt",    "table": "hlx_cmp_slt_h_op",
+                      "vece": "MO_16",   "size": "2 * sizeof(HLXVector)"},
+    "LX_cmp_gt_uhp": {"op": "cmp_gt",    "table": "hlx_cmp_ult_h_op",
+                      "vece": "MO_16",   "size": "2 * sizeof(HLXVector)"},
+    # halfword average ops: single L-reg (MO_16)
+    # LX_avg_h:     Ld.h  = avg(Lu.h, Lv.h)       signed, truncating
+    # LX_avg_h_rnd: Ld.h  = avg(Lu.h, Lv.h):rnd   signed, rounded
+    # LX_avg_uh:    Ld.uh = avg(Lu.uh, Lv.uh)      unsigned, truncating
+    # LX_avg_uh_rnd:Ld.uh = avg(Lu.uh, Lv.uh):rnd  unsigned, rounded
+    # NOTE: LX_avg_w* stay as helpers - halfword-interleaved word-pair storage
+    # defeats per-L-reg MO_32 inlining.
+    "LX_avg_h":         {"op": "gvec3", "table": "hlx_avg_sh_op",
+                         "vece": "MO_16"},
+    "LX_avg_h_rnd":     {"op": "gvec3", "table": "hlx_avg_sh_rnd_op",
+                         "vece": "MO_16"},
+    "LX_avg_uh":        {"op": "gvec3", "table": "hlx_avg_uh_op",
+                         "vece": "MO_16"},
+    "LX_avg_uh_rnd":    {"op": "gvec3", "table": "hlx_avg_uh_rnd_op",
+                         "vece": "MO_16"},
 }
 
 def is_hlx_inline_tag(tag):

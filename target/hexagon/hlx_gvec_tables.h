@@ -43,6 +43,17 @@ extern const GVecGen3 hlx_umax_op[4]; /* unsigned maximum */
 extern const GVecGen2 hlx_abs_op[4]; /* absolute value */
 
 /*
+ * compare greater-than (signed and unsigned halfword).
+ * These produce all-1s (0xFFFF per lane) if a > b, else all-0s.
+ *
+ * Implementation: these are signed-LT / unsigned-LT descriptors used with
+ * swapped src args.  The gen_hlx_inline "cmp_gt" op type passes b first
+ * and a second so that (b < a) computes (a > b).
+ */
+extern const GVecGen3 hlx_cmp_slt_h_op; /* signed   LT, MO_16 (used for GT) */
+extern const GVecGen3 hlx_cmp_ult_h_op; /* unsigned LT, MO_16 (used for GT) */
+
+/*
  * signed-to-unsigned saturating add/sub and saturating absolute.
  *
  * hlx_ushsat_add_op (GVecGen3, MO_16):
@@ -57,5 +68,25 @@ extern const GVecGen2 hlx_abs_op[4]; /* absolute value */
 extern const GVecGen3 hlx_ushsat_add_op;
 extern const GVecGen3 hlx_ushsat_sub_op;
 extern const GVecGen2 hlx_abs_uh_sat_op;
+
+/*
+ * halfword average ops (MO_16).
+ *
+ * hlx_avg_sh_op (GVecGen3, MO_16):
+ *   d[i] = trunc_avg(s16(a[i]), s16(b[i]))  - signed, truncating
+ *
+ * hlx_avg_sh_rnd_op (GVecGen3, MO_16):
+ *   d[i] = rnd_avg(s16(a[i]), s16(b[i]))    - signed, rounded
+ *
+ * hlx_avg_uh_op (GVecGen3, MO_16):
+ *   d[i] = trunc_avg(u16(a[i]), u16(b[i]))  - unsigned, truncating
+ *
+ * hlx_avg_uh_rnd_op (GVecGen3, MO_16):
+ *   d[i] = rnd_avg(u16(a[i]), u16(b[i]))    - unsigned, rounded
+ */
+extern const GVecGen3 hlx_avg_sh_op;
+extern const GVecGen3 hlx_avg_sh_rnd_op;
+extern const GVecGen3 hlx_avg_uh_op;
+extern const GVecGen3 hlx_avg_uh_rnd_op;
 
 #endif /* HLX_GVEC_TABLES_H */

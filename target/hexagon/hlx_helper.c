@@ -206,3 +206,83 @@ void HELPER(hlx_gvec_abs_uh_sat16)(void *d, void *a, uint32_t desc)
         *(int16_t *)((char *)d + i) = (int16_t)r;
     }
 }
+
+/*
+ * GVec fno helpers for halfword average ops (MO_16).
+ *
+ * HLX vectors are 2048 bytes - far beyond gvec's MAX_UNROLL limit - so
+ * the fniv path is never taken and the fno fallback is always used.
+ *
+ * All use the classic overflow-free formulas:
+ *   truncating: (a & b) + ((a ^ b) >> 1)
+ *   rounded:    (a | b) - ((a ^ b) >> 1)
+ * Signed variants use arithmetic right shift; unsigned use logical.
+ */
+
+/*
+ * hlx_gvec_avg_sh16 - d[i] = trunc_avg(s16(a[i]), s16(b[i]))
+ * Signed average, truncating: (a & b) + ((a ^ b) >>a 1)
+ */
+void HELPER(hlx_gvec_avg_sh16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t av = *(int16_t *)((char *)a + i);
+        int16_t bv = *(int16_t *)((char *)b + i);
+        int16_t r = (int16_t)((av & bv) + ((av ^ bv) >> 1));
+        *(int16_t *)((char *)d + i) = r;
+    }
+}
+
+/*
+ * hlx_gvec_avg_sh16_rnd - d[i] = rnd_avg(s16(a[i]), s16(b[i]))
+ * Signed average, rounded: (a | b) - ((a ^ b) >>a 1)
+ */
+void HELPER(hlx_gvec_avg_sh16_rnd)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t av = *(int16_t *)((char *)a + i);
+        int16_t bv = *(int16_t *)((char *)b + i);
+        int16_t r = (int16_t)((av | bv) - ((av ^ bv) >> 1));
+        *(int16_t *)((char *)d + i) = r;
+    }
+}
+
+/*
+ * hlx_gvec_avg_uh16 - d[i] = trunc_avg(u16(a[i]), u16(b[i]))
+ * Unsigned average, truncating: (a & b) + ((a ^ b) >>l 1)
+ */
+void HELPER(hlx_gvec_avg_uh16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        uint16_t av = *(uint16_t *)((char *)a + i);
+        uint16_t bv = *(uint16_t *)((char *)b + i);
+        uint16_t r = (uint16_t)((av & bv) + ((av ^ bv) >> 1));
+        *(uint16_t *)((char *)d + i) = r;
+    }
+}
+
+/*
+ * hlx_gvec_avg_uh16_rnd - d[i] = rnd_avg(u16(a[i]), u16(b[i]))
+ * Unsigned average, rounded: (a | b) - ((a ^ b) >>l 1)
+ */
+void HELPER(hlx_gvec_avg_uh16_rnd)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        uint16_t av = *(uint16_t *)((char *)a + i);
+        uint16_t bv = *(uint16_t *)((char *)b + i);
+        uint16_t r = (uint16_t)((av | bv) - ((av ^ bv) >> 1));
+        *(uint16_t *)((char *)d + i) = r;
+    }
+}
