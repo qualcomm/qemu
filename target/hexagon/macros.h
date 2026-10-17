@@ -703,4 +703,99 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fPREDUSE_TIMING()
 
+/*
+ * HLX macros for vector operations
+ * HLX vectors are 2048 bytes each
+ */
+#define fLVECSIZE() (2048)
+/*
+ * In HLX instruction definitions, the fLVFOREACH parameter is the
+ * element COUNT (e.g., 1024 for halfword operations), not bit width.
+ * This differs from HVX where WIDTH is in bits.
+ */
+#define fLVFOREACH(COUNT, VAR) for (VAR = 0; VAR < (COUNT); VAR++)
+
+/* HLX multiply macros */
+#define fLMPY16UU(A, B) \
+    ((uint64_t)((uint32_t)(uint16_t)(A) * (uint32_t)(uint16_t)(B)))
+#define fLMPY16SU(A, B) ((int64_t)(int32_t)((int16_t)(A) * (uint16_t)(B)))
+#define fLMPY16SS(A, B) ((int64_t)(int32_t)((int16_t)(A) * (int16_t)(B)))
+
+/* HLX shift macros */
+#define fLSHIFT(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((int64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((int64_t)(VAL) >> fMIN(32, (SHAMT))))
+#define fLSHIFT_RND(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((int64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((((int64_t)(VAL) >> fMIN(32, (SHAMT) - 1)) + 1) >> 1))
+#define fLSHIFTU(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((uint64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((uint64_t)(VAL) >> fMIN(32, (SHAMT))))
+#define fLSHIFTU_RND(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((uint64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((((uint64_t)(VAL) >> fMIN(32, (SHAMT) - 1)) + 1) >> 1))
+
+/* HLX utility macros */
+#define fABSW(A) (((int64_t)(A) < 0) ? (-(int64_t)(A)) : ((int64_t)(A)))
+#define fBIT_WIDTH(SIZE, VAL) \
+    ((uint32_t)(VAL) ? \
+     (SIZE) - (__builtin_clz((uint32_t)(VAL)) - (32 - (SIZE))) : 0)
+
+/* HLX memory operation macros (used in helper functions) */
+#define HLX_MEM_ALIGN_MASK (~(HLX_VEC_SIZE_BYTES - 1))
+
+/*
+ * fLOADMML - Load HLX vector from memory
+ * EA: Effective address (will be aligned to 2KB)
+ * DST: Destination HLXVector
+ * ABOVE/BELOW: VTCM bank access flags
+ *
+ * Loads a 2KB HLX vector from memory with automatic 2KB alignment.
+ * Uses helper function for proper MMU/TLB handling.
+ *
+ */
+#ifdef QEMU_GENERATE
+/* TCG generation - calls gen_helper_* to emit TCG code */
+#define fLOADMML(EA, DST, ABOVE, BELOW) \
+    gen_helper_hlx_load_vec(tcg_env, tcg_constant_ptr((intptr_t)&(DST)), \
+                            EA, tcg_constant_i32(ABOVE), tcg_constant_i32(BELOW))
+#else
+/* Runtime helpers - directly calls the helper function */
+#define fLOADMML(EA, DST, ABOVE, BELOW) \
+    do { helper_hlx_load_vec(env, &(DST), (EA), (ABOVE), (BELOW)); } while (0)
+#endif
+
+/*
+ * fSTOREMML - Store HLX vector to memory
+ * EA: Effective address (will be aligned to 2KB)
+ * SRC: Source HLXVector
+ * ABOVE/BELOW: VTCM bank access flags
+ *
+ * Stores a 2KB HLX vector to memory with automatic 2KB alignment.
+ * Uses helper function for proper MMU/TLB handling.
+ *
+ * TODO: Implement packet commit integration (mem_log_stores)
+ */
+#ifdef QEMU_GENERATE
+/* TCG generation - calls gen_helper_* to emit TCG code */
+#define fSTOREMML(EA, SRC, ABOVE, BELOW) \
+    gen_helper_hlx_store_vec(tcg_env, EA, tcg_constant_ptr((intptr_t)&(SRC)), \
+                             tcg_constant_i32(ABOVE), tcg_constant_i32(BELOW))
+#else
+/* Runtime helpers - directly calls the helper function */
+#define fSTOREMML(EA, SRC, ABOVE, BELOW) \
+    do { helper_hlx_store_vec(env, (EA), &(SRC), (ABOVE), (BELOW)); } while (0)
+#endif
+
+/*
+ * fNEWLREG - Access .new HLX register value
+ * In QEMU helpers, .new register values are already passed as arguments
+ * (pointing to future_LRegs), so this macro just returns its argument.
+ */
+#define fNEWLREG(LNUM) (LNUM)
+
+#define fMPY3216UU(A, B) (fZE32_64(A) * fZXTN(16, 64, B))
+#define check_ilog2_compliance(RESULT, INPUT, OFFSET) do {} while (0)
+#define f64BIT_SCALAR_MASK(REG) do {} while (0)
+
 #endif
