@@ -112,6 +112,13 @@ union hexagon_config_table {
         uint32_t coproc2_reg1;
         /* Supported HVX vector length */
         uint32_t v2x_mode;
+        /*
+         * coproc2_reg2 is the HLX_CONTEXTS bitmap at cfgtable byte offset
+         * 0x84. Each set bit enumerates an enabled HLX context (bit N = HLX
+         * context N). The field name is legacy; architecturally this is
+         * HLX_CONTEXTS. See hw/hexagon/hexagon_hlx.h and the Hexagon spec's
+         * q6_spec/cfgtable.adoc.
+         */
         uint32_t coproc2_reg2;
         uint32_t coproc2_reg3;
         uint32_t coproc2_reg4;

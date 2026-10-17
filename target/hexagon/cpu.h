@@ -18,6 +18,17 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
+/* Forward declaration; full definition in hw/hexagon/hexagon_hlx.h */
+typedef struct HexagonHLXContext HexagonHLXContext;
+
+#ifdef CONFIG_USER_ONLY
+/*
+ * In linux-user mode we embed a single HLX context directly in
+ * CPUArchState (no QOM device), so we need the full struct definition.
+ */
+#include "hw/hexagon/hexagon_hlx.h"
+#endif
+
 #include "fpu/softfloat-types.h"
 
 #ifndef CONFIG_USER_ONLY
@@ -30,11 +41,13 @@
 typedef struct HexagonTLBState HexagonTLBState;
 typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 typedef struct HexagonHVXContextState HexagonHVXContextState;
+typedef struct HexagonHLXState HexagonHLXState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/target_long.h"
 #include "hex_regs.h"
+#include "hlx/hlx.h"
 #include "mmvec/mmvec.h"
 #include "hw/core/registerfields.h"
 #include "qemu/bitmap.h"
@@ -186,6 +199,32 @@ typedef struct CPUArchState {
 
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
 
+    /*
+     * Pointer to the currently-attached HLX context, or NULL when
+     * HLX is disabled on this thread (CCR.XE3 == 0), when no HLX
+     * pool exists, or when CCR.XA3 selects a context not present
+     * in HLX_CONTEXTS. Updated by hexagon_modify_ccr() on CCR writes
+     * and reconstructed by hexagon_cpu_post_load() after migration.
+     *
+     * In linux-user mode there is no HLX QOM device: the CCR.XE3
+     * check is skipped (#ifndef CONFIG_USER_ONLY in translate.c), so
+     * HLX instructions always execute.  hlx_ctx is initialised at
+     * CPU reset to point at the embedded hlx_user_ctx below so that
+     * the commit helpers (hlx_copy_live_to_future, hlx_commit_reg,
+     * hlx_commit_tmp_reg) and the TCG gvec source-register path
+     * always find a valid context.
+     */
+    HexagonHLXContext *hlx_ctx;
+
+#ifdef CONFIG_USER_ONLY
+    /* Embedded single context used in linux-user mode (see comment above). */
+    HexagonHLXContext hlx_user_ctx;
+#endif
+
+    /* Per-packet intra-packet scratch; NOT per-context. */
+    HLXVector future_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
+    HLXVector tmp_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
+
     /* Temporaries used within instructions */
     MMVectorPair VuuV QEMU_ALIGNED(16);
     MMVectorPair VvvV QEMU_ALIGNED(16);
@@ -222,6 +261,7 @@ struct ArchCPU {
     HexagonGlobalRegState *globalregs;
     uint32_t htid;
     HexL2VicInterface *l2vic;
+    HexagonHLXState *hlx;
 #endif
 };
 

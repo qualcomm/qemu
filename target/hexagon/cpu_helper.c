@@ -25,6 +25,7 @@
 #include "macros.h"
 #include "sys_macros.h"
 #include "arch.h"
+#include "hw/hexagon/hexagon_hlx.h"
 
 #ifndef CONFIG_USER_ONLY
 
@@ -325,6 +326,47 @@ static uint32_t set_enable_mask(CPUHexagonState *env)
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
     hex_interrupt_update(env);
     return thread_enabled_mask;
+}
+
+void hexagon_modify_ccr(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    const uint32_t mask = (1u << reg_field_info[CCR_XA3].offset) |
+                          (1u << reg_field_info[CCR_XE3].offset);
+    bool old_XE3;
+    bool new_XE3;
+    uint32_t old_XA3;
+    uint32_t new_XA3;
+    HexagonCPU *cpu;
+    HexagonHLXState *pool;
+
+    g_assert(bql_locked());
+
+    if (((old ^ new) & mask) == 0) {
+        return;
+    }
+
+    old_XE3 = GET_FIELD(CCR_XE3, old);
+    new_XE3 = GET_FIELD(CCR_XE3, new);
+    old_XA3 = GET_FIELD(CCR_XA3, old);
+    new_XA3 = GET_FIELD(CCR_XA3, new);
+    cpu = HEXAGON_CPU(env_cpu(env));
+    pool = cpu->hlx;
+
+    if (!new_XE3) {
+        /* XE3 went 1->0 or stayed 0: no live context. */
+        env->hlx_ctx = NULL;
+        return;
+    }
+
+    if (!old_XE3 || old_XA3 != new_XA3) {
+        env->hlx_ctx = pool ? hexagon_hlx_get_context(pool, new_XA3) : NULL;
+        /*
+         * NULL if XA3 selects an absent context -- treated as disabled.
+         * Any subsequent HLX op will hit the CCR.XE3 trap path in
+         * gen_start_packet, which already handles the HLX-disabled
+         * case via HEX_CAUSE_NO_COPROC3_ENABLE.
+         */
+    }
 }
 
 static uint32_t clear_enable_mask(CPUHexagonState *env)

@@ -15,6 +15,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hex-subsys.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -191,6 +192,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, machine->smp.cpus);
 
+    /* HLX context pool. */
+    DeviceState *hlx_dev = qdev_new(TYPE_HEXAGON_HLX);
+    object_property_add_child(OBJECT(machine), "hexagon-hlx", OBJECT(hlx_dev));
+    qdev_prop_set_uint32(hlx_dev, "contexts-bitmap",
+                         m_cfg->cfgtable.coproc2_reg2);
+    qdev_prop_set_uint32(hlx_dev, "hlx-size-bytes",
+                         m_cfg->cfgtable.raw[HLX_SIZE_CFG_INDEX]);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(hlx_dev), &error_fatal);
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
@@ -205,6 +214,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             hexagon_init_bootstrap(dms, cpu);
         }
+        object_property_set_link(OBJECT(cpu), "hlx", OBJECT(hlx_dev),
+                                 &error_fatal);
         hex_subsys_add_cpu(hms, DEVICE(cpu));
         cpus[i] = cpu;
     }
