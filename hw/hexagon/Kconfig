@@ -19,6 +19,8 @@ config HEX_VIRT
     default y
     depends on HEX_DSP && FDT
     select HEX_BOARD
+    select QUP_WRAPPER
+    select X_QUP_GENI_UART_RUST if HAVE_RUST
     select VIRTIO_BLK
     select VIRTIO_SCSI
 
