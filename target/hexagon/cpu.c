@@ -532,6 +532,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"));
 
+    gdb_register_coprocessor(cs, hexagon_hlx_gdb_read_register,
+                             hexagon_hlx_gdb_write_register,
+                             gdb_find_static_feature("hexagon-hlx.xml"));
+
 #ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
                              hexagon_sys_gdb_write_register,
