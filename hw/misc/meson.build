@@ -182,3 +182,6 @@ system_ss.add(when: 'CONFIG_AXIADO_CLK', if_true: files('axiado_clk.c'))
 
 # Qualcomm Hexagon DSP subsystems
 system_ss.add(when: 'CONFIG_QCOM_QDSP6SS_CLK', if_true: files('qcom-qdsp6ss-clk.c'))
+
+# Hexagon devices
+system_ss.add(when: 'CONFIG_QUP_WRAPPER', if_true: files('qup-wrapper.c'))
