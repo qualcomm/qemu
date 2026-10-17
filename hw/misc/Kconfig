@@ -266,6 +266,9 @@ config K230_DECOMP_GZIP
 config SOPHGO_CV1800B_CLK
     bool
 
+config QUP_WRAPPER
+    bool
+
 source macio/Kconfig
 
 config QCOM_QDSP6SS_CLK
