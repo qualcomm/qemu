@@ -4274,7 +4274,7 @@ endif
 traceable = []
 multi_target_libs = []
 multi_target_deps = []
-multi_target_crates = []
+multi_target_rust_crates = []
 multi_target_supported_targets = [
   'aarch64-softmmu',
   'alpha-softmmu',
@@ -4463,7 +4463,14 @@ foreach target : target_dirs
       multi_target_libs += lib
       multi_target_deps += arch_deps
       multi_target_deps += target_stubs
-      multi_target_crates += main_rs
+      # Each target's Rust root crate only names the devices of that target,
+      # and only the first root is compiled for the test; collect the crate
+      # names and generate a single root for all of them below.
+      foreach crate : crates
+        if not multi_target_rust_crates.contains(crate)
+          multi_target_rust_crates += crate
+        endif
+      endforeach
     endif
     execs = [{
       'name': 'qemu-system-' + target_name,
@@ -4547,6 +4554,17 @@ foreach target : target_dirs
 endforeach
 
 # Other build targets
+
+multi_target_crates = []
+if multi_target_rust_crates.length() > 0
+  multi_target_crates = structured_sources(
+    custom_target('rust_multi_target.rs',
+                  output: 'rust_multi_target.rs',
+                  command: [rust_root_crate, multi_target_rust_crates],
+                  capture: true,
+                  build_by_default: true,
+                  build_always_stale: true))
+endif
 
 multi_target_objects = []
 foreach lib: multi_target_libs
