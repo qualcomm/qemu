@@ -18,6 +18,7 @@
 #define QEMU_GENERATE
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/helper-gen.h"
@@ -33,6 +34,8 @@
 #include "genptr.h"
 #include "printinsn.h"
 #include "exec/target_page.h"
+#include "hlx/hlx.h"
+#include "trace.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -340,6 +343,27 @@ static bool need_slot_cancelled(Packet *pkt)
     }
     return false;
 }
+
+#ifndef CONFIG_USER_ONLY
+static void gen_hlx_check(DisasContext *ctx)
+{
+    TCGv xe = tcg_temp_new();
+    TCGv_ptr hlx_ctx = tcg_temp_new_ptr();
+    TCGLabel *raise = gen_new_label();
+    TCGLabel *enabled = gen_new_label();
+
+    /* CCR.XE3 must be set and XA3 must select an existing HLX context */
+    tcg_gen_extract_tl(xe, hex_t_sreg[HEX_SREG_CCR],
+            reg_field_info[CCR_XE3].offset,
+            reg_field_info[CCR_XE3].width);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, xe, 0, raise);
+    tcg_gen_ld_ptr(hlx_ctx, tcg_env, offsetof(CPUHexagonState, hlx_ctx));
+    tcg_gen_brcondi_ptr(TCG_COND_NE, hlx_ctx, 0, enabled);
+    gen_set_label(raise);
+    gen_precise_exception(HEX_CAUSE_NO_COPROC3_ENABLE, ctx->pkt.pc);
+    gen_set_label(enabled);
+}
+#endif
 
 #ifndef CONFIG_USER_ONLY
 static bool sreg_write_ends_tb(int reg_num)
@@ -678,6 +702,12 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->qregs_multi_write, NUM_QREGS);
     bitmap_zero(ctx->qregs_uncond, NUM_QREGS);
     ctx->qreg_log_idx = 0;
+    ctx->lreg_log_idx = 0;
+    ctx->lreg_tmp_log_idx = 0;
+    bitmap_zero(ctx->lregs_updated, NUM_LREGS);
+    bitmap_zero(ctx->lregs_updated_tmp, NUM_LREGS);
+    bitmap_zero(ctx->lregs_read, NUM_LREGS);
+    ctx->hlx_base_loaded = false;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
     }
@@ -859,6 +889,14 @@ static void gen_start_packet(DisasContext *ctx)
         !ctx->hvx_check_emitted) {
         gen_precise_exception(HEX_CAUSE_NO_COPROC_ENABLE, ctx->pkt.pc);
         ctx->hvx_check_emitted = true;
+    }
+    if (ctx->pkt.pkt_has_hlx) {
+        if (!ctx->hlx_coproc_enabled) {
+            gen_precise_exception(HEX_CAUSE_NO_COPROC3_ENABLE, ctx->pkt.pc);
+        } else if (!ctx->hlx_check_emitted) {
+            gen_hlx_check(ctx);
+            ctx->hlx_check_emitted = true;
+        }
     }
 #endif
 }
@@ -1206,6 +1244,26 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 }
 
+static void gen_commit_hlx(DisasContext *ctx)
+{
+    int i;
+
+    for (i = 0; i < ctx->lreg_log_idx; i++) {
+        int rnum = ctx->lreg_log[i];
+        gen_helper_hlx_commit_reg(tcg_env, tcg_constant_i32(rnum));
+    }
+
+    /*
+     * HLX .tmp writes are NOT committed to the architectural register file.
+     * Per the HLX spec ("A temporary load instruction does not write the
+     * load data to the register and another instruction must use the data
+     * in the same packet"), a .tmp value is purely intra-packet scratch,
+     * consumed by same-packet instructions via tmp_LRegs and then discarded.
+     * Committing it here would clobber the register's real (committed) value
+     * with transient data, corrupting subsequent packets that read the reg.
+     */
+}
+
 static void update_exec_counters(DisasContext *ctx)
 {
     int num_real_insns = 0;
@@ -1342,6 +1400,9 @@ static void gen_commit_packet(DisasContext *ctx)
     if (ctx->pkt.pkt_has_hvx) {
         gen_commit_hvx(ctx);
     }
+    if (ctx->pkt.pkt_has_hlx) {
+        gen_commit_hlx(ctx);
+    }
     update_exec_counters(ctx);
 
     if (ctx->pkt.vhist_insn != NULL) {
@@ -1404,9 +1465,35 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         }
 #endif
         gen_start_packet(ctx);
-        for (i = 0; i < ctx->pkt.num_insns; i++) {
-            ctx->insn = &ctx->pkt.insn[i];
-            gen_insn(ctx);
+        if (ctx->pkt.pkt_has_hlx) {
+            /*
+             * .tmp loads run first so that their data can be forwarded,
+             * and stores run last so that a .new store sees the value
+             * produced by any other instruction in the packet.
+             */
+            for (int pass = 0; pass < 3; pass++) {
+                for (i = 0; i < ctx->pkt.num_insns; i++) {
+                    Insn *insn = &ctx->pkt.insn[i];
+                    bool tmp = GET_ATTRIB(insn->opcode, A_HLX_TMP);
+                    bool store = !tmp && GET_ATTRIB(insn->opcode, A_STORE);
+                    if (pass != (tmp ? 0 : store ? 2 : 1)) {
+                        continue;
+                    }
+                    ctx->insn = insn;
+                    if (GET_ATTRIB(insn->opcode, A_HLX) &&
+                        trace_event_get_state_backends(
+                            TRACE_HEXAGON_HLX_OP)) {
+                        gen_helper_hlx_trace_op(tcg_env,
+                            tcg_constant_i32(insn->opcode));
+                    }
+                    gen_insn(ctx);
+                }
+            }
+        } else {
+            for (i = 0; i < ctx->pkt.num_insns; i++) {
+                ctx->insn = &ctx->pkt.insn[i];
+                gen_insn(ctx);
+            }
         }
         gen_commit_packet(ctx);
         ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
@@ -1426,6 +1513,11 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->num_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
+#ifndef CONFIG_USER_ONLY
+    ctx->hlx_coproc_enabled = hex_cpu->hlx != NULL &&
+                              hex_cpu->hlx->contexts_bitmap != 0;
+    ctx->hlx_check_emitted = false;
+#endif
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->cfg.short_circuit;
