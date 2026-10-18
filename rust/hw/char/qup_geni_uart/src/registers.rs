@@ -71,6 +71,7 @@ pub enum RegisterOffset {
     SeDmaTxIrqEn = 0xc48,
     SeDmaTxIrqEnSet = 0xc4c,
     SeDmaTxIrqEnClr = 0xc50,
+    SeDmaTxFsmRst = 0xc58,
     SeDmaTxIrqStat = 0xc40,
     SeDmaTxIrqClr = 0xc44,
     SeDmaRxPtrL = 0xd30,
@@ -80,6 +81,8 @@ pub enum RegisterOffset {
     SeDmaRxIrqEn = 0xd48,
     SeDmaRxIrqEnSet = 0xd4c,
     SeDmaRxIrqEnClr = 0xd50,
+    SeDmaRxLenIn = 0xd54,
+    SeDmaRxFsmRst = 0xd58,
     SeDmaRxIrqStat = 0xd40,
     SeDmaRxIrqClr = 0xd44,
 
@@ -168,6 +171,7 @@ impl TryFrom<u64> for RegisterOffset {
             0xc48 => Ok(SeDmaTxIrqEn),
             0xc4c => Ok(SeDmaTxIrqEnSet),
             0xc50 => Ok(SeDmaTxIrqEnClr),
+            0xc58 => Ok(SeDmaTxFsmRst),
             0xd30 => Ok(SeDmaRxPtrL),
             0xd34 => Ok(SeDmaRxPtrH),
             0xd38 => Ok(SeDmaRxAttr),
@@ -177,6 +181,8 @@ impl TryFrom<u64> for RegisterOffset {
             0xd48 => Ok(SeDmaRxIrqEn),
             0xd4c => Ok(SeDmaRxIrqEnSet),
             0xd50 => Ok(SeDmaRxIrqEnClr),
+            0xd54 => Ok(SeDmaRxLenIn),
+            0xd58 => Ok(SeDmaRxFsmRst),
             _ => Err(offset),
         }
     }
