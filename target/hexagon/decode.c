@@ -104,17 +104,23 @@ void decode_send_insn_to(Packet *packet, int start, int newloc)
     }
 }
 
-/* Fill newvalue registers with the correct regno */
-static void
+/* Fill newvalue registers with the correct regno. */
+static bool
 decode_fill_newvalue_regno(Packet *packet)
 {
     int i, use_regidx, offset, def_idx, dst_idx;
 
-    for (i = 1; i < packet->num_insns; i++) {
+    for (i = 0; i < packet->num_insns; i++) {
         if (GET_ATTRIB(packet->insn[i].opcode, A_DOTNEWVALUE) &&
-            !GET_ATTRIB(packet->insn[i].opcode, A_EXTENSION)) {
+            (!GET_ATTRIB(packet->insn[i].opcode, A_EXTENSION) ||
+             GET_ATTRIB(packet->insn[i].opcode, A_HLX))) {
 
-            g_assert(packet->insn[i].new_read_idx != -1);
+            if (i == 0 && !GET_ATTRIB(packet->insn[i].opcode, A_HLX)) {
+                continue;
+            }
+            if (packet->insn[i].new_read_idx == -1) {
+                return false;
+            }
             use_regidx = packet->insn[i].new_read_idx;
 
             /*
@@ -123,6 +129,9 @@ decode_fill_newvalue_regno(Packet *packet)
              * then walk backwards and skip over the constant extenders.
              */
             offset = packet->insn[i].regno[use_regidx] >> 1;
+            if (offset == 0 || offset > i) {
+                return false;
+            }
             def_idx = i - offset;
             for (int j = 0; j < offset; j++) {
                 if (GET_ATTRIB(packet->insn[i - j - 1].opcode, A_IT_EXTENDER)) {
@@ -134,10 +143,13 @@ decode_fill_newvalue_regno(Packet *packet)
              * Check for a badly encoded N-field which points to an instruction
              * out-of-range
              */
-            g_assert(!((def_idx < 0) || (def_idx > (packet->num_insns - 1))));
+            if (def_idx < 0 || packet->insn[def_idx].dest_idx == -1 ||
+                (GET_ATTRIB(packet->insn[i].opcode, A_HLX) &&
+                 !GET_ATTRIB(packet->insn[def_idx].opcode, A_HLX))) {
+                return false;
+            }
 
             /* Now patch up the consumer with the register number */
-            g_assert(packet->insn[def_idx].dest_idx != -1);
             dst_idx = packet->insn[def_idx].dest_idx;
             packet->insn[i].regno[use_regidx] =
                 packet->insn[def_idx].regno[dst_idx];
@@ -149,6 +161,7 @@ decode_fill_newvalue_regno(Packet *packet)
                 packet->insn[def_idx].slot;
         }
     }
+    return true;
 }
 
 /* Split CJ into a compare and a jump */
@@ -685,8 +698,9 @@ decode_set_slot_number(Packet *pkt)
         }
     }
     /* Is slot0 empty and slot1 used? */
-    if ((!slot0_found) && slot1_found) {
-        /* Then push it to slot0 */
+    if ((!slot0_found) && slot1_found &&
+        !GET_ATTRIB(pkt->insn[slot1_iidx].opcode, A_HLX)) {
+        /* Then push it to slot0; HLX loads must remain in slot 1. */
         pkt->insn[slot1_iidx].slot = 0;
     }
 
@@ -828,7 +842,9 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
             return 0;
         }
     }
-    decode_fill_newvalue_regno(pkt);
+    if (!decode_fill_newvalue_regno(pkt)) {
+        return 0;
+    }
 
     if (pkt->pkt_has_hvx) {
         mmvec_ext_decode_checks(pkt, disas_only);
