@@ -102,8 +102,19 @@ void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,
  * Events with an explicit "_ANY"/no-suffix-vs-"_THREAD" or "_T<n>" family
  * (COMMITTED_PKT_ANY/_T0-7, HVX_PKT vs HVX_PKT_THREAD) are aggregated or
  * thread-selected accordingly; events with no such family (COMMITTED_LD/
- * ST/MEMOP, HVXPIPE_*) are read as the requesting thread's own tally.
+ * ST/MEMOP, HVXPIPE_*) are summed across the core's threads like the _ANY
+ * events: the counters are shared by the whole core, so a read must not
+ * depend on which hardware thread performs it.
  */
+#define PMU_SUM_THREADS(field) ({               \
+    uint32_t total_ = 0;                        \
+    CPUState *cs_;                              \
+    CPU_FOREACH(cs_) {                          \
+        total_ += cpu_env(cs_)->pmu.field;      \
+    }                                           \
+    total_;                                     \
+})
+
 static uint32_t hexagon_pmu_event_stats(CPUHexagonState *env, int event)
 {
     CPUState *cs;
@@ -148,21 +159,21 @@ static uint32_t hexagon_pmu_event_stats(CPUHexagonState *env, int event)
     }
 
     case COMMITTED_LD:
-        return env->pmu.committed_loads;
+        return PMU_SUM_THREADS(committed_loads);
     case COMMITTED_ST:
-        return env->pmu.committed_stores;
+        return PMU_SUM_THREADS(committed_stores);
     case COMMITTED_MEMOP:
-        return env->pmu.committed_memops;
+        return PMU_SUM_THREADS(committed_memops);
     case HVX_PKT_THREAD:
         return env->pmu.hvx_packets;
     case HVXPIPE_ALU:
-        return env->pmu.hvx_pipe_alu;
+        return PMU_SUM_THREADS(hvx_pipe_alu);
     case HVXPIPE_MPY:
-        return env->pmu.hvx_pipe_mpy;
+        return PMU_SUM_THREADS(hvx_pipe_mpy);
     case HVXPIPE_SHIFT:
-        return env->pmu.hvx_pipe_shift;
+        return PMU_SUM_THREADS(hvx_pipe_shift);
     case HVXPIPE_PERM:
-        return env->pmu.hvx_pipe_perm;
+        return PMU_SUM_THREADS(hvx_pipe_perm);
 
     default:
         return 0;

@@ -87,8 +87,8 @@ Modeling notes
   hardware thread independent PMU state.
 - Events with no ``_ANY``/``_THREAD`` or ``_T<n>`` variant
   (``COMMITTED_LD``, ``COMMITTED_ST``, ``COMMITTED_MEMOP``,
-  ``HVXPIPE_ALU``/``MPY``/``SHIFT``/``PERM``) are read as the requesting
-  hardware thread's own tally.
+  ``HVXPIPE_ALU``/``MPY``/``SHIFT``/``PERM``) are summed across all hardware
+  threads, so a counter reads the same from any thread.
 - HVX instructions that use two functional pipes in one op (for example
   a combined permute/shift or shift/multiply) are not attributed to any
   single ``HVXPIPE_*`` bucket: which physical pipe would execute them is
