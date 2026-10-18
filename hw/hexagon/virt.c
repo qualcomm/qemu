@@ -122,7 +122,7 @@ static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
 
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
-                            "qcom,geni-debug-uart");
+                            "qcom,geni-uart");
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_QUP_UART0_IRQ);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
