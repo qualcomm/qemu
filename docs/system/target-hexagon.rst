@@ -95,19 +95,34 @@ its entry point::
 
 Booting Linux under the H2 hypervisor
 -------------------------------------
-The ``virt`` machine can boot a guest under the H2 hypervisor.  Pass the
-bundled ``hexagon_loadlinux_v81`` firmware with ``-bios``; it initializes H2
-and jumps to a kernel loaded at physical address ``0xa0000000``, passing the
-device tree address in ``r1:0``.  ``hexagon_loadlinux_v68`` and
-``hexagon_loadlinux_v73`` are also bundled::
+The ``virt`` machine can boot a guest under the H2 hypervisor.  Pass H2
+``loadlinux`` firmware built for the ``virt`` CPU (v68) with ``-bios``; it
+initializes H2 and jumps to the kernel, which is loaded at the physical
+addresses of its ELF program headers, passing the device tree address in
+``r1:0``.  No such
+firmware is bundled in ``pc-bios``, which has the images for the board
+machines only (:doc:`hexagon/cdsp`)::
 
-    $ qemu-system-hexagon -M virt -bios hexagon_loadlinux_v81 \
+    $ qemu-system-hexagon -M virt -bios loadlinux.elf \
           -kernel vmlinux -initrd rootfs.cpio -append 'console=ttyAMA0'
 
 The firmware is built from the ``roms/hexagon-hypervisor`` submodule, see
-:ref:`Hexagon-Booter` and ``roms/README.hexagon-loadlinux``.  See
-``Documentation/arch/hexagon/qemu-boot.rst`` in the Linux source tree for
-kernel build instructions.
+:ref:`Hexagon-Booter`.  See ``Documentation/arch/hexagon/qemu-boot.rst`` in
+the Linux source tree for kernel build instructions.
+
+The ``virt`` machine also exposes a QUP GENI UART as its second serial port.
+Linux's normal GENI driver uses DMA and registers it as ``/dev/ttyHS1``;
+the first serial port, ``/dev/ttyAMA0``, remains the boot console.  A local
+integration test exercises transmit, receive and reopening the QUP port with
+a BusyBox ext2 root filesystem (the test uses a temporary disk snapshot)::
+
+    $ python3 tests/functional/hexagon_qup_dma.py \
+          --qemu ./build/qemu-system-hexagon \
+          --bios loadlinux.elf \
+          --kernel /path/to/vmlinux --rootfs /path/to/rootfs.ext2
+
+The QUP model completes receive DMA when input arrives; it does not model
+baud-dependent timing or UART parity, framing and hardware flow control.
 
 .. _hexagon-semihosting:
 
