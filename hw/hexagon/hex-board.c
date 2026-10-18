@@ -27,6 +27,7 @@
 #include "target/hexagon/cpu.h"
 
 #define APB_CLK_HZ 24000000
+#define HEXAGON_COPROC_HMX (1U << 2)
 
 void hex_board_create_fdt(MachineState *ms, const char *model,
                           const char *compatible, int *fdt_size)
@@ -105,6 +106,12 @@ void hex_board_fdt_add_hvx(MachineState *ms,
                                t->ext_contexts);
         qemu_fdt_setprop_cells(ms->fdt, "/soc/hvx", "qcom,hvx-vlength",
                                t->hvx_vec_log_length);
+    }
+
+    if (t->coproc_present & HEXAGON_COPROC_HMX) {
+        qemu_fdt_add_subnode(ms->fdt, "/soc/hmx");
+        qemu_fdt_setprop_string(ms->fdt, "/soc/hmx", "compatible",
+                                "qcom,hexagon-hmx");
     }
 }
 
