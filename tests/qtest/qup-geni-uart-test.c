@@ -18,12 +18,15 @@
 #define QUP_BASE                    0x10004000
 
 #define SE_GENI_STATUS              0x040
+#define SE_GENI_DMA_MODE_EN         0x258
+#define SE_UART_LOOPBACK_CFG        0x22c
 #define SE_UART_TX_TRANS_LEN        0x270
 #define SE_GENI_M_CMD0              0x600
 #define SE_GENI_M_IRQ_STATUS        0x610
 #define SE_GENI_M_IRQ_EN            0x614
 #define SE_GENI_M_IRQ_CLEAR         0x618
 #define SE_GENI_S_CMD0              0x630
+#define SE_GENI_S_CMD_CTRL          0x634
 #define SE_GENI_S_IRQ_STATUS        0x640
 #define SE_GENI_S_IRQ_EN            0x644
 #define SE_GENI_S_IRQ_CLEAR         0x648
@@ -32,6 +35,27 @@
 #define SE_GENI_RX_FIFO_STATUS      0x804
 #define SE_GENI_TX_WATERMARK_REG    0x80c
 #define SE_GENI_RX_WATERMARK_REG    0x810
+
+#define SE_DMA_TX_PTR_L             0xc30
+#define SE_DMA_TX_PTR_H             0xc34
+#define SE_DMA_TX_LEN               0xc3c
+#define SE_DMA_TX_IRQ_STAT          0xc40
+#define SE_DMA_TX_IRQ_CLR           0xc44
+#define SE_DMA_TX_IRQ_EN_SET        0xc4c
+#define SE_DMA_TX_FSM_RST           0xc58
+#define SE_DMA_RX_PTR_L             0xd30
+#define SE_DMA_RX_PTR_H             0xd34
+#define SE_DMA_RX_LEN               0xd3c
+#define SE_DMA_RX_IRQ_STAT          0xd40
+#define SE_DMA_RX_IRQ_CLR           0xd44
+#define SE_DMA_RX_IRQ_EN_SET        0xd4c
+#define SE_DMA_RX_LEN_IN            0xd54
+#define SE_DMA_RX_FSM_RST           0xd58
+#define DMA_DONE                    (1U << 0)
+#define DMA_EOT                     (1U << 1)
+#define DMA_ERROR                   (1U << 2)
+#define DMA_RESET_DONE              (1U << 3)
+#define TEST_RAM                    0x00010000
 
 #define M_GENI_CMD_ACTIVE           (1U << 0)
 #define S_GENI_CMD_ACTIVE           (1U << 12)
@@ -327,6 +351,174 @@ static void test_rx_last_partial_word(void)
     qtest_quit(qts);
 }
 
+static void test_dma_tx(void)
+{
+    const uint8_t data[] = { 0x00, 0x41, 0xff, 0x42, 0x00 };
+    uint8_t out[sizeof(data)];
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    qtest_memwrite(qts, TEST_RAM, data, sizeof(data));
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_write(qts, SE_DMA_TX_IRQ_EN_SET, DMA_DONE | DMA_ERROR);
+    qup_start_tx(qts, sizeof(data));
+    qup_write(qts, SE_DMA_TX_PTR_L, TEST_RAM);
+    qup_write(qts, SE_DMA_TX_PTR_H, 0);
+    qup_write(qts, SE_DMA_TX_LEN, sizeof(data));
+    g_assert_true(qup_recv(qts, fd, out, sizeof(out)));
+    g_assert_cmpmem(out, sizeof(out), data, sizeof(data));
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT), ==, DMA_DONE);
+    g_assert_cmphex(qup_read(qts, SE_GENI_STATUS) & M_GENI_CMD_ACTIVE, ==, 0);
+    qup_write(qts, SE_DMA_TX_IRQ_CLR, DMA_DONE);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT), ==, 0);
+    qup_write(qts, SE_DMA_TX_FSM_RST, 1);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT), ==, DMA_RESET_DONE);
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_dma_rx(void)
+{
+    const uint8_t data[] = { 0x41, 0x00, 0xff, 0x42, 0x43, 0x44, 0x45 };
+    uint8_t out[sizeof(data)];
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_write(qts, SE_DMA_RX_IRQ_EN_SET, DMA_DONE | DMA_EOT | DMA_ERROR);
+    qup_write(qts, SE_GENI_S_CMD0, UART_START_READ << M_OPCODE_SHFT);
+    qup_write(qts, SE_DMA_RX_PTR_L, TEST_RAM);
+    qup_write(qts, SE_DMA_RX_PTR_H, 0);
+    qup_write(qts, SE_DMA_RX_LEN, 4);
+    g_assert_cmpint(write(fd, data, sizeof(data)), ==, sizeof(data));
+    g_assert_cmphex(qup_wait_bits(qts, SE_DMA_RX_IRQ_STAT, DMA_DONE) & DMA_DONE,
+                    ==, DMA_DONE);
+    g_assert_cmpuint(qup_read(qts, SE_DMA_RX_LEN_IN), ==, 4);
+    qtest_memread(qts, TEST_RAM, out, 4);
+    g_assert_cmpmem(out, 4, data, 4);
+    qup_write(qts, SE_DMA_RX_IRQ_CLR, DMA_DONE);
+    qup_write(qts, SE_DMA_RX_PTR_L, TEST_RAM + 4);
+    qup_write(qts, SE_DMA_RX_LEN, 4);
+    g_assert_cmphex(qup_wait_bits(qts, SE_DMA_RX_IRQ_STAT, DMA_DONE) & DMA_DONE,
+                    ==, DMA_DONE);
+    g_assert_cmpuint(qup_read(qts, SE_DMA_RX_LEN_IN), ==, 3);
+    qtest_memread(qts, TEST_RAM + 4, out + 4, 3);
+    g_assert_cmpmem(out, sizeof(out), data, sizeof(data));
+    qup_write(qts, SE_DMA_RX_IRQ_CLR, DMA_DONE);
+    qup_write(qts, SE_GENI_S_CMD_CTRL, 4);
+    g_assert_cmphex(qup_read(qts, SE_DMA_RX_IRQ_STAT) & DMA_EOT, ==, DMA_EOT);
+    qup_write(qts, SE_DMA_RX_IRQ_CLR, DMA_EOT);
+    qup_write(qts, SE_DMA_RX_FSM_RST, 1);
+    g_assert_cmphex(qup_read(qts, SE_DMA_RX_IRQ_STAT), ==, DMA_RESET_DONE);
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_dma_tx_backpressure(void)
+{
+    const size_t len = 1024 * 1024;
+    g_autofree uint8_t *data = g_malloc(len);
+    g_autofree uint8_t *out = g_malloc(len);
+    size_t got = 0;
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    for (size_t i = 0; i < len; i++) {
+        data[i] = i;
+    }
+    qtest_memwrite(qts, TEST_RAM, data, len);
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_write(qts, SE_DMA_TX_IRQ_EN_SET, DMA_DONE);
+    qup_start_tx(qts, len);
+    qup_write(qts, SE_DMA_TX_PTR_L, TEST_RAM);
+    qup_write(qts, SE_DMA_TX_PTR_H, 0);
+    qup_write(qts, SE_DMA_TX_LEN, len);
+
+    /* QEMU must remain responsive while the backend is not being read. */
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT) & DMA_DONE, ==, 0);
+    g_assert_cmphex(qup_read(qts, SE_GENI_STATUS) & M_GENI_CMD_ACTIVE, !=, 0);
+    for (int i = 0; i < 10000 && got < len; i++) {
+        GPollFD pfd = { .fd = fd, .events = G_IO_IN };
+        if (g_poll(&pfd, 1, 10) > 0) {
+            ssize_t n = read(fd, out + got, len - got);
+            if (n > 0) {
+                got += n;
+            }
+        }
+        qup_read(qts, SE_GENI_STATUS);
+    }
+    g_assert_cmpuint(got, ==, len);
+    g_assert_cmpmem(out, len, data, len);
+    g_assert_cmphex(qup_wait_bits(qts, SE_DMA_TX_IRQ_STAT, DMA_DONE) & DMA_DONE,
+                    ==, DMA_DONE);
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_dma_fault(void)
+{
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_start_tx(qts, 4);
+    qup_write(qts, SE_DMA_TX_PTR_L, 0);
+    qup_write(qts, SE_DMA_TX_PTR_H, 1);
+    qup_write(qts, SE_DMA_TX_LEN, 4);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT), ==, DMA_ERROR);
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_dma_loopback(void)
+{
+    const uint8_t data[] = { 0, 1, 2, 3, 4, 5, 6 };
+    uint8_t received[sizeof(data)];
+    GPollFD pfd;
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    qtest_memwrite(qts, TEST_RAM, data, sizeof(data));
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_write(qts, SE_UART_LOOPBACK_CFG, 1);
+    qup_write(qts, SE_GENI_S_CMD0, UART_START_READ << M_OPCODE_SHFT);
+    qup_write(qts, SE_DMA_RX_PTR_L, TEST_RAM + 0x1000);
+    qup_write(qts, SE_DMA_RX_LEN, 4);
+    qup_start_tx(qts, sizeof(data));
+    qup_write(qts, SE_DMA_TX_PTR_L, TEST_RAM);
+    qup_write(qts, SE_DMA_TX_LEN, sizeof(data));
+    g_assert_cmphex(qup_read(qts, SE_DMA_RX_IRQ_STAT) & DMA_DONE, ==, DMA_DONE);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT) & DMA_DONE, ==, 0);
+    g_assert_cmpuint(qup_read(qts, SE_DMA_RX_LEN_IN), ==, 4);
+    qup_write(qts, SE_DMA_RX_IRQ_CLR, DMA_DONE);
+    qup_write(qts, SE_DMA_RX_PTR_L, TEST_RAM + 0x1004);
+    qup_write(qts, SE_DMA_RX_LEN, 4);
+    g_assert_cmphex(qup_read(qts, SE_DMA_RX_IRQ_STAT) & DMA_DONE, ==, DMA_DONE);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT) & DMA_DONE, ==, DMA_DONE);
+    g_assert_cmpuint(qup_read(qts, SE_DMA_RX_LEN_IN), ==, 3);
+    qtest_memread(qts, TEST_RAM + 0x1000, received, sizeof(received));
+    g_assert_cmpmem(received, sizeof(received), data, sizeof(data));
+    pfd = (GPollFD) { .fd = fd, .events = G_IO_IN };
+    g_assert_cmpint(g_poll(&pfd, 1, 20), ==, 0);
+    close(fd);
+    qtest_quit(qts);
+}
+
+static void test_dma_self_access(void)
+{
+    int fd;
+    QTestState *qts = qup_init(&fd);
+
+    qup_write(qts, SE_GENI_DMA_MODE_EN, 1);
+    qup_start_tx(qts, 4);
+    qup_write(qts, SE_DMA_TX_PTR_L, QUP_BASE + SE_GENI_STATUS);
+    qup_write(qts, SE_DMA_TX_PTR_H, 0);
+    qup_write(qts, SE_DMA_TX_LEN, 4);
+    g_assert_cmphex(qup_read(qts, SE_DMA_TX_IRQ_STAT) & DMA_ERROR, ==, DMA_ERROR);
+    close(fd);
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -341,6 +533,14 @@ int main(int argc, char **argv)
                    test_rx_raises_secondary_irq);
     qtest_add_func("/qup-geni-uart/rx-last-partial-word",
                    test_rx_last_partial_word);
+
+    qtest_add_func("/qup-geni-uart/dma-tx", test_dma_tx);
+    qtest_add_func("/qup-geni-uart/dma-rx", test_dma_rx);
+    qtest_add_func("/qup-geni-uart/dma-fault", test_dma_fault);
+    qtest_add_func("/qup-geni-uart/dma-loopback", test_dma_loopback);
+    qtest_add_func("/qup-geni-uart/dma-self-access", test_dma_self_access);
+    qtest_add_func("/qup-geni-uart/dma-tx-backpressure",
+                   test_dma_tx_backpressure);
 
     return g_test_run();
 }

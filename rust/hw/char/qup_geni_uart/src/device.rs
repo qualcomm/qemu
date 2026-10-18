@@ -1,7 +1,12 @@
 // Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::ffi::CStr;
+use std::{
+    ffi::{c_void, CStr},
+    io::ErrorKind,
+    ptr::addr_of_mut,
+    sync::atomic::{fence, Ordering},
+};
 
 use bql::prelude::*;
 use chardev::prelude::*;
@@ -9,8 +14,12 @@ use common::prelude::*;
 use hwcore::{prelude::*, IRQState};
 use migration::{self, prelude::*};
 use qom::prelude::*;
-use system::prelude::*;
-use util::{self, prelude::*, log::Log, log_mask_ln};
+use system::{
+    bindings::{address_space_memory, address_space_rw},
+    prelude::*,
+    MEMTXATTRS_UNSPECIFIED,
+};
+use util::{self, log::Log, log_mask_ln, prelude::*};
 
 use crate::registers::{self, RegisterOffset, UART_FIFO_DEPTH_WORDS};
 
@@ -96,12 +105,14 @@ pub struct QupGeniUartRegs {
     pub dma_tx_ptr_h: u32,
     pub dma_tx_attr: u32,
     pub dma_tx_len: u32,
+    pub dma_tx_sent: u32,
     pub dma_tx_irq_en: u32,
     pub dma_tx_irq_stat: u32,
     pub dma_rx_ptr_l: u32,
     pub dma_rx_ptr_h: u32,
     pub dma_rx_attr: u32,
     pub dma_rx_len: u32,
+    pub dma_rx_len_in: u32,
     pub dma_rx_irq_en: u32,
     pub dma_rx_irq_stat: u32,
 
@@ -127,6 +138,7 @@ pub struct QupGeniUartState {
     pub char_frontend: CharFrontend,
     pub regs: BqlRefCell<QupGeniUartRegs>,
     pub irq: InterruptSource,
+    pub tx_watch: BqlCell<u32>,
 }
 
 qom_isa!(QupGeniUartState : SysBusDevice, DeviceState, Object);
@@ -286,6 +298,7 @@ impl QupGeniUartRegs {
             SeDmaRxPtrH => self.dma_rx_ptr_h,
             SeDmaRxAttr => self.dma_rx_attr,
             SeDmaRxLen => self.dma_rx_len,
+            SeDmaRxLenIn => self.dma_rx_len_in,
             SeDmaRxIrqEn => self.dma_rx_irq_en,
             SeDmaRxIrqStat => self.dma_rx_irq_stat,
             _ => {
@@ -423,22 +436,15 @@ impl QupGeniUartRegs {
             }
             SeGeniCfgSeqStart => {
                 if value & 1 != 0 {
-                    log_mask_ln!(Log::Unimp,
-                        "QUP GENI UART: Configuration sequence start attempted - \
-                         protocol switching not supported");
+                    log_mask_ln!(
+                        Log::Unimp,
+                        "QUP GENI UART: Configuration sequence start attempted - protocol \
+                         switching not supported"
+                    );
                 }
             }
             SeGeniDmaModeEn => {
                 self.dma_mode_enabled = (value & 1) != 0;
-                log_mask_ln!(
-                    Log::Unimp,
-                    "QUP GENI UART: DMA mode {} (basic support)",
-                    if self.dma_mode_enabled {
-                        "enabled"
-                    } else {
-                        "disabled"
-                    }
-                );
             }
             SeGeniMCmd0 => {
                 self.geni_m_cmd0 = value;
@@ -470,30 +476,38 @@ impl QupGeniUartRegs {
                     registers::SPI_CS_ASSERT
                     | registers::SPI_CS_DEASSERT
                     | registers::SPI_SCK_ONLY => {
-                        log_mask_ln!(Log::Unimp,
-                            "QUP GENI UART: SPI command opcode 0x{:x} attempted - \
-                             device only supports UART mode",
-                            opcode);
+                        log_mask_ln!(
+                            Log::Unimp,
+                            "QUP GENI UART: SPI command opcode 0x{:x} attempted - device only \
+                             supports UART mode",
+                            opcode
+                        );
                     }
                     registers::I2C_WRITE_READ
                     | registers::I2C_ADDR_ONLY
                     | registers::I2C_BUS_CLEAR => {
-                        log_mask_ln!(Log::Unimp,
-                            "QUP GENI UART: I2C command opcode 0x{:x} attempted - \
-                             device only supports UART mode",
-                            opcode);
+                        log_mask_ln!(
+                            Log::Unimp,
+                            "QUP GENI UART: I2C command opcode 0x{:x} attempted - device only \
+                             supports UART mode",
+                            opcode
+                        );
                     }
                     0x7 => {
-                        log_mask_ln!(Log::Unimp,
-                            "QUP GENI UART: SPI/I2C command opcode 0x{:x} attempted - \
-                             device only supports UART mode",
-                            opcode);
+                        log_mask_ln!(
+                            Log::Unimp,
+                            "QUP GENI UART: SPI/I2C command opcode 0x{:x} attempted - device only \
+                             supports UART mode",
+                            opcode
+                        );
                     }
                     0x2..=0x6 | 0x8..=0x1F => {
-                        log_mask_ln!(Log::Unimp,
-                            "QUP GENI UART: Unknown/unsupported command opcode 0x{:x} - \
-                             device only supports UART mode",
-                            opcode);
+                        log_mask_ln!(
+                            Log::Unimp,
+                            "QUP GENI UART: Unknown/unsupported command opcode 0x{:x} - device \
+                             only supports UART mode",
+                            opcode
+                        );
                     }
                     _ => {
                         log_mask_ln!(
@@ -546,6 +560,9 @@ impl QupGeniUartRegs {
                     self.geni_s_irq_status &=
                         !(registers::S_RX_FIFO_WATERMARK_EN | registers::S_RX_FIFO_LAST_EN);
                     self.rx_stale_timeout_active = false;
+                    if self.dma_mode_enabled {
+                        self.dma_rx_irq_stat |= registers::DMA_EOT_EN;
+                    }
                     self.geni_s_irq_status |= registers::S_CMD_CANCEL_EN;
                     return true;
                 }
@@ -572,10 +589,12 @@ impl QupGeniUartRegs {
                         return true;
                     }
                     0x3..=0x1F => {
-                        log_mask_ln!(Log::Unimp,
-                            "QUP GENI UART: Non-UART secondary command opcode 0x{:x} \
-                             attempted - device only supports UART mode",
-                            opcode);
+                        log_mask_ln!(
+                            Log::Unimp,
+                            "QUP GENI UART: Non-UART secondary command opcode 0x{:x} attempted - \
+                             device only supports UART mode",
+                            opcode
+                        );
                     }
                     _ => {
                         log_mask_ln!(
@@ -627,8 +646,11 @@ impl QupGeniUartRegs {
             }
             SeDmaTxLen => {
                 self.dma_tx_len = value;
-                if self.dma_mode_enabled && value > 0 {
+                self.dma_tx_sent = 0;
+                if self.dma_mode_enabled && value > 0 && self.tx_enabled {
+                    self.dma_tx_active = true;
                     self.start_dma_tx_transfer(char_frontend);
+                    return true;
                 }
             }
             SeDmaTxIrqEn => {
@@ -647,6 +669,13 @@ impl QupGeniUartRegs {
                 self.dma_tx_irq_stat &= !value;
                 return true;
             }
+            SeDmaTxFsmRst => {
+                if value & 1 != 0 {
+                    self.dma_tx_active = false;
+                    self.dma_tx_irq_stat |= 1 << 3;
+                    return true;
+                }
+            }
             SeDmaRxPtrL => {
                 self.dma_rx_ptr_l = value;
             }
@@ -658,8 +687,20 @@ impl QupGeniUartRegs {
             }
             SeDmaRxLen => {
                 self.dma_rx_len = value;
+                self.dma_rx_len_in = 0;
                 if self.dma_mode_enabled && value > 0 {
                     self.dma_rx_active = true;
+                    if self.dma_tx_active && self.uart_loopback_cfg & 1 != 0 {
+                        self.start_dma_tx_transfer(char_frontend);
+                        return true;
+                    }
+                }
+            }
+            SeDmaRxFsmRst => {
+                if value & 1 != 0 {
+                    self.dma_rx_active = false;
+                    self.dma_rx_irq_stat |= 1 << 3;
+                    return true;
                 }
             }
             SeDmaRxIrqEn => {
@@ -690,26 +731,91 @@ impl QupGeniUartRegs {
         false
     }
 
-    fn start_dma_tx_transfer(&mut self, _char_frontend: &CharFrontend) {
-        log_mask_ln!(
-            Log::Unimp,
-            "QUP GENI UART: DMA TX not implemented, use FIFO mode"
-        );
-        self.dma_tx_active = false;
-        self.dma_tx_len = 0;
-        self.geni_m_irq_status |= registers::M_CMD_DONE_EN;
+    fn start_dma_tx_transfer(&mut self, char_frontend: &CharFrontend) {
+        let addr = (u64::from(self.dma_tx_ptr_h) << 32) | u64::from(self.dma_tx_ptr_l);
+        let len = self.dma_tx_len.min(self.uart_tx_trans_len);
+        let mut buf = [0u8; 4096];
+        while self.dma_tx_active && self.dma_tx_sent < len {
+            let mut count = (len - self.dma_tx_sent).min(buf.len() as u32) as usize;
+            let loopback = self.uart_loopback_cfg & 1 != 0;
+            if loopback && self.rx_enabled {
+                if !self.dma_rx_active {
+                    return;
+                }
+                count = count.min(self.dma_rx_len as usize);
+            }
+            let Some(addr) = addr.checked_add(u64::from(self.dma_tx_sent)) else {
+                self.dma_tx_irq_stat |= registers::DMA_AHB_ERR_EN;
+                self.dma_tx_active = false;
+                return;
+            };
+            // SAFETY: the buffer is writable for count bytes and the system
+            // address space is initialized before the device is realized.
+            fence(Ordering::SeqCst);
+            let result = unsafe {
+                address_space_rw(
+                    addr_of_mut!(address_space_memory),
+                    addr,
+                    MEMTXATTRS_UNSPECIFIED,
+                    buf.as_mut_ptr().cast(),
+                    count as u64,
+                    false,
+                )
+            };
+            if result != 0 {
+                self.dma_tx_irq_stat |= registers::DMA_AHB_ERR_EN;
+                self.dma_tx_active = false;
+                return;
+            }
+            let sent = if loopback {
+                if self.rx_enabled {
+                    self.handle_dma_rx_transfer(&buf[..count]);
+                }
+                count
+            } else {
+                match char_frontend.write(&buf[..count]) {
+                    Ok(0) => count,
+                    Ok(sent) => sent,
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => return,
+                    Err(_) => count,
+                }
+            };
+            self.dma_tx_sent += sent as u32;
+            self.tx_remaining = self.tx_remaining.saturating_sub(sent as u32);
+        }
+        if self.dma_tx_active {
+            self.dma_tx_active = false;
+            self.dma_tx_irq_stat |= registers::DMA_DONE_EN;
+            if self.tx_remaining == 0 {
+                self.tx_enabled = false;
+                self.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                self.geni_m_irq_status |= registers::M_CMD_DONE_EN;
+            }
+        }
     }
 
-    fn handle_dma_rx_transfer(&mut self, _data: &[u8]) -> bool {
-        if !self.dma_rx_active || self.dma_rx_len == 0 {
-            return false;
-        }
-        log_mask_ln!(
-            Log::Unimp,
-            "QUP GENI UART: DMA RX not implemented, use FIFO mode"
-        );
+    fn handle_dma_rx_transfer(&mut self, data: &[u8]) {
+        let addr = (u64::from(self.dma_rx_ptr_h) << 32) | u64::from(self.dma_rx_ptr_l);
+        // SAFETY: data is readable for its length and the system address space
+        // is initialized before the device is realized.
+        fence(Ordering::SeqCst);
+        let result = unsafe {
+            address_space_rw(
+                addr_of_mut!(address_space_memory),
+                addr,
+                MEMTXATTRS_UNSPECIFIED,
+                data.as_ptr().cast_mut().cast(),
+                data.len() as u64,
+                true,
+            )
+        };
         self.dma_rx_active = false;
-        false
+        if result != 0 {
+            self.dma_rx_irq_stat |= registers::DMA_AHB_ERR_EN;
+            return;
+        }
+        self.dma_rx_len_in = data.len() as u32;
+        self.dma_rx_irq_stat |= registers::DMA_DONE_EN;
     }
 
     pub fn reset(&mut self) {
@@ -758,12 +864,14 @@ impl QupGeniUartRegs {
         self.dma_tx_ptr_h = 0;
         self.dma_tx_attr = 0;
         self.dma_tx_len = 0;
+        self.dma_tx_sent = 0;
         self.dma_tx_irq_en = 0;
         self.dma_tx_irq_stat = 0;
         self.dma_rx_ptr_l = 0;
         self.dma_rx_ptr_h = 0;
         self.dma_rx_attr = 0;
         self.dma_rx_len = 0;
+        self.dma_rx_len_in = 0;
         self.dma_rx_irq_en = 0;
         self.dma_rx_irq_stat = 0;
         self.dma_tx_active = false;
@@ -814,6 +922,7 @@ impl QupGeniUartState {
         );
 
         uninit_field_mut!(*this, regs).write(Default::default());
+        uninit_field_mut!(*this, tx_watch).write(Default::default());
     }
 
     fn post_init(&self) {
@@ -851,6 +960,13 @@ impl QupGeniUartState {
             if update_irq {
                 self.update_irq();
             }
+            self.update_tx_watch();
+            if matches!(
+                reg,
+                RegisterOffset::SeGeniSCmd0 | RegisterOffset::SeDmaRxLen
+            ) {
+                self.char_frontend.accept_input();
+            }
         } else {
             log_mask_ln!(
                 Log::GuestError,
@@ -863,7 +979,15 @@ impl QupGeniUartState {
 
     fn can_receive(&self) -> u32 {
         let regs = self.regs.borrow();
-        if regs.rx_enabled {
+        if regs.uart_loopback_cfg & 1 != 0 {
+            0
+        } else if regs.rx_enabled && regs.dma_mode_enabled {
+            if regs.dma_rx_active {
+                regs.dma_rx_len.min(4096)
+            } else {
+                0
+            }
+        } else if regs.rx_enabled {
             QUP_FIFO_DEPTH - regs.rx_fifo_len
         } else {
             0
@@ -876,14 +1000,13 @@ impl QupGeniUartState {
             return;
         }
 
-        // Handle DMA mode if enabled
         if regs.dma_mode_enabled {
-            let handled = regs.handle_dma_rx_transfer(buf);
-            if handled {
-                drop(regs);
-                self.update_irq();
-                return;
+            if regs.dma_rx_active {
+                regs.handle_dma_rx_transfer(buf);
             }
+            drop(regs);
+            self.update_irq();
+            return;
         }
 
         let mut update_irq = false;
@@ -935,7 +1058,68 @@ impl QupGeniUartState {
     }
 
     fn reset_hold(&self, _type: ResetType) {
+        self.clear_tx_watch();
         self.regs.borrow_mut().reset();
+        self.update_irq();
+    }
+
+    fn clear_tx_watch(&self) {
+        let tag = self.tx_watch.replace(0);
+        CharFrontend::remove_watch(tag);
+    }
+
+    fn update_tx_watch(&self) {
+        if !self.regs.borrow().dma_tx_active || self.regs.borrow().uart_loopback_cfg & 1 != 0 {
+            self.clear_tx_watch();
+        } else if self.tx_watch.get() == 0 {
+            // SAFETY: the source is removed on reset and before object drop.
+            let tag = unsafe {
+                self.char_frontend.add_write_watch(
+                    Some(Self::tx_ready),
+                    (self as *const Self).cast_mut().cast(),
+                )
+            };
+            self.tx_watch.set(tag);
+            if tag == 0 {
+                let mut regs = self.regs.borrow_mut();
+                let pending = regs
+                    .dma_tx_len
+                    .min(regs.uart_tx_trans_len)
+                    .saturating_sub(regs.dma_tx_sent);
+                regs.tx_remaining = regs.tx_remaining.saturating_sub(pending);
+                regs.dma_tx_active = false;
+                regs.dma_tx_irq_stat |= registers::DMA_DONE_EN;
+                if regs.tx_remaining == 0 {
+                    regs.tx_enabled = false;
+                    regs.geni_status &= !registers::M_GENI_CMD_ACTIVE;
+                    regs.geni_m_irq_status |= registers::M_CMD_DONE_EN;
+                }
+                drop(regs);
+                self.update_irq();
+            }
+        }
+    }
+
+    unsafe extern "C" fn tx_ready(
+        _unused: *mut c_void,
+        _condition: u32,
+        opaque: *mut c_void,
+    ) -> i32 {
+        // SAFETY: the watch holds a pointer to this live QOM object.
+        let this = unsafe { &*opaque.cast::<Self>() };
+        this.tx_watch.set(0);
+        this.regs
+            .borrow_mut()
+            .start_dma_tx_transfer(&this.char_frontend);
+        this.update_irq();
+        this.update_tx_watch();
+        0
+    }
+
+    fn post_load(&self, _version: u8) -> Result<(), migration::InvalidError> {
+        self.update_irq();
+        self.update_tx_watch();
+        Ok(())
     }
 
     fn update_irq(&self) {
@@ -945,6 +1129,12 @@ impl QupGeniUartState {
             || (regs.dma_tx_irq_stat & regs.dma_tx_irq_en) != 0
             || (regs.dma_rx_irq_stat & regs.dma_rx_irq_en) != 0;
         self.irq.set(irq_active);
+    }
+}
+
+impl Drop for QupGeniUartState {
+    fn drop(&mut self) {
+        self.clear_tx_watch();
     }
 }
 
@@ -978,8 +1168,8 @@ impl_vmstate_struct!(
     QupGeniUartRegs,
     VMStateDescriptionBuilder::<QupGeniUartRegs>::new()
         .name(c"qup_geni_uart/regs")
-        .version_id(2)
-        .minimum_version_id(2)
+        .version_id(3)
+        .minimum_version_id(3)
         .fields(vmstate_fields! {
         vmstate_of!(QupGeniUartRegs, geni_status),
         vmstate_of!(QupGeniUartRegs, geni_m_cmd0),
@@ -1025,12 +1215,14 @@ impl_vmstate_struct!(
         vmstate_of!(QupGeniUartRegs, dma_tx_ptr_h),
         vmstate_of!(QupGeniUartRegs, dma_tx_attr),
         vmstate_of!(QupGeniUartRegs, dma_tx_len),
+        vmstate_of!(QupGeniUartRegs, dma_tx_sent),
         vmstate_of!(QupGeniUartRegs, dma_tx_irq_en),
         vmstate_of!(QupGeniUartRegs, dma_tx_irq_stat),
         vmstate_of!(QupGeniUartRegs, dma_rx_ptr_l),
         vmstate_of!(QupGeniUartRegs, dma_rx_ptr_h),
         vmstate_of!(QupGeniUartRegs, dma_rx_attr),
         vmstate_of!(QupGeniUartRegs, dma_rx_len),
+        vmstate_of!(QupGeniUartRegs, dma_rx_len_in),
         vmstate_of!(QupGeniUartRegs, dma_rx_irq_en),
         vmstate_of!(QupGeniUartRegs, dma_rx_irq_stat),
         vmstate_of!(QupGeniUartRegs, dma_tx_active),
@@ -1044,8 +1236,9 @@ impl_vmstate_struct!(
 pub const VMSTATE_QUP_GENI_UART: VMStateDescription<QupGeniUartState> =
     VMStateDescriptionBuilder::<QupGeniUartState>::new()
         .name(c"qup_geni_uart")
-        .version_id(2)
-        .minimum_version_id(2)
+        .post_load(&QupGeniUartState::post_load)
+        .version_id(3)
+        .minimum_version_id(3)
         .fields(vmstate_fields! {
             vmstate_of!(QupGeniUartState, regs),
         })
