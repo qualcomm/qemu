@@ -18,6 +18,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/hexagon/hex-board.h"
 #include "hw/hexagon/hex-subsys.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "system/address-spaces.h"
@@ -248,10 +249,17 @@ static void hex_board_cpu_reset(void *opaque)
 }
 
 void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start,
-                           uint32_t dma_version)
+                           const struct hexagon_machine_config *cfg)
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
     g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, ms->smp.cpus);
+    DeviceState *hlx = qdev_new(TYPE_HEXAGON_HLX);
+
+    object_property_add_child(OBJECT(ms), "hexagon-hlx", OBJECT(hlx));
+    qdev_prop_set_uint32(hlx, "contexts-bitmap", cfg->cfgtable.coproc2_reg2);
+    qdev_prop_set_uint32(hlx, "hlx-size-bytes",
+                         cfg->cfgtable.raw[HLX_SIZE_CFG_INDEX]);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(hlx), &error_fatal);
 
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
@@ -261,7 +269,9 @@ void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start,
             qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", start);
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
-        qdev_prop_set_uint32(DEVICE(cpu), "dma-version", dma_version);
+        qdev_prop_set_uint32(DEVICE(cpu), "dma-version",
+                             cfg->cfgtable.dma_version);
+        object_property_set_link(OBJECT(cpu), "hlx", OBJECT(hlx), &error_fatal);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", i != 0);
         hex_subsys_add_cpu(hms, DEVICE(cpu));
         cpus[i] = cpu;

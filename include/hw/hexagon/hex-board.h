@@ -61,6 +61,6 @@ void hex_board_load_fdt(MachineState *ms, int fdt_size, hwaddr addr);
  * and realize the cluster.
  */
 void hex_board_create_cpus(MachineState *ms, bool have_start, uint64_t start,
-                           uint32_t dma_version);
+                           const struct hexagon_machine_config *cfg);
 
 #endif /* HW_HEXAGON_HEX_BOARD_H */
