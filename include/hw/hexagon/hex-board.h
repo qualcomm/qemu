@@ -13,6 +13,12 @@
 /* The L2VIC interrupt specifiers of the 32 per-cpu lines precede its lines. */
 #define HEX_BOARD_L2VIC_SPI_BASE 32
 
+/* The representation of L2VIC interrupt specifiers in the device tree. */
+typedef enum HexBoardIrqFormat {
+    HEX_BOARD_IRQ_LINE = 1,
+    HEX_BOARD_IRQ_SPEC = 2,
+} HexBoardIrqFormat;
+
 /*
  * Create the device tree with its root, /soc and /chosen (including an
  * rng-seed) nodes.  Returns its size in @fdt_size.
