@@ -93,6 +93,22 @@ its entry point::
 
     $ qemu-system-hexagon -M V68N_1024 -kernel ./prog.elf -append 'arg1 arg2'
 
+QUP UART on the virt machine
+----------------------------
+The ``virt`` machine exposes a QUP GENI UART as its second serial port.
+Linux's normal GENI driver uses DMA and registers it as ``/dev/ttyHS1``;
+the first serial port, ``/dev/ttyAMA0``, remains the boot console.  A local
+integration test exercises transmit, receive and reopening the QUP port with
+a BusyBox ext2 root filesystem (the test uses a temporary disk snapshot)::
+
+    $ python3 tests/functional/hexagon_qup_dma.py \
+          --qemu ./build/qemu-system-hexagon \
+          --bios /path/to/vm-host-firmware \
+          --kernel /path/to/vmlinux --rootfs /path/to/rootfs.ext2
+
+The QUP model completes receive DMA when input arrives; it does not model
+baud-dependent timing or UART parity, framing and hardware flow control.
+
 .. _hexagon-semihosting:
 
 Semihosting

@@ -143,7 +143,8 @@ static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                             "qcom,geni-uart");
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
-    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_QUP_UART0_IRQ);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
+                           HEX_BOARD_L2VIC_SPI_BASE + VIRT_QUP_UART0_IRQ, 0);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           l2vic_phandle);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clocks", clk_phandle);
@@ -204,6 +205,9 @@ static void virt_init(MachineState *ms)
                           m_cfg->cfgtable.dma_version);
 
     hex_board_fdt_add_cpus(ms);
+    if (vm_guest) {
+        hex_board_fdt_add_vm_timer(ms, 0xab000000, 0x1000, 12);
+    }
     hex_board_create_uart(ms, base_memmap[VIRT_UART0].base,
                           base_memmap[VIRT_UART0].size, VIRT_UART0_IRQ,
                           l2vic_phandle);
