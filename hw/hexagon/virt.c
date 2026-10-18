@@ -19,6 +19,8 @@
 #include "hw/core/sysbus.h"
 #include "hw/misc/qup-wrapper.h"
 #include "qemu/error-report.h"
+#include "qemu/datadir.h"
+#include "system/address-spaces.h"
 #include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "machine_cfg_v68n_1024.h.inc"
@@ -45,7 +47,7 @@ static const int VIRT_QUP_UART0_IRQ = 24;
 #endif
 
 static const MemMapEntry base_memmap[] = {
-    [VIRT_UART0] = { 0x10000000, 0x00000200 },
+    [VIRT_UART0] = { 0x10000000, 0x00001000 },
     [VIRT_QUP_UART0] = { 0x10004000, 0x00006000 },
     [VIRT_QUP_WRAPPER0] = { 0x1000a000, 0x00006000 },
     [VIRT_MMIO] = { 0x11000000, 0x00001000 },
@@ -53,29 +55,63 @@ static const MemMapEntry base_memmap[] = {
 };
 
 
-static uint64_t load_kernel(const HexagonVirtMachineState *vms)
+#define VIRT_KERNEL_ADDR 0xa0000000
+#define VIRT_BOOT_ADDR 0x99c00000
+
+static const uint32_t bootloader[] = {
+    0x099c4000, 0x7800c606, 0x9186c000,
+    0x099c4000, 0x7800c586, 0x9186c001,
+    0x099c4000, 0x7800c687, 0x9187c007,
+    0x5287c000, 0, 0, 0, 0,
+};
+
+static uint64_t kernel_translate(void *opaque, uint64_t addr)
 {
-    return hex_board_load_elf(MACHINE(vms)->kernel_filename, NULL, NULL, NULL);
+    return addr + VIRT_KERNEL_ADDR;
 }
 
-static uint64_t load_bios(HexagonVirtMachineState *vms)
+static uint64_t load_images(MachineState *ms, hwaddr *fdt_addr)
 {
-    MachineState *ms = MACHINE(vms);
-    uint64_t bios_addr = 0x0;  /* Load BIOS at reset vector address 0x0 */
-    int bios_size;
+    g_autofree char *firmware = qemu_find_file(QEMU_FILE_TYPE_BIOS, ms->firmware);
+    uint64_t entry, high;
+    hwaddr guest_ram_end = MIN(ms->ram_size, VIRT_KERNEL_ADDR + 896 * MiB);
+    uint32_t stub[ARRAY_SIZE(bootloader)];
 
-    bios_size = load_image_targphys(ms->firmware ?: "",
-                                    bios_addr, 64 * 1024, NULL);
-    if (bios_size < 0) {
-        error_report("Could not load BIOS '%s'", ms->firmware ?: "");
+    if (!firmware) {
+        error_report("Could not find firmware '%s'", ms->firmware);
         exit(1);
     }
-
-    return bios_addr;  /* Return entry point at address 0x0 */
+    if (ms->ram_size <= VIRT_KERNEL_ADDR + 32 * MiB) {
+        error_report("insufficient RAM for H2 firmware and kernel");
+        exit(1);
+    }
+    entry = hex_board_load_elf(firmware, NULL, NULL, NULL);
+    hex_board_load_elf(ms->kernel_filename, kernel_translate, NULL, &high);
+    *fdt_addr = QEMU_ALIGN_UP(high + 16 * MiB, 4 * MiB);
+    if (*fdt_addr + 4 * MiB >= guest_ram_end) {
+        error_report("insufficient RAM for device tree");
+        exit(1);
+    }
+    if (ms->initrd_filename) {
+        hwaddr initrd = *fdt_addr + 4 * MiB;
+        ssize_t size = load_image_targphys_as(ms->initrd_filename, initrd,
+                                             guest_ram_end - initrd,
+                                             &address_space_memory, &error_fatal);
+        qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-start", initrd);
+        qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-end", initrd + size);
+    }
+    memcpy(stub, bootloader, sizeof(stub));
+    stub[11] = cpu_to_le32(*fdt_addr >> 32);
+    stub[12] = cpu_to_le32(*fdt_addr);
+    stub[13] = cpu_to_le32(entry);
+    rom_add_blob_fixed_as("bootloader", stub, sizeof(stub), VIRT_BOOT_ADDR,
+                          &address_space_memory);
+    return VIRT_BOOT_ADDR;
 }
 
 #ifdef CONFIG_X_QUP_GENI_UART_RUST
-static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
+static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle,
+                             HexBoardIrqFormat irq_format)
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
     hwaddr wrapper_base = base_memmap[VIRT_QUP_WRAPPER0].base;
@@ -124,7 +160,12 @@ static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                             "qcom,geni-uart");
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
-    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_QUP_UART0_IRQ);
+    if (irq_format == HEX_BOARD_IRQ_SPEC) {
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
+                               HEX_BOARD_L2VIC_SPI_BASE + VIRT_QUP_UART0_IRQ, 0);
+    } else {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_QUP_UART0_IRQ);
+    }
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           l2vic_phandle);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clocks", clk_phandle);
@@ -141,9 +182,13 @@ static void virt_init(MachineState *ms)
     int32_t l2vic_phandle;
     uint64_t start = 0;
     bool have_start = false;
+    hwaddr fdt_addr = base_memmap[VIRT_FDT].base;
+    HexBoardIrqFormat irq_format = ms->kernel_filename && ms->firmware ?
+                                   HEX_BOARD_IRQ_SPEC : HEX_BOARD_IRQ_LINE;
 
     hex_board_create_fdt(ms, "hexagon-virt,qemu", "qcom,sm8150",
                          &vms->fdt_size);
+    qemu_fdt_setprop_string(ms->fdt, "/soc", "compatible", "simple-bus");
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
 
     hex_subsys_create(&vms->parent_obj, m_cfg, v68_rev);
@@ -155,22 +200,37 @@ static void virt_init(MachineState *ms)
                             base_memmap[VIRT_MMIO].size, VIRTIO_IRQ_BASE,
                             VIRTIO_DEV_COUNT, l2vic_phandle);
 
-    if (ms->kernel_filename) {
-        start = load_kernel(vms);
+    if (ms->kernel_filename && ms->firmware) {
+        start = load_images(ms, &fdt_addr);
+        have_start = true;
+    } else if (ms->kernel_filename) {
+        start = hex_board_load_elf(ms->kernel_filename, NULL, NULL, NULL);
         have_start = true;
     } else if (ms->firmware) {
-        start = load_bios(vms);
+        if (load_image_targphys(ms->firmware, 0, 64 * KiB, NULL) < 0) {
+            error_report("Could not load BIOS '%s'", ms->firmware);
+            exit(1);
+        }
         have_start = true;
     }
     hex_board_create_cpus(ms, have_start, start,
                           m_cfg->cfgtable.dma_version);
 
     hex_board_fdt_add_cpus(ms);
+    if (ms->kernel_filename && ms->firmware) {
+        static const char compat[] = "qcom,h2-timer\0hvm-timer";
+        qemu_fdt_add_subnode(ms->fdt, "/soc/timer@ab000000");
+        qemu_fdt_setprop(ms->fdt, "/soc/timer@ab000000", "compatible",
+                         compat, sizeof(compat));
+        qemu_fdt_setprop_cells(ms->fdt, "/soc/timer@ab000000", "reg",
+                               0, 0xab000000, 0x1000);
+        qemu_fdt_setprop_cells(ms->fdt, "/soc/timer@ab000000", "interrupts", 12, 0);
+    }
     hex_board_create_uart(ms, base_memmap[VIRT_UART0].base,
                           base_memmap[VIRT_UART0].size, VIRT_UART0_IRQ,
                           l2vic_phandle);
 
-    hex_board_load_fdt(ms, vms->fdt_size, base_memmap[VIRT_FDT].base);
+    hex_board_load_fdt(ms, vms->fdt_size, fdt_addr);
 }
 
 
