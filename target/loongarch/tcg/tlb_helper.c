@@ -310,7 +310,7 @@ static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
     return false;
 }
 
-void helper_tlbsrch(CPULoongArchState *env)
+void HELPER(tlbsrch)(CPULoongArchState *env)
 {
     int index, match;
     CPUSysState *sys = env_sys(env);
@@ -330,7 +330,7 @@ void helper_tlbsrch(CPULoongArchState *env)
     sys->CSR_TLBIDX = FIELD_DP64(sys->CSR_TLBIDX, CSR_TLBIDX, NE, 1);
 }
 
-void helper_tlbrd(CPULoongArchState *env)
+void HELPER(tlbrd)(CPULoongArchState *env)
 {
     LoongArchTLB *tlb;
     int index;
@@ -389,7 +389,7 @@ static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
     *old = new;
 }
 
-void helper_tlbwr(CPULoongArchState *env)
+void HELPER(tlbwr)(CPULoongArchState *env)
 {
     CPUSysState *sys = env_sys(env);
     int index = FIELD_EX64(sys->CSR_TLBIDX, CSR_TLBIDX, INDEX);
@@ -469,7 +469,7 @@ static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
     return index;
 }
 
-void helper_tlbfill(CPULoongArchState *env)
+void HELPER(tlbfill)(CPULoongArchState *env)
 {
     vaddr entryhi;
     int index, pagesize;
@@ -492,7 +492,7 @@ void helper_tlbfill(CPULoongArchState *env)
     fill_tlb_entry(env, env->tlb + index, &context);
 }
 
-void helper_tlbclr(CPULoongArchState *env)
+void HELPER(tlbclr)(CPULoongArchState *env)
 {
     LoongArchTLB *tlb;
     int i, index;
@@ -527,7 +527,7 @@ void helper_tlbclr(CPULoongArchState *env)
     tlb_flush(env_cpu(env));
 }
 
-void helper_tlbflush(CPULoongArchState *env)
+void HELPER(tlbflush)(CPULoongArchState *env)
 {
     int i, index;
     CPUSysState *sys = env_sys(env);
@@ -552,7 +552,7 @@ void helper_tlbflush(CPULoongArchState *env)
     tlb_flush(env_cpu(env));
 }
 
-void helper_invtlb_all(CPULoongArchState *env)
+void HELPER(invtlb_all)(CPULoongArchState *env)
 {
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         env->tlb[i].tlb_misc = FIELD_DP64(env->tlb[i].tlb_misc,
@@ -561,7 +561,7 @@ void helper_invtlb_all(CPULoongArchState *env)
     tlb_flush(env_cpu(env));
 }
 
-void helper_invtlb_all_g(CPULoongArchState *env, uint32_t g)
+void HELPER(invtlb_all_g)(CPULoongArchState *env, uint32_t g)
 {
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
@@ -574,7 +574,7 @@ void helper_invtlb_all_g(CPULoongArchState *env, uint32_t g)
     tlb_flush(env_cpu(env));
 }
 
-void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info)
+void HELPER(invtlb_all_asid)(CPULoongArchState *env, target_ulong info)
 {
     uint16_t asid = info & R_CSR_ASID_ASID_MASK;
 
@@ -590,7 +590,7 @@ void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info)
     tlb_flush(env_cpu(env));
 }
 
-void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
+void HELPER(invtlb_page_asid)(CPULoongArchState *env, target_ulong info,
                              target_ulong addr)
 {
     int asid = info & 0x3ff;
@@ -604,7 +604,7 @@ void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
     }
 }
 
-void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
+void HELPER(invtlb_page_asid_or_g)(CPULoongArchState *env,
                                   target_ulong info, target_ulong addr)
 {
     int asid = info & 0x3ff;
@@ -718,7 +718,7 @@ static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,
     return (pte & ~ppn_mask) | ((pte & ppn_mask) & palen_mask);
 }
 
-target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
+target_ulong HELPER(lddir)(CPULoongArchState *env, target_ulong base,
                           uint32_t level, uint32_t mem_idx)
 {
     CPUState *cs = env_cpu(env);
@@ -759,7 +759,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     return val & palen_mask;
 }
 
-void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
+void HELPER(ldpte)(CPULoongArchState *env, target_ulong base, target_ulong odd,
                   uint32_t mem_idx)
 {
     CPUState *cs = env_cpu(env);
