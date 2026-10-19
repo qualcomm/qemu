@@ -337,6 +337,7 @@ our @typeList = (
 	qr{${Ident}_handler_fn},
 	qr{target_(?:u)?long},
 	qr{hwaddr},
+	qr{float_status},
         # external libraries
 	qr{xen\w+_handle},
 	# Glib definitions
