@@ -205,6 +205,23 @@ ExportedFct('gpio_new', 'struct IRQState *', [ 'LibQemuGpioHandlerFn', 'void *' 
 ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
         priv = 'qemu_set_irq', iothread_locked = True)
 
+PrivateInclude('hw/pci/pci_device.h')
+PrivateInclude('libqemu/wrappers/pci.h')
+ExportedType('QemuPCIDevice', 'PCIDevice')
+ExportedFct(
+    'pci_msi_notify',
+    'bool',
+    ['PCIDevice *', 'unsigned int'],
+    priv='libqemu_pci_msi_notify',
+    on_iothread=True
+)
+ExportedFct(
+    'pci_msix_notify',
+    'bool',
+    ['PCIDevice *', 'unsigned int'],
+    priv='libqemu_pci_msix_notify',
+    on_iothread=True
+)
 
 PrivateInclude('hw/core/qdev.h')
 PrivateInclude('hw/core/qdev-clock.h')
