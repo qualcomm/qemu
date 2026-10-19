@@ -8,9 +8,8 @@
  * live per-vCPU tally). The live tallies themselves are per-vCPU fast
  * counters embedded in CPUHexagonState (see target/hexagon/pmu.h) --
  * translated code addresses them directly, so they can't live in this
- * device. This device is optional: a CPU's "pmu" link property is unset
- * unless the machine was started with `pmu=on`, and every access is
- * NULL-checked so an absent PMU costs nothing beyond that check.
+ * device. Every system-mode Hexagon CPU links to the shared PMU; counter
+ * updates remain gated by the guest-controlled SYSCFG.PM bit.
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later

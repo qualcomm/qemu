@@ -481,6 +481,31 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
         translator_io_start(&ctx->base);
         gen_helper_sreg_read(dest, tcg_env, tcg_constant_i32(sreg));
 #else
+    } else if (reg_num >= HEX_REG_UPMUCNT0 && reg_num <= HEX_REG_UPMUCNT7) {
+        switch (reg_num - HEX_REG_UPMUCNT0) {
+        case 0:
+            tcg_gen_mov_tl(dest, hex_pmu_num_packets);
+            break;
+        case 1:
+            tcg_gen_mov_tl(dest, hex_pmu_committed_loads);
+            break;
+        case 2:
+            tcg_gen_mov_tl(dest, hex_pmu_committed_stores);
+            break;
+        case 3:
+            tcg_gen_mov_tl(dest, hex_pmu_committed_memops);
+            break;
+        case 4:
+            tcg_gen_mov_tl(dest, hex_pmu_hvx_packets);
+            break;
+        case 5:
+        case 6:
+        case 7:
+            tcg_gen_movi_tl(dest, 0);
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else if (reg_num == HEX_REG_UTIMERLO) {
         TCGv_i64 utimer = tcg_temp_new_i64();
         gen_helper_utimer(utimer);
@@ -524,6 +549,13 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
         gen_read_ctrl_reg(ctx, reg_num + 1, hi);
         tcg_gen_concat_i32_i64(dest, lo, hi);
 #else
+    } else if (reg_num >= HEX_REG_UPMUCNT0 && reg_num < HEX_REG_UPMUCNT7) {
+        TCGv lo = tcg_temp_new();
+        TCGv hi = tcg_temp_new();
+
+        gen_read_ctrl_reg(ctx, reg_num, lo);
+        gen_read_ctrl_reg(ctx, reg_num + 1, hi);
+        tcg_gen_concat_i32_i64(dest, lo, hi);
     } else if (reg_num == HEX_REG_UTIMERLO) {
         /* One helper call, so the pair is a coherent 64-bit snapshot. */
         gen_helper_utimer(dest);

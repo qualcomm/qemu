@@ -75,13 +75,44 @@ enum {
     DECL_PMU_EVENT(COMMITTED_ST,       0x031) \
     DECL_PMU_EVENT(COMMITTED_MEMOP,    0x032) \
     DECL_PMU_EVENT(HVX_PKT,            0x111) \
-    DECL_PMU_EVENT(HVX_PKT_THREAD,     0x112) \
-    DECL_PMU_EVENT(HVXPIPE_ALU,        0x128) \
-    DECL_PMU_EVENT(HVXPIPE_MPY,        0x129) \
-    DECL_PMU_EVENT(HVXPIPE_SHIFT,      0x12a) \
-    DECL_PMU_EVENT(HVXPIPE_PERM,       0x12b)
+    DECL_PMU_EVENT(HVX_PKT_THREAD,     0x112)
 
 #define NUM_PMU_CTRS 8
+
+enum {
+    HEX_PMU_METRIC_PACKETS = 1 << 0,
+    HEX_PMU_METRIC_LOADS = 1 << 1,
+    HEX_PMU_METRIC_STORES = 1 << 2,
+    HEX_PMU_METRIC_MEMOPS = 1 << 3,
+    HEX_PMU_METRIC_HVX_PACKETS = 1 << 4,
+};
+
+#define HEX_PMU_USER_METRICS \
+    (HEX_PMU_METRIC_PACKETS | HEX_PMU_METRIC_LOADS | \
+     HEX_PMU_METRIC_STORES | HEX_PMU_METRIC_MEMOPS | \
+     HEX_PMU_METRIC_HVX_PACKETS)
+
+static inline uint16_t hexagon_pmu_event_metrics(uint16_t event)
+{
+    switch (event) {
+    case COMMITTED_PKT_ANY:
+    case COMMITTED_PKT_T0 ... COMMITTED_PKT_T5:
+    case COMMITTED_PKT_T6:
+    case COMMITTED_PKT_T7:
+        return HEX_PMU_METRIC_PACKETS;
+    case COMMITTED_LD:
+        return HEX_PMU_METRIC_LOADS;
+    case COMMITTED_ST:
+        return HEX_PMU_METRIC_STORES;
+    case COMMITTED_MEMOP:
+        return HEX_PMU_METRIC_MEMOPS;
+    case HVX_PKT:
+    case HVX_PKT_THREAD:
+        return HEX_PMU_METRIC_HVX_PACKETS;
+    default:
+        return 0;
+    }
+}
 
 /*
  * PMU sregs are defined in this order: 4, 5, 6, 7, 0, 1, 2, 3.

@@ -166,15 +166,6 @@ static uint32_t hexagon_pmu_event_stats(CPUHexagonState *env, int event)
         return PMU_SUM_THREADS(committed_memops);
     case HVX_PKT_THREAD:
         return env->pmu.hvx_packets;
-    case HVXPIPE_ALU:
-        return PMU_SUM_THREADS(hvx_pipe_alu);
-    case HVXPIPE_MPY:
-        return PMU_SUM_THREADS(hvx_pipe_mpy);
-    case HVXPIPE_SHIFT:
-        return PMU_SUM_THREADS(hvx_pipe_shift);
-    case HVXPIPE_PERM:
-        return PMU_SUM_THREADS(hvx_pipe_perm);
-
     default:
         return 0;
     }
@@ -212,6 +203,9 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *env, int index)
         return 0;
     }
     event = hexagon_pmu_get_event(cpu->pmu, index);
+    if (!hexagon_pmu_event_implemented(event)) {
+        return 0;
+    }
     return hexagon_pmu_get_offset(cpu->pmu, index) +
            hexagon_pmu_event_stats(env, event);
 }
@@ -242,6 +236,10 @@ static void hexagon_set_pmu_event(CPUHexagonState *env, unsigned int index,
 
     hexagon_pmu_log_if_unimplemented(event);
     hexagon_pmu_set_event(cpu->pmu, index, event);
+    if (!hexagon_pmu_event_implemented(event)) {
+        hexagon_pmu_set_offset(cpu->pmu, index, 0);
+        return;
+    }
     new_offset = old_value - hexagon_pmu_event_stats(env, event);
     hexagon_pmu_set_offset(cpu->pmu, index, new_offset);
 }

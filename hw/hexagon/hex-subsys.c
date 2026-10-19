@@ -122,21 +122,11 @@ static void hvx_contexts_create(HexagonCommonMachineState *hms,
     hms->num_hvx_ctx = n;
 }
 
-/*
- * The PMU is opt-in (`-machine <type>,pmu=on`): most runs don't need it, and
- * every access to it is NULL-checked, so simply not creating one when the
- * machine didn't ask for it is what makes it free when unused.
- */
 static DeviceState *pmu_create(HexagonCommonMachineState *hms)
 {
     DeviceState *pmu = qdev_new(TYPE_HEXAGON_PMU);
 
-    /*
-     * Named "pmu-device", not "pmu": the machine's own "pmu" bool property
-     * (enabling/disabling this device) lives on this same object, and QOM
-     * property names must be unique per object.
-     */
-    object_property_add_child(OBJECT(hms), "pmu-device", OBJECT(pmu));
+    object_property_add_child(OBJECT(hms), "pmu", OBJECT(pmu));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(pmu), &error_fatal);
 
     return pmu;
@@ -246,9 +236,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
     hms->tlb = tlb_create(hms, m_cfg);
     hvx_contexts_create(hms, m_cfg);
-    if (hms->pmu_enabled) {
-        hms->pmu = pmu_create(hms);
-    }
+    hms->pmu = pmu_create(hms);
 }
 
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
@@ -260,10 +248,8 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
                              &error_fatal);
     object_property_set_link(OBJECT(cpu), "l2vic", OBJECT(hms->l2vic),
                              &error_fatal);
-    if (hms->pmu) {
-        object_property_set_link(OBJECT(cpu), "pmu", OBJECT(hms->pmu),
-                                 &error_fatal);
-    }
+    object_property_set_link(OBJECT(cpu), "pmu", OBJECT(hms->pmu),
+                             &error_fatal);
     if (hms->hvm) {
         object_property_set_link(OBJECT(cpu), "hvm", OBJECT(hms->hvm),
                                  &error_fatal);

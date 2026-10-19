@@ -19,26 +19,29 @@ to the `Qualcomm Hexagon V79 HVX Programmer's Reference Manual
 Performance Monitoring Unit (PMU)
 ----------------------------------
 
-The Hexagon PMU is modeled as an optional device, off by default. Enable it
-with a machine property::
-
-    $ qemu-system-hexagon -M <machine>,pmu=on ...
-
-When enabled, every vCPU gets an optional link to a shared ``hexagon-pmu``
-device holding the 8 configurable event counters (``PMUCNT0``-``PMUCNT7``)
+The Hexagon PMU is modeled by a shared ``hexagon-pmu`` device. Every vCPU has
+a link to that device, which holds the 8 configurable event counters
+(``PMUCNT0``-``PMUCNT7``)
 and their event-select registers (``PMUEVTCFG``, ``PMUEVTCFG1``,
 ``PMUCFG``, ``PMUSTID0``, ``PMUSTID1``), plus the ``GPMUCNT0``-``GPMUCNT7``
 global-monitor aliases (readable when ``SSR.CE`` is set, like ``GPCYCLE``).
 The read-only ``UPMUCNT0``-``UPMUCNT7`` user-mode aliases are also
 implemented.
+
+Linux-user has no privileged PMU register interface, so it cannot model an
+operating system selecting arbitrary events.  For userspace profiling,
+``-cpu v79,pmu=on`` enables fixed UPMUCNT mappings: packet, committed load,
+committed store, committed memop, and HVX packet counts in UPMUCNT0 through
+UPMUCNT4 (the C20 through C24 aliases) respectively.  UPMUCNT5 through
+UPMUCNT7 read as zero.  The option is off by default and requires a v79 or
+later CPU model.
+
 Guest software configures a counter's event through
 ``PMUEVTCFG``/``PMUEVTCFG1`` (event id bits 7:0) and ``PMUCFG`` (event id
 bits 9:8, plus the thread mask), and reads it back through the matching
-``PMUCNTn``. The whole unit is additionally gated by ``SYSCFG.PM``: with
-the machine property off, or with ``SYSCFG.PM`` clear, no counter advances
-and no extra code is generated for the packet translator, so leaving PMU
-support enabled at the machine level costs nothing until a guest actually
-turns it on.
+``PMUCNTn``. The whole unit is gated by ``SYSCFG.PM``: with that bit clear,
+no counter advances and no extra code is generated for the packet translator.
+The PMU therefore costs nothing until a guest actually turns it on.
 
 Events implemented
 ^^^^^^^^^^^^^^^^^^^
@@ -61,14 +64,10 @@ Event                              Event id  Notes
                                               hardware threads
 ``HVX_PKT_THREAD``                 0x112     HVX packets committed by the requesting
                                               hardware thread
-``HVXPIPE_ALU``                    0x128     HVX ALU-class instructions committed
-``HVXPIPE_MPY``                    0x129     HVX multiply-class instructions committed
-``HVXPIPE_SHIFT``                  0x12a     HVX shift-class instructions committed
-``HVXPIPE_PERM``                   0x12b     HVX permute-class instructions committed
 ================================== ========= ==========================================
 
-Any other event id a guest selects is accepted -- the counter simply does
-not advance -- and is logged once via ``LOG_UNIMP``, rather than silently
+Any other event id a guest selects is unsupported: its counter reads as zero
+and the selection is logged once via ``LOG_UNIMP``, rather than silently
 returning a fabricated count. This covers the majority of the architected
 PMU event list: cache and TLB events, AXI/AHB bus transaction events,
 branch-predictor events, and pipeline stall/replay/throttle events all
@@ -89,10 +88,6 @@ Modeling notes
   (``COMMITTED_LD``, ``COMMITTED_ST``, ``COMMITTED_MEMOP``,
   ``HVXPIPE_ALU``/``MPY``/``SHIFT``/``PERM``) are summed across all hardware
   threads, so a counter reads the same from any thread.
-- HVX instructions that use two functional pipes in one op (for example
-  a combined permute/shift or shift/multiply) are not attributed to any
-  single ``HVXPIPE_*`` bucket: which physical pipe would execute them is
-  not derivable from decode attributes alone.
 
 For the full PMU event list and register layout, refer to the
 `Hexagon V81 PMU Events reference

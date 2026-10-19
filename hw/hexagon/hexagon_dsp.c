@@ -266,25 +266,6 @@ static void hexagon_dsp_machine_class_init(ObjectClass *oc, const void *data)
         "Override the User DMA version in the config table (1, 2, 4, 6, 8)");
 }
 
-static bool hexagon_common_get_pmu(Object *obj, Error **errp)
-{
-    return HEXAGON_COMMON_MACHINE(obj)->pmu_enabled;
-}
-
-static void hexagon_common_set_pmu(Object *obj, bool value, Error **errp)
-{
-    HEXAGON_COMMON_MACHINE(obj)->pmu_enabled = value;
-}
-
-static void hexagon_common_machine_class_init(ObjectClass *oc,
-                                              const void *data)
-{
-    object_class_property_add_bool(oc, "pmu", hexagon_common_get_pmu,
-                                   hexagon_common_set_pmu);
-    object_class_property_set_description(oc, "pmu",
-        "Enable the performance monitoring unit (off by default)");
-}
-
 static void init_mc(MachineClass *mc)
 {
     mc->block_default_type = IF_SD;
@@ -447,7 +428,6 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = TYPE_HEXAGON_COMMON_MACHINE,
         .parent = TYPE_MACHINE,
         .instance_size = sizeof(HexagonCommonMachineState),
-        .class_init = hexagon_common_machine_class_init,
         .abstract = true,
     },
     {

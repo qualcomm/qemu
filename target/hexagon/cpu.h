@@ -153,14 +153,11 @@ typedef struct HexagonHVXContext {
     MMQReg QRegs[NUM_QREGS];
 } QEMU_ALIGNED(16) HexagonHVXContext;
 
-#ifndef CONFIG_USER_ONLY
 /*
  * Per-vCPU PMU tallies. Translated code addresses these fields directly
- * (see hex_pmu_* TCG globals in translate.c), so they can't live in the
- * "hexagon-pmu" QOM device -- that device only holds the guest-configurable,
- * cross-thread state (which event each counter watches, and each counter's
- * rebase offset). See target/hexagon/pmu.h for the event list and
- * hexagon_get_pmu_counter() in cpu_helper.c for how the two combine.
+ * (see hex_pmu_* TCG globals in translate.c). In system mode, the QOM PMU
+ * device holds the guest-configurable, cross-thread event selections and
+ * rebase offsets. Linux-user uses fixed UPMUCNT event mappings instead.
  */
 typedef struct PMUCounters {
     uint32_t num_packets;
@@ -173,7 +170,6 @@ typedef struct PMUCounters {
     uint32_t hvx_pipe_shift;
     uint32_t hvx_pipe_perm;
 } PMUCounters;
-#endif
 
 #ifndef CONFIG_USER_ONLY
 /*
@@ -219,10 +215,9 @@ typedef struct CPUArchState {
     uint32_t tlb_lock_count;
     uint32_t k0_lock_count;
 
-    PMUCounters pmu;
-
     HexagonHVMMap hvm_map;
 #endif
+    PMUCounters pmu;
     uint32_t imprecise_exception;
     target_ulong new_value_usr;
 
@@ -340,6 +335,8 @@ FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, HVX_COPROC_ENABLED, 5, 1)
 FIELD(TB_FLAGS, CPU_MODE, 6, 2)
 FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
+FIELD(TB_FLAGS, PMU_ENABLED, 9, 1)
+FIELD(TB_FLAGS, PMU_METRICS, 10, 5)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
