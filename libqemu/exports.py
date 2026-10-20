@@ -416,6 +416,8 @@ ExportPluginAPI()
 PrivateInclude('libqemu/wrappers/target/arm.h', arch = 'arm')
 ExportedFct('cpu_arm_set_imp_buildoptr', 'void', [ 'Object *', 'uint32_t' ],
         priv = 'libqemu_cpu_arm_set_imp_buildoptr', arch = 'arm')
+ExportedFct('cpu_arm_set_rvbar', 'void', [ 'Object *', 'uint64_t' ],
+        priv = 'libqemu_cpu_arm_set_rvbar', arch = 'arm')
 ExportedFct('cpu_arm_set_cpu_on_and_reset', 'int', [ 'Object *'],
         priv = 'libqemu_arm_set_cpu_on_and_reset', arch = 'arm')
 ExportedFct('cpu_arm_set_cpu_off', 'int', [ 'Object *'],
