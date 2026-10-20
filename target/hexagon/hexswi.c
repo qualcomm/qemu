@@ -19,6 +19,8 @@
 #include "hex_mmu.h"
 #include "hexswi.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvm.h"
+#include "hvm.h"
 
 #ifdef CONFIG_USER_ONLY
 #error "This file is only used in system emulation"
@@ -831,6 +833,16 @@ void hexagon_vmrte(CPUHexagonState *env)
     uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
     CPUState *cs = env_cpu(env);
 
+    if (env_archcpu(env)->hvm && GET_FIELD(GSR_UM, gsr)) {
+        /*
+         * A guest of the HVM monitor has no exit SPSWAP of its own: the
+         * monitor gives the guest user stack back as it returns to user mode.
+         */
+        uint32_t sp = env->gpr[HEX_REG_SP];
+
+        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
+        env->greg[HEX_GREG_GOSP] = sp;
+    }
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
                      GET_FIELD(GSR_SS, gsr));
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
@@ -844,7 +856,15 @@ void hexagon_vmrte(CPUHexagonState *env)
     env->cfi_active = GET_FIELD(GSR_CFI, gsr);
     fSET_FIELD(env->greg[HEX_GREG_GSR], GSR_CFI, 0);
     env->gpr[HEX_REG_PC] = env->greg[HEX_GREG_GELR] & ~3;
+    if (GET_FIELD(GSR_IE, gsr) && env_archcpu(env)->hvm) {
+        hexagon_hvm_ie_enabled(env);
+    }
     cpu_loop_exit(cs);
+}
+
+void hexagon_semihost_trap0(CPUHexagonState *env)
+{
+    sim_handle_trap0(env);
 }
 
 void hexagon_cpu_do_interrupt(CPUState *cs)
@@ -863,6 +883,10 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                   env->cause_code);
 
     env->llsc_addr = ~0;
+
+    if (cpu->hvm && hexagon_hvm_do_interrupt(cs)) {
+        return;
+    }
 
     ssr = env->t_sreg[HEX_SREG_SSR];
     if (GET_SSR_FIELD(SSR_EX, ssr) == 0) {
