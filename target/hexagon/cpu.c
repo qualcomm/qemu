@@ -46,6 +46,8 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_pmu.h"
+#include "hw/hexagon/hexagon_hvm.h"
+#include "hvm.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -82,6 +84,12 @@ static const Property hexagon_cpu_properties[] = {
      */
     DEFINE_PROP_LINK("pmu", HexagonCPU, pmu, TYPE_HEXAGON_PMU,
                      HexagonPMUState *),
+    /*
+     * Optional: only set when the machine runs a guest of the Hexagon
+     * Virtual Machine without a hypervisor (`hvm=on`).
+     */
+    DEFINE_PROP_LINK("hvm", HexagonCPU, hvm, TYPE_HEXAGON_HVM,
+                     HexagonHVMState *),
 #endif
     DEFINE_PROP_UINT32("dma-version", HexagonCPU, dma_version,
                        HEX_DMA_VERSION_UNSET),
@@ -514,6 +522,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     hexagon_hvx_select_context(env, env->t_sreg[HEX_SREG_SSR]);
     env->cause_code = HEX_EVENT_NONE;
     env->gpr[HEX_REG_PC] = cpu->boot_addr;
+    if (cpu->hvm) {
+        hexagon_hvm_cpu_reset(env);
+    }
 #endif
 
     memset(env->future_LRegs, 0, sizeof(env->future_LRegs));
@@ -595,6 +606,11 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     int cpu_mode;
 
+    if (cpu->hvm) {
+        /* The guest kernel's pages are the ones its user mode may not use. */
+        return GET_FIELD(SSR_GM, env->t_sreg[HEX_SREG_SSR]) ? MMU_GUEST_IDX :
+                                                              MMU_USER_IDX;
+    }
     if (cpu->globalregs) {
         uint32_t syscfg =
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
@@ -697,6 +713,9 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     int32_t excp = 0;
     int mmu_idx = MMU_KERNEL_IDX;
 
+    if (env_archcpu(env)->hvm) {
+        return hexagon_hvm_get_phys_addr_debug(cs, addr);
+    }
     if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
                              addr, 0, mmu_idx)) {
         vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
@@ -799,6 +818,10 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
     int32_t excp = 0;
     bool ret = 0;
 
+    if (env_archcpu(env)->hvm) {
+        return hexagon_hvm_tlb_fill(cs, address, size, access_type, mmu_idx,
+                                    probe, retaddr);
+    }
     qemu_log_mask(
         CPU_LOG_MMU,
         "%s: tid = 0x%" PRIx32 ", pc = 0x%08" PRIx32
@@ -854,6 +877,11 @@ static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         cs->halted = false;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
         return true;
+    }
+    if (env_archcpu(env)->hvm) {
+        /* The core's interrupts are not in use; the virtual ones are. */
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_SWI);
+        return hexagon_hvm_exec_interrupt(cs, interrupt_request);
     }
     if (interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI)) {
         return hex_check_interrupts(env);

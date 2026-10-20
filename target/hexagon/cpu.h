@@ -43,6 +43,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 typedef struct HexagonHVXContextState HexagonHVXContextState;
 typedef struct HexagonHLXState HexagonHLXState;
 typedef struct HexagonPMUState HexagonPMUState;
+typedef struct HexagonHVMState HexagonHVMState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
@@ -174,6 +175,23 @@ typedef struct PMUCounters {
 } PMUCounters;
 #endif
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * The address space a virtual CPU runs in, when QEMU plays the monitor of the
+ * Hexagon Virtual Machine (see hvm.c).
+ */
+typedef struct HexagonHVMMap {
+    /* A HVM_TRANS_* translation type */
+    uint8_t type;
+    /* Varadix: the number of bits of virtual page number it translates */
+    uint8_t extra;
+    /* The guest has not mapped anything yet: virtual is physical. */
+    bool identity;
+    /* The root of the page tables, or the description of the translation */
+    uint32_t ptb;
+} HexagonHVMMap;
+#endif
+
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
@@ -202,6 +220,8 @@ typedef struct CPUArchState {
     uint32_t k0_lock_count;
 
     PMUCounters pmu;
+
+    HexagonHVMMap hvm_map;
 #endif
     uint32_t imprecise_exception;
     target_ulong new_value_usr;
@@ -299,6 +319,8 @@ struct ArchCPU {
     HexL2VicInterface *l2vic;
     HexagonHLXState *hlx;
     HexagonPMUState *pmu;
+    /* Set if QEMU is the monitor of the Hexagon Virtual Machine */
+    HexagonHVMState *hvm;
 #endif
     HmxState *hmx;      /* HMX register state, allocated at realize */
     HmxConfig hmx_cfg;  /* Immutable per-revision HMX feature/shape config */

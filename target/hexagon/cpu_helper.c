@@ -654,6 +654,17 @@ static uint32_t clear_enable_mask(CPUHexagonState *env)
     hex_interrupt_update(env);
     return thread_enabled_mask;
 }
+void hexagon_enable_thread(CPUHexagonState *env)
+{
+    set_enable_mask(env);
+}
+
+void hexagon_disable_thread(CPUHexagonState *env)
+{
+    clear_wait_mode(env);
+    clear_enable_mask(env);
+}
+
 static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 {
     CPUHexagonState *env;

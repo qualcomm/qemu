@@ -19,6 +19,8 @@
 #include "hex_mmu.h"
 #include "hexswi.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvm.h"
+#include "hvm.h"
 
 #ifdef CONFIG_USER_ONLY
 #error "This file is only used in system emulation"
@@ -823,7 +825,15 @@ void hexagon_vmrte(CPUHexagonState *env)
     SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE,
                      GET_FIELD(GSR_IE, gsr));
     env->gpr[HEX_REG_PC] = env->greg[HEX_GREG_GELR] & ~3;
+    if (GET_FIELD(GSR_IE, gsr) && env_archcpu(env)->hvm) {
+        hexagon_hvm_ie_enabled(env);
+    }
     cpu_loop_exit(cs);
+}
+
+void hexagon_semihost_trap0(CPUHexagonState *env)
+{
+    sim_handle_trap0(env);
 }
 
 static const char *event_name[] = {
@@ -871,6 +881,10 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
                   env->cause_code);
 
     env->llsc_addr = ~0;
+
+    if (cpu->hvm && hexagon_hvm_do_interrupt(cs)) {
+        return;
+    }
 
     ssr = env->t_sreg[HEX_SREG_SSR];
     if (GET_SSR_FIELD(SSR_EX, ssr) == 0) {
