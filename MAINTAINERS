@@ -258,6 +258,8 @@ F: include/hw/timer/qct-qtimer.h
 F: tests/qtest/qct-qtimer-test.c
 F: hw/hexagon/hex-board.c
 F: include/hw/hexagon/hex-board.h
+F: hw/hexagon/hexagon_hvm.c
+F: include/hw/hexagon/hexagon_hvm.h
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
