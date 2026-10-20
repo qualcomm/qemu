@@ -26,9 +26,16 @@ typedef enum HexBoardIrqFormat {
 void hex_board_create_fdt(MachineState *ms, const char *model,
                           const char *compatible, int *fdt_size);
 
+/*
+ * The input a device's interrupt line goes to: the L2VIC's, or the virtual
+ * interrupt controller's of a guest that has QEMU as its monitor.
+ */
+qemu_irq hex_board_irq(HexagonCommonMachineState *hms, int irq);
+
 /* Add the L2VIC node and make it the interrupt parent of /soc. */
 int32_t hex_board_fdt_add_l2vic(MachineState *ms,
-                                const struct hexagon_machine_config *cfg);
+                                const struct hexagon_machine_config *cfg,
+                                HexBoardIrqFormat irq_format);
 
 /* Add the /soc/vtcm and /soc/hvx nodes, for what the config provides. */
 void hex_board_fdt_add_hvx(MachineState *ms,
@@ -43,11 +50,13 @@ void hex_board_create_tcm(const struct hexagon_machine_config *cfg,
 
 /* Create the PL011 console and its fixed clock, and describe them. */
 void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
-                           int irq, int32_t l2vic_phandle);
+                           int irq, HexBoardIrqFormat irq_format,
+                           int32_t l2vic_phandle);
 
 /* Create @count virtio-mmio transports on consecutive lines and slots. */
 void hex_board_create_virtio(MachineState *ms, hwaddr base, hwaddr size,
                              int irq_base, int count,
+                             HexBoardIrqFormat irq_format,
                              int32_t l2vic_phandle);
 
 /*
