@@ -2403,7 +2403,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         uint32_t cm = FIELD_EX32(syndrome, DABORT_ISS, CM);
         uint64_t val = 0;
         uint64_t ipa = excp->physical_address;
-        AddressSpace *as = cpu_get_address_space(cpu, ARMASIdx_NS);
+        AddressSpace *as = &address_space_memory;
 
         trace_hvf_data_abort(excp->virtual_address, ipa, isv,
                              iswrite, s1ptw, len, srt);
