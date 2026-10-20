@@ -2,6 +2,7 @@
 
 tests_hexagon_system_thorough = [
   'arch_tests',
+  'hvm_linux',
   'qcom_dsp_firmware',
   'qcs6490_cdsp',
   'systests',
@@ -9,6 +10,7 @@ tests_hexagon_system_thorough = [
 ]
 
 test_hexagon_timeouts = {
+  'hvm_linux': 480,
   'qcom_dsp_firmware': 240,
   'qcs6490_cdsp': 480,
   'systests': 180,
