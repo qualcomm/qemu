@@ -63,6 +63,11 @@ static void fdt_set_irq(MachineState *ms, const char *nodename, int irq)
                            HEX_BOARD_L2VIC_SPI_BASE + irq, 0);
 }
 
+qemu_irq hex_board_irq(HexagonCommonMachineState *hms, int irq)
+{
+    return qdev_get_gpio_in(hms->hvm ? hms->hvm : hms->l2vic, irq);
+}
+
 int32_t hex_board_fdt_add_l2vic(MachineState *ms,
                                 const struct hexagon_machine_config *cfg)
 {
@@ -163,7 +168,7 @@ void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
     qdev_connect_clock_in(dev, "clk", apb_clk);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
-    sysbus_connect_irq(s, 0, qdev_get_gpio_in(hms->l2vic, irq));
+    sysbus_connect_irq(s, 0, hex_board_irq(hms, irq));
 
     qemu_fdt_add_subnode(ms->fdt, "/apb-pclk");
     qemu_fdt_setprop_string(ms->fdt, "/apb-pclk", "compatible", "fixed-clock");
@@ -207,7 +212,7 @@ void hex_board_create_virtio(MachineState *ms, hwaddr base, hwaddr size,
         object_property_add_child(OBJECT(ms), "virtio-mmio[*]", OBJECT(dev));
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, slot);
-        sysbus_connect_irq(s, 0, qdev_get_gpio_in(hms->l2vic, irq));
+        sysbus_connect_irq(s, 0, hex_board_irq(hms, irq));
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",

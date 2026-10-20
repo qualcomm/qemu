@@ -20,6 +20,12 @@
 void hex_board_create_fdt(MachineState *ms, const char *model,
                           const char *compatible, int *fdt_size);
 
+/*
+ * The input a device's interrupt line goes to: the L2VIC's, or the virtual
+ * interrupt controller's of a guest that has QEMU as its monitor.
+ */
+qemu_irq hex_board_irq(HexagonCommonMachineState *hms, int irq);
+
 /* Add the L2VIC node and make it the interrupt parent of /soc. */
 int32_t hex_board_fdt_add_l2vic(MachineState *ms,
                                 const struct hexagon_machine_config *cfg);

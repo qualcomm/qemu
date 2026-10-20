@@ -194,7 +194,9 @@ struct HexagonCommonMachineState {
     DeviceState *tlb;
     DeviceState *hlx;
     DeviceState *pmu;
+    DeviceState *hvm;
     unsigned num_hvx_ctx;
+    bool hvm_enabled;
 };
 
 #endif

@@ -16,6 +16,7 @@
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hex-board.h"
 #include "hw/hexagon/hex-subsys.h"
+#include "hw/hexagon/hexagon_hvm.h"
 #include "hw/core/loader.h"
 #include "qemu/datadir.h"
 #include "hw/core/sysbus.h"
@@ -57,6 +58,15 @@ static const MemMapEntry base_memmap[] = {
 };
 
 
+#define VIRT_KERNEL_ADDR 0xa0000000
+/* Where the kernel is linked, and so where its entry point is */
+#define VIRT_KERNEL_VADDR 0xc0000000
+
+static uint64_t kernel_translate(void *opaque, uint64_t addr)
+{
+    return addr + VIRT_KERNEL_ADDR;
+}
+
 static uint64_t load_kernel(const HexagonVirtMachineState *vms)
 {
     return hex_board_load_elf(MACHINE(vms)->kernel_filename, NULL, NULL, NULL);
@@ -93,6 +103,39 @@ static uint64_t load_bios(MachineState *ms, const char *filename)
     return 0;
 }
 
+/*
+ * Load the kernel, and the initramfs after the room for the device tree, and
+ * say where the device tree goes.  Returns the kernel's entry point.
+ */
+static uint64_t load_linux(MachineState *ms, hwaddr *fdt_addr)
+{
+    uint64_t entry, high;
+    hwaddr guest_ram_end = MIN(ms->ram_size, VIRT_KERNEL_ADDR + 896 * MiB);
+
+    if (ms->ram_size <= VIRT_KERNEL_ADDR + 32 * MiB) {
+        error_report("insufficient RAM for the guest kernel");
+        exit(1);
+    }
+    entry = hex_board_load_elf(ms->kernel_filename, kernel_translate, NULL,
+                               &high);
+    *fdt_addr = QEMU_ALIGN_UP(high + 16 * MiB, 4 * MiB);
+    if (*fdt_addr + 4 * MiB >= guest_ram_end) {
+        error_report("insufficient RAM for device tree");
+        exit(1);
+    }
+    if (ms->initrd_filename) {
+        hwaddr initrd = *fdt_addr + 4 * MiB;
+        ssize_t size = load_image_targphys_as(ms->initrd_filename, initrd,
+                                              guest_ram_end - initrd,
+                                              &address_space_memory,
+                                              &error_fatal);
+        qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-start", initrd);
+        qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-end",
+                             initrd + size);
+    }
+    return entry;
+}
+
 #ifdef CONFIG_X_QUP_GENI_UART_RUST
 static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
 {
@@ -119,7 +162,7 @@ static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
     sysbus_mmio_map(SYS_BUS_DEVICE(wrapper_dev), 0, wrapper_base);
 
     qup_geni_uart_create(base,
-                         qdev_get_gpio_in(hms->l2vic, VIRT_QUP_UART0_IRQ),
+                         hex_board_irq(hms, VIRT_QUP_UART0_IRQ),
                          serial_hd(1));
 
     qemu_fdt_add_subnode(ms->fdt, "/qup-se-clk");
@@ -157,6 +200,7 @@ static void fdt_add_qup_uart(MachineState *ms, int32_t l2vic_phandle)
 static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
+    HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
     const struct hexagon_machine_config *m_cfg = &v68n_1024;
     int32_t l2vic_phandle;
     uint64_t start = 0;
@@ -164,7 +208,14 @@ static void virt_init(MachineState *ms)
     hwaddr fdt_addr = base_memmap[VIRT_FDT].base;
     g_autofree char *firmware = NULL;
     bool vm_guest;
+    /* A Linux guest: it has a hypervisor firmware, or QEMU is its monitor. */
+    bool linux_guest;
 
+    if (hms->hvm_enabled && ms->firmware) {
+        error_report("hvm=on runs the guest without a hypervisor firmware "
+                     "(-bios)");
+        exit(1);
+    }
     if (ms->firmware) {
         firmware = qemu_find_file(QEMU_FILE_TYPE_BIOS, ms->firmware);
         if (!firmware) {
@@ -174,6 +225,7 @@ static void virt_init(MachineState *ms)
     }
     hex_board_check_initrd(ms, firmware);
     vm_guest = ms->kernel_filename && firmware;
+    linux_guest = vm_guest || (ms->kernel_filename && hms->hvm_enabled);
 
     hex_board_create_fdt(ms, "hexagon-virt,qemu", "qcom,sm8150",
                          &vms->fdt_size);
@@ -189,7 +241,18 @@ static void virt_init(MachineState *ms)
                             base_memmap[VIRT_MMIO].size, VIRTIO_IRQ_BASE,
                             VIRTIO_DEV_COUNT, l2vic_phandle);
 
-    if (vm_guest) {
+    if (hms->hvm_enabled && ms->kernel_filename) {
+        HexagonHVMState *hvm = HEXAGON_HVM(hms->hvm);
+
+        start = load_linux(ms, &fdt_addr) - VIRT_KERNEL_VADDR +
+                VIRT_KERNEL_ADDR;
+        have_start = true;
+        /* The kernel finds the device tree in r1:r0, 64 bits wide. */
+        hvm->info[HVM_INFO_BOOT_R0] = fdt_addr;
+        hvm->info[HVM_INFO_BOOT_R1] = fdt_addr >> 32;
+    } else if (hms->hvm_enabled) {
+        /* A bare guest, which the user loads where it wants to run. */
+    } else if (vm_guest) {
         start = hex_board_load_vm_guest(ms, firmware, 0, 0,
                                         base_memmap[VIRT_BOOT].base,
                                         vms->fdt_size, &fdt_addr);
@@ -205,21 +268,38 @@ static void virt_init(MachineState *ms)
                           m_cfg->cfgtable.dma_version);
 
     hex_board_fdt_add_cpus(ms);
-    if (vm_guest) {
+    if (linux_guest) {
         hex_board_fdt_add_vm_timer(ms, 0xab000000, 0x1000, 12);
     }
     hex_board_create_uart(ms, base_memmap[VIRT_UART0].base,
                           base_memmap[VIRT_UART0].size, VIRT_UART0_IRQ,
                           l2vic_phandle);
+#ifdef CONFIG_X_QUP_GENI_UART_RUST
+    fdt_add_qup_uart(ms, l2vic_phandle);
+#endif
 
     hex_board_load_fdt(ms, vms->fdt_size, fdt_addr);
 }
 
 
+static bool virt_get_hvm(Object *obj, Error **errp)
+{
+    return HEXAGON_COMMON_MACHINE(obj)->hvm_enabled;
+}
+
+static void virt_set_hvm(Object *obj, bool value, Error **errp)
+{
+    HEXAGON_COMMON_MACHINE(obj)->hvm_enabled = value;
+}
+
 static void virt_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
+    object_class_property_add_bool(oc, "hvm", virt_get_hvm, virt_set_hvm);
+    object_class_property_set_description(oc, "hvm",
+        "Run a Hexagon Virtual Machine guest with QEMU as the monitor "
+        "instead of a hypervisor firmware (off by default)");
     mc->desc = "Hexagon Virtual Machine";
     mc->init = virt_init;
     mc->default_cpu_type = HEXAGON_CPU_TYPE_NAME("v68");
