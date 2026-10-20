@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/main-loop.h"
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/cpregs.h"
@@ -46,6 +47,18 @@ void libqemu_cpu_arm_set_cp15_cbar(Object *obj, uint64_t cbar)
     }
 
     /* Note: For ARMv8, CBAR is ARM_CP_CONST, so only reset_cbar matters */
+}
+
+/*
+ * Drive the RVBARADDR reset-vector input of a v8 core. The value is sampled
+ * into RVBAR_ELx and the PC the next time the core is reset, as on hardware;
+ * it does not affect a running core.
+ */
+void libqemu_cpu_arm_set_rvbar(Object *obj, uint64_t rvbar)
+{
+    BQL_LOCK_GUARD();
+
+    ARM_CPU(obj)->rvbar_prop = rvbar;
 }
 
 /* This ARM register is only available for Cortex-R52 */
