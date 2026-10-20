@@ -193,8 +193,10 @@ struct HexagonCommonMachineState {
     DeviceState *glob_regs;
     DeviceState *tlb;
     DeviceState *pmu;
+    DeviceState *hvm;
     unsigned num_hvx_ctx;
     bool pmu_enabled;
+    bool hvm_enabled;
 };
 
 #endif

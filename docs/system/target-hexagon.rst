@@ -102,6 +102,53 @@ The firmware is built from the ``roms/hexagon-hypervisor`` submodule, see
 ``Documentation/arch/hexagon/qemu-boot.rst`` in the Linux source tree for
 kernel build instructions.
 
+Booting Linux with QEMU as the Hexagon Virtual Machine
+-------------------------------------------------------
+A kernel written for the Hexagon Virtual Machine (HVM) interface does not
+need a hypervisor firmware: with ``hvm=on`` the ``virt`` machine serves the
+interface itself.  Leave out ``-bios``::
+
+    $ qemu-system-hexagon -M virt,hvm=on -smp 4 -kernel vmlinux \
+          -append 'console=ttyAMA0 root=/dev/vda rw' \
+          -drive if=none,file=rootfs.ext2,format=raw,id=hd0 \
+          -device virtio-blk-device,drive=hd0
+
+The kernel is loaded at physical address ``0xa0000000`` and entered, in guest
+mode, with the device tree address in ``r1:0``.  Every virtual CPU is a
+hardware thread of its own, so a guest cannot start more of them than
+``-smp`` gives it.  What the guest asks of the VM is done by QEMU:
+
+* The virtual instructions: ``vmversion``, ``vmrte``, ``vmsetvec``,
+  ``vmsetie``, ``vmgetie`` (which the core runs itself, see ``CCR.GRE``),
+  ``vmintop``, ``vmclrmap``, ``vmnewmap``, ``vmcache``, ``vmgettime``,
+  ``vmsettime``, ``vmwait``, ``vmyield``, ``vmstart``, ``vmstop``,
+  ``vmvpid``, ``vmsetregs``, ``vmgetregs``, ``vmtimerop``,
+  ``vmpmuconfig`` (which needs ``pmu=on`` to count) and ``vmgetinfo``.
+  Any other ``trap1`` number is an error event in the guest.
+* The hardware configuration call, ``trap0(#31)``.  ``trap0(#0)`` is a
+  semihosting call, as it is everywhere on the Hexagon machines.
+* Address translation, with the guest's own page tables, for all four
+  ``vmnewmap`` types (linear, table, offset and variable-radix).  A fault is
+  an error event, whose cause is the permission the access lacked.
+* The virtual interrupt controller.  Interrupts 0 to 15 belong to a virtual
+  CPU, the rest are shared; the ``virt`` machine's devices arrive as
+  interrupts 32 and up, in the same numbering as the device tree gives them
+  to a guest under H2.  ``vmtimerop`` timeouts arrive as interrupt 12.
+
+The guest sees QEMU's own timers and not a QTimer, and no L2VIC: it is the
+VM's virtual interrupt controller that the devices interrupt.  Nothing of a
+hypervisor is in guest memory, so nothing needs protecting from the guest
+either: the physical memory a guest may map is all of the machine's.
+
+A freestanding guest of the interface can be loaded where it wants to run,
+and started, with the generic loader::
+
+    $ qemu-system-hexagon -M virt,hvm=on -nographic \
+          -device loader,file=guest.elf,cpu-num=0
+
+It starts with its virtual interrupts off and virtual addresses equal to
+physical ones, until it asks for another map with ``vmnewmap``.
+
 The ``virt`` machine also exposes a QUP GENI UART as its second serial port.
 Linux's normal GENI driver uses DMA and registers it as ``/dev/ttyHS1``;
 the first serial port, ``/dev/ttyAMA0``, remains the boot console.  A local

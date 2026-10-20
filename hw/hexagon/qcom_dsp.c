@@ -329,7 +329,8 @@ static void qcom_dsp_init(MachineState *ms)
     hex_board_create_tcm(info->cfg, &qms->tcm);
 
     hex_board_fdt_add_hvx(ms, info->cfg);
-    l2vic_phandle = hex_board_fdt_add_l2vic(ms, info->cfg);
+    l2vic_phandle = hex_board_fdt_add_l2vic(ms, info->cfg,
+                                            HEX_BOARD_IRQ_LINE);
     qcom_dsp_fdt_add_gpt(ms);
     /* loadlinux gives the kernel a virtual CPU for every thread that runs. */
     hex_board_fdt_add_cpus(ms);
@@ -338,11 +339,12 @@ static void qcom_dsp_init(MachineState *ms)
     }
     hex_board_create_uart(ms, qcom_dsp_memmap[QCOM_DSP_UART0].base,
                           qcom_dsp_memmap[QCOM_DSP_UART0].size,
-                          QCOM_DSP_UART0_IRQ, l2vic_phandle);
+                          QCOM_DSP_UART0_IRQ, HEX_BOARD_IRQ_LINE,
+                          l2vic_phandle);
     hex_board_create_virtio(ms, qcom_dsp_memmap[QCOM_DSP_VIRTIO].base,
                             qcom_dsp_memmap[QCOM_DSP_VIRTIO].size,
                             QCOM_DSP_VIRTIO_IRQ, QCOM_DSP_VIRTIO_COUNT,
-                            l2vic_phandle);
+                            HEX_BOARD_IRQ_LINE, l2vic_phandle);
     qcom_dsp_add_l2_ecc_regs(qms, info);
     if (info->init_devices) {
         info->init_devices(ms);

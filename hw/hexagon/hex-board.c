@@ -58,14 +58,25 @@ void hex_board_create_fdt(MachineState *ms, const char *model,
     qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 }
 
-static void fdt_set_irq(MachineState *ms, const char *nodename, int irq)
+static void fdt_set_irq(MachineState *ms, const char *nodename, int irq,
+                        HexBoardIrqFormat irq_format)
 {
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                           HEX_BOARD_L2VIC_SPI_BASE + irq, 0);
+    if (irq_format == HEX_BOARD_IRQ_SPEC) {
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
+                               HEX_BOARD_L2VIC_SPI_BASE + irq, 0);
+    } else {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", irq);
+    }
+}
+
+qemu_irq hex_board_irq(HexagonCommonMachineState *hms, int irq)
+{
+    return qdev_get_gpio_in(hms->hvm ? hms->hvm : hms->l2vic, irq);
 }
 
 int32_t hex_board_fdt_add_l2vic(MachineState *ms,
-                                const struct hexagon_machine_config *cfg)
+                                const struct hexagon_machine_config *cfg,
+                                HexBoardIrqFormat irq_format)
 {
     int32_t l2vic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
     g_autofree char *nodename = g_strdup_printf("/soc/interrupt-controller@%x",
@@ -76,7 +87,7 @@ int32_t hex_board_fdt_add_l2vic(MachineState *ms,
 
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x0);
-    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", irq_format);
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, cfg->l2vic_base,
                            cfg->l2vic_size);
@@ -146,7 +157,8 @@ void hex_board_create_tcm(const struct hexagon_machine_config *cfg,
 }
 
 void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
-                           int irq, int32_t l2vic_phandle)
+                           int irq, HexBoardIrqFormat irq_format,
+                           int32_t l2vic_phandle)
 {
     static const char compat[] = "arm,pl011\0arm,primecell";
     static const char clocknames[] = "uartclk\0apb_pclk";
@@ -163,7 +175,7 @@ void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
     qdev_connect_clock_in(dev, "clk", apb_clk);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
-    sysbus_connect_irq(s, 0, qdev_get_gpio_in(hms->l2vic, irq));
+    sysbus_connect_irq(s, 0, hex_board_irq(hms, irq));
 
     qemu_fdt_add_subnode(ms->fdt, "/apb-pclk");
     qemu_fdt_setprop_string(ms->fdt, "/apb-pclk", "compatible", "fixed-clock");
@@ -177,7 +189,7 @@ void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
     /* Can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
-    fdt_set_irq(ms, nodename, irq);
+    fdt_set_irq(ms, nodename, irq, irq_format);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           l2vic_phandle);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clk_phandle,
@@ -192,6 +204,7 @@ void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
 
 void hex_board_create_virtio(MachineState *ms, hwaddr base, hwaddr size,
                              int irq_base, int count,
+                             HexBoardIrqFormat irq_format,
                              int32_t l2vic_phandle)
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
@@ -207,13 +220,13 @@ void hex_board_create_virtio(MachineState *ms, hwaddr base, hwaddr size,
         object_property_add_child(OBJECT(ms), "virtio-mmio[*]", OBJECT(dev));
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, slot);
-        sysbus_connect_irq(s, 0, qdev_get_gpio_in(hms->l2vic, irq));
+        sysbus_connect_irq(s, 0, hex_board_irq(hms, irq));
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                                 "virtio,mmio");
         qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, slot, size);
-        fdt_set_irq(ms, nodename, irq);
+        fdt_set_irq(ms, nodename, irq, irq_format);
         qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                               l2vic_phandle);
     }

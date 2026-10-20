@@ -9,6 +9,7 @@
 #include "qapi/error.h"
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvm.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_pmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
@@ -141,6 +142,64 @@ static DeviceState *pmu_create(HexagonCommonMachineState *hms)
     return pmu;
 }
 
+/*
+ * What the guest of a Hexagon Virtual Machine can ask about the machine with
+ * vmgetinfo.  The registers of the core itself (SYSCFG) are read when asked.
+ */
+static void hvm_fill_info(HexagonHVMState *s, MachineState *machine,
+                          const struct hexagon_machine_config *m_cfg,
+                          Rev_t rev)
+{
+    const union hexagon_config_table *t = &m_cfg->cfgtable;
+    bool hvx = t->ext_contexts > 0;
+
+    s->info[HVM_INFO_BOOT_FLAGS] = (hvx ? HVM_BOOT_FLAG_HAVE_HVX |
+                                          HVM_BOOT_FLAG_EXT_OK : 0);
+    s->info[HVM_INFO_REV] = rev;
+    s->info[HVM_INFO_SSBASE] = t->subsystem_base << 16;
+    s->info[HVM_INFO_TLB_SIZE] = t->jtlb_size_entries;
+    s->info[HVM_INFO_TLB_FREE] = t->jtlb_size_entries;
+    s->info[HVM_INFO_TCM_BASE] = t->l2tcm_base << 16;
+    s->info[HVM_INFO_TCM_SIZE] = m_cfg->l2tcm_size;
+    s->info[HVM_INFO_L2MEM_SIZE] = m_cfg->l2tcm_size;
+    /* The guest is told it is on a core with the monitor's own 1M page. */
+    s->info[HVM_INFO_KERNEL_PGSIZE] = 0x100000;
+    s->info[HVM_INFO_KERNEL_NPAGES] = 1;
+    s->info[HVM_INFO_L2VIC_BASE] = m_cfg->l2vic_base;
+    s->info[HVM_INFO_TIMER_BASE] = m_cfg->qtmr_region;
+    s->info[HVM_INFO_TIMER_INT] = HVM_DEVICE_INT_BASE +
+                                  HEX_QTIMER_L2VIC_IRQ_BASE;
+    s->info[HVM_INFO_HTHREADS] = MAKE_64BIT_MASK(0, machine->smp.cpus);
+    s->info[HVM_INFO_L2CFG_BASE] = t->l2cfg_base << 16;
+    s->info[HVM_INFO_CFG_BASE] = m_cfg->cfgbase >> 16;
+    if (hvx) {
+        s->info[HVM_INFO_HVX_VLENGTH] = 1u << t->hvx_vec_log_length;
+    }
+    s->info[HVM_INFO_COPROC_CONTEXTS] = t->ext_contexts;
+    s->info[HVM_INFO_MAX_CLUSTER_COPROC] = t->ext_contexts;
+    s->info[HVM_INFO_VTCM_BASE] = t->vtcm_base << 16;
+    s->info[HVM_INFO_VTCM_SIZE] = t->vtcm_size_kb;
+    s->info[HVM_INFO_L2LINE_SIZE] = 64;
+    s->info[HVM_INFO_VTCM_BANK_WIDTH] = t->vtcm_bank_width;
+    s->info[HVM_INFO_L1D_SIZE] = t->l1d_size_kb * 1024;
+    s->info[HVM_INFO_HMX_INSTANCES] = !!(t->coproc_present & (1u << 2));
+    s->info[HVM_INFO_HLX_CONTEXTS] = ctpop32(t->coproc2_reg2);
+    s->info[HVM_INFO_CORE_COUNT] = 1;
+}
+
+static DeviceState *hvm_create(HexagonCommonMachineState *hms,
+                               const struct hexagon_machine_config *m_cfg,
+                               Rev_t rev)
+{
+    DeviceState *hvm = qdev_new(TYPE_HEXAGON_HVM);
+
+    object_property_add_child(OBJECT(hms), "hvm-monitor", OBJECT(hvm));
+    hvm_fill_info(HEXAGON_HVM(hvm), MACHINE(hms), m_cfg, rev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(hvm), &error_fatal);
+
+    return hvm;
+}
+
 static DeviceState *cluster_create(HexagonCommonMachineState *hms)
 {
     DeviceState *cluster = qdev_new(TYPE_CPU_CLUSTER);
@@ -179,6 +238,9 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     }
 
     hms->cluster = cluster_create(hms);
+    if (hms->hvm_enabled) {
+        hms->hvm = hvm_create(hms, m_cfg, rev);
+    }
     hms->l2vic = l2vic_create(hms, m_cfg);
     hms->qtimer = qtimer_create(hms, m_cfg);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
@@ -200,6 +262,10 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
                              &error_fatal);
     if (hms->pmu) {
         object_property_set_link(OBJECT(cpu), "pmu", OBJECT(hms->pmu),
+                                 &error_fatal);
+    }
+    if (hms->hvm) {
+        object_property_set_link(OBJECT(cpu), "hvm", OBJECT(hms->hvm),
                                  &error_fatal);
     }
     for (unsigned i = 0; i < hms->num_hvx_ctx; i++) {
@@ -224,8 +290,13 @@ void hex_subsys_realize_cluster(HexagonCommonMachineState *hms)
 void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu,
                             bool boot_cpu)
 {
+    unsigned htid = HEXAGON_CPU(cpu)->htid;
+
     qdev_realize_and_unref(cpu, NULL, &error_fatal);
 
+    if (hms->hvm) {
+        hexagon_hvm_add_cpu(HEXAGON_HVM(hms->hvm), CPU(cpu), htid);
+    }
     if (boot_cpu) {
         l2vic_connect_cpu(hms->l2vic, cpu);
     }
