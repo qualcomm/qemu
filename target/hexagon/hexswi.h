@@ -14,6 +14,10 @@ void hexagon_cpu_do_interrupt(CPUState *cpu);
 void register_trap_exception(CPUHexagonState *env, int type, int imm,
                              uint32_t PC);
 void hexagon_vmrte(CPUHexagonState *env);
+/* Take a trap0(#0) semihosting call without vectoring to the monitor. */
+void hexagon_semihost_trap0(CPUHexagonState *env);
+/* The guest turned its virtual interrupts on; one may be waiting for it. */
+void hexagon_hvm_ie_enabled(CPUHexagonState *env);
 
 #define HEX_GEVB_HW_ERROR      (HEX_EVENT_PRECISE << 2)
 #define HEX_GEVB_HW_TRAP0      (HEX_EVENT_TRAP0 << 2)

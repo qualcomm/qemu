@@ -100,15 +100,22 @@
         SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, new_gie); \
         (REG) = old_gie; \
         env->gpr[HEX_REG_PC] = next_PC; \
+        if (new_gie && !old_gie && env_archcpu(env)->hvm) { \
+            hexagon_hvm_ie_enabled(env); \
+        } \
     } while (0)
 #define fVIRTINSN_RTE(IMM, REG) hexagon_vmrte(env)
 #define fGRE_ENABLED() \
     GET_FIELD(CCR_GRE, env->t_sreg[HEX_SREG_CCR])
-/* Virtual instructions execute only in guest mode. */
+/*
+ * Virtual instructions execute only in guest mode.  The stack pointer swap
+ * (6) is not one of the Hexagon Virtual Machine's operations, which QEMU
+ * serves with the rest of its interface.
+ */
 #define fTRAP1_VIRTINSN(IMM) \
     (get_cpu_mode(env) == HEX_CPU_MODE_GUEST && fGRE_ENABLED() && \
         (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || \
-         ((IMM) == 6)))
+         (((IMM) == 6) && !env_archcpu(env)->hvm)))
 
 /* Not modeled in qemu */
 

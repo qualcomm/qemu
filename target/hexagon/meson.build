@@ -322,6 +322,7 @@ hexagon_softmmu_ss.add(files(
     'hex_mmu.c',
     'hex_interrupts.c',
     'hexswi.c',
+    'hvm.c',
     'machine.c',
     'common-semi-target.c',
 ))
