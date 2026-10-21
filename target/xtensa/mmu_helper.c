@@ -1197,7 +1197,7 @@ static void dump_mpu(CPUXtensaState *env,
     }
 }
 
-void dump_mmu(CPUXtensaState *env)
+void xtensa_dump_mmu(CPUXtensaState *env)
 {
     if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
