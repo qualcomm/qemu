@@ -148,4 +148,11 @@ bool target_loongarch64(void);
  */
 bool target_base_i386(void);
 
+/**
+ * target_x86_64:
+ *
+ * Returns whether the target architecture is x86_64.
+ */
+bool target_x86_64(void);
+
 #endif
