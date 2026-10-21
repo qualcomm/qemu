@@ -222,7 +222,7 @@ void breakpoint_handler(CPUState *cs)
                  * The delayed #DB should also fuse with one generated
                  * by ICEBP (aka INT1).
                  */
-                raise_exception(env, EXCP01_DB);
+                x86_raise_exception(env, EXCP01_DB);
             } else {
                 cpu_loop_exit_noexc(cs);
             }
@@ -230,7 +230,7 @@ void breakpoint_handler(CPUState *cs)
     } else {
         if (cpu_breakpoint_test(cs, env->eip, BP_CPU)) {
             check_hw_breakpoints(env, true);
-            raise_exception(env, EXCP01_DB);
+            x86_raise_exception(env, EXCP01_DB);
         }
     }
 }
@@ -239,7 +239,7 @@ target_ulong HELPER(get_dr)(CPUX86State *env, int reg)
 {
     if (reg >= 4 && reg < 6) {
         if (env->cr[4] & CR4_DE_MASK) {
-            raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+            x86_raise_exception_ra(env, EXCP06_ILLOP, GETPC());
         } else {
             reg += 2;
         }
@@ -248,7 +248,7 @@ target_ulong HELPER(get_dr)(CPUX86State *env, int reg)
     if (env->dr[7] & DR7_GD) {
         env->dr[7] &= ~DR7_GD;
         env->dr[6] |= DR6_BD;
-        raise_exception_ra(env, EXCP01_DB, GETPC());
+        x86_raise_exception_ra(env, EXCP01_DB, GETPC());
     }
 
     return env->dr[reg];
@@ -258,7 +258,7 @@ void HELPER(set_dr)(CPUX86State *env, int reg, target_ulong t0)
 {
     if (reg >= 4 && reg < 6) {
         if (env->cr[4] & CR4_DE_MASK) {
-            raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+            x86_raise_exception_ra(env, EXCP06_ILLOP, GETPC());
         } else {
             reg += 2;
         }
@@ -267,7 +267,7 @@ void HELPER(set_dr)(CPUX86State *env, int reg, target_ulong t0)
     if (env->dr[7] & DR7_GD) {
         env->dr[7] &= ~DR7_GD;
         env->dr[6] |= DR6_BD;
-        raise_exception_ra(env, EXCP01_DB, GETPC());
+        x86_raise_exception_ra(env, EXCP01_DB, GETPC());
     }
 
     if (reg < 4) {
@@ -281,7 +281,7 @@ void HELPER(set_dr)(CPUX86State *env, int reg, target_ulong t0)
         }
     } else {
         if (t0 & DR_RESERVED_MASK) {
-            raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+            x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         }
         if (reg == 6) {
             env->dr[6] = t0 | DR6_FIXED_1;
@@ -312,6 +312,6 @@ void HELPER(bpt_io)(CPUX86State *env, uint32_t port,
     if (hit) {
         env->dr[6] = (env->dr[6] & ~0xf) | hit;
         env->eip = next_eip;
-        raise_exception(env, EXCP01_DB);
+        x86_raise_exception(env, EXCP01_DB);
     }
 }

@@ -37,11 +37,11 @@ void HELPER(divb_AL)(CPUX86State *env, target_ulong t0)
     num = (env->regs[R_EAX] & 0xffff);
     den = (t0 & 0xff);
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     if (q > 0xff) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q &= 0xff;
     r = (num % den) & 0xff;
@@ -55,11 +55,11 @@ void HELPER(idivb_AL)(CPUX86State *env, target_ulong t0)
     num = (int16_t)env->regs[R_EAX];
     den = (int8_t)t0;
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     if (q != (int8_t)q) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q &= 0xff;
     r = (num % den) & 0xff;
@@ -73,11 +73,11 @@ void HELPER(divw_AX)(CPUX86State *env, target_ulong t0)
     num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (t0 & 0xffff);
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     if (q > 0xffff) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q &= 0xffff;
     r = (num % den) & 0xffff;
@@ -92,11 +92,11 @@ void HELPER(idivw_AX)(CPUX86State *env, target_ulong t0)
     num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (int16_t)t0;
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     if (q != (int16_t)q) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q &= 0xffff;
     r = (num % den) & 0xffff;
@@ -112,12 +112,12 @@ void HELPER(divl_EAX)(CPUX86State *env, target_ulong t0)
     num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     r = (num % den);
     if (q > 0xffffffff) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     env->regs[R_EAX] = (uint32_t)q;
     env->regs[R_EDX] = (uint32_t)r;
@@ -131,12 +131,12 @@ void HELPER(idivl_EAX)(CPUX86State *env, target_ulong t0)
     num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     q = (num / den);
     r = (num % den);
     if (q != (int32_t)q) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     env->regs[R_EAX] = (uint32_t)q;
     env->regs[R_EDX] = (uint32_t)r;
@@ -369,12 +369,12 @@ void HELPER(divq_EAX)(CPUX86State *env, target_ulong t0)
     uint64_t r0, r1;
 
     if (t0 == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     r0 = env->regs[R_EAX];
     r1 = env->regs[R_EDX];
     if (div64(&r0, &r1, t0)) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     env->regs[R_EAX] = r0;
     env->regs[R_EDX] = r1;
@@ -385,12 +385,12 @@ void HELPER(idivq_EAX)(CPUX86State *env, target_ulong t0)
     uint64_t r0, r1;
 
     if (t0 == 0) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     r0 = env->regs[R_EAX];
     r1 = env->regs[R_EDX];
     if (idiv64(&r0, &r1, t0)) {
-        raise_exception_ra(env, EXCP00_DIVZ, GETPC());
+        x86_raise_exception_ra(env, EXCP00_DIVZ, GETPC());
     }
     env->regs[R_EAX] = r0;
     env->regs[R_EDX] = r1;
@@ -437,7 +437,7 @@ target_ulong HELPER(pext)(target_ulong src, target_ulong mask)
 void HELPER(cr4_testbit)(CPUX86State *env, uint32_t bit)
 {
     if (unlikely((env->cr[4] & bit) == 0)) {
-        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+        x86_raise_exception_ra(env, EXCP06_ILLOP, GETPC());
     }
 }
 

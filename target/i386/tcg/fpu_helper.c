@@ -229,7 +229,7 @@ static inline floatx80 helper_fdiv(CPUX86State *env, floatx80 a, floatx80 b)
 static void fpu_raise_exception(CPUX86State *env, uintptr_t retaddr)
 {
     if (env->cr[0] & CR0_NE_MASK) {
-        raise_exception_ra(env, EXCP10_COPR, retaddr);
+        x86_raise_exception_ra(env, EXCP10_COPR, retaddr);
     }
 #if !defined(CONFIG_USER_ONLY)
     else {
@@ -2748,7 +2748,7 @@ void HELPER(fxsave)(CPUX86State *env, target_ulong ptr)
 
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
+        x86_raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
     access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
@@ -2813,12 +2813,12 @@ static void do_xsave_chk(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
-        raise_exception_ra(env, EXCP06_ILLOP, ra);
+        x86_raise_exception_ra(env, EXCP06_ILLOP, ra);
     }
 
     /* The operand must be 64 byte aligned.  */
     if (ptr & 63) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
+        x86_raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 }
 
@@ -3025,7 +3025,7 @@ void HELPER(fxrstor)(CPUX86State *env, target_ulong ptr)
 
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
+        x86_raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
     access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
@@ -3142,7 +3142,7 @@ void HELPER(xrstor)(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader);
     access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, ra);
     if (!valid_xrstor_header(&ac, &xstate_bv, ptr)) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
+        x86_raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
     rfbm &= env->xcr0;
@@ -3255,7 +3255,7 @@ uint64_t HELPER(xgetbv)(CPUX86State *env, uint32_t ecx)
 {
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
-        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+        x86_raise_exception_ra(env, EXCP06_ILLOP, GETPC());
     }
 
     switch (ecx) {
@@ -3267,7 +3267,7 @@ uint64_t HELPER(xgetbv)(CPUX86State *env, uint32_t ecx)
         }
         break;
     }
-    raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
 }
 
 void HELPER(xsetbv)(CPUX86State *env, uint32_t ecx, uint64_t mask)
@@ -3277,7 +3277,7 @@ void HELPER(xsetbv)(CPUX86State *env, uint32_t ecx, uint64_t mask)
 
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
-        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+        x86_raise_exception_ra(env, EXCP06_ILLOP, GETPC());
     }
 
     /* Only XCR0 is defined at present; the FPU may not be disabled.  */
@@ -3310,7 +3310,7 @@ void HELPER(xsetbv)(CPUX86State *env, uint32_t ecx, uint64_t mask)
     return;
 
  do_gpf:
-    raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
 }
 
 /* MMX/SSE */
