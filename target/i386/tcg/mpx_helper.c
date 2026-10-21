@@ -29,7 +29,7 @@ void HELPER(bndck)(CPUX86State *env, uint32_t fail)
 {
     if (unlikely(fail)) {
         env->bndcs_regs.sts = 1;
-        raise_exception_ra(env, EXCP05_BOUND, GETPC());
+        x86_raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }
 
@@ -47,7 +47,7 @@ static uint64_t lookup_bte64(CPUX86State *env, uint64_t base, uintptr_t ra)
     bt = cpu_ldq_le_data_ra(env, bde, ra);
     if ((bt & 1) == 0) {
         env->bndcs_regs.sts = bde | 2;
-        raise_exception_ra(env, EXCP05_BOUND, ra);
+        x86_raise_exception_ra(env, EXCP05_BOUND, ra);
     }
 
     return (extract64(base, 3, 17) << 5) + (bt & ~7);
@@ -67,7 +67,7 @@ static uint32_t lookup_bte32(CPUX86State *env, uint32_t base, uintptr_t ra)
     bt = cpu_ldl_le_data_ra(env, bde, ra);
     if ((bt & 1) == 0) {
         env->bndcs_regs.sts = bde | 2;
-        raise_exception_ra(env, EXCP05_BOUND, ra);
+        x86_raise_exception_ra(env, EXCP05_BOUND, ra);
     }
 
     return (extract32(base, 2, 10) << 4) + (bt & ~3);
