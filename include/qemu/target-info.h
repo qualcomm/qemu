@@ -155,4 +155,11 @@ bool target_base_i386(void);
  */
 bool target_x86_64(void);
 
+/**
+ * target_base_xtensa:
+ *
+ * Returns whether the target architecture is xtensa or xtensaeb.
+ */
+bool target_base_xtensa(void);
+
 #endif
