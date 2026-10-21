@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/target-info.h"
 #include "elf.h"
 #include "cpu.h"
 #include "migration/cpu.h"
@@ -252,21 +253,25 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V66G_1024"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v66g_1024_init,
+        .is_available = target_hexagon,
     },
     {
         .name = MACHINE_TYPE_NAME("V68N_1024"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v68n_1024_init,
+        .is_available = target_hexagon,
     },
     {
         .name = MACHINE_TYPE_NAME("V81DGB_1"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81dgb_1_init,
+        .is_available = target_hexagon,
     },
     {
         .name = MACHINE_TYPE_NAME("V81QA_1"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81qa_1_init,
+        .is_available = target_hexagon,
     },
 };
 
