@@ -97,12 +97,12 @@ if have_system
   stub_ss.add(files('qmp-cpu-s390x.c'))
   stub_ss.add(files('qmp-cpu-s390x-kvm.c'))
   if have_hmp
-    stub_ss.add(files('hmp-cmd-info_mem.c'))
     stub_ss.add(files('hmp-cmd-info_sev.c'))
     stub_ss.add(files('hmp-cmds-hw-s390x.c'))
     stub_ss.add(files('hmp-cmds-target-i386.c'))
     stub_ss.add(files('hmp-cmds-target-m68k.c'))
     stub_ss.add(files('hmp-cmds-target-ppc.c'))
+    stub_ss.add(files('hmp-cmds-target-riscv.c'))
     stub_ss.add(files('hmp-cmds-target-sh4.c'))
     stub_ss.add(files('hmp-cmds-target-sparc.c'))
     stub_ss.add(files('hmp-cmds-target-xtensa.c'))

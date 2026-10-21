@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "monitor/hmp.h"
 
+HMP_STUB(info_i386_mem)
 HMP_STUB(info_i386_tlb)
 HMP_STUB(info_local_apic)
 HMP_STUB(mce)
