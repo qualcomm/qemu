@@ -377,6 +377,11 @@ bool fw_cfg_dma_enabled(void *opaque);
  *          key lookup failure.
  */
 const char *fw_cfg_arch_key_name(uint16_t key);
+const char *fw_cfg_i386_key_name(uint16_t key);
+const char *fw_cfg_mips_key_name(uint16_t key);
+const char *fw_cfg_ppc_key_name(uint16_t key);
+const char *fw_cfg_sparc_key_name(uint16_t key);
+const char *fw_cfg_sparc64_key_name(uint16_t key);
 
 /**
  * load_image_to_fw_cfg() - Load an image file into an fw_cfg entry identified

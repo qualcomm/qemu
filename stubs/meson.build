@@ -72,7 +72,11 @@ if have_system
   # in particular, consider defining a preprocessor macro via
   # Kconfig or configs/targets/.
   stub_ss.add(files('cmos.c'))
-  stub_ss.add(files('fw_cfg.c'))
+  stub_ss.add(files('fw_cfg-i386.c'))
+  stub_ss.add(files('fw_cfg-mips.c'))
+  stub_ss.add(files('fw_cfg-ppc.c'))
+  stub_ss.add(files('fw_cfg-sparc.c'))
+  stub_ss.add(files('fw_cfg-sparc64.c'))
   if igvm.found()
     stub_ss.add(files('igvm.c'))
   endif
