@@ -32,7 +32,7 @@ void HELPER(syscall)(CPUX86State *env, int next_eip_addend)
     int selector;
 
     if (!(env->efer & MSR_EFER_SCE)) {
-        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
     }
     selector = (env->star >> 32) & 0xffff;
 #ifdef TARGET_X86_64
@@ -253,6 +253,6 @@ void HELPER(check_io)(CPUX86State *env, uint32_t addr, uint32_t size)
     /* all bits must be zero to allow the I/O */
     if ((val & mask) != 0) {
     fail:
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, retaddr);
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, retaddr);
     }
 }

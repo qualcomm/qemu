@@ -650,7 +650,7 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
     } else {
         env->cr[2] = err.cr2;
     }
-    raise_exception_err_ra(env, err.exception_index, err.error_code, retaddr);
+    x86_raise_exception_err_ra(env, err.exception_index, err.error_code, retaddr);
 }
 
 G_NORETURN void x86_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
