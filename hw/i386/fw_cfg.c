@@ -32,7 +32,7 @@
 struct hpet_fw_config hpet_fw_cfg = {.count = UINT8_MAX};
 #endif
 
-const char *fw_cfg_arch_key_name(uint16_t key)
+const char *fw_cfg_i386_key_name(uint16_t key)
 {
     static const struct {
         uint16_t key;
