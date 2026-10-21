@@ -28,7 +28,7 @@ G_NORETURN void HELPER(single_step)(CPUX86State *env)
     check_hw_breakpoints(env, true);
     env->dr[6] |= DR6_BS;
 #endif
-    raise_exception(env, EXCP01_DB);
+    x86_raise_exception(env, EXCP01_DB);
 }
 
 void HELPER(rechecking_single_step)(CPUX86State *env)

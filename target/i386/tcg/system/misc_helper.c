@@ -105,7 +105,7 @@ void HELPER(write_crN)(CPUX86State *env, int reg, target_ulong t0)
         }
         if (((t0 ^ env->cr[4]) & CR4_LA57_MASK) &&
             (env->hflags & HF_CS64_MASK)) {
-            raise_exception_ra(env, EXCP0D_GPF, GETPC());
+            x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
         }
         cpu_x86_update_cr4(env, t0);
         break;
@@ -324,7 +324,7 @@ void HELPER(wrmsr)(CPUX86State *env)
     }
     return;
 error:
-    raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+    x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
 }
 
 void HELPER(rdmsr)(CPUX86State *env)
@@ -481,7 +481,7 @@ void HELPER(rdmsr)(CPUX86State *env)
         ret = apic_msr_read(x86_cpu->apic_state, index, &val);
         bql_unlock();
         if (ret < 0) {
-            raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+            x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         }
 
         break;
@@ -520,7 +520,7 @@ G_NORETURN void HELPER(hlt)(CPUX86State *env)
 void HELPER(monitor)(CPUX86State *env, target_ulong ptr)
 {
     if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+        x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     /* XXX: store address? */
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
@@ -531,7 +531,7 @@ G_NORETURN void HELPER(mwait)(CPUX86State *env, int next_eip_addend)
     CPUState *cs = env_cpu(env);
 
     if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+        x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0, GETPC());
     env->eip += next_eip_addend;
