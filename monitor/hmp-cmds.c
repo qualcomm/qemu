@@ -597,6 +597,22 @@ void hmp_info_registers(MonitorHMP *hmp, const QDict *qdict)
     }
 }
 
+void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        hmp_info_i386_mem(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_RISCV32:
+    case SYS_EMU_TARGET_RISCV64:
+        hmp_info_riscv_mem(hmp, qdict);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     switch (target_arch()) {
