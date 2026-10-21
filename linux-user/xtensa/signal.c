@@ -145,7 +145,7 @@ static int setup_sigcontext(struct target_rt_sigframe *frame,
             __put_user(env->fregs[i].f64, &frame->xtregs.dfp.f[i]);
         }
         __put_user(env->uregs[FCR], &frame->xtregs.dfp.fcr);
-        __put_user(cpu_get_fsr(env), &frame->xtregs.dfp.fsr);
+        __put_user(xtensa_cpu_get_fsr(env), &frame->xtregs.dfp.fsr);
         __put_user(frame_addr + offsetof(struct target_rt_sigframe, xtregs),
                    &sc->sc_xtregs);
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
@@ -153,7 +153,7 @@ static int setup_sigcontext(struct target_rt_sigframe *frame,
             __put_user(env->fregs[i].f32[FP_F32_LOW], &frame->xtregs.fp.f[i]);
         }
         __put_user(env->uregs[FCR], &frame->xtregs.fp.fcr);
-        __put_user(cpu_get_fsr(env), &frame->xtregs.fp.fsr);
+        __put_user(xtensa_cpu_get_fsr(env), &frame->xtregs.fp.fsr);
         __put_user(frame_addr + offsetof(struct target_rt_sigframe, xtregs),
                    &sc->sc_xtregs);
     } else {
@@ -322,7 +322,7 @@ static int restore_sigcontext(CPUXtensaState *env,
                 __get_user(fsr, &xtregs->fsr);
                 unlock_user(xtregs, xtregs_addr, 0);
                 cpu_set_fcr(env, fcr);
-                cpu_set_fsr(env, fsr);
+                xtensa_cpu_set_fsr(env, fsr);
             } else if (xtensa_option_enabled(env->config,
                                              XTENSA_OPTION_FP_COPROCESSOR)) {
                 struct target_xtensa_xtregs_fp *xtregs;
@@ -340,7 +340,7 @@ static int restore_sigcontext(CPUXtensaState *env,
                 __get_user(fsr, &xtregs->fsr);
                 unlock_user(xtregs, xtregs_addr, 0);
                 cpu_set_fcr(env, fcr);
-                cpu_set_fsr(env, fsr);
+                xtensa_cpu_set_fsr(env, fsr);
             }
         }
     }
