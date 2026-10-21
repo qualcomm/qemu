@@ -211,7 +211,7 @@ static void tlb_info_la57(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 }
 #endif /* TARGET_X86_64 */
 
-void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
+void hmp_info_i386_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     CPUArchState *env;
     AddressSpace *as;

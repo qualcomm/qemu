@@ -11,7 +11,7 @@
 #include "monitor/monitor.h"
 
 #ifdef CONFIG_HMP
-void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
+void hmp_info_m68k_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     CPUArchState *env1 = monitor_hmp_get_cpu_env(hmp);
 

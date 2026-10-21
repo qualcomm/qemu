@@ -35,6 +35,7 @@
 #include "qobject/qdict.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qemu/target-info-qapi.h"
 #include "net/slirp.h"
 #include "system/device_tree.h"
 #include "system/hw_accel.h"
@@ -593,6 +594,37 @@ void hmp_info_registers(MonitorHMP *hmp, const QDict *qdict)
 
         monitor_hmp_printf(hmp, "\nCPU#%d\n", cs->cpu_index);
         cpu_dump_state(cs, NULL, CPU_DUMP_FPU | CPU_DUMP_VPU);
+    }
+}
+
+void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        hmp_info_i386_tlb(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_M68K:
+        hmp_info_m68k_tlb(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_PPC:
+    case SYS_EMU_TARGET_PPC64:
+        hmp_info_ppc_tlb(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_SH4:
+    case SYS_EMU_TARGET_SH4EB:
+        hmp_info_sh4_tlb(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_SPARC:
+    case SYS_EMU_TARGET_SPARC64:
+        hmp_info_sparc_tlb(hmp, qdict);
+        break;
+    case SYS_EMU_TARGET_XTENSA:
+    case SYS_EMU_TARGET_XTENSAEB:
+        hmp_info_xtensa_tlb(hmp, qdict);
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
