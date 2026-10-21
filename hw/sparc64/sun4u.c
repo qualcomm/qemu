@@ -96,7 +96,7 @@ struct EbusState {
 #define TYPE_EBUS "ebus"
 OBJECT_DECLARE_SIMPLE_TYPE(EbusState, EBUS)
 
-const char *fw_cfg_arch_key_name(uint16_t key)
+const char *fw_cfg_sparc64_key_name(uint16_t key)
 {
     static const struct {
         uint16_t key;
