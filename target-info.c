@@ -130,3 +130,14 @@ bool target_loongarch64(void)
 {
     return target_arch() == SYS_EMU_TARGET_LOONGARCH64;
 }
+
+bool target_base_i386(void)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return true;
+    default:
+        return false;
+    }
+}
