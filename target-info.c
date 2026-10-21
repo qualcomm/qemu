@@ -141,3 +141,8 @@ bool target_base_i386(void)
         return false;
     }
 }
+
+bool target_x86_64(void)
+{
+    return target_arch() == SYS_EMU_TARGET_X86_64;
+}
