@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "helper-tcg.h"
 #include "qemu/accel.h"
+#include "qemu/target-info.h"
 #include "accel/accel-cpu-target.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
@@ -249,6 +250,7 @@ static const TypeInfo x86_tcg_cpu_accel_type_info = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = x86_tcg_cpu_accel_class_init,
+    .is_available = target_base_i386,
     .abstract = true,
 };
 static void x86_tcg_cpu_accel_register_types(void)
