@@ -146,3 +146,14 @@ bool target_x86_64(void)
 {
     return target_arch() == SYS_EMU_TARGET_X86_64;
 }
+
+bool target_base_xtensa(void)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_XTENSA:
+    case SYS_EMU_TARGET_XTENSAEB:
+        return true;
+    default:
+        return false;
+    }
+}
