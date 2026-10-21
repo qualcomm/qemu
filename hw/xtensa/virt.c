@@ -35,6 +35,7 @@
 #include "elf.h"
 #include "system/memory.h"
 #include "qemu/error-report.h"
+#include "qemu/target-info.h"
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"
 
@@ -115,8 +116,10 @@ static void xtensa_virt_init(MachineState *machine)
     xtensa_sim_load_kernel(cpu, machine);
 }
 
-static void xtensa_virt_machine_init(MachineClass *mc)
+static void xtensa_virt_machine_class_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "virt machine (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_virt_init;
     mc->max_cpus = 32;
@@ -124,4 +127,13 @@ static void xtensa_virt_machine_init(MachineClass *mc)
     mc->default_nic = "virtio-net-pci";
 }
 
-DEFINE_MACHINE("virt", xtensa_virt_machine_init)
+static const TypeInfo xtensa_virt_machine_types[] = {
+    {
+        .name = MACHINE_TYPE_NAME("virt"),
+        .parent = TYPE_MACHINE,
+        .class_init = xtensa_virt_machine_class_init,
+        .is_available = target_base_xtensa,
+    },
+};
+
+DEFINE_TYPES(xtensa_virt_machine_types)
