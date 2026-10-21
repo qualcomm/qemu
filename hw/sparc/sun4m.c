@@ -118,7 +118,7 @@ typedef struct Sun4mMachineClass Sun4mMachineClass;
 #define TYPE_SUN4M_MACHINE MACHINE_TYPE_NAME("sun4m-common")
 DECLARE_CLASS_CHECKERS(Sun4mMachineClass, SUN4M_MACHINE, TYPE_SUN4M_MACHINE)
 
-const char *fw_cfg_arch_key_name(uint16_t key)
+const char *fw_cfg_sparc_key_name(uint16_t key)
 {
     static const struct {
         uint16_t key;
