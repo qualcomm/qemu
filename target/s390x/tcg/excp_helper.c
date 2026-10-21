@@ -117,7 +117,7 @@ void s390_cpu_record_sigsegv(CPUState *cs, vaddr address,
      * On real machines this value is dropped into LowMem. Since this
      * is userland, simply put this someplace that cpu_loop can find it.
      * S390 only gives the page of the fault, not the exact address.
-     * C.f. the construction of TEC in mmu_translate().
+     * C.f. the construction of TEC in s390_mmu_translate().
      */
     cpu->env.__excp_addr = address & TARGET_PAGE_MASK;
     cpu_loop_exit_restore(cs, retaddr);
@@ -166,7 +166,8 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         if (!(env->psw.mask & PSW_MASK_64)) {
             vaddr &= 0x7fffffff;
         }
-        excp = mmu_translate(env, vaddr, access_type, asc, &raddr, &prot, &tec);
+        excp = s390_mmu_translate(env, vaddr, access_type, asc, &raddr, &prot,
+                                  &tec);
     } else if (mmu_idx == MMU_REAL_IDX) {
         /* 31-Bit mode */
         if (!(env->psw.mask & PSW_MASK_64)) {

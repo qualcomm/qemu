@@ -63,7 +63,8 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
      * We want to read code even if IEP is active. Use MMU_DATA_LOAD instead
      * of MMU_INST_FETCH.
      */
-    if (mmu_translate(env, page, MMU_DATA_LOAD, asc, &raddr, &prot, &tec)) {
+    if (s390_mmu_translate(env, page, MMU_DATA_LOAD, asc, &raddr, &prot,
+                           &tec)) {
         return -1;
     }
     raddr += (addr & ~TARGET_PAGE_MASK);
