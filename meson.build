@@ -4325,7 +4325,7 @@ multi_target_supported_targets = [
   'sparc-softmmu',
   # 'sparc64-softmmu',
   'tricore-softmmu',
-  # 'x86_64-softmmu',
+  'x86_64-softmmu',
   # 'xtensa-softmmu',
   # 'xtensaeb-softmmu',
 ]
