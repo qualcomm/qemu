@@ -12,6 +12,7 @@
 #include "system/address-spaces.h"
 #include "system/ioport.h"
 #include "qemu/accel.h"
+#include "qemu/target-info.h"
 #include "accel/accel-ops.h"
 #include "system/nvmm.h"
 #include "system/cpus.h"
@@ -1231,6 +1232,7 @@ static const TypeInfo nvmm_cpu_accel_type = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = nvmm_cpu_accel_class_init,
+    .is_available = target_base_i386,
     .abstract = true,
 };
 
