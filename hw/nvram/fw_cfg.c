@@ -38,6 +38,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qemu/target-info-qapi.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "hw/acpi/aml-build.h"
@@ -75,6 +76,29 @@ struct FWCfgEntry {
  * Returns: The stringified name if the selector refers to a well-known
  *          numerically defined item, or NULL on key lookup failure.
  */
+const char *fw_cfg_arch_key_name(uint16_t key)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return fw_cfg_i386_key_name(key);
+    case SYS_EMU_TARGET_MIPS:
+    case SYS_EMU_TARGET_MIPSEL:
+    case SYS_EMU_TARGET_MIPS64:
+    case SYS_EMU_TARGET_MIPS64EL:
+        return fw_cfg_mips_key_name(key);
+    case SYS_EMU_TARGET_PPC:
+    case SYS_EMU_TARGET_PPC64:
+        return fw_cfg_ppc_key_name(key);
+    case SYS_EMU_TARGET_SPARC:
+        return fw_cfg_sparc_key_name(key);
+    case SYS_EMU_TARGET_SPARC64:
+        return fw_cfg_sparc64_key_name(key);
+    default:
+        return NULL;
+    }
+}
+
 static const char *key_name(uint16_t key)
 {
     static const char *fw_cfg_wellknown_keys[FW_CFG_FILE_FIRST] = {
