@@ -13,6 +13,7 @@
 #include "system/physmem.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/target-info.h"
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
 #include "qemu/win_dump_defs.h"
@@ -411,6 +412,11 @@ bool win_dump_available(Error **errp)
     WinDumpHeader *h;
     uint32_t size;
     bool x64 = true;
+
+    if (!target_x86_64()) {
+        error_setg(errp, "x86-64 Windows guest dump not built-in");
+        return false;
+    }
 
     if (migration_guest_ram_loading()) {
         error_setg(errp, "win-dump: not available during migration");
