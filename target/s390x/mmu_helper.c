@@ -61,7 +61,7 @@ static bool is_low_address(uint64_t addr)
     return addr <= 511 || (addr >= 4096 && addr <= 4607);
 }
 
-/* check whether Low-Address Protection is enabled for mmu_translate() */
+/* check whether Low-Address Protection is enabled for s390_mmu_translate() */
 static bool lowprot_enabled(const CPUS390XState *env, uint64_t asc)
 {
     if (!(env->cregs[0] & CR0_LOWPROT)) {
@@ -385,8 +385,8 @@ static void mmu_handle_skey(hwaddr addr, int rw, int *flags)
  *               there is an exception to raise
  * @return       0 = success, != 0, the exception to raise
  */
-int mmu_translate(CPUS390XState *env, vaddr vaddr, int rw, uint64_t asc,
-                  hwaddr *raddr, int *flags, uint64_t *tec)
+int s390_mmu_translate(CPUS390XState *env, vaddr vaddr, int rw, uint64_t asc,
+                       hwaddr *raddr, int *flags, uint64_t *tec)
 {
     uint64_t asce;
     int r;
@@ -483,7 +483,8 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
     int ret, i, pflags;
 
     for (i = 0; i < nr_pages; i++) {
-        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, tec);
+        ret = s390_mmu_translate(env, addr, is_write, asc, &pages[i], &pflags,
+                                 tec);
         if (ret) {
             return ret;
         }
@@ -595,7 +596,7 @@ int mmu_translate_real(CPUS390XState *env, hwaddr raddr, int rw,
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     if (is_low_address(raddr & TARGET_PAGE_MASK) && lowprot_enabled) {
-        /* see comment in mmu_translate() how this works */
+        /* see comment in s390_mmu_translate() how this works */
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(raddr) && rw == MMU_DATA_STORE) {
             /* LAP sets bit 56 */
