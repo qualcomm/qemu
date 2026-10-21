@@ -35,6 +35,6 @@ void hmp_info_xtensa_tlb(MonitorHMP *hmp, const QDict *qdict)
         monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
-    dump_mmu(env1);
+    xtensa_dump_mmu(env1);
 }
 #endif
