@@ -141,4 +141,11 @@ bool target_riscv64(void);
  */
 bool target_loongarch64(void);
 
+/**
+ * target_base_i386:
+ *
+ * Returns whether the target architecture is i386 or x86_64.
+ */
+bool target_base_i386(void);
+
 #endif
