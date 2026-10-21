@@ -354,7 +354,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
     return 0;
 }
 
-void dump_mmu(CPUSPARCState *env)
+void sparc_dump_mmu(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
     target_ulong va, va1, va2;
@@ -800,7 +800,7 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-void dump_mmu(CPUSPARCState *env)
+void sparc_dump_mmu(CPUSPARCState *env)
 {
     unsigned int i;
     const char *mask;

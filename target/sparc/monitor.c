@@ -36,6 +36,6 @@ void hmp_info_sparc_tlb(MonitorHMP *hmp, const QDict *qdict)
         monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
-    dump_mmu(env1);
+    sparc_dump_mmu(env1);
 }
 #endif
