@@ -14,6 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/memalign.h"
+#include "qemu/target-info.h"
 
 #include "system/mshv.h"
 #include "system/mshv_int.h"
@@ -2543,6 +2544,7 @@ static const TypeInfo mshv_cpu_accel_type_info = {
     .name = ACCEL_CPU_NAME("mshv"),
     .parent = TYPE_ACCEL_CPU,
     .class_init = mshv_cpu_accel_class_init,
+    .is_available = target_base_i386,
     .abstract = true,
 };
 
