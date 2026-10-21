@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/target-info.h"
 #include "cpu.h"
 #include "host-cpu.h"
 #include "qapi/error.h"
@@ -86,6 +87,7 @@ static const TypeInfo hvf_cpu_accel_type_info = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = hvf_cpu_accel_class_init,
+    .is_available = target_base_i386,
     .abstract = true,
 };
 
