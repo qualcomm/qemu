@@ -39,7 +39,7 @@ static void print_tlb(MonitorHMP *hmp, int idx, tlb_t *tlb)
                        tlb->d, tlb->wt);
 }
 
-void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
+void hmp_info_sh4_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     CPUArchState *env = monitor_hmp_get_cpu_env(hmp);
     int i;
