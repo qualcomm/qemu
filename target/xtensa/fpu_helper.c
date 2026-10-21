@@ -64,7 +64,7 @@ void xtensa_use_first_nan(CPUXtensaState *env, bool use_first)
                              &env->fp_status);
 }
 
-uint32_t cpu_get_fsr(CPUXtensaState *env)
+uint32_t xtensa_cpu_get_fsr(CPUXtensaState *env)
 {
     uint32_t flags = 0;
     int fef = get_float_exception_flags(&env->fp_status);
@@ -91,7 +91,7 @@ void cpu_set_fcr(CPUXtensaState *env, uint32_t v)
     set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
 }
 
-void cpu_set_fsr(CPUXtensaState *env, uint32_t v)
+void xtensa_cpu_set_fsr(CPUXtensaState *env, uint32_t v)
 {
     uint32_t flags = v >> XTENSA_FSR_FLAGS_SHIFT;
     int fef = 0;
@@ -126,12 +126,12 @@ void HELPER(wur_fpu_fsr)(CPUXtensaState *env, uint32_t v)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MBZ field of FSR is written non-zero: %08x\n", v);
     }
-    cpu_set_fsr(env, v);
+    xtensa_cpu_set_fsr(env, v);
 }
 
 uint32_t HELPER(rur_fpu_fsr)(CPUXtensaState *env)
 {
-    uint32_t fsr = cpu_get_fsr(env);
+    uint32_t fsr = xtensa_cpu_get_fsr(env);
 
     env->uregs[FSR] = fsr;
     return fsr;
