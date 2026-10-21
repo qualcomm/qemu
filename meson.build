@@ -4297,7 +4297,7 @@ multi_target_supported_targets = [
   # 'riscv32-softmmu',
   'riscv64-softmmu',
   'rx-softmmu',
-  # 's390x-softmmu',
+  's390x-softmmu',
   # 'sh4-softmmu',
   # 'sh4eb-softmmu',
   # 'sparc-softmmu',
