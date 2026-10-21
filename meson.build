@@ -4300,7 +4300,7 @@ multi_target_supported_targets = [
   's390x-softmmu',
   'sh4-softmmu',
   # 'sh4eb-softmmu',
-  # 'sparc-softmmu',
+  'sparc-softmmu',
   # 'sparc64-softmmu',
   'tricore-softmmu',
   # 'x86_64-softmmu',
