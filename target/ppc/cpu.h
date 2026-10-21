@@ -3071,7 +3071,7 @@ static inline bool ppc_interrupts_little_endian(const PowerPCCPU *cpu, bool hv)
 }
 #endif
 
-void dump_mmu(CPUPPCState *env);
+void ppc_dump_mmu(CPUPPCState *env);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
 void ppc_store_vscr(CPUPPCState *env, uint32_t vscr);
