@@ -37,7 +37,7 @@ void HELPER(boundw)(CPUX86State *env, target_ulong a0, int v)
         if (env->hflags & HF_MPX_EN_MASK) {
             env->bndcs_regs.sts = 0;
         }
-        raise_exception_ra(env, EXCP05_BOUND, GETPC());
+        x86_raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }
 
@@ -51,6 +51,6 @@ void HELPER(boundl)(CPUX86State *env, target_ulong a0, int v)
         if (env->hflags & HF_MPX_EN_MASK) {
             env->bndcs_regs.sts = 0;
         }
-        raise_exception_ra(env, EXCP05_BOUND, GETPC());
+        x86_raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }

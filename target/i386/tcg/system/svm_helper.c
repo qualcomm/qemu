@@ -175,7 +175,7 @@ void HELPER(vmrun)(CPUX86State *env, int aflag, int next_eip_addend)
 
     /* Exceptions are checked before the intercept.  */
     if (addr & (0xfff | ((~0ULL) << env_archcpu(env)->phys_bits))) {
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMRUN, 0, GETPC());
@@ -472,7 +472,7 @@ void HELPER(vmrun)(CPUX86State *env, int aflag, int next_eip_addend)
 void HELPER(vmmcall)(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMMCALL, 0, GETPC());
-    raise_exception(env, EXCP06_ILLOP);
+    x86_raise_exception(env, EXCP06_ILLOP);
 }
 
 void HELPER(vmload)(CPUX86State *env, int aflag)
@@ -488,7 +488,7 @@ void HELPER(vmload)(CPUX86State *env, int aflag)
 
     /* Exceptions are checked before the intercept.  */
     if (addr & (0xfff | ((~0ULL) << env_archcpu(env)->phys_bits))) {
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0, GETPC());
@@ -552,7 +552,7 @@ void HELPER(vmsave)(CPUX86State *env, int aflag)
 
     /* Exceptions are checked before the intercept.  */
     if (addr & (0xfff | ((~0ULL) << env_archcpu(env)->phys_bits))) {
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0, GETPC());

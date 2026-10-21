@@ -67,7 +67,7 @@ void HELPER(rdtsc)(CPUX86State *env)
     uint64_t val;
 
     if ((env->cr[4] & CR4_TSD_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+        x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDTSC, 0, GETPC());
 
@@ -80,13 +80,13 @@ G_NORETURN void HELPER(rdpmc)(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
         ((env->hflags & HF_CPL_MASK) != 0)) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+        x86_raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDPMC, 0, GETPC());
 
     /* currently unimplemented */
     qemu_log_mask(LOG_UNIMP, "x86: unimplemented rdpmc\n");
-    raise_exception_err(env, EXCP06_ILLOP, 0);
+    x86_raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
 G_NORETURN void HELPER(pause)(CPUX86State *env)
@@ -105,10 +105,10 @@ G_NORETURN void HELPER(pause)(CPUX86State *env)
 uint64_t HELPER(rdpkru)(CPUX86State *env, uint32_t ecx)
 {
     if ((env->cr[4] & CR4_PKE_MASK) == 0) {
-        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
     }
     if (ecx != 0) {
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
 
     return env->pkru;
@@ -119,10 +119,10 @@ void HELPER(wrpkru)(CPUX86State *env, uint32_t ecx, uint64_t val)
     CPUState *cs = env_cpu(env);
 
     if ((env->cr[4] & CR4_PKE_MASK) == 0) {
-        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
     }
     if (ecx != 0 || (val & 0xFFFFFFFF00000000ull)) {
-        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
+        x86_raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
 
     env->pkru = val;
