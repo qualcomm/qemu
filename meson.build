@@ -4326,7 +4326,7 @@ multi_target_supported_targets = [
   # 'mipsel-softmmu',
   'or1k-softmmu',
   # 'ppc-softmmu',
-  # 'ppc64-softmmu',
+  'ppc64-softmmu',
   # 'riscv32-softmmu',
   'riscv64-softmmu',
   'rx-softmmu',
