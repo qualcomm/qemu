@@ -695,7 +695,7 @@ void xen_register_framebuffer(MemoryRegion *mr)
     framebuffer = mr;
 }
 
-void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
+void xen_i386_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {
     unsigned target_page_bits = qemu_target_page_bits();
     int page_size = qemu_target_page_size();
@@ -722,7 +722,7 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
     }
 }
 
-void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+void xen_i386_set_global_dirty_log(bool enable, Error **errp)
 {
     if (enable) {
         memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION, errp);
@@ -731,8 +731,8 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
     }
 }
 
-void arch_xen_set_memory(XenIOState *state, MemoryRegionSection *section,
-                                bool add)
+void xen_i386_set_memory(XenIOState *state, MemoryRegionSection *section,
+                         bool add)
 {
     unsigned target_page_bits = qemu_target_page_bits();
     int page_size = qemu_target_page_size();
@@ -776,7 +776,7 @@ void arch_xen_set_memory(XenIOState *state, MemoryRegionSection *section,
     }
 }
 
-void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
+void xen_i386_handle_ioreq(XenIOState *state, ioreq_t *req)
 {
     switch (req->type) {
     case IOREQ_TYPE_VMWARE_PORT:
