@@ -6,6 +6,7 @@ i386_ss.add(when: ['CONFIG_XEN', xen], if_true: files(
   'xen-hvm.c',
   'xen-pvh.c',
 ))
+stub_ss.add(when: xen, if_true: files('xen-hvm-stubs.c'))
 
 i386_ss.add(when: 'CONFIG_XEN_BUS', if_true: files(
   'xen_platform.c',
