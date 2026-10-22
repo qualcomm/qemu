@@ -4464,7 +4464,11 @@ foreach target : target_dirs
       multi_target_libs += lib
       multi_target_deps += arch_deps
       multi_target_deps += target_stubs
-      multi_target_crates += main_rs
+      foreach crate : crates
+        if crate not in multi_target_crates
+          multi_target_crates += crate
+        endif
+      endforeach
     endif
     execs = [{
       'name': 'qemu-system-' + target_name,
@@ -4557,9 +4561,22 @@ endforeach
 multi_target_link_args = emulator_link_args
 multi_target_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
 
+# A rust executable has a single root crate, which must reference crates of
+# all targets.
+multi_target_main_rs = []
+if multi_target_crates.length() > 0
+  multi_target_main_rs = custom_target('rust_qemu_system.rs',
+                                       output: 'rust_qemu_system.rs',
+                                       command: [rust_root_crate, multi_target_crates],
+                                       capture: true,
+                                       build_by_default: true,
+                                       build_always_stale: true)
+  multi_target_main_rs = structured_sources(multi_target_main_rs)
+endif
+
 if multi_target_objects != []
   executable('qemu-system',
-             sources: [multi_target_crates, files('system/main.c')],
+             sources: [multi_target_main_rs, files('system/main.c')],
              dependencies: multi_target_deps,
              objects: multi_target_objects,
              link_depends: [block_syms, qemu_syms],

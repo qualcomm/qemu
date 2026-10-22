@@ -220,7 +220,7 @@ endforeach
 if multi_target_objects != []
   test('test-multi-target',
        executable('test-multi-target',
-                  sources: [multi_target_crates, files('test-multi-target.c')],
+                  sources: [multi_target_main_rs, files('test-multi-target.c')],
                   dependencies: multi_target_deps,
                   objects: multi_target_objects,
                   link_depends: [block_syms, qemu_syms],
