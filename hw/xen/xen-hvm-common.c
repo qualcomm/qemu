@@ -4,6 +4,7 @@
 #include "qemu/error-report.h"
 #include "qemu/target-info.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-misc.h"
 #include "exec/target_page.h"
 #include "trace.h"
@@ -69,6 +70,41 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
     }
 
     g_free(pfn_list);
+}
+
+/*
+ * Architecture specific hooks. Only i386 implements them, other
+ * architectures do nothing.
+ */
+static void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
+{
+    if (target_base_i386()) {
+        xen_i386_handle_ioreq(state, req);
+        return;
+    }
+    hw_error("Invalid ioreq type 0x%x\n", req->type);
+}
+
+static void arch_xen_set_memory(XenIOState *state,
+                                MemoryRegionSection *section, bool add)
+{
+    if (target_base_i386()) {
+        xen_i386_set_memory(state, section, add);
+    }
+}
+
+void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
+{
+    if (target_base_i386()) {
+        xen_i386_hvm_modified_memory(start, length);
+    }
+}
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+    if (target_base_i386()) {
+        xen_i386_set_global_dirty_log(enable, errp);
+    }
 }
 
 static void xen_set_memory(struct MemoryListener *listener,
