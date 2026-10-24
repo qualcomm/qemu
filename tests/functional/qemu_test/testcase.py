@@ -11,10 +11,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import io
 import logging
 import os
 from pathlib import Path
 import shutil
+import signal
 from subprocess import run
 import sys
 import tempfile
@@ -33,7 +35,71 @@ from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
 
+def _dump_log_tail(log_path, num_lines=200):
+    if not os.path.exists(log_path):
+        return
+    with open(log_path, 'r', errors='replace') as log_fh:
+        lines = log_fh.readlines()
+    print('--- last %d lines of %s ---' % (num_lines, log_path),
+          file=sys.stderr)
+    for line in lines[-num_lines:]:
+        sys.stderr.write(line)
+
+
+class _TeeStream:
+    '''
+    Forwards writes to a stream, and keeps a copy of everything written so
+    it can be dumped to stderr along with the test logs.
+    '''
+    def __init__(self, stream):
+        self._stream = stream
+        self.copy = io.StringIO()
+
+    def write(self, data):
+        self.copy.write(data)
+        return self._stream.write(data)
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+_stdout = _TeeStream(sys.stdout)
+
+
+def _dump_stdout():
+    print('--- stdout ---', file=sys.stderr)
+    sys.stderr.write(_stdout.copy.getvalue())
+
+
+def _dump_test_logs(test):
+    print('More information on ' + test.id() + ' could be found here:'
+          '\n %s' % test.log_filename, file=sys.stderr)
+    if hasattr(test, 'console_log_name'):
+        print(' %s' % test.console_log_name, file=sys.stderr)
+    if hasattr(test, 'log_files'):
+        for log_path in test.log_files():
+            _dump_log_tail(log_path)
+
+
+def _signal_handler(signum, _frame):
+    test = QemuBaseTest.current_test
+    print('Received signal %s' % signal.Signals(signum).name, file=sys.stderr)
+    _dump_stdout()
+    if test is not None:
+        try:
+            _dump_test_logs(test)
+        except Exception as ex:
+            print('Failed to dump logs: %s' % ex, file=sys.stderr)
+    sys.stderr.flush()
+    # Terminate with the default behaviour for this signal
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
+
+
 class QemuBaseTest(unittest.TestCase):
+
+    # Test being executed, whose logs are dumped if a signal is received
+    current_test = None
 
     def uncompress(self, compressed, target=None, format=None):
         '''
@@ -182,6 +248,13 @@ class QemuBaseTest(unittest.TestCase):
         '''
         return str(Path(self.outputdir, *args))
 
+    def log_files(self):
+        '''
+        Returns the list of log files produced during the execution of
+        this test, that are dumped to stderr when the test fails.
+        '''
+        return [self.log_filename]
+
     def plugin_file(self, plugin_name):
         '''
         @params plugin name
@@ -233,6 +306,8 @@ class QemuBaseTest(unittest.TestCase):
         self.qmplog.setLevel(logging.DEBUG)
         self.qmplog.addHandler(self._log_fh)
 
+        QemuBaseTest.current_test = self
+
         if not self.assets_available():
             self.skipTest('One or more assets is not available')
 
@@ -246,6 +321,7 @@ class QemuBaseTest(unittest.TestCase):
         self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
         self._log_fh.close()
+        QemuBaseTest.current_test = None
 
     @staticmethod
     def main():
@@ -259,16 +335,19 @@ class QemuBaseTest(unittest.TestCase):
             Asset.precache_suites(test_module, cache)
             return
 
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(signum, _signal_handler)
+
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
-                                   test_output_log = pycotap.LogMode.LogToError)
+                                   test_output_log = pycotap.LogMode.LogToError,
+                                   output_stream = _stdout)
         res = unittest.main(test_module, testRunner = tr, exit = False)
+        if not res.result.wasSuccessful():
+            _dump_stdout()
         failed = {}
         for (test, _message) in res.result.errors + res.result.failures:
             if hasattr(test, "log_filename") and not test.id() in failed:
-                print('More information on ' + test.id() + ' could be found here:'
-                      '\n %s' % test.log_filename, file=sys.stderr)
-                if hasattr(test, 'console_log_name'):
-                    print(' %s' % test.console_log_name, file=sys.stderr)
+                _dump_test_logs(test)
                 failed[test.id()] = True
         sys.exit(not res.result.wasSuccessful())
 
@@ -312,6 +391,13 @@ class QemuSystemTest(QemuBaseTest):
         file_formatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(file_formatter)
         console_log.addHandler(self._console_log_fh)
+
+    def log_files(self):
+        files = super().log_files()
+        files.append(self.console_log_name)
+        for name in self._vms:
+            files.append(self.log_file(f'{name}.log'))
+        return files
 
     def set_machine(self, machinename):
         cls = type(self)
