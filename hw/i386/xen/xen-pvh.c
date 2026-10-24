@@ -11,6 +11,7 @@
 #include "qemu/error-report.h"
 #include "hw/core/boards.h"
 #include "system/system.h"
+#include "qemu/target-info.h"
 #include "hw/xen/arch_hvm.h"
 #include <xen/hvm/hvm_info_table.h>
 #include "hw/xen/xen-pvh-common.h"
@@ -116,6 +117,7 @@ static const TypeInfo xen_pvh_x86_machine_type = {
     .instance_init = xen_pvh_instance_init,
     .instance_size = sizeof(XenPVHx86State),
     .secure = true,
+    .is_available = target_base_i386,
 };
 
 static void xen_pvh_machine_register_types(void)
