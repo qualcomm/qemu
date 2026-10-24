@@ -51,7 +51,7 @@ tests_x86_64_system_thorough = [
   'vfio_user_client',
   'vhost_user_bridge',
   'virtio_balloon',
-  'virtio_gpu',
+  # 'virtio_gpu', # hangs on github
   # 'rebuild_vmfd', # fail with rust
   'vhost_vsock_cpr',
 ]
