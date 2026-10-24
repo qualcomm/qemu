@@ -46,6 +46,7 @@
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "qemu/mmap-alloc.h"
+#include "qemu/target-info.h"
 #include "elf.h"
 #include "system/kvm_int.h"
 #include "system/kvm.h"
@@ -3092,6 +3093,7 @@ static const TypeInfo kvm_cpu_accel_type_info = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = kvm_cpu_accel_class_init,
+    .is_available = target_base_ppc,
     .abstract = true,
 };
 static void kvm_cpu_accel_register_types(void)
