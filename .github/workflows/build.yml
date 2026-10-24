@@ -367,7 +367,7 @@ jobs:
           podman run --pull newer --init --rm -it -v $(pwd):$(pwd) -w $(pwd)
           -v /var/run/user/$UID/podman/:/run/podman
           docker.io/pboqemu/qemu-ci:debian
-          bash -cx './configure --enable-werror --disable-docs --enable-rust --target-list=${{matrix.targets}} && ninja -C build'
+          bash -cx './configure --enable-werror --disable-docs --enable-rust --enable-asan --enable-ubsan --extra-cflags=-fno-sanitize-recover=undefined --target-list=${{matrix.targets}} && ninja -C build'
       # not all targets have tcg tests
       - run: >
           podman run --pull newer --init --rm -it -v $(pwd):$(pwd) -w $(pwd)
@@ -380,7 +380,7 @@ jobs:
           podman run --pull newer --init --privileged --rm -i $([ -e /dev/kvm ] && echo '-v /dev/kvm:/dev/kvm') -v $(pwd):$(pwd) -w $(pwd)
           -v /var/run/user/$UID/podman/:/run/podman
           docker.io/pboqemu/qemu-ci:debian
-          bash -cx "./build/pyvenv/bin/meson test -C build -j1 --timeout-multiplier 2 --setup thorough --suite qtest --suite tcg --suite func-quick --suite func-thorough --print-errorlogs"
+          bash -cx "export LSAN_OPTIONS=suppressions=$(pwd)/scripts/lsan_suppressions.txt && ./build/pyvenv/bin/meson test -C build -j1 --timeout-multiplier 2 --setup thorough --suite qtest --suite tcg --suite func-quick --suite func-thorough --print-errorlogs"
 
   # ensure check jobs cover all softmmu and linux-user targets
   # bsd-user targets can't be built on a linux host
@@ -406,9 +406,9 @@ jobs:
       - run: >
           podman run --pull newer --init --rm -it -v $(pwd):$(pwd) -w $(pwd)
           docker.io/pboqemu/qemu-ci:debian
-          bash -cx './configure --enable-werror --disable-docs --enable-rust --target-list=x86_64-softmmu && ninja -C build'
+          bash -cx './configure --enable-werror --disable-docs --enable-rust --enable-asan --enable-ubsan --extra-cflags=-fno-sanitize-recover=undefined --target-list=x86_64-softmmu && ninja -C build'
       # run podman without -t to avoid interactive output of meson test
       - run: >
           podman run --pull newer --init --rm -i -v $(pwd):$(pwd) -w $(pwd)
           docker.io/pboqemu/qemu-ci:debian
-          bash -cx "./build/pyvenv/bin/meson test -C build --setup thorough --no-suite qtest --no-suite tcg --no-suite func-quick --no-suite func-thorough --print-errorlogs"
+          bash -cx "export LSAN_OPTIONS=suppressions=$(pwd)/scripts/lsan_suppressions.txt && ./build/pyvenv/bin/meson test -C build --setup thorough --no-suite qtest --no-suite tcg --no-suite func-quick --no-suite func-thorough --print-errorlogs"
