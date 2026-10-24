@@ -27,7 +27,6 @@
 #include "qemu/sockets.h"
 
 #ifdef CONFIG_LINUX
-#include <linux/kvm.h>
 #include <sys/ioctl.h>
 #endif
 
@@ -469,18 +468,23 @@ static bool kvm_guest_memfd_init_shared_supported(const char **reason)
         goto out;
     }
 
+    #define KVMIO 0xAE
+    #define KVM_CHECK_EXTENSION _IO(KVMIO,   0x03)
+    #define KVM_CAP_GUEST_MEMFD 234
     ret = ioctl(fd, KVM_CHECK_EXTENSION, KVM_CAP_GUEST_MEMFD);
     if (!ret) {
         *reason = "KVM module doesn't support guest-memfd";
         goto out;
     }
 
+    #define KVM_CAP_GUEST_MEMFD_FLAGS 244
     ret = ioctl(fd, KVM_CHECK_EXTENSION, KVM_CAP_GUEST_MEMFD_FLAGS);
     if (ret < 0) {
         *reason = "KVM doesn't support KVM_CAP_GUEST_MEMFD_FLAGS";
         goto out;
     }
 
+    #define GUEST_MEMFD_FLAG_INIT_SHARED (1ULL << 1)
     if (!(ret & GUEST_MEMFD_FLAG_INIT_SHARED)) {
         *reason = "KVM doesn't support GUEST_MEMFD_FLAG_INIT_SHARED";
         goto out;
