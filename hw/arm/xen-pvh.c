@@ -9,6 +9,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "hw/core/boards.h"
 #include "system/system.h"
+#include "qemu/target-info.h"
 #include "hw/xen/xen-pvh-common.h"
 
 #define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpvh")
@@ -95,6 +96,7 @@ static const TypeInfo xen_arm_machine_type = {
     .class_init = xen_arm_machine_class_init,
     .instance_size = sizeof(XenPVHMachineState),
     .instance_init = xen_arm_instance_init,
+    .is_available = target_base_arm,
 };
 
 static void xen_arm_machine_register_types(void)
