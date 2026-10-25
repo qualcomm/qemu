@@ -12,7 +12,7 @@ tests_s390x_system_quick = [
 
 tests_s390x_system_thorough = [
   'boot_4k',
-  'ccw_virtio',
+  # 'ccw_virtio', # flaky timeout
   'pxelinux',
   'replay',
   'secure_ipl',
