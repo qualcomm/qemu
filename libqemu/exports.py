@@ -205,6 +205,23 @@ ExportedFct('gpio_new', 'struct IRQState *', [ 'LibQemuGpioHandlerFn', 'void *' 
 ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
         priv = 'qemu_set_irq', iothread_locked = True)
 
+PrivateInclude('hw/pci/pci_device.h')
+PrivateInclude('libqemu/wrappers/pci.h')
+ExportedType('QemuPCIDevice', 'PCIDevice')
+ExportedFct(
+    'pci_msi_notify',
+    'bool',
+    ['PCIDevice *', 'unsigned int'],
+    priv='libqemu_pci_msi_notify',
+    on_iothread=True
+)
+ExportedFct(
+    'pci_msix_notify',
+    'bool',
+    ['PCIDevice *', 'unsigned int'],
+    priv='libqemu_pci_msix_notify',
+    on_iothread=True
+)
 
 PrivateInclude('hw/core/qdev.h')
 PrivateInclude('hw/core/qdev-clock.h')
@@ -336,7 +353,7 @@ ExportedFct('cpu_can_run', 'bool', [ 'Object *' ], priv = 'libqemu_cpu_can_run')
 ExportedFct('cpu_register_thread', 'void', [ 'Object *' ], priv = 'libqemu_cpu_register_thread')
 ExportedFct('cpu_kick', 'void', [ 'Object *' ], priv = 'qemu_cpu_kick')
 ExportedFct('cpu_reset', 'void', [ 'Object *', 'bool' ],
-        priv = 'libqemu_cpu_reset', on_iothread = True)
+        priv = 'libqemu_cpu_reset', iothread_locked = True)
 ExportedFct('cpu_halt', 'void', [ 'Object *', 'bool', ], priv = 'libqemu_cpu_halt')
 ExportedFct('cpu_set_soft_stopped', 'void', [ 'Object *', 'bool' ],
         priv = 'libqemu_cpu_set_soft_stopped')
