@@ -16,12 +16,13 @@
  *
  * Add options:
  *      -drive file=<file>,if=none,id=<drive_id>
- *      -device ufs-sysbus,serial=<serial>,id=<bus_name>, \
+ *      -device ufs-sysbus,serial=<serial>,id=<bus_name>,mmio-size=<size>, \
  *              nutrs=<N[optional]>,nutmrs=<N[optional]>
  *      -device ufs-sysbus-lu,drive=<drive_id>,bus=<bus_name>
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -60,7 +61,7 @@ static inline uint64_t ufs_mcq_op_reg_addr(UfsHc *u, int qid)
 
 static inline uint64_t ufs_reg_size(UfsHc *u)
 {
-    /* Total UFS HCI Register size in bytes */
+    /* Total standard UFS HCI register size in bytes. */
     return ufs_mcq_op_reg_addr(u, 0) + sizeof(u->mcq_op_reg);
 }
 
@@ -391,7 +392,7 @@ static void ufs_process_db(UfsHc *u, uint32_t val)
 
 /*
  * Return canned PA layer attribute values. The emulated link has no PHY,
- * so these are purely declarative: a single lane in HS-Gear 4, FAST_MODE.
+ * so these are purely declarative: two lanes in HS-Gear 3, FAST_MODE.
  */
 static uint32_t ufs_uic_dme_get_value(uint16_t attr_id)
 {
@@ -406,6 +407,8 @@ static uint32_t ufs_uic_dme_get_value(uint16_t attr_id)
         return 4;
     case UFS_ATTR_PA_PWRMODE:
         return (1 << 4) | 1;
+    case 0x0041: /* Qualcomm MPHY TX_FSM_STATE: HIBERN8 */
+        return 1;
     default:
         return 0;
     }
@@ -498,6 +501,10 @@ static void ufs_mcq_process_sq(void *opaque)
     uint16_t head = ufs_mcq_sq_head(u, sq->sqid);
     int err;
 
+    if (u->resetting) {
+        return;
+    }
+
     while (!(ufs_mcq_sq_empty(u, sq->sqid) || QTAILQ_EMPTY(&sq->req_list))) {
         addr = sq->addr + head;
         err = ufs_addr_read(sq->u, addr, (void *)&sqe, sizeof(sqe));
@@ -571,7 +578,7 @@ static void ufs_mcq_process_cq(void *opaque)
         tail = (tail + sizeof(req->cqe)) % (cq->size * sizeof(req->cqe));
         ufs_mcq_update_cq_tail(u, cq->cqid, tail);
 
-        if (QTAILQ_EMPTY(&req->sq->req_list) &&
+        if (!u->resetting && QTAILQ_EMPTY(&req->sq->req_list) &&
             !ufs_mcq_sq_empty(u, req->sq->sqid)) {
             /* Dequeueing from SQ was blocked due to lack of free requests */
             qemu_bh_schedule(req->sq->bh);
@@ -768,6 +775,87 @@ static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
     return true;
 }
 
+static void ufs_hce_reset(UfsHc *u)
+{
+    int i;
+
+    trace_ufs_hce_reset();
+
+    u->resetting = true;
+
+    /* 1. Cancel active Bottom Halves before purging requests */
+    if (u->doorbell_bh) {
+        qemu_bh_cancel(u->doorbell_bh);
+    }
+    if (u->complete_bh) {
+        qemu_bh_cancel(u->complete_bh);
+    }
+    if (u->params.mcq) {
+        for (i = 0; i < ARRAY_SIZE(u->sq); i++) {
+            if (u->sq[i] && u->sq[i]->bh) {
+                qemu_bh_cancel(u->sq[i]->bh);
+            }
+        }
+        for (i = 0; i < ARRAY_SIZE(u->cq); i++) {
+            if (u->cq[i] && u->cq[i]->bh) {
+                qemu_bh_cancel(u->cq[i]->bh);
+            }
+        }
+    }
+
+    /* 2. Purge outstanding SCSI requests for all logical units */
+    for (i = 0; i < UFS_MAX_LUS; i++) {
+        if (u->lus[i] && u->lus[i]->scsi_dev) {
+            scsi_device_purge_requests(u->lus[i]->scsi_dev, SENSE_CODE(RESET));
+        }
+    }
+
+    /* 3. Reset standard request list slots, doorbells, and status registers */
+    for (i = 0; i < u->params.nutrs; i++) {
+        ufs_clear_req(&u->req_list[i]);
+        u->req_list[i].state = UFS_REQUEST_IDLE;
+    }
+    u->reg.utrldbr = 0;
+    u->reg.utmrldbr = 0;
+    u->reg.utrlcnr = 0;
+    u->reg.utrlrsr = 0;
+    u->reg.is = 0;
+
+    /* 4. Free MCQ Queues and reset MCQ dynamic registers */
+    if (u->params.mcq) {
+        for (i = 0; i < ARRAY_SIZE(u->sq); i++) {
+            if (u->sq[i]) {
+                ufs_mcq_free_sq(u->sq[i]);
+                u->sq[i] = NULL;
+            }
+        }
+        for (i = 0; i < ARRAY_SIZE(u->cq); i++) {
+            if (u->cq[i]) {
+                ufs_mcq_free_cq(u->cq[i]);
+                u->cq[i] = NULL;
+            }
+        }
+
+        /* Clear dynamic queue configuration registers without overwriting static capability offsets */
+        for (i = 0; i < ARRAY_SIZE(u->mcq_reg); i++) {
+            u->mcq_reg[i].sqattr = 0;
+            u->mcq_reg[i].sqlba = 0;
+            u->mcq_reg[i].squba = 0;
+            u->mcq_reg[i].sqcfg = 0;
+            u->mcq_reg[i].cqattr = 0;
+            u->mcq_reg[i].cqlba = 0;
+            u->mcq_reg[i].cquba = 0;
+            u->mcq_reg[i].cqcfg = 0;
+        }
+        memset(u->mcq_op_reg, 0, sizeof(u->mcq_op_reg));
+    }
+
+    u->resetting = false;
+
+    /* 5. De-assert IRQ */
+    ufs_irq_check(u);
+}
+
 static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
 {
     switch (offset) {
@@ -785,6 +873,7 @@ static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
             u->reg.hce = FIELD_DP32(u->reg.hce, HCE, HCE, 1);
         } else if (FIELD_EX32(u->reg.hce, HCE, HCE) &&
                    !FIELD_EX32(data, HCE, HCE)) {
+            ufs_hce_reset(u);
             u->reg.hcs = 0;
             u->reg.hce = FIELD_DP32(u->reg.hce, HCE, HCE, 0);
         }
@@ -1126,7 +1215,8 @@ static UfsReqResult ufs_exec_scsi_cmd(UfsRequest *req)
 
     if (!is_wlun(lun) && (lun >= UFS_MAX_LUS || u->lus[lun] == NULL)) {
         trace_ufs_err_scsi_cmd_invalid_lun(lun);
-        return UFS_REQUEST_FAIL;
+        ufs_build_scsi_lun_not_supported_response(req);
+        return UFS_REQUEST_SUCCESS;
     }
 
     switch (lun) {
@@ -1969,6 +2059,13 @@ static QueryRespCode ufs_read_desc(UfsRequest *req)
         memcpy(&req->rsp_upiu.qr.data, &u->device_desc, sizeof(u->device_desc));
         status = UFS_QUERY_RESULT_SUCCESS;
         break;
+    case UFS_QUERY_DESC_IDN_CONFIGURATION:
+        /* Return a valid, empty descriptor for U-Boot's size probe. */
+        memset(&req->rsp_upiu.qr.data, 0, 0x90);
+        req->rsp_upiu.qr.data[0] = 0x90;
+        req->rsp_upiu.qr.data[1] = UFS_QUERY_DESC_IDN_CONFIGURATION;
+        status = UFS_QUERY_RESULT_SUCCESS;
+        break;
     case UFS_QUERY_DESC_IDN_UNIT:
         status = ufs_read_unit_desc(req);
         break;
@@ -2137,6 +2234,10 @@ static void ufs_process_req(void *opaque)
     UfsRequest *req;
     int slot;
 
+    if (u->resetting) {
+        return;
+    }
+
     for (slot = 0; slot < u->params.nutrs; slot++) {
         req = &u->req_list[slot];
 
@@ -2162,6 +2263,10 @@ void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
     }
 
     req->state = UFS_REQUEST_COMPLETE;
+
+    if (u->resetting) {
+        return;
+    }
 
     if (ufs_mcq_req(req)) {
         trace_ufs_mcq_complete_req(req->sq->sqid);
@@ -2538,8 +2643,14 @@ static void ufs_init_sysbus(DeviceState *dev)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &u->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &u->irq);
 
-    u->mem_as = &address_space_memory;
-    u->mem_mr = get_system_memory();
+    if (u->dma_mr) {
+        address_space_init(&u->dma_as, u->dma_mr, "ufs-dma");
+        u->mem_as = &u->dma_as;
+        u->mem_mr = u->dma_mr;
+    } else {
+        u->mem_as = &address_space_memory;
+        u->mem_mr = get_system_memory();
+    }
 /**
  * FIXME: disbale io memory reentrancy guard for now to prevent this sporadic
  * warning "libqbox: warning: Blocked re-entrant IO on MemoryRegion: ufs-sysbus
@@ -2613,7 +2724,7 @@ static void ufs_wb_init(UfsHc *u)
     wb->pinned_total_written_bytes = 0;
 }
 
-void ufs_init_hc(UfsHc *u)
+void ufs_init_hc(UfsHc *u, bool pci)
 {
     uint32_t cap = 0;
     uint32_t mcqconfig = 0;
@@ -2623,7 +2734,12 @@ void ufs_init_hc(UfsHc *u)
                                 UFS_DEV_LOW_TEMP_NOTIF | UFS_DEV_HID_SUPPORT;
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT);
 
-    u->reg_size = pow2ceil(ufs_reg_size(u));
+    if (pci) {
+        u->reg_size = pow2ceil(ufs_reg_size(u));
+    } else {
+        assert(u->sysbus_mmio_size >= ufs_reg_size(u));
+        u->reg_size = u->sysbus_mmio_size;
+    }
 
     memset(&u->reg, 0, sizeof(u->reg));
     memset(&u->mcq_reg, 0, sizeof(u->mcq_reg));
@@ -2763,7 +2879,7 @@ static void ufs_realize_sysbus(DeviceState *dev, Error **errp)
     qbus_init(&u->bus, sizeof(UfsBus), TYPE_UFS_SYSBUS_BUS, dev, NULL);
 
     ufs_init_state(u);
-    ufs_init_hc(u);
+    ufs_init_hc(u, false);
     ufs_init_sysbus(dev);
 
     ufs_init_wlu(&u->report_wlu, UFS_UPIU_REPORT_LUNS_WLUN);
@@ -2804,6 +2920,9 @@ static void ufs_exit_sysbus(DeviceState *dev)
     UfsHc *u = UFS_SYSBUS(dev);
 
     ufs_exit_common(u);
+    if (u->dma_mr) {
+        address_space_destroy(&u->dma_as);
+    }
 }
 
 static const Property ufs_props[] = {
@@ -2814,6 +2933,8 @@ static const Property ufs_props[] = {
     DEFINE_PROP_UINT8("mcq-maxq", UfsHc, params.mcq_maxq, 2),
     DEFINE_PROP_UINT32("wb-max-size", UfsHc, params.wb_max_size, 0x400),
     DEFINE_PROP_UINT32("wb-min-size", UfsHc, params.wb_min_size, 0x100),
+    DEFINE_PROP_UINT32("mmio-size", UfsHc, sysbus_mmio_size, 0),
+    DEFINE_PROP_LINK("dma", UfsHc, dma_mr, TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static const VMStateDescription ufs_vmstate = {
@@ -2829,12 +2950,24 @@ void ufs_class_init_common(DeviceClass *dc)
     dc->vmsd = &ufs_vmstate;
 }
 
+static void ufs_sysbus_reset(DeviceState *dev)
+{
+    UfsHc *u = UFS_SYSBUS(dev);
+
+    ufs_hce_reset(u);
+    /* ufs_init_hc() re-initialises and re-arms the idle timer */
+    timer_del(&u->idle_timer);
+    ufs_init_hc(u, false);
+    ufs_irq_check(u);
+}
+
 static void ufs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ufs_realize_sysbus;
     dc->unrealize = ufs_exit_sysbus;
+    device_class_set_legacy_reset(dc, ufs_sysbus_reset);
 
     ufs_class_init_common(dc);
 }

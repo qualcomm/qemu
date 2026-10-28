@@ -648,6 +648,9 @@ static void ufstest_init(void *obj, void *data, QGuestAllocator *alloc)
     const uint8_t test_unit_ready_cdb[UFS_CDB_SIZE] = {
         TEST_UNIT_READY,
     };
+    const uint8_t inquiry_cdb[UFS_CDB_SIZE] = {
+        INQUIRY,
+    };
     const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
         REQUEST_SENSE,
     };
@@ -677,6 +680,13 @@ static void ufstest_init(void *obj, void *data, QGuestAllocator *alloc)
                                 &rsp_upiu);
     g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
     g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+
+    /* Unsupported LUNs are command failures, not UFS transport failures. */
+    ocs = ufs_send_scsi_command(ufs, 0x73, inquiry_cdb, NULL, 0, NULL, 0,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.response, ==, UFS_COMMAND_RESULT_FAIL);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
 
     ufs_exit(ufs, alloc);
 }
