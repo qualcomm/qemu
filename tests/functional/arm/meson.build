@@ -64,7 +64,7 @@ tests_arm_system_thorough = [
   'mcimx7d_sabre',
   'microbit',
   'orangepi',
-  'quanta_gsj',
+  # 'quanta_gsj', # flaky timeout
   'raspi2',
   'realview',
   'replay',

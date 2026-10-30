@@ -31,7 +31,10 @@
 #include "system/qtest.h"
 #include "system/tcg.h"
 #include "kvm_arm.h"
+#if defined(CONFIG_HVF)
+/* calls hv_sme_config_get_max_svl_bytes which is not available on x64 hosts */
 #include "hvf_arm.h"
+#endif
 #include "whpx_arm.h"
 #include "qapi/visitor.h"
 #include "hw/core/qdev-properties.h"

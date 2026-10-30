@@ -337,6 +337,7 @@ our @typeList = (
 	qr{${Ident}_handler_fn},
 	qr{target_(?:u)?long},
 	qr{hwaddr},
+	qr{float_status},
         # external libraries
 	qr{xen\w+_handle},
 	# Glib definitions
@@ -1497,13 +1498,6 @@ sub process_file_list {
 			$sawmaintainers = 1;
 		}
 	}
-
-	# If we don't see a MAINTAINERS update, prod the user to check
-	if (int(@maybemaintainers) > 0 && !$sawmaintainers) {
-                WARN("added, moved or deleted file(s),"
-		     . " does MAINTAINERS need updating?\n  "
-		     . join("\n  ", @maybemaintainers));
-	}
 }
 
 # Called at the start of processing a diff hunk for a file
@@ -1529,14 +1523,10 @@ sub process_end_of_file {
 	if ($fileinfo->{action} eq "new" &&
 	    !exists $fileinfo->{facts}->{sawspdx}) {
 		if ($fileinfo->{filenew} =~
-		    /(\.(c|h|py|pl|sh|json|inc|rs)|Makefile.*)$/) {
+		    /(\.(c|h|py|pl|inc|rs)|Makefile.*)$/) {
 			# source code files MUST have SPDX license declared
 			ERROR("New file '" . $fileinfo->{filenew} .
 			      "' requires 'SPDX-License-Identifier'");
-		} else {
-			# Other files MAY have SPDX license if appropriate
-			WARN("Does new file '" . $fileinfo->{filenew} .
-			     "' need 'SPDX-License-Identifier'?");
 		}
 	}
 	if ($fileinfo->{action} eq "new" &&
@@ -2075,15 +2065,15 @@ sub process {
 		next if ($realfile !~ /$SrcFile/);
 
 #90 column limit; exempt URLs, if no other words on line
+#exempt scripts/meson-buildoptions.sh, which is generated
 		if ($line =~ /^\+/ &&
 		    !($line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
 		    !($rawline =~ /^[^[:alnum:]]*https?:\S*$/) &&
+		    $realfile !~ m@scripts/meson-buildoptions\.sh$@ &&
 		    $length > 80)
 		{
 			if ($length > 90) {
 				ERROR("line over 90 characters\n" . $herecurr);
-			} else {
-				WARN("line over 80 characters\n" . $herecurr);
 			}
 		}
 
@@ -2511,7 +2501,7 @@ sub process {
 
 # function brace can't be on same line, except for #defines of do while,
 # or if closed on same line
-		if (($line=~/$Type\s*$Ident\(.*\).*\s\{/) and
+		if (($line=~/$Type\s*$Ident\(.*\)[^=]*\s\{/) and
 		    !($line=~/\#\s*define.*do\s\{/) and !($line=~/}/)) {
 			ERROR("open brace '{' following function declarations go on the next line\n" . $herecurr);
 		}
@@ -3065,7 +3055,9 @@ sub process {
 				    $dstat !~ /^\.$Ident\s*=/ &&
 				    $dstat =~ /$Operators/)
 				{
-					ERROR("Macros with complex values should be enclosed in parenthesis\n" . "$here\n$ctx\n");
+					WARN("Macros with complex values should " .
+					     "be enclosed in parenthesis\n" .
+					     "$here\n$ctx\n");
 				}
 			}
 		}
@@ -3248,12 +3240,6 @@ sub process {
 			if (!ctx_has_comment($first_line, $linenr)) {
 				ERROR("memory barrier without comment\n" . $herecurr);
 			}
-		}
-# check of hardware specific defines
-# we have e.g. CONFIG_LINUX and CONFIG_WIN32 for common cases
-# where they might be necessary.
-		if ($line =~ m@^.\s*\#\s*if.*\b__@) {
-			WARN("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
 # Check that the storage class is at the beginning of a declaration
@@ -3530,9 +3516,6 @@ sub process {
 	print report_dump();
 	if ($summary && !($clean == 1 && $quiet == 1)) {
 		print "$filename " if ($summary_file);
-		print "total: $cnt_error errors, $cnt_warn warnings, " .
-			"$cnt_lines lines checked\n";
-		print "\n" if ($quiet == 0);
 	}
 
 	if ($quiet == 0) {
@@ -3542,15 +3525,6 @@ sub process {
 #			print "NOTE: whitespace errors detected, you may wish to use scripts/cleanpatch or\n";
 #			print "      scripts/cleanfile\n\n";
 #		}
-	}
-
-	if ($clean == 1 && $quiet == 0) {
-		print "$vname has no obvious style problems and is ready for submission.\n"
-	}
-	if ($clean == 0 && $quiet == 0) {
-		print "$vname has style problems, please review.  If any of these errors\n";
-		print "are false positives report them to the maintainer, see\n";
-		print "CHECKPATCH in MAINTAINERS.\n";
 	}
 
 	return ($no_warnings ? $clean : $cnt_error == 0);

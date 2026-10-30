@@ -101,6 +101,13 @@ There are usually three log files:
   differently if the test chooses to use a different identifier for
   the guest VM (e.g. when the test spins up multiple VMs).
 
+Whenever a test fails or errors, the test's stdout (the TAP output) and
+the last 200 lines of each of these log files are printed to stderr, which
+is useful when the log files themselves are not easily accessible (e.g. in
+CI). The same happens if the test is
+interrupted by SIGTERM or SIGINT, for instance when meson kills it after
+hitting its timeout.
+
 Introduction to writing tests
 -----------------------------
 
