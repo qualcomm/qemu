@@ -322,6 +322,7 @@ static void v73nc_1_init(ObjectClass *oc, const void *data)
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
     mc->default_cpus = 6;
+    add_dsp_properties(oc);
 }
 
 static void v81dgb_1_config_init(MachineState *machine)
@@ -392,6 +393,7 @@ static void v85qa_1_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V85;
     mc->max_cpus = 12;
     mc->default_cpus = 12;
+    add_dsp_properties(oc);
 }
 
 static void v85na_1_config_init(MachineState *machine)
@@ -410,6 +412,7 @@ static void v85na_1_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V85;
     mc->max_cpus = 12;
     mc->default_cpus = 12;
+    add_dsp_properties(oc);
 }
 
 static const TypeInfo hexagon_machine_types[] = {
