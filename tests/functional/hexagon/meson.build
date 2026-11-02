@@ -15,6 +15,6 @@ test_hexagon_timeouts = {
   'hvm_linux': 480,
   'qcom_dsp_firmware': 240,
   'qcs6490_cdsp': 480,
-  'systests': 180,
+  'systests': 900,
   'hlx': 180,
 }

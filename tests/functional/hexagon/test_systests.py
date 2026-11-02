@@ -63,6 +63,52 @@ class SysTestsStandaloneTests(QemuSystemTest):
         finally:
             self.vm.kill()
 
+    def run_expect_crash(self, binary_name, log_pattern, *extra_args,
+                         machine="sim"):
+        """Run a test that is meant to crash.
+
+        The standalone CRT exits with 255 from its unhandled-exception
+        handler, which also reports the cause in the log.
+        """
+        self.set_machine(machine)
+        self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-kernel", self.binary(binary_name))
+        for flag, value in zip(extra_args[::2], extra_args[1::2]):
+            self.set_vm_arg(flag, value)
+        self.vm.launch()
+        self.vm.wait(timeout=60.0)
+        self.assertEqual(self.vm.exitcode(), 255,
+                         f"{binary_name} exited with {self.vm.exitcode()}, "
+                         "expected 255")
+        log = self.vm.get_log() or ""
+        self.assertTrue(re.search(log_pattern, log),
+                        f"{log_pattern!r} not in the log of {binary_name}:"
+                        f"\n{log}")
+
+    def wait_for_log_pattern(self, pattern, count=1, timeout=30.0):
+        """Wait until the log of the running VM has @pattern @count times."""
+        deadline = time.monotonic() + timeout
+        log_path = self.vm._qemu_log_path
+        while time.monotonic() < deadline:
+            with open(log_path, "r", encoding="utf-8",
+                      errors="replace") as f:
+                if f.read().count(pattern) >= count:
+                    return
+            time.sleep(0.1)
+        self.fail(f"Timed out waiting for {count} of {pattern!r} in the log")
+
+    def run_hang_log_pattern(self, binary_name, pattern):
+        """Run a test that is meant to hang, and expect @pattern logged."""
+        self.set_machine("sim")
+        self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-kernel", self.binary(binary_name))
+        self.set_vm_arg("-d", "guest_errors")
+        self.vm.launch()
+        try:
+            self.wait_for_log_pattern(pattern)
+        finally:
+            self.vm.kill()
+
     def test_fopen(self):
         """fopen reads a file passed via --append and verifies its contents."""
         import tempfile
@@ -152,6 +198,104 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """k0lock and tlblock give threads exclusive access while
         interrupts are taken, measured with the QTimer."""
         self.run_exit_zero("lock_timer_test", timeout=400.0)
+
+    def test_start(self):
+        """The start instruction resets the threads it names but not the
+        thread executing it."""
+        self.run_exit_zero("start")
+
+    def test_test_thread(self):
+        """Eight threads start, record their ids, and exit."""
+        self.run_exit_zero("test-thread", "-smp", "cpus=8")
+
+    def test_test_thread_single_threaded_tcg(self):
+        """test_thread with the vCPUs sharing one host thread."""
+        self.run_exit_zero("test-thread", "-smp", "cpus=8",
+                           "-accel", "tcg,thread=single")
+
+    def test_k0locklock(self):
+        """Locking k0 twice in a row hangs the thread, and is reported."""
+        self.run_hang_log_pattern("k0locklock", "Double k0lock at PC")
+
+    def test_tlblocklock(self):
+        """Locking the TLB twice in a row hangs the thread, and is reported."""
+        self.run_hang_log_pattern("tlblocklock", "Double tlblock at PC")
+
+    def test_inf_loop(self):
+        """Four threads start, spin forever, and start again after a
+        system reset."""
+        self.set_machine("sim")
+        self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-kernel", self.binary("inf-loop"))
+        self.vm.launch()
+        try:
+            for i in range(4):
+                self.wait_for_log_pattern(f"Starting thread {i}")
+            self.vm.qmp("system_reset")
+            for i in range(4):
+                self.wait_for_log_pattern(f"Starting thread {i}", count=2)
+        finally:
+            self.vm.kill()
+
+    def test_unaligned(self):
+        """A misaligned load raises the misaligned load exception."""
+        self.run_expect_crash("unaligned", "Misaligned Load")
+
+    def test_hvx_nocoproc(self):
+        """An HVX instruction with SSR:XE clear raises the coprocessor
+        exception."""
+        self.run_expect_crash("hvx_nocoproc",
+                              "Illegal Execution of Coprocessor Instruction")
+
+    def test_neg_no_hmx(self):
+        """HMX instructions are invalid on a machine without HMX."""
+        self.run_expect_crash("neg-no-hmx", "Invalid packet",
+                              machine="V68N_1024")
+
+    @unittest.skip("HMX instruction semantics are not in this tree")
+    def test_hmx(self):
+        """HMX matrix multiply and convert results match the reference."""
+        self.run_exit_zero("hmx", machine="V81QA_1")
+
+    @unittest.skip("HSV39 extended TLB entries (tlbp/tlbw with a register "
+                   "pair) are not modelled")
+    def test_hsv39_tlb(self):
+        """Extended HSV39 TLB entries can be written, probed and read."""
+        self.run_exit_zero("hsv39_tlb", machine="V81QA_1")
+
+    @unittest.skip("PCYCLE is derived from the virtual clock, the test "
+                   "checks per-instruction cycle estimates")
+    def test_pcycle(self):
+        """PCYCLE advances by the cycle estimate of each packet."""
+        self.run_exit_zero("pcycle")
+
+    @unittest.skip("needs a debugger to set registers and the PC")
+    def test_reg_writes(self):
+        """Registers a debugger writes are visible to the program."""
+        self.run_exit_zero("reg-writes")
+
+    @unittest.skip("needs a multicore NSP machine with the multicast widget")
+    def test_sa8797p_nsp_multicore(self):
+        """Cores of an NSP exchange data through the multicast widget."""
+        self.run_exit_zero("sa8797p_nsp_multicore", machine="sa8797p-nsp0")
+
+    @unittest.skip("the global timer registers it expects to be read-only "
+                   "advance, and CCR.XA3/XE3 depend on the coprocessor")
+    def test_sys_reg_mut(self):
+        """System registers keep their reserved and read-only bits."""
+        self.run_exit_zero("sys_reg_mut")
+
+    @unittest.skip("needs a soft interrupt to be taken while disabled, "
+                   "which the reference L2VIC does not do either")
+    def test_vid_group(self):
+        """L2VIC interrupts are routed to the thread of their VID group."""
+        self.run_exit_zero("vid-group")
+
+    @unittest.skip("needs the Hexagon Virtual Machine interface on a "
+                   "standalone machine")
+    def test_vm_test(self):
+        """The Hexagon Virtual Machine monitor serves its trap1 calls."""
+        self.run_exit_zero("vm_test")
 
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
