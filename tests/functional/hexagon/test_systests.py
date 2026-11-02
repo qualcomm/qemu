@@ -22,9 +22,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.3.1/systests_standalone.tar.gz",
-        "40163fa94d67a63e5ef645fc83682e4e"
-        "b56e1d79a9068614055e74f35d4cf70d",
+        "download/v0.3.3/systests_standalone.tar.gz",
+        "a302a6fa975e035d1d559c27e5bedc35"
+        "1d08118b9d59e361356a272c927a22cd",
     )
 
     def setUp(self):
@@ -117,8 +117,6 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_standalone_vec(self):
         self.run_exit_zero("standalone_vec")
 
-    @unittest.skip("lock_verify has timing defects before v0.2.22 "
-                   "and in v0.3.1")
     def test_lock_verify(self):
         self.run_exit_zero("lock_verify")
 
