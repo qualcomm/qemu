@@ -36,14 +36,15 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.assertTrue(os.path.exists(path))
         return path
 
-    def run_exit_zero(self, binary_name, *extra_args, machine="sim"):
+    def run_exit_zero(self, binary_name, *extra_args, machine="sim",
+                      timeout=60.0):
         self.set_machine(machine)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", self.binary(binary_name))
         for flag, value in zip(extra_args[::2], extra_args[1::2]):
             self.set_vm_arg(flag, value)
         self.vm.launch()
-        self.vm.wait(timeout=60.0)
+        self.vm.wait(timeout=timeout)
         self.assertEqual(self.vm.exitcode(), 0,
                          f"Test {binary_name} exited with "
                          f"code {self.vm.exitcode()}, expected 0")
@@ -146,6 +147,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """The V73 memcpy instruction copies from L2 space to VTCM and
         takes a coprocessor exception for a destination outside VTCM."""
         self.run_exit_zero("memcpy", machine="V73NC_1")
+
+    def test_lock_timer_test(self):
+        """k0lock and tlblock give threads exclusive access while
+        interrupts are taken, measured with the QTimer."""
+        self.run_exit_zero("lock_timer_test", timeout=400.0)
 
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""

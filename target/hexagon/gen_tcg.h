@@ -1256,12 +1256,21 @@
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC); \
     } while (0)
 #else
+/*
+ * Yielding gives another vCPU the chance to run when they all share a host
+ * thread.  With a host thread per vCPU there is nobody to yield to and the
+ * exit from the translated code is expensive, so just continue.
+ */
 #define fGEN_TCG_J2_pause(SHORTCODE) \
     do { \
         uiV = uiV; \
-        gen_helper_raise_exception(tcg_env, \
-            tcg_constant_i32(EXCP_YIELD), \
-            tcg_constant_i32(ctx->next_PC)); \
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) { \
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC); \
+        } else { \
+            gen_helper_raise_exception(tcg_env, \
+                tcg_constant_i32(EXCP_YIELD), \
+                tcg_constant_i32(ctx->next_PC)); \
+        } \
     } while (0)
 #endif
 

@@ -23,6 +23,7 @@
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/helper-gen.h"
+#include "exec/translation-block.h"
 #include "insn.h"
 #include "opcodes.h"
 #include "sys_macros.h"
