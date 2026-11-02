@@ -95,6 +95,9 @@ static const Property hexagon_cpu_properties[] = {
 #endif
     DEFINE_PROP_UINT32("dma-version", HexagonCPU, dma_version,
                        HEX_DMA_VERSION_UNSET),
+    DEFINE_PROP_UINT32("l2line-size", HexagonCPU, l2line_size, 0x80),
+    DEFINE_PROP_UINT64("vtcm-base", HexagonCPU, vtcm_base, 0),
+    DEFINE_PROP_UINT64("vtcm-size", HexagonCPU, vtcm_size, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, cfg.lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, cfg.lldb_stack_adjust,
                          0, qdev_prop_uint32, target_ulong),

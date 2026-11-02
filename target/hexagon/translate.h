@@ -92,6 +92,7 @@ typedef struct DisasContext {
     bool hlx_check_emitted;
     bool short_circuit;
     bool ieee_fp_extension;
+    uint32_t l2line_size;
     bool read_after_write;
     bool has_hvx_overlap;
     TCGv new_value[TOTAL_PER_THREAD_REGS];

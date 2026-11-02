@@ -702,6 +702,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #endif
 
 #define fPREDUSE_TIMING()
+#define fVTCM_MEMCPY(DST, SRC, SIZE)
 
 #define fLVECSIZE() (2048)
 /* Unlike HVX, COUNT is an element count. */

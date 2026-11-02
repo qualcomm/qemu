@@ -1530,6 +1530,8 @@
 
 #endif
 
+#define fGEN_TCG_L6_memcpy(SHORTCODE) gen_vtcm_memcpy(ctx, RsV, RtV, MuV)
+
 #define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)
 #define fGEN_TCG_A2_nop_rb(SHORTCODE) gen_reset_cfi(ctx)
 #define fGEN_TCG_SA1_setin1(SHORTCODE) tcg_gen_movi_tl(RdV, -1)

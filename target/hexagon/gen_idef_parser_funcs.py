@@ -113,7 +113,7 @@ def main():
             }:
                 continue
             ## Skip other unsupported instructions
-            if tag == "S2_cabacdecbin" or tag == "A5_ACS":
+            if tag in {"S2_cabacdecbin", "A5_ACS", "L6_memcpy"}:
                 continue
             if tag.startswith("Y"):
                 continue

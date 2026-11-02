@@ -269,8 +269,7 @@ static void virt_init(MachineState *ms)
         start = load_bios(ms, firmware);
         have_start = true;
     }
-    hex_board_create_cpus(ms, have_start, start,
-                          m_cfg->cfgtable.dma_version);
+    hex_board_create_cpus(ms, have_start, start, m_cfg);
 
     hex_board_fdt_add_cpus(ms);
     if (linux_guest) {

@@ -9,6 +9,8 @@
 struct tag_rev_info { HexagonVersion introduced, removed; };
 
 static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
+    [L6_memcpy] = { .introduced = HEX_VER_NONE, .removed = HEX_VER_V75 },
+
     [A5_ACS] = { .introduced = HEX_VER_V55, .removed = HEX_VER_NONE },
 
     [J2_jumpfpt] = { .introduced = HEX_VER_V60, .removed = HEX_VER_NONE },

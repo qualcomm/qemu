@@ -14,6 +14,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hex-board.h"
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
@@ -210,6 +211,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_uint32(DEVICE(cpu), "dma-version",
                              m_cfg->cfgtable.dma_version);
+        hex_board_set_cpu_memory_props(DEVICE(cpu), m_cfg);
 
         /*
          * CPU #0 is the only CPU running at boot, others must be

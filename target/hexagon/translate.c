@@ -1645,6 +1645,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->short_circuit = hex_cpu->cfg.short_circuit;
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
     ctx->ieee_fp_extension = hex_cpu->cfg.ieee_fp_extension;
+    ctx->l2line_size = hex_cpu->l2line_size;
 #ifndef CONFIG_USER_ONLY
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);

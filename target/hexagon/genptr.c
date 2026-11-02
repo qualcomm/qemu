@@ -1907,5 +1907,73 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
     gen_set_label(ret_label);
 }
 
+/*
+ * The L6_memcpy insn description says that "source base, destination base, and
+ * length values must be aligned to the L2 cache-line size" and "behavior is
+ * undefined for non-aligned value". Here we chose to follow the hexagon-sim
+ * implementation, which rounds `size + 1` (i.e. the "real" copy size) up to
+ * the next aligned value. So, for example, any size in [0, L2_LINE_SIZE[ will
+ * copy L2_LINE_SIZE bytes, and [L2_LINE_SIZE, 2*L2_LINE_SIZE[ will copy
+ * 2*L2_LINE_SIZE bytes.
+ *
+ * The destination must be in VTCM, in system mode the copy takes a coprocessor
+ * load/store exception otherwise.
+ */
+static void gen_vtcm_memcpy(DisasContext *ctx, TCGv dst, TCGv src, TCGv size)
+{
+    g_assert(ctx->l2line_size % 4 == 0); /* we copy in 4-bytes batches */
+
+    /*
+     * 1) First we calculate the real copy size, in chunks of 4 bytes
+     *
+     * cp_size = size + 1
+     * remainder = cp_size % l2line_size;
+     * N = (remainder ? cp_size + l2line_size - remainder : cp_size) / 4;
+     */
+    TCGv cp_size = tcg_temp_new();
+    TCGv remainder = tcg_temp_new();
+    TCGv N = tcg_temp_new();
+    TCGLabel *remainder_is_zero = gen_new_label();
+    TCGv l2line_size = tcg_constant_tl(ctx->l2line_size);
+
+    tcg_gen_addi_tl(cp_size, size, 1);
+    tcg_gen_remu_tl(remainder, cp_size, l2line_size);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, remainder, 0, remainder_is_zero);
+    tcg_gen_add_tl(cp_size, cp_size, l2line_size);
+    tcg_gen_sub_tl(cp_size, cp_size, remainder);
+    gen_set_label(remainder_is_zero);
+#ifndef CONFIG_USER_ONLY
+    gen_helper_vtcm_memcpy_check(tcg_env, dst, cp_size);
+#endif
+    tcg_gen_divu_tl(N, cp_size, tcg_constant_tl(4));
+
+    /*
+     * 2) Then we copy N chunks of 4 bytes
+     *
+     * for (i = 0; i < N; i++) {
+     *  *((uint32_t *)dst + i) = *((uint32_t *)src + i);
+     * }
+     */
+    TCGv val = tcg_temp_new();
+    TCGv i = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
+    TCGv src_plus_i = tcg_temp_new();
+    TCGv dst_plus_i = tcg_temp_new();
+    TCGLabel *loop = gen_new_label();
+    TCGLabel *finish = gen_new_label();
+
+    tcg_gen_movi_tl(i, 0);
+    gen_set_label(loop);
+    tcg_gen_brcond_tl(TCG_COND_EQ, i, N, finish);
+    tcg_gen_muli_tl(tmp, i, 4); /* implicit pointer arithmetics */
+    tcg_gen_add_tl(src_plus_i, src, tmp);
+    tcg_gen_add_tl(dst_plus_i, dst, tmp);
+    tcg_gen_qemu_ld_i32(val, src_plus_i, ctx->mem_idx, MO_LE | MO_UL);
+    tcg_gen_qemu_st_i32(val, dst_plus_i, ctx->mem_idx, MO_LE | MO_UL);
+    tcg_gen_addi_tl(i, i, 1);
+    tcg_gen_br(loop);
+    gen_set_label(finish);
+}
+
 #include "tcg_funcs_generated.c.inc"
 #include "tcg_func_table_generated.c.inc"

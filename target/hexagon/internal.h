@@ -60,6 +60,15 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_hexagon_cpu;
+
+void hexagon_vtcm_check(CPUHexagonState *env, target_ulong va, uint32_t bytes,
+                        MMUAccessType access_type, uintptr_t ra);
+#else
+static inline void hexagon_vtcm_check(CPUHexagonState *env, target_ulong va,
+                                      uint32_t bytes,
+                                      MMUAccessType access_type, uintptr_t ra)
+{
+}
 #endif
 
 #endif

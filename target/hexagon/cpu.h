@@ -290,6 +290,11 @@ struct ArchCPU {
     HexagonDMAState dma;
     /* User-DMA architecture version, from the config table; 0 means none. */
     uint32_t dma_version;
+    /* L2 cache-line size in bytes, from the config table. */
+    uint32_t l2line_size;
+    /* Physical address range of the VTCM, from the config table. */
+    uint64_t vtcm_base;
+    uint64_t vtcm_size;
 #ifndef CONFIG_USER_ONLY
     HexagonHVXContextState *hvx_ctx[HVX_CONTEXTS_MAX];
     HexagonHMXContextState *hmx_ctx;

@@ -142,6 +142,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         through the guest and user aliases only when SSR:PE is set."""
         self.run_exit_zero("pmu")
 
+    def test_memcpy(self):
+        """The V73 memcpy instruction copies from L2 space to VTCM and
+        takes a coprocessor exception for a destination outside VTCM."""
+        self.run_exit_zero("memcpy", machine="V73NC_1")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
