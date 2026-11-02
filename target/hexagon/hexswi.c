@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <dirent.h>
 #include "cpu.h"
 #include "cpu_helper.h"
 #include "exec/helper-proto.h"
@@ -265,6 +266,35 @@ static uint32_t errno_h2g(uint32_t err)
 static void semi_cb(CPUState *cs, uint64_t ret, int err)
 {
     common_semi_cb(cs, ret, errno_h2g(err));
+}
+
+/*
+ * Host directory streams opened by HEX_SYS_OPENDIR.  The guest sees
+ * the (non-zero) index + 1 of the stream as its handle.
+ */
+static GPtrArray *hex_dirs;
+
+static uint32_t hex_dir_alloc(DIR *dir)
+{
+    if (!hex_dirs) {
+        hex_dirs = g_ptr_array_new();
+    }
+    for (guint i = 0; i < hex_dirs->len; i++) {
+        if (!g_ptr_array_index(hex_dirs, i)) {
+            g_ptr_array_index(hex_dirs, i) = dir;
+            return i + 1;
+        }
+    }
+    g_ptr_array_add(hex_dirs, dir);
+    return hex_dirs->len;
+}
+
+static DIR *hex_dir_lookup(uint32_t handle)
+{
+    if (!hex_dirs || handle == 0 || handle > hex_dirs->len) {
+        return NULL;
+    }
+    return g_ptr_array_index(hex_dirs, handle - 1);
 }
 
 static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
@@ -650,6 +680,76 @@ static void sim_handle_trap0(CPUHexagonState *env)
         err = errno;
         unlock_user(filename, FileNameAddr, 0);
         semi_cb(cs, rc,  rc == 0 ? 0 : err);
+    }
+    break;
+
+    case HEX_SYS_OPENDIR:
+    {
+        char *dirname = lock_user_string(swi_info);
+        DIR *dir;
+        int err;
+
+        if (!dirname) {
+            semi_cb(cs, 0, EFAULT);
+            break;
+        }
+        dir = opendir(dirname);
+        err = errno;
+        unlock_user(dirname, swi_info, 0);
+        if (!dir) {
+            semi_cb(cs, 0, err);
+            break;
+        }
+        semi_cb(cs, hex_dir_alloc(dir), 0);
+    }
+    break;
+
+    case HEX_SYS_CLOSEDIR:
+    {
+        DIR *dir = hex_dir_lookup(swi_info);
+
+        if (!dir) {
+            semi_cb(cs, -1, EBADF);
+            break;
+        }
+        g_ptr_array_index(hex_dirs, swi_info - 1) = NULL;
+        if (closedir(dir)) {
+            semi_cb(cs, -1, errno);
+        } else {
+            semi_cb(cs, 0, 0);
+        }
+    }
+    break;
+
+    case HEX_SYS_READDIR:
+    {
+        /*
+         * The guest's struct is { int32_t reserved; char d_name[256]; };
+         * libc returns the SWI's result as the struct dirent pointer.
+         */
+        DIR *dir = hex_dir_lookup(swi_info);
+        target_ulong dirent_addr = env->gpr[HEX_REG_R02];
+        struct dirent *de;
+
+        if (!dir) {
+            semi_cb(cs, 0, EBADF);
+            break;
+        }
+        errno = 0;
+        de = readdir(dir);
+        if (!de) {
+            semi_cb(cs, 0, errno);
+            break;
+        }
+        hexagon_write_memory(env, dirent_addr, 4, 0, retaddr);
+        for (size_t i = 0; i < sizeof(de->d_name); i++) {
+            hexagon_write_memory(env, dirent_addr + 4 + i, 1,
+                                 (uint8_t)de->d_name[i], retaddr);
+            if (!de->d_name[i]) {
+                break;
+            }
+        }
+        semi_cb(cs, dirent_addr, 0);
     }
     break;
 

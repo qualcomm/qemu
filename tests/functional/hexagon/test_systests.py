@@ -82,6 +82,24 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.assertEqual(os.path.getsize(ftrunc_path), 1,
                          "_testfile_ftrunc should be 1 byte after ftrunc")
 
+    def test_dirent(self):
+        """dirent lists a directory passed via --append."""
+        dirent_dir = self.scratch_file("_dirent_testdir")
+        os.makedirs(dirent_dir)
+        for name in ("fileA", "fileB"):
+            with open(os.path.join(dirent_dir, name), "w",
+                      encoding="utf-8"):
+                pass
+        self.run_console_pattern("dirent", ". .. fileA fileB",
+                                 "-append", dirent_dir)
+
+    def test_swi_fs(self):
+        """File and directory semihosting calls on the current directory."""
+        orig_cwd = os.getcwd()
+        os.chdir(self.scratch_file())
+        self.addCleanup(os.chdir, orig_cwd)
+        self.run_console_pattern("swi_fs", "PASS")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
