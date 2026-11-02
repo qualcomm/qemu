@@ -101,6 +101,66 @@ class ArchTestsUart(QemuSystemTest):
         """Tests V81-specific system register masks."""
         self.run_semihosting_test("test_sys_regs")
 
+    def test_cache_v81(self) -> None:
+        """Tests cache operations on the V81 machine."""
+        self.run_semihosting_test("test_cache")
+
+    def test_dma_v81(self) -> None:
+        """Tests user DMA on the V81 machine."""
+        self.run_semihosting_test("test_dma")
+
+    def test_exceptions_v81(self) -> None:
+        """Tests exception delivery on the V81 machine."""
+        self.run_semihosting_test("test_exceptions")
+
+    def test_guest_mode_v81(self) -> None:
+        """Tests guest mode on the V81 machine."""
+        self.run_semihosting_test("test_guest_mode")
+
+    def test_hvx_context_v81(self) -> None:
+        """Tests the HVX coprocessor context on the V81 machine."""
+        self.run_semihosting_test("test_hvx_context")
+
+    def test_int_steering_v81(self) -> None:
+        """Tests interrupt steering on the V81 machine."""
+        self.run_semihosting_test("test_int_steering")
+
+    def test_interrupts_v81(self) -> None:
+        """Tests interrupt delivery on the V81 machine."""
+        self.run_semihosting_test("test_interrupts")
+
+    def test_isr_stress_v81(self) -> None:
+        """Tests interrupt service routine stress on the V81 machine."""
+        self.run_semihosting_test("test_isr_stress")
+
+    def test_l2vic_v81(self) -> None:
+        """Tests the L2VIC on the V81 machine."""
+        self.run_semihosting_test("test_l2vic")
+
+    def test_pagecross_tlbmissx_v81(self) -> None:
+        """Tests page-crossing instruction TLB misses on the V81 machine."""
+        self.run_semihosting_test("test_pagecross_tlbmissx")
+
+    def test_pmu_v81(self) -> None:
+        """Tests the performance counters on the V81 machine."""
+        self.run_semihosting_test("test_pmu")
+
+    def test_threads_v81(self) -> None:
+        """Tests hardware thread management on the V81 machine."""
+        self.run_semihosting_test("test_threads")
+
+    def test_timer_v81(self) -> None:
+        """Tests the system timer on the V81 machine."""
+        self.run_semihosting_test("test_timer")
+
+    def test_tlb_mmu_v81(self) -> None:
+        """Tests TLB/MMU operations on the V81 machine."""
+        self.run_semihosting_test("test_tlb_mmu")
+
+    def test_user_mode_v81(self) -> None:
+        """Tests user mode transitions on the V81 machine."""
+        self.run_semihosting_test("test_user_mode")
+
     def test_threads(self) -> None:
         """Tests hardware thread management: start/stop, MODECTL state,
         per-thread HTID, shared memory, wait/resume, STID priority, and
@@ -114,6 +174,38 @@ class ArchTestsUart(QemuSystemTest):
         and permission checks.
         """
         self.run_uart_test("test_tlb_mmu")
+
+    def test_dma(self) -> None:
+        """Tests user DMA: version discovery, idle commands, resuming the
+        idle state, and linked, strided, and 2D transfers.
+        """
+        self.run_uart_test("test_dma")
+
+    def test_isr_stress(self) -> None:
+        """Tests interrupt service routine stress: bursts of interrupts,
+        simultaneous software interrupts, rapid refire, nesting, and
+        interrupts while threads start, spin, and wait.
+        """
+        self.run_uart_test("test_isr_stress")
+
+    def test_pagecross_tlbmissx(self) -> None:
+        """Tests instruction TLB misses for packets that cross a page
+        boundary: the next page missing, both pages missing, and the
+        default handler.
+        """
+        self.run_uart_test("test_pagecross_tlbmissx")
+
+    def test_pmu(self) -> None:
+        """Tests the performance counters: PCYCLE incrementing, its high
+        and low halves, enabling and disabling it, and UPCYCLE.
+        """
+        self.run_uart_test("test_pmu")
+
+    def test_timer(self) -> None:
+        """Tests the system timer: QTimer reads, monotonicity, version, and
+        using PCYCLE as a timer.
+        """
+        self.run_uart_test("test_timer")
 
     def test_user_mode(self) -> None:
         """Tests user mode / privilege transitions: supervisor mode,
