@@ -29,9 +29,8 @@
 #define QCT_QTIMER_CNTP_CTL_ENABLE (1 << 0)
 
 #define QTIMER_FRAME_STRIDE 0x1000
-/* Frames instantiated by hex-subsys, and the L2VIC input frame 0 drives. */
+/* Frames instantiated by hex-subsys. */
 #define QTIMER_NR_FRAMES 3
-#define QTIMER_L2VIC_IRQ_BASE 2
 
 #define QCT_QTIMER_AC_CNTFRQ (0x000)
 #define QCT_QTIMER_AC_CNTSR (0x004)
@@ -43,6 +42,7 @@
 #define QCT_QTIMER_AC_CNTACR_RPCT (1 << 0) /* R/W of CNTPCT register */
 
 static uint64_t qtimer_view_base;
+static unsigned int qtimer_irq_base;
 static uint64_t qtimer_ac_base;
 
 #define TIMER_TEST_OFFSET 1000
@@ -317,41 +317,43 @@ static void test_qtimer_frame_irq_routing(void)
         qtimer_write32(frame_base, QCT_QTIMER_CNTP_CTL,
                        QCT_QTIMER_CNTP_CTL_ENABLE);
         g_assert_false(qtest_get_irq(global_qtest,
-                                     QTIMER_L2VIC_IRQ_BASE + frame));
+                                     qtimer_irq_base + frame));
 
         /* Step past the deadline so the frame raises its interrupt. */
         qtest_clock_step(global_qtest, TIMER_TEST_NS * 2);
         g_assert_true(qtest_get_irq(global_qtest,
-                                    QTIMER_L2VIC_IRQ_BASE + frame));
+                                    qtimer_irq_base + frame));
 
         /* No other frame's line may be disturbed. */
         for (other = 0; other < QTIMER_NR_FRAMES; other++) {
             if (other != frame) {
                 g_assert_false(qtest_get_irq(global_qtest,
-                                             QTIMER_L2VIC_IRQ_BASE + other));
+                                             qtimer_irq_base + other));
             }
         }
 
         /* Clearing EN drops the interrupt, leaving a clean slate. */
         qtimer_write32(frame_base, QCT_QTIMER_CNTP_CTL, 0);
         g_assert_false(qtest_get_irq(global_qtest,
-                                     QTIMER_L2VIC_IRQ_BASE + frame));
+                                     qtimer_irq_base + frame));
     }
 }
 
 typedef struct {
     const char *machine;
     const struct hexagon_machine_config *cfg;
+    /* The L2VIC input of frame 0 */
+    unsigned int irq_base;
 } QtimerMachineCfg;
 
 static const QtimerMachineCfg qtimer_machines[] = {
-    { "virt",      &v68n_1024 },
-    { "V66G_1024", &v66g_1024 },
-    { "qcs6490-cdsp", &qcs6490_cdsp },
-    { "sa8775p-cdsp", &SA8775P_cdsp0 },
-    { "sc8480xp-nsp0", &sc8480xp_nsp0 },
-    { "sa8797p-nsp0", &sa8797p_nsp0 },
-    { "sm8975-nsp", &sm8975_nsp },
+    { "virt",      &v68n_1024, 2 },
+    { "V66G_1024", &v66g_1024, 3 },
+    { "qcs6490-cdsp", &qcs6490_cdsp, 2 },
+    { "sa8775p-cdsp", &SA8775P_cdsp0, 2 },
+    { "sc8480xp-nsp0", &sc8480xp_nsp0, 2 },
+    { "sa8797p-nsp0", &sa8797p_nsp0, 2 },
+    { "sm8975-nsp", &sm8975_nsp, 2 },
 };
 
 static void test_qtimer_on_machine(gconstpointer data)
@@ -362,6 +364,7 @@ static void test_qtimer_on_machine(gconstpointer data)
 
     qtimer_view_base = mc->cfg->qtmr_region;
     qtimer_ac_base = mc->cfg->csr_base;
+    qtimer_irq_base = mc->irq_base;
 
     qtest_start(args);
 

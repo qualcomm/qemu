@@ -7,6 +7,7 @@ static const struct hexagon_machine_config v79na_1 = {
     .l2vic_size =          0x00001000,
     .csr_base =            0xfc900000,
     .qtmr_region =         0xfc921000,
+    .qtimer_irq_base = 3,
     .cfgtable = {
         .l2tcm_base = 0x0000d800, .subsystem_base = 0x00002000,
         .etm_base = 0x0000d819, .l2cfg_base = 0x0000d81a,

@@ -12,6 +12,7 @@ static const struct hexagon_machine_config sc8480xp_nsp0 = {
     .l2vic_size = 0x1000,
     .csr_base = 0x323a0000,
     .qtmr_region = 0x323a1000,
+    .qtimer_irq_base = 2,
     .cfgtable = {
         .l2tcm_base = 0x3000,
         .subsystem_base = 0x3238,

@@ -8,6 +8,7 @@ static const struct hexagon_machine_config qcs6490_cdsp = {
     .l2vic_size =        0x00001000,
     .csr_base =          0x0a3a0000,
     .qtmr_region =       0x0a3a1000,
+    .qtimer_irq_base = 2,
     .cfgtable = {
         .l2tcm_base = 0x00000980,
         .reserved0 = 0x00000000,

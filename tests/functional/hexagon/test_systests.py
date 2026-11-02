@@ -120,6 +120,14 @@ class SysTestsStandaloneTests(QemuSystemTest):
         exception at the allocframe packet."""
         self.run_exit_zero("framelimit")
 
+    def test_qtimer(self):
+        """Two QTimer frames interrupt through the L2VIC at different rates."""
+        self.run_exit_zero("qtimer")
+
+    def test_qtimer_test(self):
+        """QTimer frame versions match and both frames interrupt."""
+        self.run_exit_zero("qtimer_test")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")

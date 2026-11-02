@@ -201,7 +201,9 @@ static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(ms);
-    const struct hexagon_machine_config *m_cfg = &v68n_1024;
+    /* Linux numbers the QTimer frames from L2VIC input 2 */
+    static struct hexagon_machine_config virt_cfg;
+    const struct hexagon_machine_config *m_cfg = &virt_cfg;
     int32_t l2vic_phandle;
     uint64_t start = 0;
     bool have_start = false;
@@ -210,6 +212,9 @@ static void virt_init(MachineState *ms)
     bool vm_guest;
     /* A Linux guest: it has a hypervisor firmware, or QEMU is its monitor. */
     bool linux_guest;
+
+    virt_cfg = v68n_1024;
+    virt_cfg.qtimer_irq_base = 2;
 
     if (hms->hvm_enabled && ms->firmware) {
         error_report("hvm=on runs the guest without a hypervisor firmware "

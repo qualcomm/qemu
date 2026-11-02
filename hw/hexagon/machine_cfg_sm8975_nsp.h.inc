@@ -13,6 +13,7 @@ static const struct hexagon_machine_config sm8975_nsp = {
     .l2vic_size = 0x1000,
     .csr_base = 0x263a0000,
     .qtmr_region = 0x263a1000,
+    .qtimer_irq_base = 2,
     .cfgtable = {
         .l2tcm_base = 0x2400,
         .subsystem_base = 0x2638,

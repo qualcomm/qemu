@@ -29,8 +29,6 @@
 /* Number of QTimer frames instantiated for every Hexagon machine. */
 #define HEX_QTIMER_NR_FRAMES 3
 
-#define HEX_QTIMER_L2VIC_IRQ_BASE 2
-
 static DeviceState *l2vic_create(HexagonCommonMachineState *hms,
                                  const struct hexagon_machine_config *m_cfg)
 {
@@ -67,7 +65,7 @@ static DeviceState *qtimer_create(HexagonCommonMachineState *hms,
     for (unsigned int i = 0; i < HEX_QTIMER_NR_FRAMES; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), i,
                            qdev_get_gpio_in(hms->l2vic,
-                                            HEX_QTIMER_L2VIC_IRQ_BASE + i));
+                                            m_cfg->qtimer_irq_base + i));
     }
 
     return qtimer;
@@ -186,7 +184,7 @@ static void hvm_fill_info(HexagonHVMState *s, MachineState *machine,
     s->info[HVM_INFO_L2VIC_BASE] = m_cfg->l2vic_base;
     s->info[HVM_INFO_TIMER_BASE] = m_cfg->qtmr_region;
     s->info[HVM_INFO_TIMER_INT] = HVM_DEVICE_INT_BASE +
-                                  HEX_QTIMER_L2VIC_IRQ_BASE;
+                                  m_cfg->qtimer_irq_base;
     s->info[HVM_INFO_HTHREADS] = MAKE_64BIT_MASK(0, machine->smp.cpus);
     s->info[HVM_INFO_L2CFG_BASE] = t->l2cfg_base << 16;
     s->info[HVM_INFO_CFG_BASE] = m_cfg->cfgbase >> 16;
