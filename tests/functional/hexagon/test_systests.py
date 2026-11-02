@@ -100,6 +100,16 @@ class SysTestsStandaloneTests(QemuSystemTest):
         self.addCleanup(os.chdir, orig_cwd)
         self.run_console_pattern("swi_fs", "PASS")
 
+    def test_double_ex(self):
+        """An exception taken inside an exception handler is a double
+        exception."""
+        self.run_exit_zero("double_ex")
+
+    def test_multiple_writes(self):
+        """Packets that write a register twice raise a write conflict when
+        both writes happen, whether the writes are conditional or not."""
+        self.run_exit_zero("multiple_writes")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")

@@ -56,6 +56,7 @@ typedef struct HexagonHVMState HexagonHVMState;
 #include "target/hexagon/reg_fields.h"
 #include "hw/intc/hex-l2vic.h"
 
+#define NUM_GPREGS 32
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
 

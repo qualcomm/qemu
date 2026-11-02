@@ -810,12 +810,16 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     do { \
         TCGv LSB = tcg_temp_new(); \
         TCGLabel *false_label = gen_new_label(); \
+        TCGLabel *end_label = gen_new_label(); \
         GET_EA; \
         PRED; \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, false_label); \
         gen_vreg_load(ctx, DST##_base, DST##_off, EA, true); \
         INC; \
+        tcg_gen_br(end_label); \
         gen_set_label(false_label); \
+        gen_cancel(insn->slot); \
+        gen_set_label(end_label); \
     } while (0)
 
 #define fGEN_TCG_PRED_VEC_LOAD_pred_pi \
@@ -975,13 +979,17 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     do { \
         TCGv LSB = tcg_temp_new(); \
         TCGLabel *false_label = gen_new_label(); \
+        TCGLabel *end_label = gen_new_label(); \
         GET_EA; \
         PRED; \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, false_label); \
         gen_vreg_store(ctx, EA, SRC##_base, SRC##_off, insn->slot, \
                        ALIGN); \
         INC; \
+        tcg_gen_br(end_label); \
         gen_set_label(false_label); \
+        gen_cancel(insn->slot); \
+        gen_set_label(end_label); \
     } while (0)
 
 #define fGEN_TCG_PRED_VEC_STORE_pred_pi(ALIGN) \

@@ -142,6 +142,36 @@ TCGv gen_read_preg(TCGv pred, uint8_t num)
     return pred;
 }
 
+/*
+ * A GPR that more than one instruction in the packet writes is only a
+ * conflict if the writes all happen, so track at run time which of those
+ * registers have been written.  A write that was cancelled (its predicate
+ * was false) does not count: every predicated producer sets its bit in
+ * hex_slot_cancelled when it cancels.  gen_commit_packet() raises the
+ * exception if a register was written twice.
+ */
+static void gen_check_reg_write(DisasContext *ctx, int rnum)
+{
+    if (rnum < NUM_GPREGS && test_bit(rnum, ctx->gpr_multi_write)) {
+        TCGv cancelled = tcg_temp_new();
+        TCGv already_written = tcg_temp_new();
+        TCGLabel *skip = gen_new_label();
+
+        tcg_gen_andi_tl(cancelled, hex_slot_cancelled, 1 << ctx->insn->slot);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, skip);
+        tcg_gen_andi_tl(already_written, ctx->gpr_written, 1 << rnum);
+        tcg_gen_or_tl(ctx->gpr_conflict, ctx->gpr_conflict, already_written);
+        tcg_gen_ori_tl(ctx->gpr_written, ctx->gpr_written, 1 << rnum);
+        gen_set_label(skip);
+    }
+}
+
+static void gen_check_reg_write_pair(DisasContext *ctx, int rnum)
+{
+    gen_check_reg_write(ctx, rnum);
+    gen_check_reg_write(ctx, rnum + 1);
+}
+
 #define IMMUTABLE (~0)
 
 const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {
@@ -1231,11 +1261,15 @@ static void gen_cond_return(DisasContext *ctx, TCGv_i64 dst, TCGv src,
 {
     TCGv LSB = tcg_temp_new();
     TCGLabel *skip = gen_new_label();
+    TCGLabel *end = gen_new_label();
     tcg_gen_andi_tl(LSB, pred, 1);
 
     tcg_gen_brcondi_tl(cond, LSB, 0, skip);
     gen_return(ctx, dst, src);
+    tcg_gen_br(end);
     gen_set_label(skip);
+    gen_cancel(ctx->insn->slot);
+    gen_set_label(end);
 }
 
 /* sub-instruction version (no RddV, so handle it manually) */

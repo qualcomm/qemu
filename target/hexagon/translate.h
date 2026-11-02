@@ -40,6 +40,7 @@ typedef struct DisasContext {
     bool pkt_ends_tb;
     DECLARE_BITMAP(gpr_multi_write, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(gpr_uncond, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(gpr_uncond_multi_write, TOTAL_PER_THREAD_REGS);
     bool implicit_usr_write;
 #ifndef CONFIG_USER_ONLY
     uint32_t cpu_mode;
@@ -97,6 +98,9 @@ typedef struct DisasContext {
     TCGv new_pred_value[NUM_PREGS];
     TCGv branch_taken;
     TCGv dczero_addr;
+    /* Run-time GPR write-conflict tracking, see gen_check_reg_write() */
+    TCGv gpr_written;
+    TCGv gpr_conflict;
     bool hvx_coproc_enabled;
     bool hvx_check_emitted;
     bool hlx_coproc_enabled;
@@ -232,8 +236,8 @@ static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
         }
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_regs);
-        } else {
-            set_bit(rnum, ctx->gpr_uncond);
+        } else if (test_and_set_bit(rnum, ctx->gpr_uncond)) {
+            set_bit(rnum, ctx->gpr_uncond_multi_write);
         }
     }
 }

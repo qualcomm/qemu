@@ -350,12 +350,16 @@
     do { \
         TCGv LSB = tcg_temp_new(); \
         TCGLabel *label = gen_new_label(); \
+        TCGLabel *end = gen_new_label(); \
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, SIZE, LSB); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, SIZE, SIGN, EA, RdV); \
+        tcg_gen_br(end); \
         gen_set_label(label); \
+        gen_cancel(insn->slot); \
+        gen_set_label(end); \
     } while (0)
 
 #define fGEN_TCG_L2_ploadrubt_pi(SHORTCODE) \
@@ -407,12 +411,16 @@
     do { \
         TCGv LSB = tcg_temp_new(); \
         TCGLabel *label = gen_new_label(); \
+        TCGLabel *end = gen_new_label(); \
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, 8, LSB); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, 8, u, EA, RddV); \
+        tcg_gen_br(end); \
         gen_set_label(label); \
+        gen_cancel(insn->slot); \
+        gen_set_label(end); \
     } while (0)
 
 #define fGEN_TCG_L2_ploadrdt_pi(SHORTCODE) \

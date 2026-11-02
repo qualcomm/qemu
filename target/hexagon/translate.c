@@ -327,9 +327,27 @@ static bool check_for_opcode(Packet *pkt, uint16_t opcode)
 }
 #endif
 
-static bool need_slot_cancelled(Packet *pkt)
+/*
+ * A GPR that is written more than once in a packet is only a conflict if
+ * more than one of the writes happens, which is known when the packet runs.
+ */
+static bool pkt_has_gpr_multi_write(DisasContext *ctx)
 {
-    /* We only need slot_cancelled for conditional store instructions */
+    return find_first_bit(ctx->gpr_multi_write, NUM_GPREGS) < NUM_GPREGS;
+}
+
+static bool need_slot_cancelled(DisasContext *ctx)
+{
+    Packet *pkt = &ctx->pkt;
+
+    /*
+     * We need slot_cancelled for conditional store instructions and to
+     * tell whether a conditional GPR write that is not the only write to
+     * its register happened.
+     */
+    if (pkt_has_gpr_multi_write(ctx)) {
+        return true;
+    }
     for (int i = 0; i < pkt->num_insns; i++) {
         uint16_t opcode = pkt->insn[i].opcode;
         if (GET_ATTRIB(opcode, A_CONDEXEC) &&
@@ -680,6 +698,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
 #endif
     bitmap_zero(ctx->gpr_multi_write, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->gpr_uncond, TOTAL_PER_THREAD_REGS);
+    bitmap_zero(ctx->gpr_uncond_multi_write, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -720,8 +739,16 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
 {
     DECLARE_BITMAP(gpr_conflict, TOTAL_PER_THREAD_REGS);
 
+    /*
+     * Two unconditional writes to a GPR always conflict.  The other
+     * cases involve a conditional write, which only conflicts if it
+     * is not cancelled.  The GPRs are checked as the packet runs.
+     */
     bitmap_and(gpr_conflict, ctx->gpr_multi_write, ctx->gpr_uncond,
                TOTAL_PER_THREAD_REGS);
+    bitmap_clear(gpr_conflict, 0, NUM_GPREGS);
+    bitmap_or(gpr_conflict, gpr_conflict, ctx->gpr_uncond_multi_write,
+              TOTAL_PER_THREAD_REGS);
     if (!bitmap_empty(gpr_conflict, TOTAL_PER_THREAD_REGS)) {
         return true;
     }
@@ -819,8 +846,14 @@ static void gen_start_packet(DisasContext *ctx)
 #endif
 
     /* Initialize the runtime state for packet semantics */
-    if (need_slot_cancelled(&ctx->pkt)) {
+    if (need_slot_cancelled(ctx)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
+    }
+    if (pkt_has_gpr_multi_write(ctx)) {
+        ctx->gpr_written = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->gpr_written, 0);
+        ctx->gpr_conflict = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->gpr_conflict, 0);
     }
     if (pkt_has_hlx_store(&ctx->pkt)) {
         /* An earlier fault can leave a store logged. */
@@ -1367,6 +1400,14 @@ static void check_imprecise_exception(DisasContext *ctx)
 
 static void gen_commit_packet(DisasContext *ctx)
 {
+    if (pkt_has_gpr_multi_write(ctx)) {
+        TCGLabel *no_conflict = gen_new_label();
+
+        tcg_gen_brcondi_tl(TCG_COND_EQ, ctx->gpr_conflict, 0, no_conflict);
+        gen_precise_exception(HEX_CAUSE_REG_WRITE_CONFLICT, ctx->pkt.pc);
+        gen_set_label(no_conflict);
+    }
+
     /*
      * If there is more than one store in a packet, make sure they are all OK
      * before proceeding with the rest of the packet commit.
@@ -1516,8 +1557,8 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         }
 
         if (pkt_has_write_conflict(ctx)) {
-            gen_exception_decode_fail(ctx, words_read,
-                                      HEX_CAUSE_REG_WRITE_CONFLICT);
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_REG_WRITE_CONFLICT);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
             return;
         }
 #ifndef CONFIG_USER_ONLY

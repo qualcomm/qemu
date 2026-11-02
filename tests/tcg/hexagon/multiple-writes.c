@@ -2,10 +2,11 @@
  * Test detection of multiple writes to the same register.
  *
  * Ported from the system test (tests/tcg/hexagon/system/multiple_writes.c).
- * In linux-user mode, duplicate GPR writes are detected at translate time
- * and raise SIGILL when at least one conflicting write is unconditional.
- * Purely predicated duplicate writes (e.g., complementary if/if-not) are
- * legal and are not flagged statically.
+ * In linux-user mode, two unconditional writes to a GPR are detected at
+ * translate time and raise SIGILL.  A write that is predicated only
+ * conflicts with another write to the same register if it is not
+ * cancelled, which is detected when the packet runs.  Complementary
+ * predicated writes (if/if-not) are therefore legal.
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -126,6 +127,51 @@ static int test_mixed_writes(void)
  * packet.  This tests what happens when we jump to zeroed memory.
  * Must raise SIGILL.
  */
+/* Both predicates are true, so both writes happen */
+static int test_predicated_both_true(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        "p1 = cmp.eq(r0, r0)\n"
+        ".word 0x7e204021\n"  /* if (p1) r1 = #1, parse=01 */
+        ".word 0x7e20c021\n"  /* if (p1) r1 = #1, parse=11 (end) */
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "p1", "memory");
+
+    return sig;
+}
+
+/* The predicated write is cancelled, so only the unconditional one happens */
+static int test_cancelled_with_uncond(void)
+{
+    int sig;
+    int result;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%2) = r1\n"
+        "p1 = cmp.gt(r0, r0)\n"
+        "r1 = #0\n"
+        ".word 0x7e204021\n"  /* if (p1) r1 = #1, parse=01 */
+        ".word 0x7800c021\n"  /* r1 = #1, parse=11 (end) */
+        "%1 = r1\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig), "=r"(result)
+        : "r"(&resume_pc)
+        : "r0", "r1", "p1", "memory");
+
+    return sig == SIGILL ? SIGILL : result;
+}
+
 static int test_zero(void)
 {
     int sig;
@@ -397,6 +443,12 @@ int main()
 
     /* Illegal: unconditional + predicated writes to same reg must SIGILL */
     assert(test_mixed_writes() == SIGILL);
+
+    /* Illegal: two predicated writes that both happen */
+    assert(test_predicated_both_true() == SIGILL);
+
+    /* Legal: the predicated write to the same register is cancelled */
+    assert(test_cancelled_with_uncond() == 1);
 
     /* Illegal: zero encoding = duplex with duplicate dest R0 */
     assert(test_zero() == SIGILL);
