@@ -509,7 +509,10 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
     env->cfi_active = 0;
     env->cfi_active_log = 0;
     env->cfi_updated = 0;
-    memset(&env->pmu, 0, sizeof(env->pmu));
+    /*
+     * Starting a thread does not reset the PMU, whose counters keep
+     * running across the thread's restarts.
+     */
     env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
