@@ -137,6 +137,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         clears the reservation."""
         self.run_exit_zero("llsc_on_excp")
 
+    def test_pmu(self):
+        """PMU event counters count packets per thread and are visible
+        through the guest and user aliases only when SSR:PE is set."""
+        self.run_exit_zero("pmu")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")

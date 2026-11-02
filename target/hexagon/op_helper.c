@@ -2120,6 +2120,22 @@ uint32_t HELPER(upcycle_read)(CPUHexagonState *env, uint32_t sreg)
     return sreg_read(env, sreg);
 }
 
+/*
+ * UPMUCNT0-7 are the user-visible alias of the PMU counters, readable
+ * without privilege but only once SSR[PE] is set.
+ */
+uint32_t HELPER(upmucnt_read)(CPUHexagonState *env, uint32_t sreg)
+{
+    uint32_t ssr;
+
+    BQL_LOCK_GUARD();
+    ssr = env->t_sreg[HEX_SREG_SSR];
+    if (!GET_SSR_FIELD(SSR_PE, ssr)) {
+        return 0;
+    }
+    return sreg_read(env, sreg);
+}
+
 uint64_t HELPER(upcycle_read_pair)(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);

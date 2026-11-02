@@ -346,7 +346,7 @@ uint32_t hexagon_get_pmu_greg(CPUHexagonState *env, uint32_t greg)
 {
     uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
 
-    if (!GET_SSR_FIELD(SSR_CE, ssr)) {
+    if (!GET_SSR_FIELD(SSR_PE, ssr)) {
         return 0;
     }
     return hexagon_get_pmu_counter(env, pmu_index_from_greg(greg));

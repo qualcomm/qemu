@@ -42,9 +42,9 @@ a link to that device, which holds the 8 configurable event counters
 (``PMUCNT0``-``PMUCNT7``)
 and their event-select registers (``PMUEVTCFG``, ``PMUEVTCFG1``,
 ``PMUCFG``, ``PMUSTID0``, ``PMUSTID1``), plus the ``GPMUCNT0``-``GPMUCNT7``
-global-monitor aliases (readable when ``SSR.CE`` is set, like ``GPCYCLE``).
-The read-only ``UPMUCNT0``-``UPMUCNT7`` user-mode aliases are also
-implemented.
+global-monitor aliases (readable when ``SSR.PE`` is set).
+The read-only ``UPMUCNT0``-``UPMUCNT7`` user-mode aliases, which are also
+readable only when ``SSR.PE`` is set, are implemented too.
 
 Linux-user has no privileged PMU register interface, so it cannot model an
 operating system selecting arbitrary events.  For userspace profiling,

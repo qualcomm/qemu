@@ -506,7 +506,7 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
                                HEX_SREG_PMUCNT4 + index - 4;
 
         translator_io_start(&ctx->base);
-        gen_helper_sreg_read(dest, tcg_env, tcg_constant_i32(sreg));
+        gen_helper_upmucnt_read(dest, tcg_env, tcg_constant_i32(sreg));
 #else
     } else if (reg_num >= HEX_REG_UPMUCNT0 && reg_num <= HEX_REG_UPMUCNT7) {
         switch (reg_num - HEX_REG_UPMUCNT0) {
