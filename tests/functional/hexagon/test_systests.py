@@ -128,6 +128,10 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """QTimer frame versions match and both frames interrupt."""
         self.run_exit_zero("qtimer_test")
 
+    def test_mmu_cacheops(self):
+        """Cache operations raise TLB miss and privilege exceptions."""
+        self.run_exit_zero("mmu_cacheops")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
