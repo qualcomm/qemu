@@ -110,6 +110,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
         both writes happen, whether the writes are conditional or not."""
         self.run_exit_zero("multiple_writes")
 
+    def test_float_excp(self):
+        """Unmasked floating point exceptions are taken after the packet
+        that caused them commits."""
+        self.run_exit_zero("float_excp")
+
     def test_access(self):
         """access checks R_OK|W_OK on _testfile_access."""
         testfile = self.scratch_file("_testfile_access")
