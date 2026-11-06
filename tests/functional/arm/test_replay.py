@@ -24,9 +24,10 @@ class ArmReplay(ReplayKernelBase):
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1)
 
     ASSET_CUBIE_KERNEL = Asset(
-        ('https://apt.armbian.com/pool/main/l/linux-6.6.16/'
-         'linux-image-current-sunxi_24.2.1_armhf_'
-         '_6.6.16-Seb3e-D6b4a-P2359-Ce96bHfe66-HK01ba-V014b-B067e-R448a.deb'),
+        #('https://apt.armbian.com/pool/main/l/linux-6.6.16/'
+        # 'linux-image-current-sunxi_24.2.1_armhf_'
+        # '_6.6.16-Seb3e-D6b4a-P2359-Ce96bHfe66-HK01ba-V014b-B067e-R448a.deb'),
+        ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/3d968c15b121ede871dce49d13ee7644d6f74b6b121b84c9a40f51b0c80d6d22.deb'),
         '3d968c15b121ede871dce49d13ee7644d6f74b6b121b84c9a40f51b0c80d6d22')
 
     ASSET_CUBIE_INITRD = Asset(
