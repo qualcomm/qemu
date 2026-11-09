@@ -720,7 +720,7 @@ static void v73m_config_init(MachineState *machine)
 
 static void SA8775P_cdsp0_config_init(MachineState *machine)
 {
-    hexagon_common_init(machine, &SA8775P_cdsp0, ON_OFF_AUTO_ON);
+    hexagon_common_init(machine, &SA8775P_cdsp0, ON_OFF_AUTO_AUTO);
 
     /* Create and map the TCSR device */
     DeviceState *tcsr = qdev_new(TYPE_TCSR);
