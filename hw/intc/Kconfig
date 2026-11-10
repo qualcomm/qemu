@@ -91,6 +91,10 @@ config RISCV_IMSIC
     bool
     select MSI_NONBROKEN
 
+config RISCV_CLIC
+    bool
+    depends on RISCV32 || RISCV64
+
 config SIFIVE_PLIC
     bool
     select MSI_NONBROKEN

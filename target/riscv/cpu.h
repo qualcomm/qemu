@@ -583,6 +583,7 @@ struct ArchCPU {
     /* Configuration Settings */
     RISCVCPUConfig cfg;
     RISCVSATPModes satp_modes;
+    struct RiscvCLICState *clic;
 
     QEMUTimer *pmu_timer;
     /* A bitmask of Available programmable counters */

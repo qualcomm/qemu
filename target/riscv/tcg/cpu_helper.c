@@ -40,6 +40,12 @@
 #include "pmp.h"
 #include "qemu/plugin.h"
 #include "libqemu/wrappers/target/riscv-callbacks.h"
+#ifndef CONFIG_USER_ONLY
+#include CONFIG_DEVICES
+#ifdef CONFIG_RISCV_CLIC
+#include "hw/intc/riscv_clic.h"
+#endif
+#endif
 
 int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
 {
@@ -435,6 +441,14 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
         }
     }
 
+#ifdef CONFIG_RISCV_CLIC
+    if (env_archcpu(env)->clic && (env->mtvec & 3) == 2) {
+        if (env->priv == PRV_M && !(env->mstatus & MSTATUS_MIE)) {
+            return RISCV_EXCP_NONE;
+        }
+        return riscv_clic_pending(env_archcpu(env)->clic);
+    }
+#endif
     /* Determine interrupt enable state of all privilege modes */
     if (env->virt_enabled) {
         mie = 1;

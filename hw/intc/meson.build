@@ -93,3 +93,5 @@ specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_LOONGARCH_EXTIOI'],
 specific_ss.add(when: 'CONFIG_LOONGARCH_DINTC', if_true: files('loongarch_dintc.c'))
 specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_LOONGARCH_DINTC'],
                if_true: files('loongarch_dintc_kvm.c'))
+
+specific_ss.add(when: 'CONFIG_RISCV_CLIC', if_true: files('riscv_clic.c'))
