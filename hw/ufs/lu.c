@@ -58,6 +58,15 @@ static void ufs_build_scsi_response_upiu(UfsRequest *req, uint8_t *sense,
                           status, data_segment_length);
 }
 
+void ufs_build_scsi_lun_not_supported_response(UfsRequest *req)
+{
+    uint8_t sense_buf[UFS_SENSE_SIZE];
+
+    scsi_build_sense(sense_buf, SENSE_CODE(LUN_NOT_SUPPORTED));
+    ufs_build_scsi_response_upiu(req, sense_buf, sizeof(sense_buf), 0,
+                                 CHECK_CONDITION);
+}
+
 #define UFS_GROUP_NUMBER_MASK 0x1F
 #define UFS_WB_GROUP_NUMBER_DEFAULT 0x00 /* 00000b */
 #define UFS_WB_GROUP_NUMBER_PINNED 0x18 /* 11000b */
@@ -188,6 +197,12 @@ static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
     scsi_req_unref(scsi_req);
 }
 
+static void ufs_scsi_command_cancelled(SCSIRequest *scsi_req)
+{
+    scsi_req->hba_private = NULL;
+    scsi_req_unref(scsi_req);
+}
+
 static QEMUSGList *ufs_get_sg_list(SCSIRequest *scsi_req)
 {
     UfsRequest *req = scsi_req->hba_private;
@@ -202,6 +217,7 @@ static const struct SCSIBusInfo ufs_scsi_info = {
 
     .get_sg_list = ufs_get_sg_list,
     .complete = ufs_scsi_command_complete,
+    .cancel = ufs_scsi_command_cancelled,
 };
 
 static int ufs_emulate_report_luns(UfsRequest *req, uint8_t *outbuf,
