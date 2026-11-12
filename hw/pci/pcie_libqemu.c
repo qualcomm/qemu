@@ -6,6 +6,7 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "hw/core/resettable.h"
 
 #include "hw/core/qdev-properties.h"
 #include "hw/pci/pcie_regs.h"
@@ -86,6 +87,15 @@ static uint8_t encode_pci_attrs(const LibQemuPCIeBar* bar)
     return attr;
 }
 
+static void libqemu_pcie_reset_hold(Object* obj, ResetType type)
+{
+    PCIDevice* dev = PCI_DEVICE(obj);
+
+    if (dev->exp.pasid_cap) {
+        pci_set_word(dev->config + dev->exp.pasid_cap + PCI_PASID_CTRL, 0);
+    }
+}
+
 static void libqemu_pcie_realize(PCIDevice* dev, Error** errp)
 {
     LibQemuPCIeState* s = LIBQEMU_PCIE(dev);
@@ -109,6 +119,14 @@ static void libqemu_pcie_realize(PCIDevice* dev, Error** errp)
     for (uint8_t i = 0; i < LIBQEMU_BARS; ++i) {
         if (!check_bar(s, &s->bars[i], i, errp)) {
             return;
+        }
+    }
+
+    if (s->pasid_width && !s->pasid_cap_offset) {
+        if (s->vf_nb && s->sriov_cap_offset == PCI_CONFIG_SPACE_SIZE) {
+            s->pasid_cap_offset = DEFAULT_PASID_CAP_OFFSET;
+        } else {
+            s->pasid_cap_offset = PCI_CONFIG_SPACE_SIZE;
         }
     }
 
@@ -298,7 +316,7 @@ static const Property libqemu_pcie_properties[] = {
 
     // PASID
     DEFINE_PROP_UINT8("pasid-width", LibQemuPCIeState, pasid_width, 0),
-    DEFINE_PROP_UINT16("pasid-cap-offset", LibQemuPCIeState, pasid_cap_offset, DEFAULT_PASID_CAP_OFFSET),
+    DEFINE_PROP_UINT16("pasid-cap-offset", LibQemuPCIeState, pasid_cap_offset, 0),
     DEFINE_PROP_BOOL("pasid-exec", LibQemuPCIeState, pasid_exec, false),
     DEFINE_PROP_BOOL("pasid-priv", LibQemuPCIeState, pasid_priv, false),
 };
@@ -307,6 +325,9 @@ static void libqemu_pcie_class_init(ObjectClass* class, const void* data)
 {
     DeviceClass* dc = DEVICE_CLASS(class);
     PCIDeviceClass* pdc = PCI_DEVICE_CLASS(dc);
+    ResettableClass* rc = RESETTABLE_CLASS(class);
+
+    rc->phases.hold = libqemu_pcie_reset_hold;
 
     pdc->realize = libqemu_pcie_realize;
     pdc->exit = pcie_cap_exit;

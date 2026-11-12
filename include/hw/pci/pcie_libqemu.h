@@ -53,7 +53,7 @@ typedef struct LibQemuPCIeState {
     uint8_t pcie_type;
     uint8_t pcie_cap_offset;
 
-    // BAR
+    // BARs
     size_t bars_nb;
     LibQemuPCIeBar bars[LIBQEMU_BARS];
 
