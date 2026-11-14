@@ -1522,6 +1522,15 @@ static void gen_commit_packet(DisasContext *ctx)
         gen_helper_hlx_commit_store(tcg_env);
     }
 
+    /*
+     * The HLX registers go to the context the packet ran with.  A write to
+     * CCR in the packet only takes effect after the packet, so commit them
+     * before it can change the context.
+     */
+    if (ctx->pkt.pkt_has_hlx) {
+        gen_commit_hlx(ctx);
+    }
+
     gen_reg_writes(ctx);
 #ifndef CONFIG_USER_ONLY
     gen_greg_writes(ctx);
@@ -1530,9 +1539,6 @@ static void gen_commit_packet(DisasContext *ctx)
     gen_pred_writes(ctx);
     if (ctx->pkt.pkt_has_hvx) {
         gen_commit_hvx(ctx);
-    }
-    if (ctx->pkt.pkt_has_hlx) {
-        gen_commit_hlx(ctx);
     }
     if (ctx->pkt.pkt_has_hmx) {
         gen_helper_hmx_commit_packet(tcg_env);
