@@ -252,6 +252,12 @@ static inline void ctx_log_reg_write_pair(DisasContext *ctx, int rnum,
 
 static inline void ctx_log_reg_read(DisasContext *ctx, int rnum)
 {
+    if (rnum == HEX_REG_P3_0_ALIASED) {
+        /* C4 is the four predicate registers: it reads what they held */
+        for (int i = 0; i < NUM_PREGS; i++) {
+            ctx_log_pred_read(ctx, i);
+        }
+    }
     if (test_bit(rnum, ctx->regs_written)) {
         ctx->read_after_write = true;
     }
