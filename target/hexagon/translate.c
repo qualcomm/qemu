@@ -526,6 +526,14 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
             is_predicated = true;
         }
 
+        /*
+         * Only the first change of flow in a packet is taken, and a call
+         * that is not taken does not write LR.
+         */
+        if (rnum == HEX_REG_LR && ctx->pkt.pkt_has_multi_cof) {
+            is_predicated = true;
+        }
+
         ctx_log_reg_write(ctx, rnum, is_predicated);
     }
 }

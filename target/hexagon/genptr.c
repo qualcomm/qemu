@@ -1099,10 +1099,28 @@ static void gen_jumpr(DisasContext *ctx, TCGv new_pc)
     gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
 }
 
-static void gen_call(DisasContext *ctx, int pc_off)
+/*
+ * A call writes LR, unless it is not executed because a change of flow
+ * earlier in the packet was taken.
+ */
+static void gen_call_lr(DisasContext *ctx)
 {
     TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
+    TCGLabel *skip = NULL;
+
+    if (ctx->pkt.pkt_has_multi_cof) {
+        skip = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_NE, ctx->branch_taken, 0, skip);
+    }
     tcg_gen_movi_tl(lr, ctx->next_PC);
+    if (skip) {
+        gen_set_label(skip);
+    }
+}
+
+static void gen_call(DisasContext *ctx, int pc_off)
+{
+    gen_call_lr(ctx);
     gen_write_new_pc_pcrel(ctx, pc_off, TCG_COND_ALWAYS, NULL);
 }
 
@@ -1111,19 +1129,19 @@ static void gen_callr(DisasContext *ctx, TCGv new_pc)
     TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
 
     new_pc = gen_unalias_gpr_src(new_pc, lr);
-    tcg_gen_movi_tl(lr, ctx->next_PC);
+    gen_call_lr(ctx);
     gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
 }
 
 static void gen_cond_call(DisasContext *ctx, TCGv pred,
                           TCGCond cond, int pc_off)
 {
-    TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
-    TCGLabel *skip = gen_new_label();
+    TCGLabel *pred_false = gen_new_label();
+
+    tcg_gen_brcondi_tl(cond, pred, 1, pred_false);
+    gen_call_lr(ctx);
+    gen_set_label(pred_false);
     gen_write_new_pc_pcrel(ctx, pc_off, cond, pred);
-    tcg_gen_brcondi_tl(cond, pred, 1, skip);
-    tcg_gen_movi_tl(lr, ctx->next_PC);
-    gen_set_label(skip);
 }
 
 static void gen_cond_callr(DisasContext *ctx,
