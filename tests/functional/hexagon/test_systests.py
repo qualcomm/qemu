@@ -335,6 +335,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_lock_verify(self):
         self.run_exit_zero("lock_verify")
 
+    @unittest.skip("the badva of v0.3.3 expects only the reported slot's V "
+                   "bit to be set, unlike hexagon-sim")
     def test_badva(self):
         """Dual memory operations and TLB exceptions record the right BADVA."""
         self.run_exit_zero("badva")

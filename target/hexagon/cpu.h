@@ -201,6 +201,15 @@ typedef struct CPUArchState {
     uint8_t slot_cancelled;
 
 #ifndef CONFIG_USER_ONLY
+    /*
+     * The slots of the current packet that access memory, and which of
+     * them is accessing it when both do.
+     */
+    uint8_t pkt_mem_slots;
+    uint8_t mem_fault_slot;
+    /* The address to report instead of the faulting one, for VMEMU */
+    bool badva_override_valid;
+    uint32_t badva_override;
     /* Some system registers are per thread and some are global. */
     uint32_t t_sreg[NUM_SREGS];
 

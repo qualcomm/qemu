@@ -1701,6 +1701,11 @@ static void gen_vreg_load(DisasContext *ctx, TCGv_ptr dstbase,
     TCGv_i64 tmp = tcg_temp_new_i64();
     if (aligned) {
         tcg_gen_andi_tl(src, src, ~((int32_t)VECTOR_SIZE_BYTE - 1));
+#ifndef CONFIG_USER_ONLY
+    } else {
+        gen_helper_vmemu_probe(tcg_env, src, tcg_constant_tl(0),
+                               tcg_constant_tl(ctx->mem_idx));
+#endif
     }
     for (int i = 0; i < VECTOR_SIZE_BYTE / 8; i++) {
         tcg_gen_qemu_ld_i64(tmp, src, ctx->mem_idx, MO_LE | MO_UQ);

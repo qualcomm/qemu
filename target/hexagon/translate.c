@@ -363,6 +363,13 @@ static bool need_slot_cancelled(DisasContext *ctx)
             GET_ATTRIB(opcode, A_SCALAR_STORE)) {
             return true;
         }
+#ifndef CONFIG_USER_ONLY
+        /* An exception reports the slots that access memory */
+        if (GET_ATTRIB(opcode, A_CONDEXEC) &&
+            (GET_ATTRIB(opcode, A_LOAD) || GET_ATTRIB(opcode, A_STORE))) {
+            return true;
+        }
+#endif
     }
     return false;
 }
@@ -827,6 +834,41 @@ static bool pkt_has_hlx_store(Packet *pkt)
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * The slots of the packet that access memory in bits 1:0, and those among
+ * them that are conditional in bits 3:2.
+ */
+static uint8_t pkt_mem_slots(Packet *pkt)
+{
+    uint8_t slots = 0;
+
+    for (int i = 0; i < pkt->num_insns; i++) {
+        int opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_LOAD) || GET_ATTRIB(opcode, A_STORE)) {
+            slots |= 1 << pkt->insn[i].slot;
+            if (GET_ATTRIB(opcode, A_CONDEXEC)) {
+                slots |= 4 << pkt->insn[i].slot;
+            }
+        }
+    }
+    return slots;
+}
+
+/*
+ * A fault of a memory access is reported with the slot that made it.  When
+ * the packet has a single memory access that is known from the packet,
+ * otherwise say which of the two is running.
+ */
+static void gen_mem_fault_slot(DisasContext *ctx, int slot)
+{
+    if ((pkt_mem_slots(&ctx->pkt) & 3) == 3) {
+        tcg_gen_st8_i32(tcg_constant_i32(slot), tcg_env,
+                        offsetof(CPUHexagonState, mem_fault_slot));
+    }
+}
+#endif
+
 static void gen_start_packet(DisasContext *ctx)
 {
     int i;
@@ -877,6 +919,12 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_st8_i32(tcg_constant_i32(0), tcg_env,
                         offsetof(CPUHexagonState, hlx_store_pending));
     }
+#ifndef CONFIG_USER_ONLY
+    if (pkt_mem_slots(&ctx->pkt)) {
+        tcg_gen_st8_i32(tcg_constant_i32(pkt_mem_slots(&ctx->pkt)), tcg_env,
+                        offsetof(CPUHexagonState, pkt_mem_slots));
+    }
+#endif
     ctx->branch_taken = NULL;
     if (ctx->pkt.pkt_has_cof) {
         ctx->branch_taken = tcg_temp_new();
@@ -1032,6 +1080,11 @@ static void gen_insn(DisasContext *ctx)
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     }
 
+#ifndef CONFIG_USER_ONLY
+    if (GET_ATTRIB(opcode, A_LOAD)) {
+        gen_mem_fault_slot(ctx, ctx->insn->slot);
+    }
+#endif
     if (ctx->insn->generate) {
         ctx->insn->generate(ctx);
         mark_store_width(ctx);
@@ -1184,6 +1237,9 @@ void process_store(DisasContext *ctx, int slot_num)
     {
         TCGv address = tcg_temp_new();
         tcg_gen_mov_tl(address, hex_store_addr[slot_num]);
+#ifndef CONFIG_USER_ONLY
+        gen_mem_fault_slot(ctx, slot_num);
+#endif
 
         /*
          * If we know the width from the DisasContext, we can
@@ -1229,6 +1285,12 @@ void process_store(DisasContext *ctx, int slot_num)
     if (is_predicated) {
         gen_set_label(label_end);
     }
+#ifndef CONFIG_USER_ONLY
+    /* A load that had the store processed ahead of it is still running */
+    if (ctx->insn && GET_ATTRIB(ctx->insn->opcode, A_LOAD)) {
+        gen_mem_fault_slot(ctx, ctx->insn->slot);
+    }
+#endif
 }
 
 static void process_store_log(DisasContext *ctx)
@@ -1495,18 +1557,23 @@ static void gen_commit_packet(DisasContext *ctx)
         }
     } else if (has_store_s0 && has_store_s1) {
         /*
-         * process_store_log will execute the slot 1 store first,
-         * so we only have to probe the store in slot 0
+         * process_store_log will execute the slot 1 store first, but the
+         * packet must not change anything when either store faults, and
+         * the exception of slot 1 has priority.
          */
-        int args = 0;
-        args =
-            FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX, ctx->mem_idx);
+        int mask = 0;
+
+        mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0, 1);
+        mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST1, 1);
         if (slot_is_predicated(&ctx->pkt, 0)) {
-            args =
-                FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED, 1);
+            mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED, 1);
         }
-        TCGv args_tcgv = tcg_constant_tl(args);
-        gen_helper_probe_pkt_scalar_store_s0(tcg_env, args_tcgv);
+        if (slot_is_predicated(&ctx->pkt, 1)) {
+            mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED, 1);
+        }
+        mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,
+                          ctx->mem_idx);
+        gen_helper_probe_pkt_scalar_hvx_stores(tcg_env, tcg_constant_tl(mask));
     }
 
     if (ctx->hex_def->hex_version >= HEX_VER_V83) {

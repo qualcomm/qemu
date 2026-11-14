@@ -129,6 +129,9 @@ static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
     target_ulong va = env->mem_log_stores[slot_num].va;
     MemOpIdx oi;
 
+#ifndef CONFIG_USER_ONLY
+    env->mem_fault_slot = slot_num;
+#endif
     switch (width) {
     case 1:
         cpu_stb_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
@@ -445,6 +448,14 @@ static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         uint32_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
+#ifndef CONFIG_USER_ONLY
+        env->mem_fault_slot = slot;
+        /* A misaligned store faults ahead of its TLB miss, before the packet */
+        if (width > 1 && (va & (width - 1))) {
+            hexagon_cpu_do_unaligned_access(env_cpu(env), va, MMU_DATA_STORE,
+                                            mmu_idx, retaddr);
+        }
+#endif
         probe_write(env, va, width, mmu_idx, retaddr);
     }
 }
@@ -457,18 +468,56 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
                                int size, int mmu_idx)
 {
     uintptr_t retaddr = GETPC();
+
+#ifndef CONFIG_USER_ONLY
+    /* The slot 1 store has priority over the load in slot 0 */
+    probe_store(env, 1, mmu_idx, true, retaddr);
+    env->mem_fault_slot = 0;
+    if (size > 1 && (va & (size - 1))) {
+        hexagon_cpu_do_unaligned_access(env_cpu(env), va, MMU_DATA_LOAD,
+                                        mmu_idx, retaddr);
+    }
+#endif
     probe_read(env, va, size, mmu_idx, retaddr);
 }
 
-/* Called during packet commit when there are two scalar stores */
-void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
+#ifndef CONFIG_USER_ONLY
+/*
+ * An unaligned vector access is two transactions: an aligned vector in slot
+ * 0, and the next one in slot 1.  Slot 1 has priority, so its page is probed
+ * first.  The exceptions report the address of the access for slot 0 and
+ * that plus the vector size for slot 1.
+ */
+static void vmemu_probe(CPUHexagonState *env, target_ulong va, bool store,
+                        int mmu_idx, uintptr_t ra)
 {
-    int mmu_idx = FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX);
-    bool is_predicated =
-        FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED);
-    uintptr_t ra = GETPC();
-    probe_store(env, 0, mmu_idx, is_predicated, ra);
+    target_ulong block = va & ~((target_ulong)VECTOR_SIZE_BYTE - 1);
+
+    if (block == va) {
+        return;
+    }
+    env->pkt_mem_slots |= 3;
+    for (int slot = 1; slot >= 0; slot--) {
+        target_ulong addr = slot ? block + VECTOR_SIZE_BYTE : va;
+
+        env->mem_fault_slot = slot;
+        env->badva_override = slot ? va + VECTOR_SIZE_BYTE : va;
+        env->badva_override_valid = true;
+        if (store) {
+            probe_write(env, addr, 1, mmu_idx, ra);
+        } else {
+            probe_read(env, addr, 1, mmu_idx, ra);
+        }
+        env->badva_override_valid = false;
+    }
 }
+
+void HELPER(vmemu_probe)(CPUHexagonState *env, uint32_t va, uint32_t store,
+                         uint32_t mmu_idx)
+{
+    vmemu_probe(env, va, store, mmu_idx, GETPC());
+}
+#endif
 
 static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
                                     uintptr_t retaddr)
@@ -478,6 +527,11 @@ static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
         if (env->vstore_pending[i]) {
             target_ulong va = env->vstore[i].va;
             int size = env->vstore[i].size;
+#ifndef CONFIG_USER_ONLY
+            if (size == VECTOR_SIZE_BYTE) {
+                vmemu_probe(env, va, true, mmu_idx, retaddr);
+            }
+#endif
             for (int j = 0; j < size; j++) {
                 if (test_bit(j, env->vstore[i].mask)) {
                     probe_write(env, va + j, 1, mmu_idx, retaddr);
@@ -526,11 +580,12 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
     int mmu_idx = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX);
     uintptr_t ra = GETPC();
 
-    if (has_st0) {
-        probe_store(env, 0, mmu_idx, s0_is_pred, ra);
-    }
+    /* The exception of slot 1 has priority */
     if (has_st1) {
         probe_store(env, 1, mmu_idx, s1_is_pred, ra);
+    }
+    if (has_st0) {
+        probe_store(env, 0, mmu_idx, s0_is_pred, ra);
     }
     if (has_hvx_stores) {
         probe_hvx_stores(env, mmu_idx, ra);

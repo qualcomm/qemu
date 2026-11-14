@@ -833,41 +833,62 @@ static bool hexagon_cpu_translate_for_debug(CPUState *cs, vaddr addr,
 }
 
 
-#define INVALID_BADVA 0xbadabada
-
-static void set_badva_regs(CPUHexagonState *env, uint32_t VA, int slot,
-                           MMUAccessType access_type)
+/* The slot of the memory access that is faulting */
+static int mem_fault_slot(CPUHexagonState *env)
 {
-    env->t_sreg[HEX_SREG_BADVA] = VA;
-
-    if (access_type == MMU_INST_FETCH || slot == 0) {
-        env->t_sreg[HEX_SREG_BADVA0] = VA;
-        env->t_sreg[HEX_SREG_BADVA1] = INVALID_BADVA;
-        SET_SSR_FIELD(env, SSR_V0, 1);
-        SET_SSR_FIELD(env, SSR_V1, 0);
-        SET_SSR_FIELD(env, SSR_BVS, 0);
-    } else if (slot == 1) {
-        env->t_sreg[HEX_SREG_BADVA0] = INVALID_BADVA;
-        env->t_sreg[HEX_SREG_BADVA1] = VA;
-        SET_SSR_FIELD(env, SSR_V0, 0);
-        SET_SSR_FIELD(env, SSR_V1, 1);
-        SET_SSR_FIELD(env, SSR_BVS, 1);
-    } else {
-        g_assert_not_reached();
+    switch (env->pkt_mem_slots & 3) {
+    case 2:
+        return 1;
+    case 3:
+        return env->mem_fault_slot & 1;
+    default:
+        return 0;
     }
 }
 
-static void raise_tlbmiss_exception(CPUState *cs, uint32_t VA, int slot,
+/*
+ * V0 and V1 say which slots of the packet have a memory access, BVS the one
+ * whose address the exception reports.  The BADVA of a slot is only written
+ * when that slot faults.
+ */
+static void set_badva_regs(CPUHexagonState *env, uint32_t VA,
+                           MMUAccessType access_type)
+{
+    int slot = access_type == MMU_INST_FETCH ? 0 : mem_fault_slot(env);
+    uint8_t valid = 1;
+
+    if (access_type != MMU_INST_FETCH) {
+        /* A conditional access that was cancelled is not a valid one */
+        valid = env->pkt_mem_slots & 3 &
+                ~(env->slot_cancelled & (env->pkt_mem_slots >> 2));
+    }
+
+    if (env->badva_override_valid) {
+        VA = env->badva_override;
+        env->badva_override_valid = false;
+    }
+    env->t_sreg[HEX_SREG_BADVA] = VA;
+    env->t_sreg[slot ? HEX_SREG_BADVA1 : HEX_SREG_BADVA0] = VA;
+    SET_SSR_FIELD(env, SSR_V0, (valid | (1 << slot)) & 1);
+    SET_SSR_FIELD(env, SSR_V1, ((valid | (1 << slot)) >> 1) & 1);
+    SET_SSR_FIELD(env, SSR_BVS, slot);
+}
+
+static void raise_tlbmiss_exception(CPUState *cs, uint32_t VA,
                                     MMUAccessType access_type)
 {
     CPUHexagonState *env = cpu_env(cs);
 
-    set_badva_regs(env, VA, slot, access_type);
+    set_badva_regs(env, VA, access_type);
 
     switch (access_type) {
     case MMU_INST_FETCH:
         cs->exception_index = HEX_EVENT_TLB_MISS_X;
-        if ((VA & ~TARGET_PAGE_MASK) == 0) {
+        /*
+         * A fault on the first word of the packet is the page of the packet,
+         * even when that is the first word of a page.
+         */
+        if ((VA & ~TARGET_PAGE_MASK) == 0 && VA != env->gpr[HEX_REG_PC]) {
             env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NEXTPAGE;
         } else {
             env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NORMAL;
@@ -884,23 +905,23 @@ static void raise_tlbmiss_exception(CPUState *cs, uint32_t VA, int slot,
     }
 }
 
-static void raise_perm_exception(CPUState *cs, uint32_t VA, int slot,
+static void raise_perm_exception(CPUState *cs, uint32_t VA,
                                  MMUAccessType access_type, int32_t excp)
 {
     CPUHexagonState *env = cpu_env(cs);
 
-    set_badva_regs(env, VA, slot, access_type);
+    set_badva_regs(env, VA, access_type);
     cs->exception_index = excp;
 }
 
-static void raise_misaligned_exception(CPUState *cs, uint32_t VA, int slot,
+static void raise_misaligned_exception(CPUState *cs, uint32_t VA,
                                        MMUAccessType access_type)
 {
     CPUHexagonState *env = cpu_env(cs);
     int32_t excp = (access_type == MMU_DATA_STORE) ?
                    HEX_CAUSE_MISALIGNED_STORE : HEX_CAUSE_MISALIGNED_LOAD;
 
-    set_badva_regs(env, VA, slot, access_type);
+    set_badva_regs(env, VA, access_type);
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = excp;
 }
@@ -916,7 +937,6 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
                              uintptr_t retaddr)
 {
     CPUHexagonState *env = cpu_env(cs);
-    int slot = 0;
     hwaddr phys;
     int prot = 0;
     uint64_t page_size = 0;
@@ -944,14 +964,14 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
         if (probe) {
             return false;
         }
-        raise_perm_exception(cs, address, slot, access_type, excp);
+        raise_perm_exception(cs, address, access_type, excp);
         do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
                            retaddr);
     }
     if (probe) {
         return false;
     }
-    raise_tlbmiss_exception(cs, address, slot, access_type);
+    raise_tlbmiss_exception(cs, address, access_type);
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC], retaddr);
 }
 
@@ -1000,14 +1020,14 @@ static vaddr hexagon_pointer_wrap(CPUState *cs, int mmu_idx,
     return result;
 }
 
-static G_NORETURN
+G_NORETURN
 void hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                      MMUAccessType access_type, int mmu_idx,
                                      uintptr_t retaddr)
 {
     CPUHexagonState *env = cpu_env(cs);
 
-    raise_misaligned_exception(cs, addr, 0, access_type);
+    raise_misaligned_exception(cs, addr, access_type);
     do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
                        retaddr);
 }

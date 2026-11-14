@@ -61,6 +61,10 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_hexagon_cpu;
 
+void G_NORETURN hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                                MMUAccessType access_type,
+                                                int mmu_idx,
+                                                uintptr_t retaddr);
 void hexagon_vtcm_check(CPUHexagonState *env, target_ulong va, uint32_t bytes,
                         MMUAccessType access_type, uintptr_t ra);
 #else
