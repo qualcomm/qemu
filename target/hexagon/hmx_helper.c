@@ -11,6 +11,7 @@
 #include "qemu/host-utils.h"
 #include "cpu.h"
 #include "macros.h"
+#include "internal.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "fpu/softfloat.h"
@@ -402,6 +403,9 @@ void HELPER(hmx_act_load)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 
     /* 2KB-aligned base address */
     uint32_t base_addr = rs & 0xFFFFF800;
+
+    hexagon_vtcm_check(env, base_addr, HMX_ACT_CROUTON_SIZE, MMU_DATA_LOAD,
+                       ra);
 
     /* Latch parameters for weight multiply */
     hmx->act_rs = rs;
@@ -881,6 +885,9 @@ void HELPER(hmx_matmul_fxp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
     /* Align to one weight vector. */
     uint32_t wei_base = rs & ~(hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES - 1);
     int max_valid_vec = hmx_fxp_max_valid_vec(env, rs, rt, wei_type);
+
+    hexagon_vtcm_check(env, wei_base, hmx_cfg->mx_cols * HMX_OUTPUT_WORD_BYTES,
+                       MMU_DATA_LOAD, ra);
     /* Rs[5] (weight negate) only applies to the FP matmul, not FXP. */
     int negate = 1;
 
@@ -1995,6 +2002,7 @@ void HELPER(hmx_matmul_fp)(CPUHexagonState *env, uint32_t rs, uint32_t rt,
 {
     const HmxConfig *hmx_cfg = hmx_cfg_from_env(env);
 
+    hexagon_vtcm_check(env, rs, 1, MMU_DATA_LOAD, GETPC());
     if (hmx_cfg->hmx_fp_uses_xfp) {
         hmx_matmul_fp_xfp(env, rs, rt, params);
     } else {
