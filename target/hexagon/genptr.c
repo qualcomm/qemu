@@ -616,10 +616,16 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
         gen_write_p3_0(ctx, val);
     } else {
         target_ulong reg_mask = reg_immut_masks[reg_num];
-        if (reg_num == HEX_REG_USR &&
-            ctx->hex_def->hex_version >= HEX_VER_V79) {
-            /* USR.FPSAT is reserved before v79 */
-            reg_mask &= ~fGET_REG_FIELD_MASK(USR_FPSAT);
+        if (reg_num == HEX_REG_USR) {
+            if (ctx->hex_def->hex_version >= HEX_VER_V73) {
+                /* The HMX floating point overflow controls are v73's */
+                reg_mask &= ~(fGET_REG_FIELD_MASK(USR_FPCOPROC_INFNAN) |
+                              fGET_REG_FIELD_MASK(USR_FPCOPROC_NANPROP));
+            }
+            if (ctx->hex_def->hex_version >= HEX_VER_V79) {
+                /* USR.FPSAT is reserved before v79, as is bit 6 */
+                reg_mask &= ~(fGET_REG_FIELD_MASK(USR_FPSAT) | BIT(6));
+            }
         }
         gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
