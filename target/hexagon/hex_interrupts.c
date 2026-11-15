@@ -449,14 +449,16 @@ bool hex_check_interrupts(CPUHexagonState *env)
     }
 
     /*
-     * If we didn't handle the interrupt and it wasn't
-     * because we were in EX state, then we won't be able
-     * to execute the interrupt on this CPU unless something
-     * changes in the CPU state.  Clear the interrupt_request bits
-     * while preserving the IPEND bits, and we can re-assert the
-     * interrupt_request bit(s) when we execute one of those instructions.
+     * If we didn't handle the interrupt then we won't be able to execute
+     * it on this CPU unless something changes in the CPU state.  Clear the
+     * interrupt_request bits while preserving the IPEND bits, and we can
+     * re-assert the interrupt_request bit(s) when we execute one of those
+     * instructions.  Leaving EX is one of them (hexagon_modify_ssr), so
+     * this holds for a thread in EX state, too.  Keeping the request raised
+     * instead makes a thread that waits for a lock wake up again at once, and
+     * spin on the BQL for as long as the interrupt is pending.
      */
-    if (!int_handled && !ssr_ex) {
+    if (!int_handled) {
         restore_state(env, int_handled);
     } else if (int_handled) {
         assert(!cs->halted);
