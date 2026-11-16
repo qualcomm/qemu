@@ -8,26 +8,26 @@
 
 bool libqemu_pcie_msi_notify(PCIDevice* dev, unsigned vector)
 {
-    if (!msi_present(dev) || vector >= msi_nr_vectors_allocated(dev)) {
+    if (!dev->enabled ||
+        !(pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER) ||
+        !msi_enabled(dev) || vector >= msi_nr_vectors_allocated(dev)) {
         return false;
     }
 
-    if (msi_enabled(dev)) {
-        msi_notify(dev, vector);
-    }
+    msi_notify(dev, vector);
 
     return true;
 }
 
 bool libqemu_pcie_msix_notify(PCIDevice* dev, unsigned vector)
 {
-    if (!msix_present(dev) || vector >= msix_nr_vectors_allocated(dev)) {
+    if (!dev->enabled ||
+        !(pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER) ||
+        !msix_enabled(dev) || vector >= msix_nr_vectors_allocated(dev)) {
         return false;
     }
 
-    if (msix_enabled(dev)) {
-        msix_notify(dev, vector);
-    }
+    msix_notify(dev, vector);
 
     return true;
 }
@@ -50,6 +50,10 @@ bool libqemu_pcie_register_callbacks(PCIDevice* dev, void* opaque, const LibQemu
 bool libqemu_pcie_clear_callbacks(PCIDevice* dev, void* opaque)
 {
     LibQemuPCIeState* s = LIBQEMU_PCIE(dev);
+
+    if (s->cbs_opaque != opaque) {
+        return false;
+    }
 
     s->cbs = (LibQemuPCIeCallbacks) { 0 };
     s->cbs_opaque = NULL;
