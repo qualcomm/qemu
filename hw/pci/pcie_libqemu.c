@@ -11,9 +11,12 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_sriov.h"
+#include "qemu/range.h"
 #include "standard-headers/linux/pci_regs.h"
 #include "glib.h"
 #include "system/memory.h"
+
+#include "libqemu/wrappers/pcie.h"
 
 #define INVALID_VENDOR_ID 0xffff
 #define INVALID_DEVICE_ID 0xffff
@@ -52,10 +55,145 @@ static bool check_bar(LibQemuPCIeState* s, LibQemuPCIeBar* bar, uint8_t idx, Err
     return true;
 }
 
+static bool get_flr(PCIDevice* dev)
+{
+    return pci_get_word(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCTL) & PCI_EXP_DEVCTL_BCR_FLR;
+}
+
+// returns true if FLR is set
+static bool update_pci_config(PCIDevice* dev, uint32_t addr, uint32_t val, int len)
+{
+    bool flr = false;
+
+    pci_default_write_config(dev, addr, val, len);
+    if (ranges_overlap(addr, len, dev->exp.exp_cap + PCI_EXP_DEVCTL, 2)) {
+        flr = get_flr(dev);
+        pcie_cap_flr_write_config(dev, addr, val, len);
+    }
+
+    return flr;
+}
+
+static bool get_bme(PCIDevice* dev)
+{
+    return pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER;
+}
+
+static bool vf_enabled(PCIDevice* dev)
+{
+    uint16_t cap = dev->exp.sriov_cap;
+    return cap && (pci_get_word(dev->config + cap + PCI_SRIOV_CTRL) & PCI_SRIOV_CTRL_VFE);
+}
+
+static bool is_bme_update(PCIDevice* dev, uint32_t addr, int len)
+{
+    return ranges_overlap(addr, len, PCI_COMMAND, 2);
+}
+
+static bool is_msi_update(PCIDevice* dev, uint32_t addr, int len)
+{
+    uint64_t len2 = msi_cap_sizeof(pci_get_word(dev->config + dev->msi_cap + PCI_MSI_FLAGS));
+    return ranges_overlap(addr, len, dev->msi_cap, len2);
+}
+
+static bool is_vf_enabled_update(PCIDevice* dev, uint32_t addr, int len)
+{
+    return ranges_overlap(addr, len, dev->exp.sriov_cap + PCI_SRIOV_CTRL, 2);
+}
+
+static LibQemuPCIeMsiConfig* get_msi_config(LibQemuPCIeState* s)
+{
+    PCIDevice* dev = PCI_DEVICE(s);
+
+    if (msi_present(dev)) {
+        MSIMessage msg = msi_get_message(dev, 0);
+
+        s->msi_conf = (LibQemuPCIeMsiConfig) {
+            .enabled = msi_enabled(dev),
+            .addr = msg.address,
+            .data = msg.data
+        };
+
+        return &s->msi_conf;
+    } else {
+        return NULL;
+    }
+}
+
+void libqemu_pcie_get_cb_data(LibQemuPCIeState* s, LibQemuPCIeCbData* cb_data)
+{
+    assert(cb_data);
+
+    PCIDevice* dev = PCI_DEVICE(s);
+    LibQemuPCIeMsiConfig* msi_config = get_msi_config(s);
+
+    cb_data->bme = get_bme(dev);
+    cb_data->vf_enabled = vf_enabled(dev);
+
+    if (msi_config) {
+        cb_data->msi_config = *msi_config;
+    } else {
+        memset(&cb_data->msi_config, 0, sizeof(cb_data->msi_config));
+    }
+}
+
+static bool msi_conf_changed(const LibQemuPCIeMsiConfig* old, const LibQemuPCIeMsiConfig* new)
+{
+    return old->enabled != new->enabled
+        || old->addr != new->addr
+        || old->data != new->data;
+}
+
 static void libqemu_pcie_config_write(PCIDevice* dev, uint32_t addr, uint32_t val, int len)
 {
-    pci_default_write_config(dev, addr, val, len);
-    pcie_cap_flr_write_config(dev, addr, val, len);
+    LibQemuPCIeState* pfs = pci_is_vf(dev) ? NULL : LIBQEMU_PCIE(dev);
+
+    if (pfs) {
+        const bool check_msi = pfs->cbs.on_msi_config_changed && msi_present(dev) && is_msi_update(dev, addr, len);
+        const bool check_bme = pfs->cbs.on_bme_updated && is_bme_update(dev, addr, len);
+        const bool check_vf = pfs->cbs.on_vf_enabled_updated && is_vf_enabled_update(dev, addr, len);
+        const bool report_flr = pfs->cbs.on_flr;
+
+        const bool old_bme = check_bme && get_bme(dev);
+        const bool old_vf = check_vf && vf_enabled(dev);
+        const LibQemuPCIeMsiConfig* msi_conf = check_msi ? get_msi_config(pfs) : NULL;
+
+        bool flr = update_pci_config(dev, addr, val, len);
+
+        if (flr) {
+            if (report_flr) {
+                pfs->cbs.on_flr(dev, pfs->cbs_opaque);
+            }
+            return;
+        }
+
+        if (check_bme)  {
+            const bool bme = get_bme(dev);
+
+            if (bme != old_bme) {
+                pfs->cbs.on_bme_updated(dev, pfs->cbs_opaque, bme);
+            }
+        }
+
+        if (check_vf) {
+            const bool vf = vf_enabled(dev);
+
+            if (vf != old_vf) {
+                pfs->cbs.on_vf_enabled_updated(dev, pfs->cbs_opaque, vf);
+            }
+        }
+
+        if (check_msi) {
+            const LibQemuPCIeMsiConfig old_msi_conf = *msi_conf;
+            msi_conf = get_msi_config(pfs);
+
+            if (msi_conf_changed(&old_msi_conf, msi_conf)) {
+                pfs->cbs.on_msi_config_changed(dev, pfs->cbs_opaque, msi_conf);
+            }
+        }
+    } else {
+        update_pci_config(dev, addr, val, len);
+    }
 }
 
 static bool libqemu_pcie_init_common(PCIDevice* dev, const LibQemuPCIeState* s, Error** errp)
@@ -90,9 +228,27 @@ static uint8_t encode_pci_attrs(const LibQemuPCIeBar* bar)
 static void libqemu_pcie_reset_hold(Object* obj, ResetType type)
 {
     PCIDevice* dev = PCI_DEVICE(obj);
+    LibQemuPCIeState* s = LIBQEMU_PCIE(obj);
 
     if (dev->exp.pasid_cap) {
         pci_set_word(dev->config + dev->exp.pasid_cap + PCI_PASID_CTRL, 0);
+    }
+
+    if (s->pm_enabled) {
+        pci_set_word(dev->config + dev->pm_cap + PCI_PM_CTRL, s->pm_control_reset);
+    }
+
+    msi_reset(dev);
+    msix_reset(dev);
+}
+
+static void libqemu_pcie_reset_exit(Object* obj, ResetType type)
+{
+    PCIDevice* dev = PCI_DEVICE(obj);
+    LibQemuPCIeState* s = LIBQEMU_PCIE(obj);
+
+    if (!get_flr(dev) && s->cbs.on_reset) {
+        s->cbs.on_reset(dev, s->cbs_opaque);
     }
 }
 
@@ -328,6 +484,7 @@ static void libqemu_pcie_class_init(ObjectClass* class, const void* data)
     ResettableClass* rc = RESETTABLE_CLASS(class);
 
     rc->phases.hold = libqemu_pcie_reset_hold;
+    rc->phases.exit = libqemu_pcie_reset_exit;
 
     pdc->realize = libqemu_pcie_realize;
     pdc->exit = pcie_cap_exit;

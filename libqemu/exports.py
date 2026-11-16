@@ -206,12 +206,18 @@ ExportedFct('gpio_set', 'void', [ 'struct IRQState *', 'int'],
         priv = 'qemu_set_irq', iothread_locked = True)
 
 PrivateInclude("hw/pci/pci_device.h")
-PrivateInclude("libqemu/wrappers/pcie.h")
+PublicInclude("libqemu/wrappers/pcie.h")
 ExportedType('QemuPCIDevice', 'PCIDevice')
 ExportedFct('pcie_msi_notify', 'bool', ['PCIDevice*', 'unsigned'],
             priv='libqemu_pcie_msi_notify', iothread_locked=True)
 ExportedFct('pcie_msix_notify', 'bool', ['PCIDevice*', 'unsigned'],
             priv='libqemu_pcie_msix_notify', iothread_locked=True)
+ExportedFct('pcie_register_callbacks', 'bool', ['PCIDevice*', 'void*', 'const LibQemuPCIeCallbacks*'],
+            priv='libqemu_pcie_register_callbacks', iothread_locked=True)
+ExportedFct('pcie_clear_callbacks', 'bool', ['PCIDevice*', 'void*'],
+            priv='libqemu_pcie_clear_callbacks', iothread_locked=True)
+ExportedFct('pcie_callbacks_data', 'bool', ['PCIDevice*', 'LibQemuPCIeCbData*'],
+            priv='libqemu_pcie_callbacks_data', iothread_locked=True)
 
 PrivateInclude('hw/core/qdev.h')
 PrivateInclude('hw/core/qdev-clock.h')

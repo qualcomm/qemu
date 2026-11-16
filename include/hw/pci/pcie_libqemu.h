@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "libqemu/wrappers/pcie.h"
+
 #define TYPE_LIBQEMU_PCIE       "libqemu-pcie"
 OBJECT_DECLARE_SIMPLE_TYPE(LibQemuPCIeState, LIBQEMU_PCIE)
 
@@ -37,6 +39,12 @@ typedef struct LibQemuPCIeVfBar {
     uint64_t size;
     uint64_t stride;
 } LibQemuPCIeVfBar;
+
+typedef struct LibQemuPCIeVfState {
+    PCIDevice parent_obj;
+
+    MemoryRegion bar_mrs[PCI_SRIOV_NUM_BARS];
+} LibQemuPCIeVfState;
 
 typedef struct LibQemuPCIeState {
     PCIDevice parent_obj;
@@ -91,10 +99,11 @@ typedef struct LibQemuPCIeState {
     uint16_t pasid_cap_offset;
     bool pasid_exec;
     bool pasid_priv;
+
+    // events
+    LibQemuPCIeCallbacks cbs;
+    void* cbs_opaque;
+    LibQemuPCIeMsiConfig msi_conf;
 } LibQemuPCIeState;
 
-typedef struct LibQemuPCIeVfState {
-    PCIDevice parent_obj;
-
-    MemoryRegion bar_mrs[PCI_SRIOV_NUM_BARS];
-} LibQemuPCIeVfState;
+void libqemu_pcie_get_cb_data(LibQemuPCIeState* s, LibQemuPCIeCbData* cb_data);
