@@ -18,8 +18,10 @@ from test_sbsaref import fetch_firmware
 class Aarch64SbsarefFreeBSD(QemuSystemTest):
 
     ASSET_FREEBSD_ISO = Asset(
-        ('http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases/arm64'
-         '/aarch64/ISO-IMAGES/14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso.xz'),
+        #('http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases/arm64'
+        # '/aarch64/ISO-IMAGES/14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso.xz'),
+        ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/'
+         '7313a4495ffd71ab77b49b1e83f571521c32756e1d75bf48bd890e0ab0f75827.iso.xz'),
         '7313a4495ffd71ab77b49b1e83f571521c32756e1d75bf48bd890e0ab0f75827')
 
     # This tests the whole boot chain from EFI to Userspace
