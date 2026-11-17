@@ -1,11 +1,20 @@
+/*
+ * PCIe - libqemu
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Configurable PCIe device, used as a configurable base device for more
+ * complex PCIe devices. It supports up to 6 BARs with configurabl memory
+ * regions, and many PCIe capabilities like PM, PASID, MSI, MSI-X,
+ * SR-IOV, etc.
+ */
+
 #pragma once
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
-#include "system/memory.h"
-#include "pci.h"
-#include "pcie.h"
-#include "pcie_sriov.h"
 #include "pci_device.h"
 
 #include <stdint.h>
