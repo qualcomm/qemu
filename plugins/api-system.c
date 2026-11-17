@@ -17,6 +17,7 @@
 #include "hw/core/boards.h"
 #include "qemu/plugin-memory.h"
 #include "qemu/plugin.h"
+#include "system/cpus.h"
 #include "plugin.h"
 
 /*
@@ -95,6 +96,15 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h)
     } else {
         return g_intern_static_string("RAM");
     }
+}
+
+/*
+ * vCPU run state
+ */
+
+bool qemu_plugin_vcpus_globally_paused(void)
+{
+    return vcpus_are_globally_paused();
 }
 
 /*
