@@ -472,3 +472,6 @@ ExportedFct('set_iommu_attrs_to_index_cb', 'void',
 ExportedFct('set_iommu_num_indexes_cb', 'void',
         [ 'LibQemuIOMMUNumIndexesFn', 'void *' ],
         priv = 'libqemu_set_iommu_num_indexes_cb')
+
+ExportedFct('memory_region_transaction_begin', 'void', [], iothread_locked = True)
+ExportedFct('memory_region_transaction_commit', 'void', [], iothread_locked = True)
