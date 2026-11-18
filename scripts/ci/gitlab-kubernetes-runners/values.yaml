@@ -1,10 +1,60 @@
-gitlabUrl: "https://gitlab.com/"
-runnerRegistrationToken: ""
+COMPUTED VALUES:
+COMPUTED VALUES: null
+affinity: {}
+checkInterval: 3
+concurrent: 100
+configMapLabels: {}
+configMaps: {}
+deploymentAnnotations: {}
+deploymentInitContainers: []
+deploymentLabels: {}
+deploymentLifecycle: {}
+extraContainers: []
+extraEnv: {}
+extraEnvFrom: {}
+extraEnvFromRefs: []
+extraObjects: []
+gitlabUrl: https://gitlab.com/
+hostAliases: []
+image:
+  image: gitlab-org/gitlab-runner
+  registry: registry.gitlab.com
+  repository: gitlab-org/gitlab-runner
+imagePullPolicy: IfNotPresent
+livenessProbe: {}
+metrics:
+  enabled: false
+  podMonitor:
+    enabled: false
+    namespace: ""
+  port: 9252
+  portName: metrics
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  fsGroup: 65533
+  runAsUser: 100
+priorityClassName: ""
 rbac:
+  clusterWideAccess: false
   create: true
-concurrent: 200
+  generatedServiceAccountName: ""
+  imagePullSecrets: []
+  podSecurityPolicy:
+    enabled: false
+    resourceNames:
+    - gitlab-runner
+  rules: []
+  serviceAccountAnnotations: {}
+readinessProbe: {}
+resources: {}
 runners:
-  privileged: true
+  cache:
+    secretName: s3-cache-secret
   config: |
     [[runners]]
       limit = 100
@@ -15,8 +65,9 @@ runners:
         "DOCKER_CERT_PATH=/certs/client"
       ]
       [runners.kubernetes]
+        privileged = true
         poll_timeout = 1200
-        image = "ubuntu:20.04"
+        image = "ubuntu:22.04"
         cpu_request = "0.5"
         service_cpu_request = "0.5"
         helper_cpu_request = "0.25"
@@ -28,3 +79,56 @@ runners:
         medium = "Memory"
       [runners.kubernetes.node_selector]
         agentpool = "jobs"
+      [runners.cache]
+        Type = "s3"
+        Path = "runner"
+        Shared = true
+        [runners.cache.s3]
+          ServerAddress = "s3.amazonaws.com"
+          BucketName = "qemu-project-gitlab-runners-cache"
+          BucketLocation = "us-east-1"
+          Insecure = false
+          AuthenticationType = "access-key"
+      [runners.feature_flags]
+        # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/37244
+        FF_WAIT_FOR_POD_TO_BE_REACHABLE = true
+  configPath: ""
+  privileged: true
+runtimeClassName: ""
+secrets:
+- name: runner-token-secret
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  privileged: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+service:
+  enabled: false
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  create: true
+  imagePullSecrets: []
+  name: ""
+sessionServer:
+  enabled: false
+  ingress:
+    annotations: {}
+    className: ""
+    enabled: false
+    tls:
+    - secretName: gitlab-runner-session-server
+  serviceType: LoadBalancer
+shutdown_timeout: 0
+startupProbe: {}
+strategy: {}
+terminationGracePeriodSeconds: 3600
+tolerations: []
+topologySpreadConstraints: {}
+unregisterRunners: true
+useTini: false
+volumeMounts: []
+volumes: []
