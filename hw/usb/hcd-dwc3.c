@@ -612,6 +612,7 @@ static void usb_dwc3_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->iomem, 0,
          sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->sysbus_xhci), 0));
     sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->sysbus_xhci));
 
     /*
      * Device Configuration
@@ -645,6 +646,8 @@ static void usb_dwc3_init(Object *obj)
                                 &reg_array->mem);
     object_initialize_child(obj, "dwc3-xhci", &s->sysbus_xhci,
                             TYPE_XHCI_SYSBUS);
+    object_property_add_const_link(obj, "xhci",
+                                   OBJECT(&s->sysbus_xhci));
     qdev_alias_all_properties(DEVICE(&s->sysbus_xhci), obj);
 
     s->cfg.mode = HOST_MODE;
