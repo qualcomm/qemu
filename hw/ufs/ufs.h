@@ -157,6 +157,7 @@ typedef struct UfsHc {
     UfsMcqReg mcq_reg[UFS_MAX_MCQ_QNUM];
     UfsMcqOpReg mcq_op_reg[UFS_MAX_MCQ_QNUM];
     UfsParams params;
+    uint32_t sysbus_mmio_size;
     uint32_t reg_size;
     UfsRequest *req_list;
 
@@ -177,6 +178,8 @@ typedef struct UfsHc {
     /* MCQ properties */
     UfsSq *sq[UFS_MAX_MCQ_QNUM];
     UfsCq *cq[UFS_MAX_MCQ_QNUM];
+
+    bool resetting;
 
     /* Extended features */
     UfsWb wb;
@@ -199,6 +202,9 @@ typedef struct UfsHc {
     /* Memory region that DMA operation access in sysbus device*/
     MemoryRegion *mem_mr;
     AddressSpace *mem_as;
+    /* Optional DMA target */
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
@@ -324,6 +330,7 @@ static inline bool is_wlun(uint8_t lun)
 void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint8_t response, uint8_t scsi_status,
                            uint16_t data_segment_length);
+void ufs_build_scsi_lun_not_supported_response(UfsRequest *req);
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 void ufs_wb_update_avail_buffer(UfsHc *u);
@@ -332,7 +339,7 @@ uint64_t ufs_mmio_read(void *opaque, hwaddr addr, unsigned size);
 void ufs_mmio_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
 bool ufs_check_constraints(UfsHc *u, Error **errp);
 void ufs_init_state(UfsHc *u);
-void ufs_init_hc(UfsHc *u);
+void ufs_init_hc(UfsHc *u, bool pci);
 void ufs_exit_common(UfsHc *u);
 void mem_reg_init_io(UfsHc *u, const char *name);
 void ufs_class_init_common(DeviceClass *dc);
