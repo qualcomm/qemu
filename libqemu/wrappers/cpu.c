@@ -41,6 +41,7 @@ static __thread bool cpu_in_io;
 void libqemu_cpu_loop(Object *obj)
 {
     CPUState *cpu = CPU(obj);
+    CPUState *yielding_cpu;
 
     g_assert(cpu);
     g_assert(cpu->coroutine);
@@ -51,11 +52,17 @@ void libqemu_cpu_loop(Object *obj)
 
     qemu_coroutine_enter(cpu->coroutine);
 
-    while (cpu->coroutine_yield_info.reason == YIELD_IO) {
+    // in coroutine mode, yielding_cpu is the current cpu,
+    // while cpu is the elected cpu to manage the shared coroutine
+    // state
+    yielding_cpu = current_cpu;
+    while (yielding_cpu && yielding_cpu->coroutine == cpu->coroutine &&
+           yielding_cpu->coroutine_yield_info.reason == YIELD_IO) {
         cpu_in_io = true;
         libqemu_cpu_do_io();
         cpu_in_io = false;
         qemu_coroutine_enter(cpu->coroutine);
+        yielding_cpu = current_cpu;
     }
 }
 

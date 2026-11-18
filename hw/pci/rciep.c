@@ -9,17 +9,14 @@
  * SR-IOV VFs sharing the PF BAR layout.
  *
  * BAR0 is a doorbell / comm-block aperture. A write with Addr[12]=1 rings a
- * doorbell (edge, value ignored); otherwise the access is forwarded to the
- * comm-block target at commblock-base. Primary doorbells (Addr[4:2] = index
+ * doorbell (edge, value ignored). Primary doorbells (Addr[4:2] = index
  * 0-7) drive external interrupt lines. VF and secondary-page doorbell fan-out
  * is a follow-up.
  *
  * Properties:
  *   vendor-id / device-id / class-id / revision  PCI identity
- *   num-vfs         SR-IOV VF count (default 8; max 8 per the BAR0 decode)
+ *   num-vfs         SR-IOV VF count (default 0; max 8 per the BAR0 decode)
  *   num-msi-vectors MSI vectors per PF (default 4; must be a power of two)
- *   bar0-size       PF BAR0 bytes (must be 8 MiB; VF BAR0 is 512 KiB)
- *   commblock-base  System-bus base the BAR0 aperture forwards to (0 = off)
  *   private-base    RESERVED - not consumed yet (future CPU PRIVATE window)
  *   pf-shadow-base  RESERVED - not consumed yet (future config mirror)
  */
@@ -29,11 +26,14 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_sriov.h"
 #include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
+#include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "system/address-spaces.h"
+#include "standard-headers/linux/pci_regs.h"
+#include "system/memory.h"
 
 #define TYPE_RCIEP     "rciep"
 #define TYPE_RCIEP_VF  "rciep-vf"
@@ -43,6 +43,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RCiEPVF, RCIEP_VF)
 /* Capability offsets per the hardware register spec. */
 #define RCIEP_PCIE_CAP_OFFSET   0x80
 #define RCIEP_MSI_CAP_OFFSET    0xC0
+#define RCIEP_MSIX_CAP_OFFSET   0xE0
 
 /*
  * BAR0 doorbell/comm-block geometry (hardware register spec). The PF aperture
@@ -63,6 +64,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(RCiEPVF, RCIEP_VF)
 #define RCIEP_PF_DEVICE_ID      0x0D0A
 #define RCIEP_VF_DEVICE_ID      (RCIEP_PF_DEVICE_ID + 1)
 
+#define RCIEP_NUM_BARS          PCI_ROM_SLOT
+
+typedef struct RCiEPBar {
+    MemoryRegion region;
+    MemoryRegion* target;
+    uint64_t size;
+    bool is_64bits;
+    bool prefetchable;
+} RCiEPBar;
+
 struct RCiEP {
     PCIDevice parent_obj;
 
@@ -72,55 +83,149 @@ struct RCiEP {
     uint16_t class_id;
     uint8_t revision;
     uint16_t num_vfs;
-    uint8_t num_msi_vectors;
-    uint64_t bar0_size;
     uint64_t pf_shadow_base;    /* RESERVED - not consumed yet */
     uint64_t private_base;      /* RESERVED - not consumed yet */
-    uint64_t commblock_base;    /* BAR0 forward target (external comm-block) */
 
-    MemoryRegion bar0;
+    uint8_t num_msi_vectors;
+
+    uint16_t num_msix_vectors;
+    uint8_t msix_table_bar;
+    uint32_t msix_table_offset;
+    uint8_t msix_pba_bar;
+    uint32_t msix_pba_offset;
+
+    RCiEPBar bars[RCIEP_NUM_BARS];
 };
 
-/*
- * BAR0 is a doorbell / comm-block aperture: forward the access verbatim to the
- * comm-block component on the system bus, which owns the doorbell decode +
- * comm-block SRAM. The full BAR0 offset is preserved so the target sees the
- * PF/VF/set/idx address bits.
- *
- * commblock_base must point at a dedicated comm-block target region, NOT back
- * into the PCI ECAM/MMIO aperture or DRAM - forwarding into the PCI aperture
- * could re-enter this device (recursion) or hit the wrong target. It is a
- * platform-wiring contract; 0 disables forwarding (deferred).
- */
-static uint64_t rciep_mmio_read(void *opaque, hwaddr addr, unsigned size)
+static bool rciep_validate_msix(RCiEP* d, Error **errp)
 {
-    RCiEP *d = opaque;
-    uint64_t val = 0;
-
-    if (d->commblock_base) {
-        address_space_read(&address_space_memory, d->commblock_base + addr,
-                           MEMTXATTRS_UNSPECIFIED, &val, size);
+    if (d->num_msix_vectors > PCI_MSIX_FLAGS_QSIZE + 1) {
+        error_setg(errp, "num-msix-vectors=%u must be smaller or equal to %u", d->num_msix_vectors, PCI_MSIX_FLAGS_QSIZE + 1);
+        return false;
     }
-    return val;
+
+    if (d->msix_table_bar >= RCIEP_NUM_BARS) {
+        error_setg(errp, "msix-table-bar=%u must be smaller than %u", d->msix_table_bar, RCIEP_NUM_BARS);
+        return false;
+    }
+
+    if (d->msix_pba_bar >= RCIEP_NUM_BARS) {
+        error_setg(errp, "msix-pba-bar=%u must be smaller than %u", d->msix_pba_bar, RCIEP_NUM_BARS);
+        return false;
+    }
+
+    if (d->bars[d->msix_table_bar].size == 0) {
+        error_setg(errp, "MSI-X table uses BAR %d, but it's not configured", d->msix_table_bar);
+        return false;
+    }
+
+    if (d->bars[d->msix_pba_bar].size == 0) {
+        error_setg(errp, "MSI-X PBA uses BAR %d, but it's not configured", d->msix_pba_bar);
+        return false;
+    }
+
+    return true;
 }
 
-static void rciep_mmio_write(void *opaque, hwaddr addr, uint64_t val,
-                             unsigned size)
+static bool rciep_validate_bars(RCiEP *d, Error **errp)
 {
-    RCiEP *d = opaque;
+    for (unsigned i = 0; i < RCIEP_NUM_BARS; ++i) {
+        RCiEPBar* bar = &d->bars[i];
 
-    if (d->commblock_base) {
-        address_space_write(&address_space_memory, d->commblock_base + addr,
-                            MEMTXATTRS_UNSPECIFIED, &val, size);
+        if (bar->size == 0) {
+            if (bar->target || bar->is_64bits || bar->prefetchable) {
+                error_setg(errp, "BAR%u has properties set, but its size if 0", i);
+                return false;
+            }
+
+            continue;
+        }
+
+        if (!bar->target) {
+            error_setg(errp, "BAR%u has a size but no target MemoryRegion", i);
+            return false;
+        }
+
+        if (!is_power_of_2(bar->size)) {
+            error_setg(errp, "BAR%u size 0x%" PRIx64 "must be a power of 2", i, bar->size);
+            return false;
+        }
+
+        if (bar->size > memory_region_size(bar->target)) {
+            error_setg(errp, "BAR%u has a size bigger than the MemoryRegion size", i);
+            return false;
+        }
+
+        if (i == RCIEP_NUM_BARS - 1 && bar->is_64bits) {
+            error_setg(errp, "BAR%u cannot be 64 bits", i);
+            return false;
+        }
+
+        if (bar->is_64bits) {
+            // skip bar i+1 if 64bits
+            i++;
+            assert(i < RCIEP_NUM_BARS);
+            RCiEPBar* next_bar = &d->bars[i];
+
+            if (next_bar->size != 0 ||
+                next_bar->target ||
+                next_bar->is_64bits ||
+                next_bar->prefetchable
+            ) {
+                error_setg(errp, "BAR%u is the upper half of 64-bit BAR%u, and must be unused", i, i - 1);
+                return false;
+            }
+        }
     }
+
+    return true;
 }
 
-static const MemoryRegionOps rciep_mmio_ops = {
-    .read       = rciep_mmio_read,
-    .write      = rciep_mmio_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid      = { .min_access_size = 4, .max_access_size = 8 },
-};
+static bool rciep_validate_vfs(RCiEP *d, Error **errp)
+{
+    RCiEPBar* bar0 = &d->bars[0];
+
+    if (d->num_vfs == 0) {
+        return true;
+    }
+
+    if (d->num_vfs > RCIEP_MAX_VFS) {
+        error_setg(errp, "num-vfs=%u is above maximum %u", d->num_vfs, RCIEP_MAX_VFS);
+        return false;
+    }
+
+    if (bar0->size != RCIEP_PF_BAR0_SIZE) {
+        error_setg(errp, "bar0-size=0x%" PRIx64 " must be 0x%x with SR-IOV "
+                   "(VF decode assumes an 8 MiB PF aperture)", bar0->size, RCIEP_PF_BAR0_SIZE);
+        return false;
+    }
+
+    if (bar0->target == NULL) {
+        error_setg(errp, "SR-IOV requires BAR0 to have a target MemoryRegion");
+        return false;
+    }
+
+
+    if (bar0->is_64bits || bar0->prefetchable) {
+        error_setg(errp, "SR-IOV requires BAR0 to be 32-bit and non-prefetchable");
+        return false;
+    }
+
+    return true;
+}
+
+static void rciep_msix_uninit(RCiEP *d)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(d);
+
+    if (!msix_present(pci_dev)) {
+        return;
+    }
+
+    msix_uninit(pci_dev,
+        &d->bars[d->msix_table_bar].region,
+        &d->bars[d->msix_pba_bar].region);
+}
 
 static void rciep_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -133,16 +238,27 @@ static void rciep_realize(PCIDevice *pci_dev, Error **errp)
                    d->num_vfs, RCIEP_MAX_VFS);
         return;
     }
-    if (d->num_msi_vectors == 0 ||
-        (d->num_msi_vectors & (d->num_msi_vectors - 1))) {
+
+    if (d->num_msi_vectors && !is_power_of_2(d->num_msi_vectors)) {
         error_setg(errp, "num-msi-vectors=%u must be a non-zero power of two",
                    d->num_msi_vectors);
         return;
     }
-    if (d->num_vfs > 0 && d->bar0_size != RCIEP_PF_BAR0_SIZE) {
-        error_setg(errp, "bar0-size=0x%" PRIx64 " must be 0x%x with SR-IOV "
-                   "(VF decode assumes an 8 MiB PF aperture)",
-                   d->bar0_size, RCIEP_PF_BAR0_SIZE);
+
+    if (d->num_msi_vectors > 32) {
+        error_setg(errp, "num-msi-vectors=%u must be smaller or equal to 32", d->num_msi_vectors);
+        return;
+    }
+
+    if (d->num_msix_vectors && !rciep_validate_msix(d, errp)) {
+        return;
+    }
+
+    if (!rciep_validate_bars(d, errp)) {
+        return;
+    }
+
+    if (!rciep_validate_vfs(d, errp)) {
         return;
     }
 
@@ -167,23 +283,53 @@ static void rciep_realize(PCIDevice *pci_dev, Error **errp)
      * Keep the vector count small so all PFs fit the platform IRQ pool - e.g.
      * a GICv2m with 64 SPIs is exhausted by 32 vectors x 2 PFs.
      */
-    if (msi_init(pci_dev, RCIEP_MSI_CAP_OFFSET,
-                 d->num_msi_vectors, false, true, errp) < 0) {
-        goto err_pcie_cap;
+    if (d->num_msi_vectors) {
+        if (msi_init(pci_dev, RCIEP_MSI_CAP_OFFSET,
+                    d->num_msi_vectors, false, true, errp) < 0) {
+            goto err_pcie_cap;
+        }
     }
 
-    /*
-     * BAR0: 32-bit non-prefetchable MMIO. Non-prefetchable because it is a
-     * doorbell / comm-block aperture with read/write side effects -
-     * prefetchable would permit read prefetch and write coalescing/reordering,
-     * corrupting doorbell semantics. 32-bit per the hardware register spec.
-     */
-    memory_region_init_io(&d->bar0, OBJECT(d), &rciep_mmio_ops, d,
-                          "rciep-bar0", d->bar0_size);
-    pci_register_bar(pci_dev, 0,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_TYPE_32,
-                     &d->bar0);
+    for (unsigned i = 0; i < RCIEP_NUM_BARS; ++i) {
+        RCiEPBar* bar = &d->bars[i];
+
+        if (bar->size == 0) {
+            continue;
+        }
+
+        uint32_t flags = PCI_BASE_ADDRESS_SPACE_MEMORY |
+            (bar->is_64bits ? PCI_BASE_ADDRESS_MEM_TYPE_64 : PCI_BASE_ADDRESS_MEM_TYPE_32);
+
+        if (bar->prefetchable) {
+            flags |= PCI_BASE_ADDRESS_MEM_PREFETCH;
+        }
+
+        gchar* bar_name = g_strdup_printf("rciep-bar%u", i);
+        memory_region_init_alias(&bar->region, OBJECT(d), bar_name, bar->target, 0, bar->size);
+        pci_register_bar(pci_dev, i, flags, &bar->region);
+        g_free(bar_name);
+
+        if (bar->is_64bits) {
+            // skip bar i+1 if 64bits
+            ++i;
+        }
+    }
+
+    if (d->num_msix_vectors) {
+        if (msix_init(pci_dev, d->num_msix_vectors,
+            &d->bars[d->msix_table_bar].region,
+            d->msix_table_bar, d->msix_table_offset,
+            &d->bars[d->msix_pba_bar].region,
+            d->msix_pba_bar, d->msix_pba_offset,
+            RCIEP_MSIX_CAP_OFFSET, errp) < 0) {
+                goto err_bar;
+        }
+
+        for (unsigned i = 0; i < d->num_msix_vectors; ++i) {
+            msix_vector_use(pci_dev, i);
+        }
+    }
+
 
     /* SR-IOV extended capability */
     if (d->num_vfs > 0) {
@@ -192,15 +338,18 @@ static void rciep_realize(PCIDevice *pci_dev, Error **errp)
                                 1, 1, errp)) {
             goto err_bar;
         }
+
         pcie_sriov_pf_init_vf_bar(pci_dev, 0,
                                   PCI_BASE_ADDRESS_MEM_TYPE_32 |
                                   PCI_BASE_ADDRESS_SPACE_MEMORY,
                                   RCIEP_VF_BAR0_SIZE);
     }
+
     return;
 
 err_bar:
     /* The BAR memory region is torn down with the device. */
+    rciep_msix_uninit(d);
     msi_uninit(pci_dev);
 err_pcie_cap:
     pcie_cap_exit(pci_dev);
@@ -213,9 +362,18 @@ static void rciep_exit(PCIDevice *pci_dev)
     if (d->num_vfs > 0) {
         pcie_sriov_pf_exit(pci_dev);
     }
+
+    rciep_msix_uninit(d);
     msi_uninit(pci_dev);
     pcie_cap_exit(pci_dev);
 }
+
+// note these prop names must keep the pattern barN-prop
+#define DEFINE_RCIEP_BAR_PROP(_bar_id) \
+    DEFINE_PROP_LINK("bar" #_bar_id "-target", RCiEP, bars[_bar_id].target, TYPE_MEMORY_REGION, MemoryRegion*), \
+    DEFINE_PROP_UINT64("bar" #_bar_id "-size", RCiEP, bars[_bar_id].size, 0), \
+    DEFINE_PROP_BOOL("bar" #_bar_id "-is-64bits", RCiEP, bars[_bar_id].is_64bits, false), \
+    DEFINE_PROP_BOOL("bar" #_bar_id "-prefetchable", RCiEP, bars[_bar_id].prefetchable, false)
 
 static const Property rciep_props[] = {
     DEFINE_PROP_UINT16("vendor-id",       RCiEP, vendor_id,      0x17CB),
@@ -223,13 +381,24 @@ static const Property rciep_props[] = {
                        RCIEP_PF_DEVICE_ID),
     DEFINE_PROP_UINT16("class-id",        RCiEP, class_id,       0x1200),
     DEFINE_PROP_UINT8("revision",         RCiEP, revision,       0x00),
-    DEFINE_PROP_UINT16("num-vfs",         RCiEP, num_vfs,        RCIEP_MAX_VFS),
-    DEFINE_PROP_UINT8("num-msi-vectors",  RCiEP, num_msi_vectors, 4),
-    DEFINE_PROP_UINT64("bar0-size",       RCiEP, bar0_size,
-                       RCIEP_PF_BAR0_SIZE),
+    DEFINE_PROP_UINT16("num-vfs",         RCiEP, num_vfs,        0),
     DEFINE_PROP_UINT64("pf-shadow-base",  RCiEP, pf_shadow_base, 0),
     DEFINE_PROP_UINT64("private-base",    RCiEP, private_base,   0),
-    DEFINE_PROP_UINT64("commblock-base",  RCiEP, commblock_base, 0),
+
+    DEFINE_PROP_UINT8("num-msi-vectors",  RCiEP, num_msi_vectors, 4),
+
+    DEFINE_PROP_UINT16("num-msix-vectors", RCiEP, num_msix_vectors, 0),
+    DEFINE_PROP_UINT8("msix-table-bar", RCiEP, msix_table_bar, 0),
+    DEFINE_PROP_UINT32("msix-table-offset", RCiEP, msix_table_offset, 0),
+    DEFINE_PROP_UINT8("msix-pba-bar", RCiEP, msix_pba_bar, 0),
+    DEFINE_PROP_UINT32("msix-pba-offset", RCiEP, msix_pba_offset, 0),
+
+    DEFINE_RCIEP_BAR_PROP(0),
+    DEFINE_RCIEP_BAR_PROP(1),
+    DEFINE_RCIEP_BAR_PROP(2),
+    DEFINE_RCIEP_BAR_PROP(3),
+    DEFINE_RCIEP_BAR_PROP(4),
+    DEFINE_RCIEP_BAR_PROP(5),
 };
 
 static void rciep_class_init(ObjectClass *klass, const void *data)
@@ -279,49 +448,25 @@ struct RCiEPVF {
  * num-vfs is capped at RCIEP_MAX_VFS in realize, so vf_num fits the 3-bit
  * field.
  */
-static hwaddr rciep_vf_commblock_addr(RCiEPVF *vf, hwaddr addr)
+static hwaddr rciep_vf_commblock_addr(RCiEPVF *vf)
 {
     uint16_t vf_num = pcie_sriov_vf_number(PCI_DEVICE(vf));
 
-    return ((hwaddr)(vf_num % RCIEP_MAX_VFS) << RCIEP_VF_INDEX_SHIFT) |
-           (addr & (RCIEP_VF_BAR0_SIZE - 1));
+    assert(vf_num < RCIEP_MAX_VFS);
+
+    return (hwaddr) vf_num << RCIEP_VF_INDEX_SHIFT;
 }
-
-static uint64_t rciep_vf_mmio_read(void *opaque, hwaddr addr, unsigned size)
-{
-    RCiEPVF *vf = opaque;
-    RCiEP *d = RCIEP(pcie_sriov_get_pf(PCI_DEVICE(vf)));
-
-    return rciep_mmio_read(d, rciep_vf_commblock_addr(vf, addr), size);
-}
-
-static void rciep_vf_mmio_write(void *opaque, hwaddr addr, uint64_t val,
-                                unsigned size)
-{
-    RCiEPVF *vf = opaque;
-    RCiEP *d = RCIEP(pcie_sriov_get_pf(PCI_DEVICE(vf)));
-
-    rciep_mmio_write(d, rciep_vf_commblock_addr(vf, addr), val, size);
-}
-
-static const MemoryRegionOps rciep_vf_mmio_ops = {
-    .read       = rciep_vf_mmio_read,
-    .write      = rciep_vf_mmio_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid      = { .min_access_size = 4, .max_access_size = 8 },
-};
 
 static void rciep_vf_realize(PCIDevice *pci_dev, Error **errp)
 {
     RCiEPVF *vf = RCIEP_VF(pci_dev);
+    RCiEP* pf = RCIEP(pcie_sriov_get_pf(pci_dev));
+    RCiEPBar* pf_bar0 = &pf->bars[0];
 
-    memory_region_init_io(&vf->bar0, OBJECT(vf), &rciep_vf_mmio_ops, vf,
-                          "rciep-vf-bar0", RCIEP_VF_BAR0_SIZE);
+    memory_region_init_alias(&vf->bar0, OBJECT(vf), "rciep-vf-bar0", pf_bar0->target, rciep_vf_commblock_addr(vf), RCIEP_VF_BAR0_SIZE);
+
     /* Non-prefetchable: doorbell/comm-block aperture (see PF BAR0). */
-    pci_register_bar(pci_dev, 0,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_TYPE_32,
-                     &vf->bar0);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_32, &vf->bar0);
 }
 
 static void rciep_vf_class_init(ObjectClass *klass, const void *data)
