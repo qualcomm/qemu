@@ -6,6 +6,7 @@
 
 # Enable QCT QTimer device for RISC-V testing
 CONFIG_DRAGON=y
+CONFIG_RISCV_CLIC=y
 
 # Boards are selected by default, uncomment to keep out of the build.
 # CONFIG_SPIKE=n

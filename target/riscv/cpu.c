@@ -41,6 +41,10 @@
 #include "tcg/tcg.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "target/riscv/debug.h"
+#include CONFIG_DEVICES
+#ifdef CONFIG_RISCV_CLIC
+#include "hw/intc/riscv_clic.h"
+#endif
 #endif
 #include "xqci/xqci-csr.h"
 
@@ -746,6 +750,12 @@ bool riscv_cpu_has_work(CPUState *cs)
      * Definition of the WFI instruction requires it to ignore the privilege
      * mode and delegation registers, but respect individual enables
      */
+#ifdef CONFIG_RISCV_CLIC
+    if (cpu->clic && (env->mtvec & 3) == 2 &&
+        riscv_clic_pending(cpu->clic) >= 0) {
+        return true;
+    }
+#endif
     return riscv_cpu_all_pending(env) != 0 ||
         riscv_cpu_sirq_pending(env) != RISCV_EXCP_NONE ||
         riscv_cpu_vsirq_pending(env) != RISCV_EXCP_NONE;
@@ -1121,6 +1131,12 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
 {
     RISCVCPU *cpu = RISCV_CPU(opaque);
     CPURISCVState *env = &cpu->env;
+
+#ifdef CONFIG_RISCV_CLIC
+    if (cpu->clic && (irq == IRQ_M_SOFT || irq == IRQ_M_TIMER)) {
+        qemu_set_irq(qdev_get_gpio_in(DEVICE(cpu->clic), irq), level);
+    }
+#endif
 
     if (irq < IRQ_LOCAL_MAX) {
         switch (irq) {
@@ -2690,6 +2706,9 @@ static const Property riscv_cpu_properties[] = {
     {.name = "marchid", .info = &prop_marchid},
 
 #ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_RISCV_CLIC
+    DEFINE_PROP_LINK("clic", RISCVCPU, clic, TYPE_RISCV_CLIC, RiscvCLICState *),
+#endif
     DEFINE_PROP_UNSIGNED("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC,
                          prop_uint64_resetvec, uint64_t),
     DEFINE_PROP_UINT64("rnmi-interrupt-vector", RISCVCPU, env.rnmi_irqvec,
