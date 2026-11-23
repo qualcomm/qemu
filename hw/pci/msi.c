@@ -55,7 +55,7 @@
 bool msi_nonbroken;
 
 /* If we get rid of cap allocator, we won't need this. */
-static inline uint8_t msi_cap_sizeof(uint16_t flags)
+uint8_t msi_cap_sizeof(uint16_t flags)
 {
     switch (flags & (PCI_MSI_FLAGS_MASKBIT | PCI_MSI_FLAGS_64BIT)) {
     case PCI_MSI_FLAGS_MASKBIT | PCI_MSI_FLAGS_64BIT:
