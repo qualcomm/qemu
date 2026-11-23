@@ -34,7 +34,6 @@
 #include "internals.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "target/riscv/tcg/debug.h"
-#include CONFIG_DEVICES
 #endif
 
 /* CSR function table public API */
@@ -3097,10 +3096,8 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
         env->mtvec = val;
-#ifdef CONFIG_RISCV_CLIC
     } else if ((val & 3) == 2 && env_archcpu(env)->clic) {
         env->mtvec = val;
-#endif
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
     }
