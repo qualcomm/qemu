@@ -22,3 +22,4 @@ GTAGS
 *.swp
 *.patch
 *.gcov
+compile_commands.json
