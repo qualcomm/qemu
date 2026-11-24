@@ -781,3 +781,5 @@ config HETEROGENEOUS_MACHINE
     depends on TCG && AARCH64
     select SERIAL_MM
     select CPU_CLUSTER
+    select ARM_GIC
+    select SPLIT_IRQ
