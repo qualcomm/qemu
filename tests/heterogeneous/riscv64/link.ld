@@ -3,8 +3,8 @@ ENTRY(_start)
 
 SECTIONS
 {
-    /* riscv64 cpu reset address */
-    . = 0x48000000;
+    /* riscv64 cpu reset address (in its private RAM) */
+    . = 0x40000000;
     .text : { *(.text.boot) *(.text*) }
     .rodata : { *(.rodata*) *(.srodata*) }
     .data : { *(.data*) *(.sdata*) }

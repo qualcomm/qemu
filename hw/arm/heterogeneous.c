@@ -6,15 +6,21 @@
  * QEMU to run with several targets enabled:
  *   qemu-system -target aarch64,riscv64 -M heterogeneous
  *
- * Memory map:
+ * Each cpu has its own view of memory. Devices and SRAM are shared, while
+ * RAM is private: it is split in two halves, one per cpu, both mapped at the
+ * same address.
+ *
+ * Memory map (as seen by each cpu):
  *   0x10000000 - 0x100000ff: UART (16550, shared by all cpus)
  *   0x20000000 - 0x2000ffff: shared SRAM (e.g. for mailboxes)
- *   0x40000000 - ...       : RAM
- *     0x40000000           : aarch64 cpu reset address
- *     0x48000000           : riscv64 cpu reset address
+ *   0x40000000 - ...       : private RAM (half of -m), cpu reset address
  *
  * Each cpu lives in its own cluster, so translated code is never shared
- * between them.
+ * between them. This is mandatory, since the same physical address holds
+ * different content for each cpu.
+ *
+ * Images must be loaded in the address space of their cpu, e.g. with
+ *   -device loader,file=<elf>,cpu-num=<0 for aarch64, 1 for riscv64>
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
@@ -49,8 +55,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(HeterogeneousMachineState, HETEROGENEOUS_MACHINE)
 #define HETEROGENEOUS_SRAM_BASE         0x20000000
 #define HETEROGENEOUS_SRAM_SIZE         (64 * KiB)
 #define HETEROGENEOUS_RAM_BASE          0x40000000
-#define HETEROGENEOUS_ARM_RESET_ADDR    HETEROGENEOUS_RAM_BASE
-#define HETEROGENEOUS_RISCV_RESET_ADDR  (HETEROGENEOUS_RAM_BASE + 128 * MiB)
+#define HETEROGENEOUS_RESET_ADDR        HETEROGENEOUS_RAM_BASE
 #define HETEROGENEOUS_RAM_MIN_SIZE      (256 * MiB)
 
 enum {
@@ -64,9 +69,46 @@ struct HeterogeneousMachineState {
 
     CPUClusterState clusters[HETEROGENEOUS_NUM_CLUSTERS];
     MemoryRegion sram;
+    /* per cpu view of memory */
+    MemoryRegion cpu_mem[HETEROGENEOUS_NUM_CLUSTERS];
+    /* private RAM of each cpu (alias of a part of machine RAM) */
+    MemoryRegion cpu_ram[HETEROGENEOUS_NUM_CLUSTERS];
+    /* shared devices and memory (alias of system memory) */
+    MemoryRegion cpu_shared[HETEROGENEOUS_NUM_CLUSTERS];
 };
 
 static const char *const heterogeneous_targets[] = { "aarch64", "riscv64" };
+
+/*
+ * Create view of memory for cpu of cluster @cluster_id:
+ * - private RAM: part @cluster_id of machine RAM
+ * - everything else: shared, through an alias of system memory
+ */
+static MemoryRegion *heterogeneous_create_cpu_mem(HeterogeneousMachineState *s,
+                                                  unsigned cluster_id)
+{
+    MachineState *machine = MACHINE(s);
+    uint64_t ram_size = machine->ram_size / HETEROGENEOUS_NUM_CLUSTERS;
+    g_autofree char *mem_name = g_strdup_printf("cpu-memory%u", cluster_id);
+    g_autofree char *ram_name = g_strdup_printf("cpu-ram%u", cluster_id);
+    g_autofree char *shared_name = g_strdup_printf("cpu-shared%u", cluster_id);
+    MemoryRegion *mem = &s->cpu_mem[cluster_id];
+
+    memory_region_init(mem, OBJECT(s), mem_name, UINT64_MAX);
+
+    memory_region_init_alias(&s->cpu_ram[cluster_id], OBJECT(s), ram_name,
+                             machine->ram, cluster_id * ram_size, ram_size);
+    memory_region_add_subregion(mem, HETEROGENEOUS_RAM_BASE,
+                                &s->cpu_ram[cluster_id]);
+
+    /* lower priority, so private RAM always takes precedence */
+    memory_region_init_alias(&s->cpu_shared[cluster_id], OBJECT(s),
+                             shared_name, get_system_memory(), 0, UINT64_MAX);
+    memory_region_add_subregion_overlap(mem, 0, &s->cpu_shared[cluster_id],
+                                        -1);
+
+    return mem;
+}
 
 /* cpus are not reset automatically on system reset */
 static void heterogeneous_cpu_reset(void *opaque)
@@ -77,11 +119,11 @@ static void heterogeneous_cpu_reset(void *opaque)
 static CPUState *heterogeneous_create_cpu(HeterogeneousMachineState *s,
                                           unsigned cluster_id,
                                           const char *cpu_type,
-                                          const char *reset_prop,
-                                          uint64_t reset_addr)
+                                          const char *reset_prop)
 {
     CPUClusterState *cluster = &s->clusters[cluster_id];
     g_autofree char *cluster_name = g_strdup_printf("cluster%u", cluster_id);
+    MemoryRegion *mem = heterogeneous_create_cpu_mem(s, cluster_id);
     Object *cpu;
 
     object_initialize_child(OBJECT(s), cluster_name, cluster,
@@ -91,7 +133,9 @@ static CPUState *heterogeneous_create_cpu(HeterogeneousMachineState *s,
     cpu = object_new(cpu_type);
     object_property_add_child(OBJECT(cluster), "cpu", cpu);
     object_unref(cpu);
-    object_property_set_uint(cpu, reset_prop, reset_addr, &error_fatal);
+    object_property_set_uint(cpu, reset_prop, HETEROGENEOUS_RESET_ADDR,
+                             &error_fatal);
+    object_property_set_link(cpu, "memory", OBJECT(mem), &error_fatal);
 
     /*
      * Realize cluster before its cpu, so cpu->cluster_index is already set
@@ -126,16 +170,11 @@ static void heterogeneous_init(MachineState *machine)
         exit(1);
     }
 
-    /* cpus: index 0 is aarch64, index 1 is riscv64 */
-    heterogeneous_create_cpu(s, HETEROGENEOUS_CLUSTER_ARM,
-                             HETEROGENEOUS_ARM_CPU_TYPE,
-                             "rvbar", HETEROGENEOUS_ARM_RESET_ADDR);
-    heterogeneous_create_cpu(s, HETEROGENEOUS_CLUSTER_RISCV,
-                             HETEROGENEOUS_RISCV_CPU_TYPE,
-                             "resetvec", HETEROGENEOUS_RISCV_RESET_ADDR);
-
-    /* memory */
-    memory_region_add_subregion(sysmem, HETEROGENEOUS_RAM_BASE, machine->ram);
+    /*
+     * Shared memory and devices are mapped in system memory, and each cpu
+     * sees them through an alias. RAM is not mapped in system memory, and
+     * each cpu only sees its own part.
+     */
     memory_region_init_ram(&s->sram, NULL, "heterogeneous.sram",
                            HETEROGENEOUS_SRAM_SIZE, &error_fatal);
     memory_region_add_subregion(sysmem, HETEROGENEOUS_SRAM_BASE, &s->sram);
@@ -144,6 +183,12 @@ static void heterogeneous_init(MachineState *machine)
     serial_mm_init(sysmem, HETEROGENEOUS_UART_BASE, 0, NULL,
                    HETEROGENEOUS_UART_BAUDBASE, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
+
+    /* cpus: index 0 is aarch64, index 1 is riscv64 */
+    heterogeneous_create_cpu(s, HETEROGENEOUS_CLUSTER_ARM,
+                             HETEROGENEOUS_ARM_CPU_TYPE, "rvbar");
+    heterogeneous_create_cpu(s, HETEROGENEOUS_CLUSTER_RISCV,
+                             HETEROGENEOUS_RISCV_CPU_TYPE, "resetvec");
 }
 
 static void heterogeneous_machine_class_init(ObjectClass *oc,

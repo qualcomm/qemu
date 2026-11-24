@@ -3,7 +3,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    /* aarch64 cpu reset address */
+    /* aarch64 cpu reset address (in its private RAM) */
     . = 0x40000000;
     .text : { *(.text.boot) *(.text*) }
     .rodata : { *(.rodata*) }
