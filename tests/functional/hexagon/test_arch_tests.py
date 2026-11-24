@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import threading
+
 from qemu_test import QemuSystemTest, Asset
 from qemu_test.cmd import wait_for_console_pattern
 
@@ -32,6 +34,24 @@ class ArchTestsUart(QemuSystemTest):
         "64053b31e8e3acf7c97e7e82209b6bda",
     )
 
+    def launch_and_wait_for_pass(self) -> None:
+        """
+        Run the guest until it prints PASS on the console.
+
+        Start the guest paused and read the console while resuming it.  This
+        prevents a full console socket from blocking the guest while it holds
+        the BQL and prevents QMP from replying.
+        """
+        self.vm.add_args("-S")
+        self.vm.launch()
+        resume = threading.Thread(target=self.vm.cmd, args=("cont",),
+                                  daemon=True)
+        resume.start()
+        try:
+            wait_for_console_pattern(self, "PASS")
+        finally:
+            resume.join(timeout=30)
+
     def run_uart_test(self, test_name: str,
                       machine: str = "virt") -> None:
         """
@@ -44,8 +64,7 @@ class ArchTestsUart(QemuSystemTest):
         self.vm.set_console()
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)
-        self.vm.launch()
-        wait_for_console_pattern(self, "PASS")
+        self.launch_and_wait_for_pass()
 
     def run_semihosting_test(self, test_name: str,
                              machine: str = "V81QA_1") -> None:
@@ -56,8 +75,7 @@ class ArchTestsUart(QemuSystemTest):
         self.vm.set_console(semihosting=True)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)
-        self.vm.launch()
-        wait_for_console_pattern(self, "PASS")
+        self.launch_and_wait_for_pass()
 
     def test_exceptions(self) -> None:
         """Tests exception delivery for trap instructions, privilege
