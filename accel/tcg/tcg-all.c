@@ -38,6 +38,7 @@
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
 #include "qemu/target-info.h"
+#include "qemu/target-info-qom.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/boards.h"
 #include "exec/tb-flush.h"
@@ -109,8 +110,13 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
     unsigned max_threads = 1;
 
 #ifndef CONFIG_USER_ONLY
-    CPUClass *cc = CPU_CLASS(object_class_by_name(target_cpu_type()));
-    bool mttcg_supported = cc->tcg_ops->mttcg_supported;
+    /* heterogeneous emulation: all targets must support MTTCG */
+    bool mttcg_supported = true;
+    for (size_t i = 0; i < target_info_qom_num_targets(); i++) {
+        const char *cpu_type = target_info_qom_get_target(i)->cpu_type;
+        CPUClass *cc = CPU_CLASS(object_class_by_name(cpu_type));
+        mttcg_supported &= cc->tcg_ops->mttcg_supported;
+    }
 
     switch (s->mttcg_enabled) {
     case ON_OFF_AUTO_AUTO:
@@ -168,6 +174,21 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
     page_init();
     tb_htable_init();
     tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_threads);
+
+#ifndef CONFIG_USER_ONLY
+    /*
+     * TCG globals of a frontend are created in the initial context, which is
+     * copied into each vCPU thread context when it starts. With heterogeneous
+     * emulation, make sure all frontends are initialized before any vCPU
+     * thread is started (needed for round-robin, where a single thread
+     * executes cpus of all targets).
+     */
+    for (size_t i = 0; i < target_info_qom_num_targets(); i++) {
+        const char *cpu_type = target_info_qom_get_target(i)->cpu_type;
+        CPUClass *cc = CPU_CLASS(object_class_by_name(cpu_type));
+        tcg_exec_init_frontend(cc->tcg_ops);
+    }
+#endif
 
 #if defined(CONFIG_SOFTMMU)
     /*

@@ -1060,24 +1060,38 @@ int cpu_exec(CPUState *cpu)
     return excp;
 }
 
+void tcg_exec_init_frontend(const TCGCPUOps *tcg_ops)
+{
+    /*
+     * With heterogeneous emulation, several frontends need to be initialized.
+     * Several TCGCPUOps can share the same frontend (e.g. arm and arm-v7m),
+     * so track which initialize functions were already called.
+     */
+    static GPtrArray *initialized;
+
+    if (!initialized) {
+        initialized = g_ptr_array_new();
+    }
+    if (g_ptr_array_find(initialized, tcg_ops->initialize, NULL)) {
+        return;
+    }
+
+    /* Check mandatory TCGCPUOps handlers */
+#ifndef CONFIG_USER_ONLY
+    assert(tcg_ops->cpu_exec_interrupt);
+    assert(tcg_ops->cpu_exec_reset);
+    assert(tcg_ops->pointer_wrap);
+#endif /* !CONFIG_USER_ONLY */
+    assert(tcg_ops->translate_code);
+    assert(tcg_ops->get_tb_cpu_state);
+    assert(tcg_ops->mmu_index);
+    tcg_ops->initialize();
+    g_ptr_array_add(initialized, tcg_ops->initialize);
+}
+
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
 {
-    static bool tcg_target_initialized;
-
-    if (!tcg_target_initialized) {
-        /* Check mandatory TCGCPUOps handlers */
-        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-#ifndef CONFIG_USER_ONLY
-        assert(tcg_ops->cpu_exec_interrupt);
-        assert(tcg_ops->cpu_exec_reset);
-        assert(tcg_ops->pointer_wrap);
-#endif /* !CONFIG_USER_ONLY */
-        assert(tcg_ops->translate_code);
-        assert(tcg_ops->get_tb_cpu_state);
-        assert(tcg_ops->mmu_index);
-        tcg_ops->initialize();
-        tcg_target_initialized = true;
-    }
+    tcg_exec_init_frontend(cpu->cc->tcg_ops);
 
     /* Pick up one-insn-per-tb and -d nochain from the command line. */
     tcg_update_cflags(cpu);

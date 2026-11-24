@@ -67,6 +67,15 @@ void tlb_init(CPUState *cpu);
 void tlb_destroy(CPUState *cpu);
 
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
+
+/**
+ * tcg_exec_init_frontend:
+ * @tcg_ops: TCGCPUOps of the frontend
+ *
+ * Initialize TCG frontend (translator globals) associated to @tcg_ops, if
+ * not already done.
+ */
+void tcg_exec_init_frontend(const TCGCPUOps *tcg_ops);
 void tcg_exec_unrealizefn(CPUState *cpu);
 
 /*
