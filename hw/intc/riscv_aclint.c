@@ -289,6 +289,8 @@ static const Property riscv_aclint_mtimer_properties[] = {
         aperture_size, RISCV_ACLINT_DEFAULT_MTIMER_SIZE),
     DEFINE_PROP_UINT32("timebase-freq", RISCVAclintMTimerState,
         timebase_freq, 0),
+    DEFINE_PROP_BOOL("provide-rdtime", RISCVAclintMTimerState,
+        provide_rdtime, false),
 };
 
 static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
@@ -317,6 +319,18 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
             error_report("MTIP already claimed");
             exit(1);
         }
+
+        if (s->provide_rdtime) {
+            riscv_cpu_set_rdtime_fn(&cpu->env, cpu_riscv_read_rtc, dev);
+        }
+
+        riscv_aclint_mtimer_callback *cb =
+            g_new0(riscv_aclint_mtimer_callback, 1);
+        cb->s = s;
+        cb->num = i;
+        s->timers[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                    &riscv_aclint_mtimer_cb, cb);
+        s->timecmp[i] = 0;
     }
 }
 
@@ -379,7 +393,6 @@ DeviceState *riscv_aclint_mtimer_create(MemoryRegion *container,
 {
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_MTIMER);
-    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
 
     assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x7));
@@ -392,33 +405,20 @@ DeviceState *riscv_aclint_mtimer_create(MemoryRegion *container,
     qdev_prop_set_uint32(dev, "time-base", time_base);
     qdev_prop_set_uint32(dev, "aperture-size", size);
     qdev_prop_set_uint32(dev, "timebase-freq", timebase_freq);
+    qdev_prop_set_bit(dev, "provide-rdtime", provide_rdtime);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(container, addr,
         sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(hartid_base + i);
-        RISCVCPU *rvcpu = RISCV_CPU(cpu);
-        CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
-        riscv_aclint_mtimer_callback *cb =
-            g_new0(riscv_aclint_mtimer_callback, 1);
 
-        if (!env) {
-            g_free(cb);
+        if (!cpu) {
+            /* Valid for sparse hart layouts - skip this hart ID */
             continue;
         }
-        if (provide_rdtime) {
-            riscv_cpu_set_rdtime_fn(env, cpu_riscv_read_rtc, dev);
-        }
-
-        cb->s = s;
-        cb->num = i;
-        s->timers[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                  &riscv_aclint_mtimer_cb, cb);
-        s->timecmp[i] = 0;
-
         qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in(DEVICE(rvcpu), IRQ_M_TIMER));
+                              qdev_get_gpio_in(DEVICE(cpu), IRQ_M_TIMER));
     }
 
     return dev;

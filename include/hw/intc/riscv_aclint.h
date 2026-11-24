@@ -43,6 +43,7 @@ typedef struct RISCVAclintMTimerState {
     uint32_t time_base;
     uint32_t aperture_size;
     uint32_t timebase_freq;
+    bool provide_rdtime;
     qemu_irq *timer_irqs;
 } RISCVAclintMTimerState;
 
