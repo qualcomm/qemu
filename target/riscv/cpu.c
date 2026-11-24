@@ -3094,6 +3094,11 @@ static const Property riscv_cpu_properties[] = {
 
 #ifndef CONFIG_USER_ONLY
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC),
+    /*
+     * Hart ID, usually set by riscv hart array. Allows boards creating cpus
+     * directly to set it.
+     */
+    DEFINE_PROP_UINT64("mhartid", RISCVCPU, env.mhartid, 0),
     DEFINE_PROP_UINT64("rnmi-interrupt-vector", RISCVCPU, env.rnmi_irqvec,
                        DEFAULT_RNMI_IRQVEC),
     DEFINE_PROP_UINT64("rnmi-exception-vector", RISCVCPU, env.rnmi_excpvec,
