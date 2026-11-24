@@ -3,6 +3,7 @@
 #
 # Build qemu-system and bare metal tests, then run them on heterogeneous
 # machine (aarch64 + riscv64 cpus sharing a UART).
+# Tests to run are selected with TESTS (default: "hello irq").
 # Extra arguments are passed to QEMU (e.g. -accel tcg,thread=single).
 
 set -euo pipefail
@@ -22,10 +23,13 @@ mkdir -p "$out"
 make -s -C "$out" -f "$src/tests/heterogeneous/Makefile"
 
 set -x
-timeout 30 "$build/qemu-system" \
-    -target aarch64,riscv64 -M heterogeneous \
-    -display none -monitor none -serial stdio \
-    -semihosting-config enable=on,target=native \
-    -device loader,file="$out/hello-aarch64.elf",cpu-num=0 \
-    -device loader,file="$out/hello-riscv64.elf",cpu-num=1 \
-    "$@"
+for test in ${TESTS:-hello irq}; do
+    echo "== $test"
+    timeout 30 "$build/qemu-system" \
+        -target aarch64,riscv64 -M heterogeneous \
+        -display none -monitor none -serial stdio \
+        -semihosting-config enable=on,target=native \
+        -device loader,file="$out/$test-aarch64.elf",cpu-num=0 \
+        -device loader,file="$out/$test-riscv64.elf",cpu-num=1 \
+        "$@"
+done
