@@ -217,8 +217,10 @@ foreach test_name, extra: tests
               (slow_tests.has_key(test_name) ? ['slow'] : []))
 endforeach
 
-# Multi targets test
-if multi_target_objects != []
+# Multi targets test. It links the objects of every target into a single
+# executable, which clashes with the libqemu exported symbols when building
+# several libqemu targets.
+if multi_target_objects != [] and not enable_libqemu
   test('test-multi-target',
        executable('test-multi-target',
                   sources: [multi_target_crates, files('test-multi-target.c')],
