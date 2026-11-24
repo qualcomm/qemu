@@ -26,6 +26,6 @@ timeout 30 "$build/qemu-system" \
     -target aarch64,riscv64 -M heterogeneous \
     -display none -monitor none -serial stdio \
     -semihosting-config enable=on,target=native \
-    -device loader,file="$out/hello-aarch64.elf" \
-    -device loader,file="$out/hello-riscv64.elf" \
+    -device loader,file="$out/hello-aarch64.elf",cpu-num=0 \
+    -device loader,file="$out/hello-riscv64.elf",cpu-num=1 \
     "$@"

@@ -36,8 +36,8 @@ check: $(TESTS)
 	timeout 30 $(QEMU) -target aarch64,riscv64 -M heterogeneous \
 		-display none -monitor none -serial file:$(OUT)/hello.out \
 		-semihosting-config enable=on,target=native \
-		-device loader,file=$(OUT)/hello-aarch64.elf \
-		-device loader,file=$(OUT)/hello-riscv64.elf
+		-device loader,file=$(OUT)/hello-aarch64.elf,cpu-num=0 \
+		-device loader,file=$(OUT)/hello-riscv64.elf,cpu-num=1
 	cat $(OUT)/hello.out
 	printf 'Hello world from aarch64\r\nHello world from riscv64\r\n' | \
 		cmp - $(OUT)/hello.out && echo PASS
