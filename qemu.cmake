@@ -135,6 +135,12 @@ set(cflags "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}}")
 set(cxxflags "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 set(ldflags "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}")
 
+# QEMU refuses to build with NDEBUG defined (it relies on assert() being
+# active), but CMake's Release/MinSizeRel flags carry -DNDEBUG.
+foreach(flags_var cflags cxxflags)
+    string(REPLACE "-DNDEBUG" "" ${flags_var} "${${flags_var}}")
+endforeach()
+
 if(${CMAKE_CXX_STANDARD})
     set(cxxflags "-std=c++${CMAKE_CXX_STANDARD} ${cxxflags}")
 endif()
