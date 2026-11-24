@@ -25,11 +25,20 @@ SRST
 ERST
 
 DEF("target", HAS_ARG, QEMU_OPTION_target, \
-    "-target target  selects the target architecture ('-target help' for list)\n",
+    "-target target[,target2...]\n"
+    "                selects the target architecture ('-target help' for list)\n"
+    "                several targets enable heterogeneous emulation, the first\n"
+    "                one being the primary target\n",
     QEMU_ARCH_ALL)
 SRST
-``-target target``
-    Selects target architecture ('-target help' for list)
+``-target target[,target2...]``
+    Selects target architecture ('-target help' for list).
+
+    Several targets can be selected at once, using a comma separated list,
+    to enable heterogeneous emulation (e.g. ``-target aarch64,riscv64 -M
+    heterogeneous``). The first target is the primary one: it defines which
+    machines are available, while CPUs and devices of all selected targets
+    can be used.
 ERST
 
 DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
