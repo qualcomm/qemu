@@ -2195,6 +2195,7 @@ Heterogeneous machine
 M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Maintained
 F: hw/arm/heterogeneous.c
+F: tests/heterogeneous/
 
 Xtensa Machines
 ---------------
