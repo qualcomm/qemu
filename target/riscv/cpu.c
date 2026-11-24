@@ -1454,7 +1454,8 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
     RISCVCPU *cpu = RISCV_CPU(opaque);
     CPURISCVState *env = &cpu->env;
 
-    if (cpu->clic && (irq == IRQ_M_SOFT || irq == IRQ_M_TIMER)) {
+    if (cpu->clic && irq < cpu->clic->num_sources &&
+        (irq == IRQ_M_SOFT || irq == IRQ_M_TIMER)) {
         qemu_set_irq(qdev_get_gpio_in(DEVICE(cpu->clic), irq), level);
     }
 
