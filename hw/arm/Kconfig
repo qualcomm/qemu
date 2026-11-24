@@ -774,3 +774,10 @@ config AXIADO_EVK
     default y
     depends on TCG && ARM
     select AXIADO_SOC
+
+config HETEROGENEOUS_MACHINE
+    bool
+    default y
+    depends on TCG && AARCH64
+    select SERIAL_MM
+    select CPU_CLUSTER

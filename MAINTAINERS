@@ -2191,6 +2191,11 @@ F: target-info*.c
 F: stubs/target-info-qom.c
 F: tests/unit/test-multi-target.c
 
+Heterogeneous machine
+M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
+S: Maintained
+F: hw/arm/heterogeneous.c
+
 Xtensa Machines
 ---------------
 sim
