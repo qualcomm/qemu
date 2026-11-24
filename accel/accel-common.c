@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
 #include "qemu/target-info.h"
+#include "qemu/target-info-qom.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu.h"
 #include "accel/accel-cpu-ops.h"
@@ -44,12 +45,12 @@ static void accel_init_cpu_int_aux(ObjectClass *klass, void *opaque)
 }
 
 /* initialize the arch-specific accel CpuClass interfaces */
-static void accel_init_cpu_interfaces(AccelClass *ac)
+static void accel_init_cpu_interfaces_for(AccelClass *ac,
+                                          const char *cpu_resolving_type)
 {
     const char *ac_name; /* AccelClass name */
     char *acc_name;      /* AccelCPUClass name */
     ObjectClass *acc;    /* AccelCPUClass */
-    const char *cpu_resolving_type = target_cpu_type();
 
     ac_name = object_class_get_name(OBJECT_CLASS(ac));
     g_assert(ac_name != NULL);
@@ -61,6 +62,15 @@ static void accel_init_cpu_interfaces(AccelClass *ac)
     if (acc) {
         object_class_foreach(accel_init_cpu_int_aux,
                              cpu_resolving_type, false, acc);
+    }
+}
+
+static void accel_init_cpu_interfaces(AccelClass *ac)
+{
+    /* heterogeneous emulation: initialize interfaces for all targets */
+    for (size_t i = 0; i < target_info_qom_num_targets(); i++) {
+        accel_init_cpu_interfaces_for(ac,
+                                      target_info_qom_get_target(i)->cpu_type);
     }
 }
 
@@ -130,9 +140,9 @@ static const TypeInfo accel_types[] = {
 
 DEFINE_TYPES(accel_types)
 
-static void register_accel_target_type(void)
+static void register_accel_target_type_for(const char *cpu_type)
 {
-    g_autofree char *name = g_strconcat("accel-", target_cpu_type(), NULL);
+    g_autofree char *name = g_strconcat("accel-", cpu_type, NULL);
     const TypeInfo accel_cpu_type = {
         .name = name,
         .parent = TYPE_OBJECT,
@@ -141,6 +151,14 @@ static void register_accel_target_type(void)
     };
 
     type_register_static(&accel_cpu_type);
+}
+
+static void register_accel_target_type(void)
+{
+    /* heterogeneous emulation: register type for all targets */
+    for (size_t i = 0; i < target_info_qom_num_targets(); i++) {
+        register_accel_target_type_for(target_info_qom_get_target(i)->cpu_type);
+    }
 }
 
 type_init(register_accel_target_type);
