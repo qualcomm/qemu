@@ -1,0 +1,6 @@
+aarch64: software interrupt received
+aarch64: timer interrupt received
+aarch64: uart interrupt received
+riscv64: software interrupt received
+riscv64: timer interrupt received
+riscv64: uart interrupt received
