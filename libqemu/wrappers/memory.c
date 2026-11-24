@@ -243,6 +243,39 @@ void libqemu_address_space_free(AddressSpace *as)
     g_free(as);
 }
 
+static void libqemu_guard_region_add(MemoryListener *ml,
+                                     MemoryRegionSection *section)
+{
+    if (section->mr->dev) {
+        section->mr->disable_reentrancy_guard = true;
+    }
+}
+
+void libqemu_address_space_init(AddressSpace *as, MemoryRegion *root,
+                                const char *name)
+{
+    MemoryListener *ml = g_new0(MemoryListener, 1);
+
+    address_space_init(as, root, name);
+
+    ml->name = "libqemu-reentrancy-guard";
+    ml->region_add = libqemu_guard_region_add;
+    memory_listener_register(ml, as);
+}
+
+void libqemu_address_space_destroy(AddressSpace *as)
+{
+    MemoryListener *ml, *next;
+
+    QTAILQ_FOREACH_SAFE(ml, &as->listeners, link_as, next) {
+        if (ml->region_add == libqemu_guard_region_add) {
+            memory_listener_unregister(ml);
+            g_free(ml);
+        }
+    }
+    address_space_destroy(as);
+}
+
 void libqemu_address_space_update_topology(AddressSpace *as)
 {
     address_space_update_topology(as);
