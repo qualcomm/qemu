@@ -981,6 +981,17 @@ ObjectClass *object_get_class(Object *obj);
 const char *object_get_typename(const Object *obj);
 
 /**
+ * type_set_is_available_handler:
+ * @handler: function deciding if a type having an @is_available callback
+ *   should be registered.
+ *
+ * By default, the @is_available callback of a #TypeInfo is directly called
+ * at registration time. This allows to override this behaviour, for instance
+ * to evaluate it against several targets when doing heterogeneous emulation.
+ */
+void type_set_is_available_handler(bool (*handler)(const TypeInfo *info));
+
+/**
  * type_register_static:
  * @info: The #TypeInfo of the new type.
  *

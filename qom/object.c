@@ -158,6 +158,24 @@ static bool type_name_is_valid(const char *name)
     return plen == slen;
 }
 
+static bool (*type_is_available_handler)(const TypeInfo *info);
+
+void type_set_is_available_handler(bool (*handler)(const TypeInfo *info))
+{
+    type_is_available_handler = handler;
+}
+
+static bool type_is_available(const TypeInfo *info)
+{
+    if (!info->is_available) {
+        return true;
+    }
+    if (type_is_available_handler) {
+        return type_is_available_handler(info);
+    }
+    return info->is_available();
+}
+
 static TypeImpl *type_register_internal(const TypeInfo *info)
 {
     TypeImpl *ti;
@@ -167,7 +185,7 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
         abort();
     }
 
-    if (info->is_available && !info->is_available()) {
+    if (!type_is_available(info)) {
         return NULL;
     }
 
