@@ -178,8 +178,10 @@ ExportedFct('mr_ops_set_max_access_size', 'void',
 ExportedType('QemuAddressSpace', 'AddressSpace')
 ExportedFct('address_space_new', 'AddressSpace *', [], priv = 'libqemu_address_space_new')
 ExportedFct('address_space_free', 'void', [ 'AddressSpace *' ], priv = 'libqemu_address_space_free')
-ExportedFct('address_space_init', 'void', [ 'AddressSpace *', 'MemoryRegion *', 'const char *' ])
-ExportedFct('address_space_destroy', 'void', [ 'AddressSpace *' ], iothread_locked = True)
+ExportedFct('address_space_init', 'void', [ 'AddressSpace *', 'MemoryRegion *', 'const char *' ],
+            priv = 'libqemu_address_space_init', iothread_locked = True)
+ExportedFct('address_space_destroy', 'void', [ 'AddressSpace *' ],
+            priv = 'libqemu_address_space_destroy', iothread_locked = True)
 ExportedFct('address_space_read', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'void *', 'hwaddr' ])
 ExportedFct('address_space_write', 'MemTxResult', [ 'AddressSpace *', 'hwaddr', 'MemTxAttrs', 'const void *', 'hwaddr' ])
 ExportedFct('address_space_get_system_memory', 'AddressSpace *', [], priv = 'libqemu_address_space_get_system_memory')
