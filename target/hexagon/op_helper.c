@@ -146,33 +146,6 @@ void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
     mem_gather_store(env, addr, slot);
 }
 
-
-static void *probe_contiguous(CPUHexagonState *env, target_ulong addr, uint32_t nb,
-                              MMUAccessType access_type, int mmu_idx,
-                              uintptr_t raddr)
-{
-    void *host1, *host2;
-    uint32_t nb_pg1, nb_pg2;
-
-    nb_pg1 = -(addr | TARGET_PAGE_MASK);
-    if (likely(nb <= nb_pg1)) {
-        /* The entire operation is on a single page.  */
-        return probe_access(env, addr, nb, access_type, mmu_idx, raddr);
-    }
-
-    /* The operation spans two pages.  */
-    nb_pg2 = nb - nb_pg1;
-    host1 = probe_access(env, addr, nb_pg1, access_type, mmu_idx, raddr);
-    addr += nb_pg1;
-    host2 = probe_access(env, addr, nb_pg2, access_type, mmu_idx, raddr);
-
-    /* If the two host pages are contiguous, optimize.  */
-    if (host2 == host1 + nb_pg1) {
-        return host1;
-    }
-    return NULL;
-}
-
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);
@@ -184,28 +157,17 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
         if (env->vstore_pending[i]) {
             env->vstore_pending[i] = 0;
             target_ulong va = env->vstore[i].va;
+            int size = env->vstore[i].size;
             if (cpu->paranoid_commit_state && va == PARANOID_VALUE) {
                 CPUState *cs = env_cpu(env);
                 cpu_abort(cs, "Invalid HVX store found at PC 0x%x\n",
                           env->gpr[HEX_REG_PC]);
             }
-            int size = env->vstore[i].size;
-
-            uint8_t *host = probe_contiguous(env, va, size, MMU_DATA_STORE,
-                                              CPU_MMU_INDEX(env), ra);
-            if (likely(host)) {
-                for (int j = 0; j < size; j++) {
-                    if (test_bit(j, env->vstore[i].mask)) {
-                        *(host + j) = env->vstore[i].data.ub[j];
-                    }
+            for (int j = 0; j < size; j++) {
+                if (test_bit(j, env->vstore[i].mask)) {
+                    cpu_stb_data_ra(env, va + j, env->vstore[i].data.ub[j], ra);
                 }
-            } else {
-                for (int j = 0; j < size; j++) {
-                    if (test_bit(j, env->vstore[i].mask)) {
-                        cpu_stb_data_ra(env, va + j, env->vstore[i].data.ub[j], ra);
-                    }
-                 }
-             }
+            }
         }
     }
 
