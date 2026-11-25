@@ -86,6 +86,8 @@ tests += {
     'test_name': 'hvx_ext-v68',
   },
   'hvx_misc.c': {'cflags': [cflags, '-mhvx', '-mv69']},
+  'hvx_cmp_packet.c': {'cflags': [cflags, '-mhvx', '-mv68'],
+                       'qemu_args': ['-cpu', 'v68']},
   'hvx_histogram.c': {
     'cflags': [cflags, '-mhvx', '-Wno-gnu-folding-constant',
                files('hvx_histogram_row.S')]

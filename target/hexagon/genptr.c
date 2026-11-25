@@ -1703,27 +1703,26 @@ static void gen_vreg_masked_store(DisasContext *ctx, TCGv EA,
     }
 }
 
-static void vec_to_qvec(size_t size, TCGv_ptr dstbase, intptr_t dstoff,
+/*
+ * Convert the result of a vector compare to a predicate.  Every element of
+ * the result is all ones or all zeros, so the predicate bit for a byte is the
+ * high bit of that byte, however wide the elements are.  Gather those bits of
+ * 8 bytes at a time: shifting them to the low bit of each byte and
+ * multiplying by 2^56 + 2^49 + ... + 2^7 collects bit 8k at bit 56 + k with no
+ * two terms colliding.
+ */
+static void vec_to_qvec(TCGv_ptr dstbase, intptr_t dstoff,
                         TCGv_ptr srcbase, intptr_t srcoff)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
-    TCGv_i64 word = tcg_temp_new_i64();
-    TCGv_i64 bits = tcg_temp_new_i64();
-    TCGv_i64 mask = tcg_temp_new_i64();
-    TCGv_i64 zero = tcg_constant_i64(0);
-    TCGv_i64 ones = tcg_constant_i64(~0);
 
     for (int i = 0; i < VECTOR_SIZE_BYTE / 8; i++) {
         tcg_gen_ld_i64(tmp, srcbase, srcoff + i * 8);
-        tcg_gen_movi_i64(mask, 0);
-
-        for (int j = 0; j < 8; j += size) {
-            tcg_gen_extract_i64(word, tmp, j * 8, size * 8);
-            tcg_gen_movcond_i64(TCG_COND_NE, bits, word, zero, ones, zero);
-            tcg_gen_deposit_i64(mask, mask, bits, j, size);
-        }
-
-        tcg_gen_st8_i64(mask, dstbase,
+        tcg_gen_shri_i64(tmp, tmp, 7);
+        tcg_gen_andi_i64(tmp, tmp, 0x0101010101010101ull);
+        tcg_gen_muli_i64(tmp, tmp, 0x0102040810204080ull);
+        tcg_gen_shri_i64(tmp, tmp, 56);
+        tcg_gen_st8_i64(tmp, dstbase,
                         dstoff + (i ^ (HOST_BIG_ENDIAN ? 3 : 0)));
     }
 }
