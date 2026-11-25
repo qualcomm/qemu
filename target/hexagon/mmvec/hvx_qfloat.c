@@ -376,6 +376,9 @@ unfloat parse_hf(int16_t in)
     }
 
     out.sign = raw >> 15;
+    out.ieee = true;
+    out.lfrac = hf_MANTBITS;
+    out.lsig = (raw & 0x3ff) | (((raw >> hf_MANTBITS) & 0x1f) ? 0x400 : 0);
     out.parts = float16_unpack_canonical(make_float16(in), &status);
     out.inf = out.parts.cls == float_class_inf;
     out.nan = out.parts.cls == float_class_qnan ||
@@ -398,6 +401,10 @@ static unfloat parse_sf(int32_t in)
     }
 
     out.sign = raw >> 31;
+    out.ieee = true;
+    out.lfrac = sf_MANTBITS;
+    out.lsig = (raw & 0x7fffff) |
+               (((raw >> sf_MANTBITS) & 0xff) ? 0x800000 : 0);
     out.parts = float32_unpack_canonical(make_float32(in), &status);
     out.inf = out.parts.cls == float_class_inf;
     out.nan = out.parts.cls == float_class_qnan ||
@@ -413,6 +420,7 @@ unfloat parse_sf_daz(uint32_t in, bool daz_mode)
 
     if (daz_mode && (in & 0x7f800000) == 0 && (in & 0x007fffff)) {
         a.zero = true;
+        a.lsig = 0;
         a.parts = (FloatParts64) { .cls = float_class_zero };
     }
     return a;
@@ -652,6 +660,8 @@ unfloat legacy_parse_qf32(int32_t in)
     out.exp = (in & 0xff) - BIAS_QF32;
     signif = sextract32(in, 7, 25) | 1;
     magnitude = signif < 0 ? -(uint32_t)signif : signif;
+    out.lsig = magnitude;
+    out.lfrac = sf_MANTBITS;
     out.parts = (FloatParts64) {
         .cls = float_class_normal,
         .exp = out.exp + 31 - clz32(magnitude) - sf_MANTBITS,
@@ -670,6 +680,8 @@ unfloat legacy_parse_qf16(int16_t in)
     out.exp = (in & 0x1f) - BIAS_QF16;
     signif = sextract32((uint16_t)in, 4, 12) | 1;
     magnitude = signif < 0 ? -(uint16_t)signif : signif;
+    out.lsig = magnitude;
+    out.lfrac = hf_MANTBITS;
     out.parts = (FloatParts64) {
         .cls = float_class_normal,
         .exp = out.exp + 31 - clz32(magnitude) - hf_MANTBITS,
@@ -678,160 +690,319 @@ unfloat legacy_parse_qf16(int16_t in)
     return out;
 }
 
-static int legacy_add_exp(unfloat a, unfloat b)
+/*
+ * The pre-v79 QFloat add, multiply and conversion to IEEE.  They work on
+ * the integer significand of each operand as it is encoded, and use no
+ * host floating point: the exact result is a fixed point integer, and what
+ * is too small to be in it only has its sign kept.
+ *
+ * The result of an add or multiply is the exact result rounded to a QF
+ * significand whose low bit is always set, and saturated.  The significand
+ * is a signed (two's complement) quantity for QF operands.  IEEE operands
+ * are handled as magnitudes and, when the result is negative only because
+ * of their signs, the result is negated afterwards by taking the one's
+ * complement of the significand.  IEEE infinities and NaNs are ordinary
+ * numbers with the maximum exponent, which saturate.
+ */
+
+/* Fraction bits of a fixed point value beyond those of the QF significand. */
+#define LEGACY_EXTRA_BITS 32
+
+/* The fixed point value of an exact result, and the sign of what is below it */
+typedef struct LegacyFixed {
+    int64_t v;
+    int low;
+} LegacyFixed;
+
+static int legacy_ilog2(uint32_t x)
 {
-    if (a.exp > b.exp) {
-        return MAX(a.parts.exp, b.exp);
-    }
-    return MAX(b.parts.exp, a.exp);
+    return 63 - clz64(x);
 }
 
 /*
- * Return the legacy rounded significand numerator.  The result is N where
- * the rounded value is normally N * 2^-(frac + 1).  `half` selects the
- * legacy arm which uses N * 2^-(frac + 2) and increments the exponent.
+ * The value lsig * 2^(shift - lfrac), negated if neg, as fixed point with
+ * fb fraction bits.  Bits that do not fit are not in v, and low is their
+ * sign.  The magnitude of the value is less than 4.
  */
-static int64_t legacy_round_n(FloatParts64 parts, int exp, int frac, int adj,
-                              bool midpoint, bool *half)
+static LegacyFixed legacy_align(uint32_t lsig, int lfrac, int shift, int fb,
+                                bool neg)
 {
-    int shift = 65 + exp - parts.exp - frac + adj;
-    uint64_t mask, low, threshold;
-    int64_t base;
+    int pos = fb + shift - lfrac;
+    uint64_t mag;
+    bool inexact = false;
 
-    g_assert(parts.cls == float_class_normal);
-    if (shift >= 64) {
-        return parts.sign ? -1 : 1;
-    }
-    if (shift <= 0) {
-        uint64_t magnitude = parts.frac << -shift;
-        int64_t value = parts.sign ? -(int64_t)magnitude : magnitude;
-
-        return value;
-    }
-
-    mask = (UINT64_C(1) << shift) - 1;
-    if (parts.sign) {
-        uint64_t twos = -parts.frac;
-
-        low = twos & mask;
-        base = -(int64_t)((parts.frac + mask) >> shift) * 4;
+    if (pos >= 0) {
+        mag = (uint64_t)lsig << pos;
+    } else if (-pos >= 32) {
+        mag = 0;
+        inexact = lsig != 0;
     } else {
-        low = parts.frac & mask;
-        base = (parts.frac >> shift) * 4;
+        mag = lsig >> -pos;
+        inexact = (lsig & MAKE_64BIT_MASK(0, -pos)) != 0;
     }
-
-    if (midpoint) {
-        /*
-         * The legacy add/multiply result is at most one bit above exp,
-         * making shift at least 41.
-         */
-        g_assert(shift >= 41);
-        threshold = UINT64_C(3) << (shift - 3);
-        if (low <= threshold) {
-            return base + 1;
-        }
-        threshold = UINT64_C(5) << (shift - 3);
-        if (low <= threshold) {
-            *half = true;
-            return base + 2;
-        }
-    } else {
-        threshold = UINT64_C(1) << (shift - 1);
-        if (low <= threshold) {
-            return base + 1;
-        }
-    }
-    return base + 3;
+    return (LegacyFixed) {
+        .v = neg ? -(int64_t)mag : (int64_t)mag,
+        .low = inexact ? (neg ? -1 : 1) : 0,
+    };
 }
 
-static uint32_t legacy_rnd_sat_qf(int size, int exp, FloatParts64 parts)
+/* The QF encoding of the magnitude significand's one's complement. */
+static uint32_t legacy_qf_negate(int size, uint32_t qf)
 {
-    int frac = size == 32 ? sf_MANTBITS : hf_MANTBITS;
-    int emax = size == 32 ? 128 : 16;
-    int emin = size == 32 ? -127 : -15;
-    int bias = size == 32 ? BIAS_QF32 : BIAS_QF16;
-    uint32_t mask = size == 32 ? 0x7fffff : 0x3ff;
-    bool sign = parts.sign;
-    bool exact_neg_two = sign && parts.exp == exp + 1 &&
-                         parts.frac == UINT64_C(1) << 63;
-    bool prod_ovf = parts.cls != float_class_zero &&
-                    parts.exp >= exp + 1 && !exact_neg_two;
-    bool half = false;
-    int adj = 0;
-    int64_t n;
+    if (size == 32) {
+        return (~(qf >> 8) << 8) | (qf & 0xff);
+    }
+    return ((~(qf >> 5) << 5) & 0xffe0) | (qf & 0x1f);
+}
+
+/*
+ * Round and saturate (x.v + x.low * epsilon) * 2^exp, where x.v has frac +
+ * LEGACY_EXTRA_BITS fraction bits.  The low sign only breaks ties.
+ */
+static uint32_t legacy_rnd_sat_qf(int size, int exp, LegacyFixed x)
+{
+    const bool is32 = size == 32;
+    const int e_min = is32 ? -127 : E_MIN_QF16;
+    const int e_max = is32 ? 128 : E_MAX_QF16;
+    const int bias = is32 ? BIAS_QF32 : BIAS_QF16;
+    const int frac = is32 ? sf_MANTBITS : hf_MANTBITS;
+    const int fb = frac + LEGACY_EXTRA_BITS;
+    const uint32_t mask = is32 ? 0x7fffff : 0x3ff;
+    const int64_t two = INT64_C(2) << fb;
+    const bool sign = x.v < 0 || (x.v == 0 && x.low < 0);
+    const bool prod_ovf = x.v > two || (x.v == two && x.low >= 0) ||
+                          x.v < -two;
+    /*
+     * The result is rounded to the odd multiples of 2^-frac.  Work out
+     * which, from the quotient and remainder of the value by four of them,
+     * after halving the value where the result has one more bit.
+     */
+    const bool halve = exp == e_min - 1 || (prod_ovf && exp < e_max);
+    const int sh = LEGACY_EXTRA_BITS + halve;
+    const int64_t q = x.v >> (sh + 2);
+    const int64_t rem = x.v & ((INT64_C(4) << sh) - 1);
+    const int64_t unit = INT64_C(1) << sh;
+    int exp_adj = 0;
+    int64_t u;
     uint32_t sig_out;
 
-    if (parts.cls == float_class_zero) {
-        return 0;
-    }
-    if (exp >= emax + 1 || (prod_ovf && exp == emax)) {
+    if (exp >= e_max + 1 || (prod_ovf && exp == e_max)) {
         sig_out = (sign - 1) & mask;
-        exp = emax + bias;
+        exp = e_max + bias;
         goto pack;
     }
-    if (exp <= emin - 2) {
+    if (exp <= e_min - 2) {
         sig_out = -sign & mask;
-        exp = emin + bias;
+        exp = e_min + bias;
         goto pack;
     }
-    adj = exp == emin - 1 || (prod_ovf && exp < emax);
-    n = legacy_round_n(parts, exp, frac, adj,
-                       !adj && exp >= emin && exp < emax, &half);
-    sig_out = ((n < 0 ? -(uint64_t)n : (uint64_t)n) >>
-               (half ? 2 : 1)) & mask;
+
+    if (exp == e_max || exp == e_min - 1 || prod_ovf) {
+        /* The edges of the range, and an overflowing product, keep the bit. */
+        exp_adj = exp != e_max;
+        if (rem == 0 && x.low < 0) {
+            u = 4 * q - 1;
+        } else if (rem < 2 * unit || (rem == 2 * unit && x.low <= 0)) {
+            u = 4 * q + 1;
+        } else {
+            u = 4 * q + 3;
+        }
+    } else if (rem == 0 && x.low < 0) {
+        u = 4 * q - 1;
+    } else if (rem < unit + unit / 2 ||
+               (rem == unit + unit / 2 && x.low <= 0)) {
+        u = 4 * q + 1;
+    } else if (rem < 2 * unit + unit / 2 ||
+               (rem == 2 * unit + unit / 2 && x.low <= 0)) {
+        u = 2 * q + 1;
+        exp_adj = 1;
+    } else {
+        u = 4 * q + 3;
+    }
+
+    sig_out = ((u < 0 ? -u : u) >> 1) & mask;
     if (sign) {
         sig_out = ~sig_out;
     }
-    exp += bias + adj + half;
+    exp += bias + exp_adj;
 
 pack:
-    return (((sign << frac) | (sig_out & mask)) << (size == 32 ? 8 : 5)) |
-           (exp & (size == 32 ? 0xff : 0x1f));
+    sig_out |= (uint32_t)sign << frac;
+    if (x.v == 0 && x.low == 0) {
+        /* An exact zero has the exponent of zero. */
+        exp = 0;
+    }
+    return is32 ? (sig_out << 8) | (exp & 0xff) :
+                  ((sig_out << 5) & 0xffe0) | (exp & 0x1f);
 }
 
 uint32_t legacy_qf_add(int size, unfloat a, unfloat b)
 {
-    float_status status = { 0 };
-    FloatParts64 pa = qfloat_unfloat_parts(a);
-    FloatParts64 pb = qfloat_unfloat_parts(b);
-    FloatParts64 result = parts64_addsub(&pa, &pb, &status, false);
+    const int frac = size == 32 ? sf_MANTBITS : hf_MANTBITS;
+    const int fb = frac + LEGACY_EXTRA_BITS;
+    bool neg_a = a.sign;
+    bool neg_b = b.sign;
+    bool negate = false;
+    LegacyFixed x, y;
+    int exp;
+    uint32_t result;
 
-    return legacy_rnd_sat_qf(size, legacy_add_exp(a, b), result);
+    /* Only IEEE operands that are both negative defer their negation. */
+    if (a.ieee && b.ieee && a.sign && b.sign) {
+        negate = true;
+        neg_a = neg_b = false;
+    }
+
+    /* The exponent of the larger operand, or of a zero, less its fraction. */
+    if (a.exp > b.exp) {
+        exp = a.exp + (a.lsig ? legacy_ilog2(a.lsig) - a.lfrac : -(frac + 1));
+        exp = MAX(exp, b.exp);
+    } else {
+        exp = b.exp + (b.lsig ? legacy_ilog2(b.lsig) - b.lfrac : -(frac + 1));
+        exp = MAX(exp, a.exp);
+    }
+
+    x = legacy_align(a.lsig, a.lfrac, a.exp - exp, fb, neg_a);
+    y = legacy_align(b.lsig, b.lfrac, b.exp - exp, fb, neg_b);
+    x.v += y.v;
+    x.low += y.low;
+    x.low = (x.low > 0) - (x.low < 0);
+
+    result = legacy_rnd_sat_qf(size, exp, x);
+    return negate ? legacy_qf_negate(size, result) : result;
 }
 
 uint32_t legacy_qf_mpy(int size, unfloat a, unfloat b)
 {
-    float_status status = { 0 };
-    FloatParts64 pa = qfloat_unfloat_parts(a);
-    FloatParts64 pb = qfloat_unfloat_parts(b);
-    FloatParts64 result = parts64_mul(&pa, &pb, &status);
+    const int frac = size == 32 ? sf_MANTBITS : hf_MANTBITS;
+    const int fb = frac + LEGACY_EXTRA_BITS;
+    bool neg = false;
+    bool neg_prod = false;
+    uint64_t prod = (uint64_t)a.lsig * b.lsig;
+    int pos = fb - a.lfrac - b.lfrac;
+    LegacyFixed x = { };
+    uint32_t result;
 
-    return legacy_rnd_sat_qf(size, a.exp + b.exp, result);
+    /* IEEE signs negate the result; QF signs are part of the significand. */
+    if (a.ieee) {
+        neg ^= a.sign;
+    } else {
+        neg_prod ^= a.sign;
+    }
+    if (b.ieee) {
+        neg ^= b.sign;
+    } else {
+        neg_prod ^= b.sign;
+    }
+
+    /* The product has at most 52 bits and the result is less than 4. */
+    g_assert(pos >= 0);
+    x.v = prod << pos;
+    if (neg_prod) {
+        x.v = -x.v;
+    }
+
+    result = legacy_rnd_sat_qf(size, a.exp + b.exp, x);
+    return neg ? legacy_qf_negate(size, result) : result;
+}
+
+/*
+ * Conversion of a legacy QF value to IEEE.  The result is rounded to nearest
+ * even.  The exponent range goes one binade past IEEE's, so that the largest
+ * finite results are encoded as infinities and NaNs, and values at the
+ * saturation limit give an all-ones significand.
+ *
+ * The value is lsig * 2^(exp - lfrac).  Return the significand of the
+ * result, and in *exp its exponent.
+ */
+static uint32_t legacy_ieee_sig(int *exp, uint32_t lsig, int lfrac,
+                                bool is_sf)
+{
+    const int e_min = is_sf ? E_MIN_SF : E_MIN_HF;
+    const int e_max = is_sf ? E_MAX_SF : E_MAX_HF;
+    const int mant = is_sf ? sf_MANTBITS : hf_MANTBITS;
+    const int dshift = 52 - mant;
+    const uint32_t mask = (1u << mant) - 1;
+    const int exp_org = *exp;
+    const int lg = lsig ? legacy_ilog2(lsig) : 0;
+    /* The value as a 53 bit significand, with the leading bit set. */
+    uint64_t sig_53 = lsig ? (uint64_t)lsig << (52 - lg) : 0;
+    int exp_d = lsig ? exp_org + lg - lfrac : -1023;
+    uint64_t rem;
+    uint32_t sig_32;
+    bool saturate;
+    int shift;
+
+    /* The value is at least the largest one that is not saturated. */
+    saturate = exp_d > e_max ||
+               (exp_d == e_max && (sig_53 >> dshift) == (2u << mant) - 1);
+
+    /* Denormal results are shifted into place. */
+    shift = e_min - exp_d;
+    if (shift >= 53) {
+        sig_53 = 0;
+    } else if (shift > 0) {
+        sig_53 >>= shift;
+    }
+
+    sig_32 = (sig_53 >> dshift) & mask;
+    rem = sig_53 & ((UINT64_C(2) << dshift) - 1);
+
+    if (saturate) {
+        sig_32 = mask;
+    } else if ((rem > (UINT64_C(1) << (dshift - 1)) &&
+                rem < (UINT64_C(1) << dshift)) ||
+               rem >= (UINT64_C(3) << (dshift - 1))) {
+        if (sig_32 == mask) {
+            sig_32 = 0;
+            exp_d++;
+        } else {
+            sig_32++;
+        }
+    }
+
+    if (lsig == 0 && exp_org == e_min - 1) {
+        exp_d = 0;
+        sig_32 = 0;
+    }
+    *exp = exp_d;
+    return sig_32;
+}
+
+static uint32_t legacy_rnd_sat_ieee(bool is_sf, unfloat u)
+{
+    const bool sign = u.sign;
+    int exp = u.exp;
+    const uint32_t sig_32 = legacy_ieee_sig(&exp, u.lsig, u.lfrac, is_sf);
+
+    if (is_sf) {
+        if (exp == 0 && u.lsig == 0) {
+            return 0;
+        }
+        exp = MIN(MAX(exp + BIAS_SF, 0), 255);
+        return ((uint32_t)sign << 31) | (exp << sf_MANTBITS) | sig_32;
+    }
+    if (exp == E_MIN_HF - 1 && u.lsig == 0) {
+        return 0;
+    }
+    if (exp > E_MAX_HF) {
+        return ((uint32_t)sign << 15) | (0x1f << hf_MANTBITS) | 0x3ff;
+    }
+    exp = MIN(MAX(exp + BIAS_HF, 0), 31);
+    return ((uint32_t)sign << 15) | (exp << hf_MANTBITS) | sig_32;
 }
 
 int32_t legacy_conv_sf_qf32(uint32_t a)
 {
-    unfloat value = legacy_parse_qf32(a);
-    FloatParts64 parts = qfloat_unfloat_parts(value);
-    float_status status = { 0 };
-
-    return float32_val(float32_round_pack_canonical(&parts, &status));
+    return legacy_rnd_sat_ieee(true, legacy_parse_qf32(a));
 }
 
 int16_t legacy_conv_hf_qf32(uint32_t a)
 {
-    unfloat value = legacy_parse_qf32(a);
-    FloatParts64 parts = qfloat_unfloat_parts(value);
-    float_status status = { 0 };
-
-    return float16_val(float16_round_pack_canonical(&parts, &status));
+    return legacy_rnd_sat_ieee(false, legacy_parse_qf32(a));
 }
 
 int16_t legacy_conv_hf_qf16(uint16_t a)
 {
-    unfloat value = legacy_parse_qf16(a);
-    FloatParts64 parts = qfloat_unfloat_parts(value);
-    float_status status = { 0 };
-
-    return float16_val(float16_round_pack_canonical(&parts, &status));
+    return legacy_rnd_sat_ieee(false, legacy_parse_qf16(a));
 }

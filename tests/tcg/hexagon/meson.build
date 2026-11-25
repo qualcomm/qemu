@@ -59,6 +59,8 @@ tests += {
                    'qemu_args': ['-cpu', 'v79']},
   'v81_hvx.c': {'cflags': [cflags, '-mv81', '-mhvx', '-mhvx-ieee-fp'],
                'qemu_args': ['-cpu', 'v81']},
+  'qfloat_legacy.c': {'cflags': [cflags, '-mv73', '-mhvx'],
+                      'qemu_args': ['-cpu', 'v73']},
   'qfloat_v81.c': {'cflags': [cflags, '-mv81', '-mhvx', '-mhvx-ieee-fp'],
                    'qemu_args': ['-cpu', 'v81']},
   # HLX instructions use .word encodings.

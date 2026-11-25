@@ -92,6 +92,16 @@ typedef struct {
     int sign;
     bool zero;
     FloatParts64 parts;
+    /*
+     * The pre-v79 QFloat operations work on the integer significand, with
+     * its implicit bit, of the operand as it is encoded: the magnitude of
+     * a QF significand, or the magnitude of an IEEE one.  ieee is true for
+     * IEEE operands, whose sign is applied as a final negation, not
+     * within the significand.  lfrac is the number of its fraction bits.
+     */
+    uint32_t lsig;
+    int lfrac;
+    bool ieee;
 } unfloat;
 
 unfloat parse_hf(int16_t in);
