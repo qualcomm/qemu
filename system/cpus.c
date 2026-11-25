@@ -485,11 +485,15 @@ void qemu_process_cpu_events(CPUState *cpu)
         }
 #endif
     }
+    /*
+     * Acknowledge the stop and drain the queued work before reporting the
+     * resume: until then both still describe the state the vCPU is leaving.
+     */
+    qemu_process_cpu_events_common(cpu);
+
     if (slept) {
         qemu_plugin_vcpu_resume_cb(cpu);
     }
-
-    qemu_process_cpu_events_common(cpu);
 }
 
 void cpus_kick_thread(CPUState *cpu)
@@ -659,10 +663,26 @@ static bool all_vcpus_paused(void)
     return true;
 }
 
+/*
+ * Nesting depth of pause_all_vcpus(). BQL-protected, like the pause itself.
+ * While it is non-zero no vCPU is meant to be running, whoever stopped it.
+ */
+static int vcpus_global_pause_depth;
+
+bool vcpus_are_globally_paused(void)
+{
+    return qatomic_read(&vcpus_global_pause_depth) > 0;
+}
+
 void pause_all_vcpus(void)
 {
     CPUState *cpu;
 
+    /*
+     * Updated under the BQL, so the read-modify-write needs no atomic; the
+     * store does, since vcpus_are_globally_paused() reads it lock-free.
+     */
+    qatomic_set(&vcpus_global_pause_depth, vcpus_global_pause_depth + 1);
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     CPU_FOREACH(cpu) {
         cpu_pause(cpu);
@@ -689,6 +709,14 @@ void pause_all_vcpus(void)
 void resume_all_vcpus(void)
 {
     CPUState *cpu;
+
+    /*
+     * Dropped before the early return below, so a pause ending with the vCPUs
+     * still stopped leaves no raised depth. Guarded: a resume may be unpaired.
+     */
+    if (vcpus_global_pause_depth > 0) {
+        qatomic_set(&vcpus_global_pause_depth, vcpus_global_pause_depth - 1);
+    }
 
     if (!runstate_is_running()) {
         return;
