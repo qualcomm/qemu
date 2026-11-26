@@ -474,3 +474,12 @@ restore_host_x86_igvm(void) ""
 # tt_atlantis_prcm.c
 tt_atlantis_prcm_read(uint32_t domain, uint64_t offset, uint64_t data) "domain 0x%02x offset 0x%" PRIx64 " data 0x%" PRIx64
 tt_atlantis_prcm_write(uint32_t domain, uint64_t offset, uint64_t data) "domain 0x%02x offset 0x%" PRIx64 " data 0x%" PRIx64
+
+# pbl_init.c
+pbl_init_reset(uint64_t addr, uint64_t size, uint64_t chunk_size, uint64_t nr_chunks) "addr 0x%" PRIx64 " size 0x%" PRIx64 " chunk-size 0x%" PRIx64 " (%" PRIu64 " chunks)"
+pbl_init_read(uint64_t offset, unsigned size, uint64_t value, uint64_t chunk, const char *state) "offset 0x%" PRIx64 " size %u value 0x%" PRIx64 " chunk %" PRIu64 " (%s)"
+pbl_init_read_stale(uint64_t offset, unsigned size, uint64_t value, uint64_t chunk, const char *state, uint64_t new_value) "offset 0x%" PRIx64 " size %u value 0x%" PRIx64 " chunk %" PRIu64 " (%s), not yet visible 0x%" PRIx64
+pbl_init_write(uint64_t offset, unsigned size, uint64_t value, uint64_t chunk) "offset 0x%" PRIx64 " size %u value 0x%" PRIx64 " chunk %" PRIu64 " (normal)"
+pbl_init_write_first(uint64_t offset, unsigned size, uint64_t value, uint64_t chunk, uint64_t remaining) "offset 0x%" PRIx64 " size %u value 0x%" PRIx64 " chunk %" PRIu64 " first write, visible, %" PRIu64 " chunks left"
+pbl_init_write_deferred(uint64_t offset, unsigned size, uint64_t value, uint64_t chunk, uint64_t remaining) "offset 0x%" PRIx64 " size %u value 0x%" PRIx64 " chunk %" PRIu64 " deferred, %" PRIu64 " chunks left"
+pbl_init_commit(uint64_t nr_chunks) "all %" PRIu64 " chunks written, deferred writes now visible"
