@@ -35,6 +35,10 @@ config EDU
     default y if TEST_DEVICES
     depends on PCI && MSI_NONBROKEN
 
+config PBL_INIT
+    bool
+    default y if TEST_DEVICES
+
 config I2C_ECHO
     bool
     default y if TEST_DEVICES
