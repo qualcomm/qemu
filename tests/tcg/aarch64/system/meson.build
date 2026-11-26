@@ -87,6 +87,21 @@ tests += {
   },
 }
 
+# QEMU caches translations per 4KB target page, so the first store to the
+# second 4KB of the region walks the zeroed tables: the test expects a
+# translation fault there.
+self_map_cflags = ['-nostdlib', '-ffreestanding', '-mgeneral-regs-only',
+                   '-Wa,--noexecstack', '-Wl,--build-id=none',
+                   '-Wl,--no-warn-rwx-segments',
+                   '-I', minilib_dir, minilib_printf,
+                   '-Wl,-T', files('self-map.ld')[0]]
+tests += {
+  'self-map.c': {
+    'cflags': self_map_cflags,
+    'qemu_args': qemu_def_args,
+  },
+}
+
 tests += {
   'pauth-3.c': {
     'cc_feat': 'v8.3',
