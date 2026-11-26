@@ -85,6 +85,17 @@ tests += {
                   '-semihosting-config', 'enable=on,arg=2',
                   qemu_base_args]
   },
+  # Fails by default: QEMU caches translations per 4KB target page, so the
+  # first store to the second 4KB of the region walks the zeroed tables and
+  # takes a translation fault.
+  'self-map.c': {
+    'cflags': ['-nostdlib', '-ffreestanding', '-mgeneral-regs-only',
+               '-Wa,--noexecstack', '-Wl,--build-id=none',
+               '-Wl,--no-warn-rwx-segments',
+               '-I', minilib_dir, minilib_printf,
+               '-Wl,-T', files('self-map.ld')[0]],
+    'qemu_args': qemu_def_args,
+  },
 }
 
 tests += {
