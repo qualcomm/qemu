@@ -98,6 +98,17 @@ tests += {
   },
 }
 
+# Same binary, with the region behind a pbl_init device
+tests += {
+  'self-map.c': {
+    'test_name': 'self-map-pbl-init',
+    'qemu_args': ['-device', 'pbl_init,addr=0x40000000,size=0x4000,' +
+                  'chunk-size=0x1000',
+                  '-trace', 'pbl_init_*',
+                  qemu_def_args],
+  },
+}
+
 tests += {
   'pauth-3.c': {
     'cc_feat': 'v8.3',
