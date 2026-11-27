@@ -33,8 +33,10 @@ class OrangePiMachine(LinuxKernelTest):
         '42b44a12965ac0afe9a88378527fb698a7dc76af50495efc2361ee1595b4e5c6')
 
     ASSET_ARMBIAN = Asset(
-        ('https://k-space.ee.armbian.com/archive/orangepipc/archive/'
-         'Armbian_23.8.1_Orangepipc_jammy_current_6.1.47.img.xz'),
+        #('https://k-space.ee.armbian.com/archive/orangepipc/archive/'
+        # 'Armbian_23.8.1_Orangepipc_jammy_current_6.1.47.img.xz'),
+        ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/'
+         'b386dff6552513b5f164ea00f94814a6b0f1da9fb90b83725e949cf797e11afb.img.xz'),
         'b386dff6552513b5f164ea00f94814a6b0f1da9fb90b83725e949cf797e11afb')
 
     ASSET_UBOOT = Asset(
