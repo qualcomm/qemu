@@ -87,9 +87,10 @@ tests += {
   },
 }
 
-# QEMU caches translations per 4KB target page, so the first store to the
-# second 4KB of the region walks the zeroed tables: the test expects a
-# translation fault there.
+# Without pbl_init, QEMU caches translations per 4KB target page, so the
+# first store to the second 4KB of the region walks the zeroed tables: the
+# test expects a translation fault there. With PBL_INIT, the region is behind
+# a pbl_init device, and the test expects no fault.
 self_map_cflags = ['-nostdlib', '-ffreestanding', '-mgeneral-regs-only',
                    '-Wa,--noexecstack', '-Wl,--build-id=none',
                    '-Wl,--no-warn-rwx-segments',
@@ -99,6 +100,16 @@ tests += {
   'self-map.c': {
     'cflags': self_map_cflags,
     'qemu_args': qemu_def_args,
+  },
+}
+tests += {
+  'self-map.c': {
+    'exe_name': 'self-map-pbl-init',
+    'cflags': [self_map_cflags, '-DPBL_INIT'],
+    'qemu_args': ['-device', 'pbl_init,addr=0x40000000,size=0x4000,' +
+                  'chunk-size=0x1000',
+                  '-trace', 'pbl_init_*',
+                  qemu_def_args],
   },
 }
 

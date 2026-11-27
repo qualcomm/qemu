@@ -13,9 +13,11 @@
  * each in its own 4KB chunk of the region. Once the MMU is enabled, the
  * whole region is zeroed through its own mapping, descriptors included.
  *
- * QEMU caches translations per 4KB target page: the first store to the
- * second 4KB chunk walks the zeroed tables, and the test expects a level 3
- * translation fault there, in zero_region().
+ * Without PBL_INIT, QEMU caches translations per 4KB target page: the first
+ * store to the second 4KB chunk walks the zeroed tables, and the test
+ * expects a level 3 translation fault there, in zero_region(). With
+ * PBL_INIT, the region is behind a pbl_init device, and the test expects
+ * the zeroing to complete without any fault.
  *
  * Runs at EL1 (-M virt, no EL2/EL3) and reports through semihosting.
  *
@@ -197,6 +199,7 @@ void __sys_outc(char c)
 void __attribute__((noreturn)) handle_exception(uint64_t esr, uint64_t elr,
                                                 uint64_t far)
 {
+#ifndef PBL_INIT
     if (ESR_EC(esr) == ESR_EC_DABT_CUR &&
         ESR_DFSC(esr) == DFSC_TRANS_L3 &&
         /* zero_region() is placed in its own section by self-map.ld */
@@ -207,6 +210,7 @@ void __attribute__((noreturn)) handle_exception(uint64_t esr, uint64_t elr,
                   "FAR 0x%lx\n", far);
         exit_test(0);
     }
+#endif
     ml_printf("FAIL: unexpected exception, ESR 0x%lx ELR 0x%lx FAR 0x%lx\n",
               esr, elr, far);
     exit_test(1);
@@ -280,6 +284,11 @@ int main(void)
     zero_region();
     /* The tables are zeroed: print with the MMU off */
     disable_mmu();
+#ifdef PBL_INIT
+    ml_printf("PASS: region zeroed\n");
+    return 0;
+#else
     ml_printf("FAIL: expected a translation fault in zero_region\n");
     return 1;
+#endif
 }
