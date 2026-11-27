@@ -85,8 +85,9 @@ class MaltaMachineConsole(LinuxKernelTest):
 class MaltaMachineYAMON(QemuSystemTest):
 
     ASSET_YAMON_ROM = Asset(
-        ('https://s3-eu-west-1.amazonaws.com/downloads-mips/mips-downloads/'
-         'YAMON/yamon-bin-02.22.zip'),
+        #('https://s3-eu-west-1.amazonaws.com/downloads-mips/mips-downloads/'
+        # 'YAMON/yamon-bin-02.22.zip'),
+        ('https://github.com/p-b-o/qemu-tests-cache/releases/download/cache/eef86f0eed0ef554f041dcd47b87eebea0e6f9f1184ed31f7e9e8b4a803860ab.zip'),
         'eef86f0eed0ef554f041dcd47b87eebea0e6f9f1184ed31f7e9e8b4a803860ab')
 
     def test_mipsel_malta_yamon(self):
