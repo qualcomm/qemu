@@ -13,6 +13,7 @@ jobs:
     with:
       enable-semgrep-scan: true
       enable-dependency-review: true
+      enable-dependency-confusion-scan: false
       enable-repolinter-check: true
       enable-copyright-license-check: true
       enable-commit-email-check: true
